@@ -1,0 +1,22 @@
+[project]
+name = "mjlab-kangaroo"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Louis Le Lay", email = "louislelay@pal-robotics.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "mjlab",
+]
+
+[project.scripts]
+mjlab-kangaroo = "mjlab_kangaroo:main"
+
+[build-system]
+requires = ["uv_build>=0.8.18,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+mjlab = { path = "../mjlab" }

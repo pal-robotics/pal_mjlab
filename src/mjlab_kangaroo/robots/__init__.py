@@ -1,0 +1,1 @@
+from mjlab_kangaroo.robots.unitree_go1.go1_constants import GO1_ROBOT_CFG

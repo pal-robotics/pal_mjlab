@@ -1,0 +1,44 @@
+from dataclasses import dataclass, replace
+
+from mjlab_kangaroo.robots.unitree_go1.go1_constants import (
+  GO1_ACTION_SCALE,
+  GO1_ROBOT_CFG,
+)
+from mjlab.tasks.locomotion.velocity.velocity_env_cfg import (
+  LocomotionVelocityEnvCfg,
+)
+
+
+@dataclass
+class UnitreeGo1RoughEnvCfg(LocomotionVelocityEnvCfg):
+  def __post_init__(self):
+    super().__post_init__()
+
+    self.scene.entities = {"robot": replace(GO1_ROBOT_CFG)}
+    self.actions.joint_pos.scale = GO1_ACTION_SCALE
+
+    self.events.foot_friction.params["asset_cfg"].geom_names = [
+      r"^(RR|RL|FR|FL)_foot_collision$"
+    ]
+
+    self.rewards.pose_l2.params["std"] = {
+      r".*(FR|FL|RR|RL)_(hip|thigh)_joint.*": 0.3,
+      r".*(FR|FL|RR|RL)_calf_joint.*": 0.6,
+    }
+
+    self.viewer.body_name = "trunk"
+    self.viewer.distance = 1.5
+    self.viewer.elevation = -10.0
+
+
+@dataclass
+class UnitreeGo1RoughEnvCfg_PLAY(UnitreeGo1RoughEnvCfg):
+  def __post_init__(self):
+    super().__post_init__()
+
+    if self.scene.terrain is not None:
+      if self.scene.terrain.terrain_generator is not None:
+        self.scene.terrain.terrain_generator.curriculum = False
+        self.scene.terrain.terrain_generator.num_cols = 5
+        self.scene.terrain.terrain_generator.num_rows = 5
+        self.scene.terrain.terrain_generator.border_width = 10.0
