@@ -1,8 +1,8 @@
 from dataclasses import dataclass, replace
 
-from mjlab_kangaroo.robots.unitree_go1.go1_constants import (
-  GO1_ACTION_SCALE,
-  GO1_ROBOT_CFG,
+from mjlab_kangaroo.robots.pal_kangaroo.kangaroo_constants import (
+  KANG_ACTION_SCALE,
+  KANG_ROBOT_CFG,
 )
 from mjlab.tasks.locomotion.velocity.velocity_env_cfg import (
   LocomotionVelocityEnvCfg,
@@ -10,29 +10,29 @@ from mjlab.tasks.locomotion.velocity.velocity_env_cfg import (
 
 
 @dataclass
-class UnitreeGo1RoughEnvCfg(LocomotionVelocityEnvCfg):
+class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
   def __post_init__(self):
     super().__post_init__()
 
-    self.scene.entities = {"robot": replace(GO1_ROBOT_CFG)}
-    self.actions.joint_pos.scale = GO1_ACTION_SCALE
+    self.scene.entities = {"robot": replace(KANG_ROBOT_CFG)}
+    self.actions.joint_pos.actuator_names=[r"^leg_(left|right)_(femur|knee)_joint$"]
+    self.actions.joint_pos.scale = KANG_ACTION_SCALE
 
     self.events.foot_friction.params["asset_cfg"].geom_names = [
-      r"^(RR|RL|FR|FL)_foot_collision$"
+      r"^(left|right)_foot_collision$"
     ]
 
     self.rewards.pose_l2.params["std"] = {
-      r".*(FR|FL|RR|RL)_(hip|thigh)_joint.*": 0.3,
-      r".*(FR|FL|RR|RL)_calf_joint.*": 0.6,
+      r"leg_(left|right)_(2|knee)_joint": 5.0,
+      r"arm_(left|right)_(1|4)_joint": 5.0,
+      r"^(?!.*(leg_(left|right)_(2|knee)|arm_(left|right)_(1|4))).*$": 0.3,
     }
 
-    self.viewer.body_name = "trunk"
-    self.viewer.distance = 1.5
-    self.viewer.elevation = -10.0
+    self.viewer.body_name = "pelvis_2_link"
 
 
 @dataclass
-class UnitreeGo1RoughEnvCfg_PLAY(UnitreeGo1RoughEnvCfg):
+class KangRoughEnvCfg_PLAY(KangRoughEnvCfg):
   def __post_init__(self):
     super().__post_init__()
 

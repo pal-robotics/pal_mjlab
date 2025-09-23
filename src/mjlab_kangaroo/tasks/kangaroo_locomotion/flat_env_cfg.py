@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 
-from mjlab_kangaroo.tasks.go1_locomotion.rough_env_cfg import (
-  UnitreeGo1RoughEnvCfg,
+from mjlab_kangaroo.tasks.kangaroo_locomotion.rough_env_cfg import (
+  KangRoughEnvCfg,
 )
 
 
 @dataclass
-class UnitreeGo1FlatEnvCfg(UnitreeGo1RoughEnvCfg):
+class KangFlatEnvCfg(KangRoughEnvCfg):
   def __post_init__(self):
     super().__post_init__()
 
@@ -17,5 +17,5 @@ class UnitreeGo1FlatEnvCfg(UnitreeGo1RoughEnvCfg):
 
 
 @dataclass
-class UnitreeGo1FlatEnvCfg_PLAY(UnitreeGo1FlatEnvCfg):
+class KangFlatEnvCfg_PLAY(KangFlatEnvCfg):
   pass

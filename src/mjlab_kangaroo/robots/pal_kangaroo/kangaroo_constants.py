@@ -37,60 +37,75 @@ def get_spec() -> mujoco.MjSpec:
 ##
 
 
-KANG_LEG_ACTUATOR_CFG = ActuatorCfg(
+KANG_LEGS_PASSIVE_ACTUATOR_CFG = ActuatorCfg(
   joint_names_expr=[
-    "leg_.*_1_joint",
-    "leg_.*_2_joint",
-    "leg_.*_3_joint",
-    "leg_.*_length_joint",
-    "leg_.*_4_joint",
-    "leg_.*_5_joint",
     "leg_.*_femur_joint",
     "leg_.*_knee_joint",
   ],
-  effort_limit_sim={
-    "leg_.*_1_joint": 80,
-    "leg_.*_2_joint": 230,
-    "leg_.*_3_joint": 139,
-    "leg_.*_length_joint": 1100,
-    "leg_.*_4_joint": 140,
-    "leg_.*_5_joint": 82,
-    "leg_.*_femur_joint": 100,
-    "leg_.*_knee_joint": 100,
-  },
-  velocity_limit_sim={
-    "leg_.*_1_joint": 3.87,
-    "leg_.*_2_joint": 3.87,
-    "leg_.*_3_joint": 3.87,
-    "leg_.*_length_joint": 10,
-    "leg_.*_4_joint": 3.87,
-    "leg_.*_5_joint": 3.87,
-    "leg_.*_femur_joint": 3.87,
-    "leg_.*_knee_joint": 3.87,
-  },
+  effort_limit=100.0,
   armature=0.01,
-  stiffness={
-    "leg_.*_1_joint": 40,
-    "leg_.*_2_joint": 100,
-    "leg_.*_3_joint": 100,
-    "leg_.*_length_joint": 1100,
-    "leg_.*_4_joint": 100,
-    "leg_.*_5_joint": 40,
-    "leg_.*_femur_joint": 0,
-    "leg_.*_knee_joint": 0,
-  },
-  damping={
-    "leg_.*_1_joint": 2,
-    "leg_.*_2_joint": 5,
-    "leg_.*_3_joint": 5,
-    "leg_.*_length_joint": 150, #55,
-    "leg_.*_4_joint": 5,
-    "leg_.*_5_joint": 2,
-    "leg_.*_femur_joint": 0,
-    "leg_.*_knee_joint": 0,
-  },
+  stiffness=0.0,
+  damping=0.0,
 )
-KANG_ARM_ACTUATOR_CFG = ActuatorCfg(
+
+
+KANG_LEGS_1_ACTUATOR_CFG = ActuatorCfg(
+  joint_names_expr=[
+    "leg_.*_1_joint",
+  ],
+  effort_limit=80.0,
+  armature=0.01,
+  stiffness=40.0,
+  damping=2.0,
+)
+
+KANG_LEGS_2_ACTUATOR_CFG = ActuatorCfg(
+  joint_names_expr=[
+    "leg_.*_2_joint",
+  ],
+  effort_limit=230.0,
+  armature=0.01,
+  stiffness=100.0,
+  damping=5.0,
+)
+KANG_LEGS_3_ACTUATOR_CFG = ActuatorCfg(
+  joint_names_expr=[
+    "leg_.*_3_joint",
+  ],
+  effort_limit=139.0,
+  armature=0.01,
+  stiffness=100.0,
+  damping=5.0,
+)
+KANG_LEGS_4_ACTUATOR_CFG = ActuatorCfg(
+  joint_names_expr=[
+    "leg_.*_4_joint",
+  ],
+  effort_limit=140.0,
+  armature=0.01,
+  stiffness=100.0,
+  damping=5.0,
+)
+KANG_LEGS_5_ACTUATOR_CFG = ActuatorCfg(
+  joint_names_expr=[
+    "leg_.*_5_joint",
+  ],
+  effort_limit=82.0,
+  armature=0.01,
+  stiffness=40.0,
+  damping=2.0,
+)
+
+KANG_LEGS_LENGTH_ACTUATOR_CFG = ActuatorCfg(
+  joint_names_expr=[
+    "leg_.*_length_joint",
+  ],
+  effort_limit=1100.0,
+  armature=0.01,
+  stiffness=1100.0,
+  damping=150.0,
+)
+KANG_ARMS_ACTUATOR_CFG = ActuatorCfg(
   joint_names_expr=[
     "arm_.*_1_joint",
     "arm_.*_2_joint",
@@ -98,42 +113,29 @@ KANG_ARM_ACTUATOR_CFG = ActuatorCfg(
     "arm_.*_4_joint",
   ],
   armature=0.01,
-  velocity_limit_sim={
-    "arm_.*_1_joint": 1.95,
-    "arm_.*_2_joint": 1.95,
-    "arm_.*_3_joint": 2.35,
-    "arm_.*_4_joint": 2.35,
-  },
-  effort_limit_sim=43.0,
-  stiffness={
-    "arm_.*_1_joint": 100,
-    "arm_.*_2_joint": 100,
-    "arm_.*_3_joint": 100,
-    "arm_.*_4_joint": 100,
-  },
-  damping={
-    "arm_.*_1_joint": 10,
-    "arm_.*_2_joint": 10,
-    "arm_.*_3_joint": 10,
-    "arm_.*_4_joint": 10,
-  },
+  effort_limit=43.0,
+  stiffness=100.0,
+  damping=10.0,
 )
-KANG_TORSO_ACTUATOR_CFG = ActuatorCfg(
+KANG_PELVIS_1_ACTUATOR_CFG = ActuatorCfg(
   joint_names_expr=[
     "pelvis_1_joint",
     "pelvis_2_joint",
   ],
-  effort_limit_sim=100.0,
-  velocity_limit_sim=3.14,
+  effort_limit=100.0,
   armature=0.01,
-  stiffness={
-    "pelvis_1_joint": 80,
-    "pelvis_2_joint": 40,
-  },
-  damping={
-    "pelvis_1_joint": 4,
-    "pelvis_2_joint": 2,
-  },
+  stiffness=80.0,
+  damping=4.0,
+)
+
+KANG_PELVIS_2_ACTUATOR_CFG = ActuatorCfg(
+  joint_names_expr=[
+    "pelvis_2_joint",
+  ],
+  effort_limit=100.0,
+  armature=0.01,
+  stiffness=40.0,
+  damping=2.0,
 )
 ##
 # Keyframes.
@@ -153,7 +155,6 @@ INIT_STATE = EntityCfg.InitialStateCfg(
     "leg_.*_femur_joint": 1.1172,
     "leg_.*_knee_joint": 2.2345,
     # arms
-    # "arm_.*": 0, # need to do that as target is set to 0, possible workaround is to set the buffer to init position in the reset event though
     "arm_left_1_joint": 0.24,
     "arm_right_1_joint": -0.24,
     "arm_.*_2_joint": 1.32,
@@ -161,8 +162,8 @@ INIT_STATE = EntityCfg.InitialStateCfg(
     "arm_right_3_joint": -1.57,
     "arm_.*_4_joint": 0.8,
     # torso
-    "pelvis_1_joint": 0,
-    "pelvis_2_joint": 0,
+    "pelvis_1_joint": 0.0,
+    "pelvis_2_joint": 0.0,
   },
   joint_vel={".*": 0.0},
 )
@@ -201,30 +202,40 @@ FULL_COLLISION = CollisionCfg(
 # Final config.
 ##
 
-GO1_ARTICULATION = EntityArticulationInfoCfg(
+KANG_ARTICULATION = EntityArticulationInfoCfg(
   actuators=(
-    GO1_HIP_ACTUATOR_CFG,
-    GO1_KNEE_ACTUATOR_CFG,
+    KANG_LEGS_ACTUATOR_CFG,
+    KANG_ARMS_ACTUATOR_CFG,
+    KANG_TORSO_ACTUATOR_CFG,
   ),
   soft_joint_pos_limit_factor=0.9,
 )
 
-GO1_ROBOT_CFG = EntityCfg(
+KANG_ROBOT_CFG = EntityCfg(
   init_state=INIT_STATE,
   collisions=(FULL_COLLISION,),
   spec_fn=get_spec,
-  articulation=GO1_ARTICULATION,
+  articulation=KANG_ARTICULATION,
 )
 
-GO1_ACTION_SCALE: dict[str, float] = {}
-for a in GO1_ARTICULATION.actuators:
-  e = a.effort_limit
-  s = a.stiffness
-  names = a.joint_names_expr
-  if not isinstance(e, dict):
-    e = {n: e for n in names}
-  if not isinstance(s, dict):
-    s = {n: s for n in names}
-  for n in names:
-    if n in e and n in s and s[n]:
-      GO1_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
+KANG_ACTION_SCALE: dict[str, float] = {}
+import re
+
+for a in KANG_ARTICULATION.actuators:
+    e = a.effort_limit
+    s = a.stiffness
+    names = a.joint_names_expr
+
+    if not isinstance(e, dict):
+        e = {n: e for n in names}
+    if not isinstance(s, dict):
+        s = {n: s for n in names}
+
+    for n in names:
+        # skip femur or knee joints
+        if re.match(r"leg_.*_femur_joint", n) or re.match(r"leg_.*_knee_joint", n):
+            continue
+
+        if n in e and n in s and s[n]:
+            KANG_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
+
