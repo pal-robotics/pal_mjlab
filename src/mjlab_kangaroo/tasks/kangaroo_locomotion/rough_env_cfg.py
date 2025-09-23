@@ -15,7 +15,8 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
     super().__post_init__()
 
     self.scene.entities = {"robot": replace(KANG_ROBOT_CFG)}
-    self.actions.joint_pos.actuator_names=[r"^leg_(left|right)_(femur|knee)_joint$"]
+    # self.actions.joint_pos.actuator_names=[r"^(pelvis|arm|leg)_.*(1|2|3|length|4|5)_joint$"]
+    # print(self.actions.joint_pos.actuator_names)
     self.actions.joint_pos.scale = KANG_ACTION_SCALE
 
     self.events.foot_friction.params["asset_cfg"].geom_names = [

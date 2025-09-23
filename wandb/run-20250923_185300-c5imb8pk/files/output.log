@@ -1,0 +1,42 @@
+Traceback (most recent call last):
+  File "/home/louislelay/isaac-repos/mjlab_kangaroo/scripts/rl/train.py", line 128, in <module>
+    main(chosen_task, args)
+    ~~~~^^^^^^^^^^^^^^^^^^^
+  File "/home/louislelay/isaac-repos/mjlab_kangaroo/scripts/rl/train.py", line 89, in main
+    runner.learn(
+    ~~~~~~~~~~~~^
+      num_learning_iterations=cfg.agent.max_iterations, init_at_random_ep_len=True
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/louislelay/isaac-repos/mjlab_kangaroo/.venv/lib/python3.13/site-packages/rsl_rl/runners/on_policy_runner.py", line 105, in learn
+    obs, rewards, dones, extras = self.env.step(actions.to(self.env.device))
+                                  ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/louislelay/isaac-repos/mjlab_kangaroo/.venv/lib/python3.13/site-packages/mjlab/rl/vecenv_wrapper.py", line 83, in step
+    obs_dict, rew, terminated, truncated, extras = self.env.step(actions)
+                                                   ~~~~~~~~~~~~~^^^^^^^^^
+  File "/home/louislelay/isaac-repos/mjlab_kangaroo/.venv/lib/python3.13/site-packages/gymnasium/wrappers/common.py", line 393, in step
+    return super().step(action)
+           ~~~~~~~~~~~~^^^^^^^^
+  File "/home/louislelay/isaac-repos/mjlab_kangaroo/.venv/lib/python3.13/site-packages/gymnasium/core.py", line 327, in step
+    return self.env.step(action)
+           ~~~~~~~~~~~~~^^^^^^^^
+  File "/home/louislelay/isaac-repos/mjlab_kangaroo/.venv/lib/python3.13/site-packages/mjlab/envs/manager_based_rl_env.py", line 91, in step
+    self.action_manager.apply_action()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/louislelay/isaac-repos/mjlab_kangaroo/.venv/lib/python3.13/site-packages/mjlab/managers/action_manager.py", line 122, in apply_action
+    term.apply_actions()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/home/louislelay/isaac-repos/mjlab_kangaroo/.venv/lib/python3.13/site-packages/mjlab/envs/mdp/actions/joint_actions.py", line 98, in apply_actions
+    self._env.sim.set_ctrl(self._processed_actions, ctrl_ids=self._actuator_ids)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/louislelay/isaac-repos/mjlab_kangaroo/.venv/lib/python3.13/site-packages/mjlab/sim/sim.py", line 182, in set_ctrl
+    self.data.ctrl[:, indices] = ctrl[:, indices]
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/home/louislelay/isaac-repos/mjlab_kangaroo/.venv/lib/python3.13/site-packages/mjlab/sim/sim_data.py", line 52, in __setitem__
+    self._tensor[idx] = value
+    ~~~~~~~~~~~~^^^^^
+torch.AcceleratorError: CUDA error: device-side assert triggered
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.

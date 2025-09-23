@@ -120,7 +120,6 @@ KANG_ARMS_ACTUATOR_CFG = ActuatorCfg(
 KANG_PELVIS_1_ACTUATOR_CFG = ActuatorCfg(
   joint_names_expr=[
     "pelvis_1_joint",
-    "pelvis_2_joint",
   ],
   effort_limit=100.0,
   armature=0.01,
@@ -240,8 +239,8 @@ for a in KANG_ARTICULATION.actuators:
 
     for n in names:
         # skip femur or knee joints
-        if re.match(r"leg_.*_femur_joint", n) or re.match(r"leg_.*_knee_joint", n):
-            continue
+        # if re.match(r"leg_.*_femur_joint", n) or re.match(r"leg_.*_knee_joint", n):
+        #     continue
 
         if n in e and n in s and s[n]:
             KANG_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
