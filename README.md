@@ -1,4 +1,4 @@
-### Kangaroo locomotion external project for Mjlab
+# External project for KANGAROO integration to Mjlab
 
 Place the repository in the same directory as mjlab and run:
 
