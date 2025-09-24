@@ -32,7 +32,7 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
     }
 
 
-    # self.rewards.power.weight = -0.001
+    self.rewards.power.weight = -0.001
 
     # self.rewards.ang_vel_xy_l2 = None
     # self.rewards.action_rate_l2 = None
