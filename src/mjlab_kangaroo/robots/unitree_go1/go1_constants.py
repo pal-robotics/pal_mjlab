@@ -4,7 +4,7 @@ from pathlib import Path
 
 import mujoco
 
-from mjlab_kangaroo import mjlab_kangaroo_SRC_PATH
+from mjlab import MJLAB_SRC_PATH
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.actuator import ElectricActuator, reflected_inertia
 from mjlab.utils.os import update_assets
@@ -15,7 +15,7 @@ from mjlab.utils.spec_editor import ActuatorCfg, CollisionCfg
 ##
 
 GO1_XML: Path = (
-  mjlab_kangaroo_SRC_PATH / "robots" / "unitree_go1" / "xmls" / "go1.xml"
+  MJLAB_SRC_PATH / "asset_zoo" / "robots" / "unitree_go1" / "xmls" / "go1.xml"
 )
 assert GO1_XML.exists()
 

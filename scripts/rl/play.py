@@ -7,13 +7,15 @@ import tyro
 from rsl_rl.runners import OnPolicyRunner
 from typing_extensions import assert_never
 
+import mjlab_kangaroo.tasks
+
 from mjlab.rl import RslRlVecEnvWrapper
 from mjlab.rl.config import RslRlOnPolicyRunnerCfg
-from mjlab.tasks.locomotion.velocity.rl import (
+from mjlab.tasks.velocity.rl import (
   attach_onnx_metadata,
   export_velocity_policy_as_onnx,
 )
-from mjlab.tasks.locomotion.velocity.velocity_env_cfg import (
+from mjlab.tasks.velocity.velocity_env_cfg import (
   LocomotionVelocityEnvCfg,
 )
 from mjlab.third_party.isaaclab.isaaclab_tasks.utils.parse_cfg import (

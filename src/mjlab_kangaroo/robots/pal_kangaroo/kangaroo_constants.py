@@ -56,7 +56,7 @@ KANG_LEGS_1_ACTUATOR_CFG = ActuatorCfg(
   effort_limit=80.0,
   armature=0.01,
   stiffness=40.0,
-  damping=2.0,
+  damping=2.55,
 )
 
 KANG_LEGS_2_ACTUATOR_CFG = ActuatorCfg(
@@ -66,7 +66,7 @@ KANG_LEGS_2_ACTUATOR_CFG = ActuatorCfg(
   effort_limit=230.0,
   armature=0.01,
   stiffness=100.0,
-  damping=5.0,
+  damping=6.35,
 )
 KANG_LEGS_3_ACTUATOR_CFG = ActuatorCfg(
   joint_names_expr=[
@@ -75,7 +75,7 @@ KANG_LEGS_3_ACTUATOR_CFG = ActuatorCfg(
   effort_limit=139.0,
   armature=0.01,
   stiffness=100.0,
-  damping=5.0,
+  damping=6.35,
 )
 KANG_LEGS_4_ACTUATOR_CFG = ActuatorCfg(
   joint_names_expr=[
@@ -84,7 +84,7 @@ KANG_LEGS_4_ACTUATOR_CFG = ActuatorCfg(
   effort_limit=140.0,
   armature=0.01,
   stiffness=100.0,
-  damping=5.0,
+  damping=6.35,
 )
 KANG_LEGS_5_ACTUATOR_CFG = ActuatorCfg(
   joint_names_expr=[
@@ -93,7 +93,7 @@ KANG_LEGS_5_ACTUATOR_CFG = ActuatorCfg(
   effort_limit=82.0,
   armature=0.01,
   stiffness=40.0,
-  damping=2.0,
+  damping=2.55,
 )
 
 KANG_LEGS_LENGTH_ACTUATOR_CFG = ActuatorCfg(
@@ -103,7 +103,7 @@ KANG_LEGS_LENGTH_ACTUATOR_CFG = ActuatorCfg(
   effort_limit=1100.0,
   armature=0.01,
   stiffness=1100.0,
-  damping=150.0,
+  damping=70.0,
 )
 KANG_ARMS_ACTUATOR_CFG = ActuatorCfg(
   joint_names_expr=[
@@ -124,7 +124,7 @@ KANG_PELVIS_1_ACTUATOR_CFG = ActuatorCfg(
   effort_limit=100.0,
   armature=0.01,
   stiffness=80.0,
-  damping=4.0,
+  damping=5.1,
 )
 
 KANG_PELVIS_2_ACTUATOR_CFG = ActuatorCfg(
@@ -134,7 +134,7 @@ KANG_PELVIS_2_ACTUATOR_CFG = ActuatorCfg(
   effort_limit=100.0,
   armature=0.01,
   stiffness=40.0,
-  damping=2.0,
+  damping=2.55,
 )
 ##
 # Keyframes.
