@@ -15,7 +15,7 @@ It’s really easy to install, and sim-to-real has been tested successfully on t
 ### Clone the repository
 
 ```bash
-git clone https://github.com/BDX-R/BDX-R-MjLab.git && cd mjlab_kangaroo
+git clone https://github.com/louislelay/mjlab_kangaroo.git && cd mjlab_kangaroo
 ```
 
 ### List available environments
@@ -27,25 +27,25 @@ uv run scripts/list_envs.py
 ### Dummy agents
 
 ```bash
-uv run scripts/zero_agent.py Mjlab-Velocity-Flat-BDX-R
+uv run scripts/zero_agent.py --task mjlab_kangaroo-Velocity-Flat-Kangaroo
 ```
 
 or
 
 ```bash
-uv run scripts/random_agent.py Mjlab-Velocity-Flat-BDX-R
+uv run scripts/random_agent.py --task mjlab_kangaroo-Velocity-Flat-Kangaroo
 ```
 
 ### Train
 
 ```bash
-uv run scripts/train.py Mjlab-Velocity-Flat-BDX-R --env.scene.num-envs 4096
+uv run scripts/train.py mjlab_kangaroo-Velocity-Flat-Kangaroo --env.scene.num-envs 4096
 ```
 
 ### Play
 
 ```bash
-uv run scripts/play.py --task Mjlab-Velocity-Flat-BDX-R-Play --wandb-run-path your-org/mjlab/run-id
+uv run scripts/play.py --task mjlab_kangaroo-Velocity-Flat-Kangaroo-Play --wandb-run-path your-org/mjlab/run-id
 ```
 
 ## Repository current state
