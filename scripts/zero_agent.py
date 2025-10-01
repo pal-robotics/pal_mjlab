@@ -40,7 +40,8 @@ def main(
   class Policy:
     def __call__(self, obs) -> torch.Tensor:
       del obs  # Unused.
-      return 2 * torch.rand(action_shape, device=env.unwrapped.device) - 1
+      return torch.zeros_like(action_shape, device=env.unwrapped.device) - 1
+      
 
   policy = Policy()
 
