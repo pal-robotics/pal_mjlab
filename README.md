@@ -53,7 +53,7 @@ uv run scripts/play.py --task mjlab_kangaroo-Velocity-Flat-Kangaroo-Play --wandb
 
 Here's a video of our early result:
 
-<video src="medias/kang_mjlab.mp4"></video>
+![result](medias/kang_mjlab.gif)
 
 Current focus/painpoints:
 
