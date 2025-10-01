@@ -2,6 +2,7 @@
 
 This repository showcase the implementation of PAL's Kangaroo robot into MjLab. 
 
+> [!WARNING]
 > As MjLab is still in early development, this repository may be impacted by breaking changes. If an issue were to arise when running one of the scripts, feel free to open an issue or contribute to the project. Thanks you for your understanding!
 
 ## What's MjLab?
@@ -53,7 +54,7 @@ uv run scripts/play.py --task mjlab_kangaroo-Velocity-Flat-Kangaroo-Play --wandb
 <!-- TODO Louis -->
 Here's the last result available:
 
-![video](medias/kang_mjlab.mp4)
+![video](https://github.com/louislelay/mjlab_kangaroo/blob/main/medias/kang_mjlab.mp4)
 
 Our current focus to improve this work is on:
 
