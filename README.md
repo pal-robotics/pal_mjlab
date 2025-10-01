@@ -52,14 +52,15 @@ uv run scripts/play.py --task mjlab_kangaroo-Velocity-Flat-Kangaroo-Play --wandb
 ## Repository current state
 
 <!-- TODO Louis -->
-Here's the last result available:
+Here's a video of our early result:
 
-![video](https://github.com/louislelay/mjlab_kangaroo/blob/main/medias/kang_mjlab.mp4)
+<video src="https://github.com/louislelay/mjlab_kangaroo/blob/main/medias/kang_mjlab.mp4"></video>
 
-Our current focus to improve this work is on:
+Current focus/painpoints:
 
-- todo
-- todo
+- Reward tuning
+- Rough terrain is buggy with MjWarp
+- Actuators are not on pair with how it's done for Isaac Lab
 
 ## Acknowledgements
 
