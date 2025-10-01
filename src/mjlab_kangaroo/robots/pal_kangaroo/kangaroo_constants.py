@@ -6,9 +6,8 @@ import mujoco
 
 from mjlab_kangaroo import mjlab_kangaroo_SRC_PATH
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
-from mjlab.utils.actuator import ElectricActuator, reflected_inertia
 from mjlab.utils.os import update_assets
-from mjlab.utils.spec_editor import ActuatorCfg, CollisionCfg
+from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
 
 ##
 # MJCF and assets.

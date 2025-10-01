@@ -1,1 +1,1 @@
-from mjlab_kangaroo.robots.pal_kangaroo.kangaroo_constants import KANGAROO_ROBOT_CFG
+from mjlab_kangaroo.robots.pal_kangaroo.kangaroo_constants import KANG_ROBOT_CFG, KANG_ACTION_SCALE
