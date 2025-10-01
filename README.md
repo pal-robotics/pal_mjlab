@@ -57,7 +57,7 @@ Here's a video of our early result:
 
 Current focus/painpoints:
 
-- Reward tuning
+- Reward tuning + adding some air time/foot clearance
 - Rough terrain is buggy with MjWarp
 - Actuators are not on pair with how it's done for Isaac Lab
 
