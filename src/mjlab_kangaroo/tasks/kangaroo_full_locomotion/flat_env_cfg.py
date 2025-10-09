@@ -17,5 +17,5 @@ class KangFullFlatEnvCfg(KangFullRoughEnvCfg):
 
 
 @dataclass
-class KangFlatEnvCfg_PLAY(KangFullFlatEnvCfg):
+class KangFullFlatEnvCfg_PLAY(KangFullFlatEnvCfg):
     pass

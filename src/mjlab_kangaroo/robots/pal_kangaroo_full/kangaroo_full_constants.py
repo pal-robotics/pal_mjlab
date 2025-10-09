@@ -90,6 +90,86 @@ KANG_FULL_REVOLUTE_ACTUATORS = [
     "pelvis_2_joint",
 ]
 
+KANG_FULL_BENT_KNEES_JOINTS = {
+    # # arms
+    # "arm_left_1_joint": 0.24,
+    # "arm_right_1_joint": -0.24,
+    # "arm_.*_2_joint": 1.32,
+    # "arm_left_3_joint": 1.57,
+    # "arm_right_3_joint": -1.57,
+    # "arm_.*_4_joint": 0.8,
+    # # torso
+    # "pelvis_1_joint": 0.0,
+    # "pelvis_2_joint": 0.0,
+    # legs
+    "baselink__left_hip_z_motor": 0.012612334452569485,
+    "left_hip_z_slider": -0.0069928900338709354,
+    "left_hip_z_yaw": 0.17689171433448792,
+    "left_hipyaw_yaw__hip_xy_bracket_l": -2.9472078111325573e-08,
+    "left_hip_xy_bracket_l__hip_xy_motor_l": -5.5474883993156254e-05,
+    "left_hip_xy_slider_l": 1.3736400433117524e-05,
+    "left_hip_xy_baselink__hip_xy_bracket_r": 3.488626418857166e-07,
+    "left_hip_xy_bracket_r__hip_xy_motor_r": 5.0400678446749225e-05,
+    "left_hip_xy_slider_r": -1.2658454579650424e-05,
+    "left_hip_xy_pitch": 2.8126949473517016e-05,
+    "left_hip_xy_roll": -0.001043891767039895,
+    "left_hip_xy_legholder__leg_length_femur": 0.4631879925727844,
+    "left_leg_length_slider": 0.049737099558115005,
+    "left_leg_length_slider__leg_length_bar3": 0.2861635684967041,
+    "left_leg_length_slider__leg_length_bar4": 0.2861635386943817,
+    "left_leg_length_femur__leg_length_triangle": -0.9329532384872437,
+    "left_leg_length_triangle__leg_length_bar2": 0.9330295324325562,
+    "left_ankle_xy_femur__ankle_xy_butterfly_l": -0.493692010641098,
+    "left_ankle_xy_butterfly_l__ankle_xy_bar2_l": 0.43707865476608276,
+    "left_ankle_xy_femur__ankle_xy_butterfly_r": -0.49363481998443604,
+    "left_ankle_xy_butterfly_r__ankle_xy_bar2_r": 0.43713614344596863,
+    "left_knee": -0.9305110573768616,
+    "left_ankle_xy_pitch": 0.4340316653251648,
+    "left_ankle_xy_roll": -4.455562157090753e-05,
+    "left_leg_length_baselink__leg_length_bar1": -0.10036752372980118,
+    "left_hip_xy_legholder__ankle_xy_motor_l": 0.0004405663057696074,
+    "left_ankle_xy_slider_l": -0.0007190561154857278,
+    "left_hip_xy_legholder__ankle_xy_motor_r": 0.00043989793630316854,
+    "left_ankle_xy_slider_r": -0.0007202239357866347,
+    "left_hip_xy_legholder__ankle_xy_crank_l": -0.028633885085582733,
+    "left_ankle_xy_crank_l__ankle_xy_bar1_l": 0.49185872077941895,
+    "left_hip_xy_legholder__ankle_xy_crank_r": -0.0285696592181921,
+    "left_ankle_xy_crank_r__ankle_xy_bar1_r": 0.4917941689491272,
+    "baselink__right_hip_z_motor": -0.012612465769052505,
+    "right_hip_z_slider": -0.006992915645241737,
+    "right_hip_z_yaw": -0.1768926978111267,
+    "right_hipyaw_yaw__hip_xy_bracket_l": -1.7101825733334408e-07,
+    "right_hip_xy_bracket_l__hip_xy_motor_l": 5.0269871280761436e-05,
+    "right_hip_xy_slider_l": -1.2488367246987764e-05,
+    "right_hip_xy_baselink__hip_xy_bracket_r": 3.786670390582003e-07,
+    "right_hip_xy_bracket_r__hip_xy_motor_r": -5.494081779033877e-05,
+    "right_hip_xy_slider_r": 1.3523816051019821e-05,
+    "right_hip_xy_pitch": 2.6692941901274025e-05,
+    "right_hip_xy_roll": 0.0010353424586355686,
+    "right_hip_xy_legholder__leg_length_femur": 0.46318718791007996,
+    "right_leg_length_slider": 0.049737025052309036,
+    "right_leg_length_slider__leg_length_bar3": 0.2861640155315399,
+    "right_leg_length_slider__leg_length_bar4": 0.28616413474082947,
+    "right_leg_length_femur__leg_length_triangle": -0.9329521059989929,
+    "right_leg_length_triangle__leg_length_bar2": 0.9330282211303711,
+    "right_ankle_xy_femur__ankle_xy_butterfly_l": -0.4936346411705017,
+    "right_ankle_xy_butterfly_l__ankle_xy_bar2_l": 0.4371365010738373,
+    "right_ankle_xy_femur__ankle_xy_butterfly_r": -0.49369052052497864,
+    "right_ankle_xy_butterfly_r__ankle_xy_bar2_r": 0.43708041310310364,
+    "right_knee": -0.9305117130279541,
+    "right_ankle_xy_pitch": 0.43403327465057373,
+    "right_ankle_xy_roll": 4.43845237896312e-05,
+    "right_leg_length_baselink__leg_length_bar1": -0.10036752372980118,
+    "right_hip_xy_legholder__ankle_xy_motor_l": 0.00043951268889941275,
+    "right_ankle_xy_slider_l": -0.0007198702660389245,
+    "right_hip_xy_legholder__ankle_xy_motor_r": 0.00044148124288767576,
+    "right_ankle_xy_slider_r": -0.0007187846931628883,
+    "right_hip_xy_legholder__ankle_xy_crank_l": -0.028571173548698425,
+    "right_ankle_xy_crank_l__ankle_xy_bar1_l": 0.49179553985595703,
+    "right_hip_xy_legholder__ankle_xy_crank_r": -0.02863118425011635,
+    "right_ankle_xy_crank_r__ankle_xy_bar1_r": 0.49185508489608765,
+}
+
 KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=KANG_FULL_PASSIVE_JOINTS,
     effort_limit=100.0,
@@ -104,60 +184,60 @@ KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         ".*_hip_z_slider",
     ],
-    effort_limit=10000.0,
+    effort_limit=3000.0,
     armature=0.01,
-    stiffness=1000000.0,
-    damping=1000.0,
+    stiffness=300000.0,
+    damping=1095.0,
 )
 
 KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         ".*_hip_xy_slider_l",
     ],
-    effort_limit=10000.0,
+    effort_limit=3000.0,
     armature=0.01,
-    stiffness=1000000.0,
-    damping=1000.0,
+    stiffness=700000.0,
+    damping=1673.0,
 )
 
 KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         ".*_hip_xy_slider_r",
     ],
-    effort_limit=10000.0,
+    effort_limit=3000.0,
     armature=0.01,
-    stiffness=1000000.0,
-    damping=1000.0,
+    stiffness=700000.0,
+    damping=1673.0,
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         ".*_ankle_xy_slider_l",
     ],
-    effort_limit=10000.0,
+    effort_limit=3000.0,
     armature=0.01,
-    stiffness=1000000.0,
-    damping=1000.0,
+    stiffness=800000.0,
+    damping=1789.0,
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         ".*_ankle_xy_slider_r",
     ],
-    effort_limit=10000.0,
+    effort_limit=3000.0,
     armature=0.01,
-    stiffness=1000000.0,
-    damping=1000.0,
+    stiffness=800000.0,
+    damping=1789.0,
 )
 
 KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         ".*_leg_length_slider$",
     ],
-    effort_limit=10000.0,
+    effort_limit=5000.0,
     armature=0.01,
     stiffness=1000000.0,
-    damping=1000.0,
+    damping=2000.0,
 )
 
 KANG_FULL_ARMS_ACTUATOR_CFG = ActuatorCfg(
@@ -200,16 +280,16 @@ KANG_FULL_PELVIS_2_ACTUATOR_CFG = ActuatorCfg(
 INIT_STATE = EntityCfg.InitialStateCfg(
     pos=(0.0, 0.0, 1.02),
     joint_pos={
-        # arms
-        "arm_left_1_joint": 0.24,
-        "arm_right_1_joint": -0.24,
-        "arm_.*_2_joint": 1.32,
-        "arm_left_3_joint": 1.57,
-        "arm_right_3_joint": -1.57,
-        "arm_.*_4_joint": 0.8,
-        # torso
-        "pelvis_1_joint": 0.0,
-        "pelvis_2_joint": 0.0,
+        # # arms
+        # "arm_left_1_joint": 0.24,
+        # "arm_right_1_joint": -0.24,
+        # "arm_.*_2_joint": 1.32,
+        # "arm_left_3_joint": 1.57,
+        # "arm_right_3_joint": -1.57,
+        # "arm_.*_4_joint": 0.8,
+        # # torso
+        # "pelvis_1_joint": 0.0,
+        # "pelvis_2_joint": 0.0,
         # legs active
         ".*_hip_z_slider": 0.0,
         ".*_hip_xy_slider_l": 0.0,
@@ -218,6 +298,12 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         ".*_ankle_xy_slider_r": 0.0,
         ".*_leg_length_slider$": 0.0,
     },
+    joint_vel={".*": 0.0},
+)
+
+KNEES_BENT_KEYFRAME = EntityCfg.InitialStateCfg(
+    pos=(0, 0, 0.85),
+    joint_pos=KANG_FULL_BENT_KNEES_JOINTS,
     joint_vel={".*": 0.0},
 )
 
@@ -265,15 +351,15 @@ KANG_FULL_ARTICULATION = EntityArticulationInfoCfg(
         KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG,
         KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG,
         KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG,
-        KANG_FULL_ARMS_ACTUATOR_CFG,
-        KANG_FULL_PELVIS_1_ACTUATOR_CFG,
-        KANG_FULL_PELVIS_2_ACTUATOR_CFG,
+        # KANG_FULL_ARMS_ACTUATOR_CFG,
+        # KANG_FULL_PELVIS_1_ACTUATOR_CFG,
+        # KANG_FULL_PELVIS_2_ACTUATOR_CFG,
     ),
-    soft_joint_pos_limit_factor=0.9,
+    soft_joint_pos_limit_factor=0.99,
 )
 
 KANG_FULL_ROBOT_CFG = EntityCfg(
-    init_state=INIT_STATE,
+    init_state=KNEES_BENT_KEYFRAME,
     collisions=(FEET_ONLY_COLLISION,),
     spec_fn=get_spec,
     articulation=KANG_FULL_ARTICULATION,
@@ -288,8 +374,6 @@ def match_list(n: str, targets: list[str]) -> bool:
     return False
 
 
-import pdb
-
 KANG_FULL_ACTION_SCALE: dict[str, float] = {}
 for a in KANG_FULL_ARTICULATION.actuators:
     # e = a.effort_limit
@@ -302,6 +386,6 @@ for a in KANG_FULL_ARTICULATION.actuators:
         elif match_list(n, KANG_FULL_REVOLUTE_ACTUATORS):
             KANG_FULL_ACTION_SCALE[n] = 0.5
         elif match_list(n, KANG_FULL_LINEAR_ACTUATORS):
-            KANG_FULL_ACTION_SCALE[n] = 0.005
+            KANG_FULL_ACTION_SCALE[n] = 0.1
         else:
             continue

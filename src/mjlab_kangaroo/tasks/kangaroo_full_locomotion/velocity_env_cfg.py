@@ -54,12 +54,13 @@ VIEWER_CONFIG = ViewerConfig(
 
 @dataclass
 class ActionCfg:
-    joint_pos: mdp.JointPositionActionCfg = term(
-        mdp.JointPositionActionCfg,
+    joint_pos: mdp.JointPositionToLimitsCfg = term(
+        mdp.JointPositionToLimitsCfg,
         asset_name="robot",
         actuator_names=[".*"],
-        scale=0.5,
-        use_default_offset=True,
+        scale=1.0,
+        use_tanh=True,
+        rescale_to_limits=True,
     )
 
 
@@ -75,7 +76,7 @@ class CommandsCfg:
         heading_control_stiffness=0.5,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-1.0, 1.0),
+            lin_vel_x=(0.5, 1.0),
             lin_vel_y=(-0.5, 0.5),
             ang_vel_z=(-1.0, 1.0),
             heading=(-math.pi, math.pi),
@@ -135,6 +136,19 @@ class ObservationCfg:
 
 @dataclass
 class EventCfg:
+    foot_friction: EventTerm = term(
+        EventTerm,
+        mode="startup",
+        func=mdp.randomize_field,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", geom_names=[]
+            ),  # Override in robot cfg.
+            "operation": "abs",
+            "field": "geom_friction",
+            "ranges": (0.3, 1.2),
+        },
+    )
     reset_base: EventTerm = term(
         EventTerm,
         func=mdp.reset_root_state_uniform,
@@ -165,27 +179,16 @@ class EventCfg:
         interval_range_s=(1.0, 3.0),
         params={"velocity_range": {"x": (-1.0, 1.0), "y": (-1.0, 1.0)}},
     )
-    foot_friction: EventTerm = term(
-        EventTerm,
-        mode="startup",
-        func=mdp.randomize_field,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot", geom_names=[]
-            ),  # Override in robot cfg.
-            "operation": "abs",
-            "field": "geom_friction",
-            "ranges": (0.3, 1.2),
-        },
-    )
 
 
 @dataclass
 class RewardCfg:
+
+    # ---- Rewards ----
     track_lin_vel_exp: RewardTerm = term(
         RewardTerm,
         func=mdp.track_lin_vel_exp,
-        weight=1.0,
+        weight=0.0,
         params={"command_name": "twist", "std": math.sqrt(0.25)},
     )
     track_ang_vel_exp: RewardTerm = term(
@@ -194,10 +197,44 @@ class RewardCfg:
         weight=1.0,
         params={"command_name": "twist", "std": math.sqrt(0.25)},
     )
-    pose: RewardTerm = term(
+    air_time: RewardTerm = term(
+        RewardTerm,
+        func=mdp.feet_air_time,
+        weight=1.0,
+        params={
+            "asset_name": "robot",
+            "threshold_min": 0.05,
+            "threshold_max": 0.15,
+            "command_name": "twist",
+            "command_threshold": 0.05,
+            "sensor_names": [],
+            "reward_mode": "on_landing",
+        },
+    )
+    foot_clearance: RewardTerm = term(
+        RewardTerm,
+        func=mdp.foot_clearance_reward,
+        weight=1.0,
+        params={
+            "target_height": 0.20,
+            "std": 0.02,
+            "tanh_mult": 2.0,
+            "asset_cfg": SceneEntityCfg(
+                "robot", geom_names=[]
+            ),  # Override in robot cfg.
+        },
+    )
+
+    # ---- Penalties ----
+    termination_penalty: RewardTerm = term(
+        RewardTerm,
+        func=mdp.is_terminated,
+        weight=-200.0,
+    )
+    posture: RewardTerm = term(
         RewardTerm,
         func=mdp.posture,
-        weight=1.0,
+        weight=-1.0,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
             "std": [],
@@ -209,20 +246,24 @@ class RewardCfg:
     action_rate_l2: RewardTerm = term(
         RewardTerm, func=mdp.action_rate_l2, weight=-0.1
     )
-
-    # Unused, only here as an example.
-    air_time: RewardTerm = term(
+    lin_vel_z_l2: RewardTerm = term(
+        RewardTerm, func=mdp.lin_vel_z_l2, weight=-0.1
+    )
+    ang_vel_xy_l2: RewardTerm = term(
+        RewardTerm, func=mdp.ang_vel_xy_l2, weight=-0.1
+    )
+    flat_orientation_l2: RewardTerm = term(
+        RewardTerm, func=mdp.flat_orientation_l2, weight=-0.1
+    )
+    feet_slide: RewardTerm = term(
         RewardTerm,
-        func=mdp.feet_air_time,
-        weight=0.0,
+        func=mdp.feet_slide,
+        weight=-0.1,
         params={
-            "asset_name": "robot",
-            "threshold_min": 0.05,
-            "threshold_max": 0.15,
-            "command_name": "twist",
-            "command_threshold": 0.05,
+            "asset_cfg": SceneEntityCfg(
+                "robot", geom_names=[]
+            ),  # Override in robot cfg.
             "sensor_names": [],
-            "reward_mode": "on_landing",
         },
     )
 
