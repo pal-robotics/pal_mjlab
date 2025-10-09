@@ -86,7 +86,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         }
 
         # CommandsCfg
-        self.commands.twist.rel_standing_envs = 1.0
+        self.commands.twist.rel_standing_envs = 0.2
         self.commands.twist.viz.z_offset = 0.75
 
         # EventCfg
@@ -100,10 +100,8 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         # RewardCfg
         self.rewards.track_lin_vel_exp.weight = 2.0
         self.rewards.track_ang_vel_exp.weight = 1.0
-        self.rewards.air_time = None
-        # self.rewards.air_time.weight = 2.0
-        # self.rewards.air_time.params["sensor_names"] = sensor_names
-        self.rewards.foot_clearance = None
+        self.rewards.air_time.weight = 1.0
+        self.rewards.air_time.params["sensor_names"] = sensor_names
         # self.rewards.foot_clearance.params["target_height"] = 0.20
         # self.rewards.foot_clearance.params["std"] = 0.02
         # self.rewards.foot_clearance.params["tanh_mult"] = 1.0
@@ -125,14 +123,13 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.rewards.termination_penalty.weight = -200.0
         self.rewards.lin_vel_z_l2.weight = -0.2
         self.rewards.ang_vel_xy_l2.weight = -0.05
-        self.rewards.action_rate_l2.weight = -0.01
-        self.rewards.flat_orientation_l2.weight = -2.0
-        self.rewards.feet_slide = None
-        # self.rewards.feet_slide.weight = -0.1
-        # self.rewards.feet_slide.params["sensor_names"] = sensor_names
-        # self.rewards.feet_slide.params["asset_cfg"].geom_names = [
-        #     r"^(left|right)_foot_collision$"
-        # ]
+        self.rewards.action_rate_l2.weight = -0.02
+        self.rewards.flat_orientation_l2.weight = -1.0
+        self.rewards.feet_slide.weight = -0.05
+        self.rewards.feet_slide.params["sensor_names"] = sensor_names
+        self.rewards.feet_slide.params["asset_cfg"].geom_names = [
+            r"^(left|right)_foot_collision$"
+        ]
 
         # CurriculumCfg
         self.curriculum.command_vel = None

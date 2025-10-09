@@ -178,7 +178,7 @@ KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG = ActuatorCfg(
     damping=0.0,
 )
 
-# TODO: check `stiffness`, `damping`, and `effort_limit`
+# TODO: which joints are measured?
 
 KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
