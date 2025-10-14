@@ -38,4 +38,4 @@ class KangFullPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     experiment_name: str = field(default="kang_full_velocity")
     save_interval: int = field(default=50)
     num_steps_per_env: int = field(default=24)
-    max_iterations: int = field(default=2000)
+    max_iterations: int = field(default=10_000)

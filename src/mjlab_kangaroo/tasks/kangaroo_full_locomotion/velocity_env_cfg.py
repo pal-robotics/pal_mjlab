@@ -197,31 +197,46 @@ class RewardCfg:
         weight=1.0,
         params={"command_name": "twist", "std": math.sqrt(0.25)},
     )
-    air_time: RewardTerm = term(
-        RewardTerm,
-        func=mdp.feet_air_time,
-        weight=1.0,
-        params={
-            "asset_name": "robot",
-            "threshold_min": 0.05,
-            "threshold_max": 0.15,
-            "command_name": "twist",
-            "command_threshold": 0.05,
-            "sensor_names": [],
-            "reward_mode": "on_landing",
-        },
-    )
+    # air_time: RewardTerm = term(
+    #     RewardTerm,
+    #     func=mdp.feet_air_time,
+    #     weight=1.0,
+    #     params={
+    #         "asset_name": "robot",
+    #         "threshold_min": 0.00,
+    #         "threshold_max": 0.15,
+    #         "command_name": "twist",
+    #         "command_threshold": 0.05,
+    #         "sensor_names": [],
+    #         "reward_mode": "continuous",
+    #     },
+    # )
     foot_clearance: RewardTerm = term(
         RewardTerm,
-        func=mdp.foot_clearance_reward,
+        func=mdp.foot_clearance_reward_2,
         weight=1.0,
         params={
             "target_height": 0.20,
             "std": 0.02,
             "tanh_mult": 2.0,
+            "min_clearance": 0.045,
+            "min_speed": 0.0,
+            "command_name": "twist",
             "asset_cfg": SceneEntityCfg(
                 "robot", geom_names=[]
             ),  # Override in robot cfg.
+        },
+    )
+    air_contact_time: RewardTerm = term(
+        RewardTerm,
+        func=mdp.feet_air_contact_time,
+        weight=1.0,
+        params={
+            "asset_name": "robot",
+            "mode_time": 0.00,
+            "command_name": "twist",
+            "command_threshold": 0.05,
+            "sensor_names": [],
         },
     )
 
@@ -264,6 +279,26 @@ class RewardCfg:
                 "robot", geom_names=[]
             ),  # Override in robot cfg.
             "sensor_names": [],
+        },
+    )
+    electrical_power: RewardTerm = term(
+        RewardTerm,
+        func=mdp.electrical_power_cost,
+        weight=-0.001,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
+        },
+    )
+    contact_forces: RewardTerm = term(
+        RewardTerm,
+        func=mdp.contact_forces,
+        weight=-0.01,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", geom_names=[]
+            ),  # Override in robot cfg.
+            "sensor_names": [],
+            "threshold": 100.0,
         },
     )
 
@@ -324,7 +359,7 @@ class LocomotionVelocityEnvCfg(ManagerBasedRlEnvCfg):
     curriculum: CurriculumCfg = field(default_factory=CurriculumCfg)
     sim: SimulationCfg = field(default_factory=lambda: SIM_CFG)
     viewer: ViewerConfig = field(default_factory=lambda: VIEWER_CONFIG)
-    decimation: int = 4  # 50 Hz control frequency.
+    decimation: int = 20  # 50 Hz control frequency.
     episode_length_s: float = 20.0
 
     def __post_init__(self):

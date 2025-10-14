@@ -221,6 +221,50 @@ def foot_clearance_reward(
     return torch.exp(-torch.sum(reward, dim=1) / std)
 
 
+def foot_clearance_reward_2(
+    env: ManagerBasedRlEnv,
+    target_height: float,
+    std: float,
+    tanh_mult: float,
+    min_clearance: float = 0.045,
+    min_speed: float = 0.0,
+    command_name: str = "twist",
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+    asset: Entity = env.scene[asset_cfg.name]
+    # TODO: adjust if RayCaster present
+
+    # height of each foot
+    foot_height = asset.data.geom_pos_w[:, asset_cfg.geom_ids, 2]
+    foot_z_target_error = (foot_height - target_height).pow(2)
+
+    # horizontal speed of each foot
+    foot_speed = torch.norm(
+        asset.data.geom_lin_vel_w[:, asset_cfg.geom_ids, :2], dim=2
+    )
+    foot_velocity_tanh = torch.tanh(tanh_mult * foot_speed)
+
+    # robot command velocity and body velocity
+    cmd = torch.linalg.norm(
+        env.command_manager.get_command(command_name), dim=1
+    )
+    body_vel = torch.linalg.norm(asset.data.root_link_lin_vel_b[:, :2], dim=1)
+    moving_env = (cmd > min_speed) | (body_vel > min_speed)
+
+    # foot-level clearance condition, then reduce to env-level (any foot high enough)
+    foot_high = foot_height > min_clearance
+    any_foot_high = torch.any(foot_high, dim=1)
+
+    # final env-level gate
+    gate = moving_env & any_foot_high
+
+    reward = torch.exp(
+        -torch.sum(foot_z_target_error * foot_velocity_tanh, dim=1) / std
+    )
+    reward = torch.where(gate, reward, torch.zeros_like(reward))
+    return reward
+
+
 def feet_slide(
     env: ManagerBasedRlEnv,
     sensor_names: list[str],
@@ -235,3 +279,116 @@ def feet_slide(
     contacts = torch.stack(contact_list, dim=1)
     geom_vel = asset.data.geom_lin_vel_w[:, asset_cfg.geom_ids, :2]
     return torch.sum(geom_vel.norm(dim=-1) * contacts, dim=1)
+
+
+def contact_forces(
+    env: ManagerBasedRlEnv,
+    threshold: float,
+    sensor_names: list[str],
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+    asset: Entity = env.scene[asset_cfg.name]
+    forces_over_thresh = torch.zeros(env.num_envs, device=env.device)
+    for sensor_name in sensor_names:
+        sensor_data = asset.data.sensor_data[sensor_name]
+        # found = sensor_data[:, 0]
+        force = sensor_data[:, 1:4]
+        # pos = sensor_data[:, -3:]
+        forces_over_thresh += (force.norm(dim=-1) - threshold).clamp(min=0.0)
+    return forces_over_thresh
+
+
+class feet_air_contact_time:
+    """Reward long feet air and contact times (up to a threshold)."""
+
+    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+        self.asset_name = cfg.params["asset_name"]
+        self.sensor_names = cfg.params["sensor_names"]
+        self.num_feet = len(self.sensor_names)
+        self.mode_time = cfg.params["mode_time"]
+        self.command_name = cfg.params["command_name"]
+        self.command_threshold = cfg.params["command_threshold"]
+
+        asset: Entity = env.scene[self.asset_name]
+        for sensor_name in self.sensor_names:
+            if sensor_name not in asset.sensor_names:
+                raise ValueError(
+                    f"Sensor '{sensor_name}' not found in asset '{self.asset_name}'"
+                )
+
+        self.current_air_time = torch.zeros(
+            env.num_envs, self.num_feet, device=env.device
+        )
+        self.current_contact_time = torch.zeros(
+            env.num_envs, self.num_feet, device=env.device
+        )
+        self.last_air_time = torch.zeros(
+            env.num_envs, self.num_feet, device=env.device
+        )
+
+    def __call__(self, env: ManagerBasedRlEnv, **kwargs) -> torch.Tensor:
+        asset: Entity = env.scene[self.asset_name]
+
+        contact_list = []
+        for sensor_name in self.sensor_names:
+            sensor_data = asset.data.sensor_data[sensor_name]
+            foot_contact = sensor_data[:, 0] > 0
+            contact_list.append(foot_contact)
+
+        in_contact = torch.stack(contact_list, dim=1)
+
+        # Detect first contact (landing).
+        first_contact = (self.current_air_time > 0) & in_contact
+
+        # Save air time when landing.
+        self.last_air_time = torch.where(
+            first_contact, self.current_air_time, self.last_air_time
+        )
+
+        # Update air time and contact time.
+        self.current_air_time = torch.where(
+            in_contact,
+            torch.zeros_like(self.current_air_time),  # Reset when in contact.
+            self.current_air_time + env.step_dt,  # Increment when in air.
+        )
+
+        self.current_contact_time = torch.where(
+            in_contact,
+            self.current_contact_time
+            + env.step_dt,  # Increment when in contact.
+            torch.zeros_like(self.current_contact_time),  # Reset when in air.
+        )
+
+        t_max = torch.max(self.current_air_time, self.current_contact_time)
+        t_min = torch.clip(t_max, max=self.mode_time)
+        stance_cmd_reward = torch.clip(
+            self.current_contact_time - self.current_air_time,
+            -self.mode_time,
+            self.mode_time,
+        )
+
+        cmd = torch.norm(
+            env.command_manager.get_command(self.command_name)[:, :2],
+            dim=1,
+            keepdim=True,
+        )
+        body_vel = torch.linalg.norm(
+            asset.data.root_link_lin_vel_b[:, :2], dim=1, keepdim=True
+        )
+
+        reward = torch.where(
+            torch.logical_or(cmd > 0.0, body_vel > self.command_threshold),
+            torch.where(
+                t_max < self.mode_time, t_min, torch.zeros_like(t_min)
+            ),
+            stance_cmd_reward,
+        )
+
+        return torch.sum(reward, dim=1)
+
+    def reset(self, env_ids: torch.Tensor | slice | None = None):
+        if env_ids is None:
+            env_ids = slice(None)
+        self.current_air_time[env_ids] = 0.0
+        self.current_contact_time[env_ids] = 0.0
+        self.last_air_time[env_ids] = 0.0
