@@ -2,7 +2,6 @@
 
 from pathlib import Path
 import re
-from math import sqrt
 
 import mujoco
 
@@ -106,13 +105,13 @@ KANG_FULL_BENT_KNEES_JOINTS = {
     "baselink__left_hip_z_motor": 0.012612334452569485,
     "left_hip_z_slider": -0.0069928900338709354,
     "left_hip_z_yaw": 0.17689171433448792,
-    "left_hipyaw_yaw__hip_xy_bracket_l": 0.0,
-    "left_hip_xy_bracket_l__hip_xy_motor_l": 0.0,
-    "left_hip_xy_slider_l": 0.0,
-    "left_hip_xy_baselink__hip_xy_bracket_r": 0.0,
-    "left_hip_xy_bracket_r__hip_xy_motor_r": 0.0,
-    "left_hip_xy_slider_r": 0.0,
-    "left_hip_xy_pitch": 0.0,
+    "left_hipyaw_yaw__hip_xy_bracket_l": -2.9472078111325573e-08,
+    "left_hip_xy_bracket_l__hip_xy_motor_l": -5.5474883993156254e-05,
+    "left_hip_xy_slider_l": 1.3736400433117524e-05,
+    "left_hip_xy_baselink__hip_xy_bracket_r": 3.488626418857166e-07,
+    "left_hip_xy_bracket_r__hip_xy_motor_r": 5.0400678446749225e-05,
+    "left_hip_xy_slider_r": -1.2658454579650424e-05,
+    "left_hip_xy_pitch": 2.8126949473517016e-05,
     "left_hip_xy_roll": -0.001043891767039895,
     "left_hip_xy_legholder__leg_length_femur": 0.4631879925727844,
     "left_leg_length_slider": 0.049737099558115005,
@@ -139,13 +138,13 @@ KANG_FULL_BENT_KNEES_JOINTS = {
     "baselink__right_hip_z_motor": -0.012612465769052505,
     "right_hip_z_slider": -0.006992915645241737,
     "right_hip_z_yaw": -0.1768926978111267,
-    "right_hipyaw_yaw__hip_xy_bracket_l": 0.0,
-    "right_hip_xy_bracket_l__hip_xy_motor_l": 0.0,
-    "right_hip_xy_slider_l": 0.0,
-    "right_hip_xy_baselink__hip_xy_bracket_r": 0.0,
-    "right_hip_xy_bracket_r__hip_xy_motor_r": 0.0,
-    "right_hip_xy_slider_r": 0.0,
-    "right_hip_xy_pitch": 0.0,
+    "right_hipyaw_yaw__hip_xy_bracket_l": -1.7101825733334408e-07,
+    "right_hip_xy_bracket_l__hip_xy_motor_l": 5.0269871280761436e-05,
+    "right_hip_xy_slider_l": -1.2488367246987764e-05,
+    "right_hip_xy_baselink__hip_xy_bracket_r": 3.786670390582003e-07,
+    "right_hip_xy_bracket_r__hip_xy_motor_r": -5.494081779033877e-05,
+    "right_hip_xy_slider_r": 1.3523816051019821e-05,
+    "right_hip_xy_pitch": 2.6692941901274025e-05,
     "right_hip_xy_roll": 0.0010353424586355686,
     "right_hip_xy_legholder__leg_length_femur": 0.46318718791007996,
     "right_leg_length_slider": 0.049737025052309036,
@@ -159,7 +158,7 @@ KANG_FULL_BENT_KNEES_JOINTS = {
     "right_ankle_xy_butterfly_r__ankle_xy_bar2_r": 0.43708041310310364,
     "right_knee": -0.9305117130279541,
     "right_ankle_xy_pitch": 0.43403327465057373,
-    "right_ankle_xy_roll": 0.0,
+    "right_ankle_xy_roll": 4.43845237896312e-05,
     "right_leg_length_baselink__leg_length_bar1": -0.10036752372980118,
     "right_hip_xy_legholder__ankle_xy_motor_l": 0.00043951268889941275,
     "right_ankle_xy_slider_l": -0.0007198702660389245,
@@ -171,29 +170,23 @@ KANG_FULL_BENT_KNEES_JOINTS = {
     "right_ankle_xy_crank_r__ankle_xy_bar1_r": 0.49185508489608765,
 }
 
-# Passive 
 KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=KANG_FULL_PASSIVE_JOINTS,
     effort_limit=100.0,
     armature=0.01,
-    stiffness=0.1,
-    damping=0.5,
+    stiffness=0.0,
+    damping=0.0,
 )
 
 # TODO: which joints are measured?
-# stiffness_scale = 1.0  # Start with no scaling
-# stiffness_scale = 0.5 # Stage 1 (50% reduction)
-# stiffness_scale = 0.25 # Stage 2 (75% reduction)
-stiffness_scale = 0.1  # Stage 3 (90% reduction)
-
 KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         ".*_hip_z_slider",
     ],
     effort_limit=3000.0,
     armature=0.01,
-    stiffness=300000.0 * stiffness_scale,
-    damping=1095.0 * sqrt(stiffness_scale),
+    stiffness=300000.0,
+    damping=1095.0,
 )
 
 KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = ActuatorCfg(
@@ -202,8 +195,8 @@ KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = ActuatorCfg(
     ],
     effort_limit=3000.0,
     armature=0.01,
-    stiffness=700000.0 * stiffness_scale,
-    damping=1673.0 * sqrt(stiffness_scale),
+    stiffness=700000.0,
+    damping=1673.0,
 )
 
 KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = ActuatorCfg(
@@ -212,8 +205,8 @@ KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = ActuatorCfg(
     ],
     effort_limit=3000.0,
     armature=0.01,
-    stiffness=700000.0 * stiffness_scale,
-    damping=1673.0 * sqrt(stiffness_scale),
+    stiffness=700000.0,
+    damping=1673.0,
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = ActuatorCfg(
@@ -222,8 +215,8 @@ KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = ActuatorCfg(
     ],
     effort_limit=3000.0,
     armature=0.01,
-    stiffness=800000.0 * stiffness_scale,
-    damping=1789.0 * sqrt(stiffness_scale),
+    stiffness=800000.0,
+    damping=1789.0,
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = ActuatorCfg(
@@ -232,8 +225,8 @@ KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = ActuatorCfg(
     ],
     effort_limit=3000.0,
     armature=0.01,
-    stiffness=800000.0 * stiffness_scale,
-    damping=1789.0 * sqrt(stiffness_scale),
+    stiffness=800000.0,
+    damping=1789.0,
 )
 
 KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = ActuatorCfg(
@@ -242,8 +235,8 @@ KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = ActuatorCfg(
     ],
     effort_limit=5000.0,
     armature=0.01,
-    stiffness=1000000.0 * stiffness_scale,
-    damping=2000.0 * sqrt(stiffness_scale),
+    stiffness=1000000.0,
+    damping=2000.0,
 )
 
 KANG_FULL_ARMS_ACTUATOR_CFG = ActuatorCfg(
@@ -366,7 +359,7 @@ KANG_FULL_ARTICULATION = EntityArticulationInfoCfg(
 
 KANG_FULL_ROBOT_CFG = EntityCfg(
     init_state=KNEES_BENT_KEYFRAME,
-    collisions=(FULL_COLLISION,),
+    collisions=(FEET_ONLY_COLLISION,),
     spec_fn=get_spec,
     articulation=KANG_FULL_ARTICULATION,
 )
