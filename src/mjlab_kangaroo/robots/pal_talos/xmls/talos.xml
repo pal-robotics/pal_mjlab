@@ -23,7 +23,7 @@
         <geom contype="0" conaffinity="0" group="2" density="0"/>
       </default>
       <default class="collision">
-        <geom group="3"/>
+        <geom group="3" contype="1" conaffinity="1"/>
       </default>
     </default>
     <default class="position">
@@ -121,7 +121,7 @@
       <inertial pos="-0.0570942 0.00153054 -0.0762521" quat="0.528705 0.532893 -0.46798 0.466359" mass="15.3628" diaginertia="0.23241 0.200537 0.0841093"/>
       <joint name="reference" type="free" damping="0" frictionloss="0"/>
       <geom class="visual" material="white" mesh="base_link"/>
-      <geom name="base_collision" class="collision" material="white" mesh="base_link_collision"/>
+      <!-- <geom name="base_collision" class="collision" material="white" mesh="base_link_collision"/> -->
       <body name="torso_1_link" pos="0 0 0.0722">
         <inertial pos="0.00078223 3.528e-05 -0.0178246" quat="0.703744 0.704233 0.0663452 -0.0663278" mass="2.29466" diaginertia="0.00639091 0.00622386 0.00410256"/>
         <joint name="torso_1_joint" pos="0 0 0" axis="0 0 1" range="-1.25664 1.25664" actuatorfrcrange="-200 200" frictionloss="2"/>
@@ -131,7 +131,7 @@
           <inertial pos="-0.0463 -0.000989647 0.145241" quat="0.704021 0.708473 0.0363665 -0.0331367" mass="16.984" diaginertia="0.444971 0.320913 0.299991"/>
           <joint name="torso_2_joint" pos="0 0 0" axis="0 1 0" range="-0.226893 0.733038" actuatorfrcrange="-200 200" frictionloss="2"/>
           <geom class="visual" material="white" mesh="torso_2"/>
-          <geom name="torso_2_collision" class="collision" material="white" mesh="torso_2_collision"/>
+          <!-- <geom name="torso_2_collision" class="collision" material="white" mesh="torso_2_collision"/> -->
           <geom class="visual" size="0.005 0.005 0.005" pos="0.04925 0 0.078" quat="0 0.707107 0.707107 0" type="box" material="black"/>
           <body name="head_1_link" pos="0 0 0.316">
             <inertial pos="-0.00157211 -0.00157919 0.0217577" quat="0.679576 0.71147 -0.126684 0.126246" mass="0.73746" diaginertia="0.0022809 0.00202202 0.00110971"/>
@@ -185,7 +185,7 @@
                         <geom class="visual" size="0.0225 0.00785" pos="0 0 -0.051" quat="-0.707107 0 0 -0.707107" type="cylinder" material="white"/>
                         <!-- <geom class="collision" size="0.0225 0.00785" pos="0 0 -0.051" quat="-0.707107 0 0 -0.707107" type="cylinder" material="white"/> -->
                         <geom class="visual" size="0.025 0.004875" pos="0 0 -0.063725" type="cylinder" material="black"/>
-                        <geom name="arm_left_7_collision" class="collision" size="0.025 0.004875" pos="0 0 -0.063725" type="cylinder" material="black"/>
+                        <!-- <geom name="arm_left_7_collision" class="collision" size="0.025 0.004875" pos="0 0 -0.063725" type="cylinder" material="black"/> -->
                         <!-- <geom class="visual" pos="0 0 -0.092475" quat="1 0 0 0" material="black" mesh="gripper_base_link"/>
                         <geom class="collision" pos="0 0 -0.092475" quat="1 0 0 0" material="black" mesh="gripper_base_link_collision"/>
                         <body name="gripper_left_motor_double_link" pos="0 0.02025 -0.122475">
@@ -276,7 +276,7 @@
                         <geom class="visual" size="0.0225 0.00785" pos="0 0 -0.051" quat="0.707107 0 0 -0.707107" type="cylinder" material="white"/>
                         <!-- <geom class="collision" size="0.0225 0.00785" pos="0 0 -0.051" quat="0.707107 0 0 -0.707107" type="cylinder" material="white"/> -->
                         <geom class="visual" size="0.025 0.004875" pos="0 0 -0.063725" quat="0 0 0 -1" type="cylinder" material="black"/>
-                        <geom name="arm_right_7_collision" class="collision" size="0.025 0.004875" pos="0 0 -0.063725" quat="0 0 0 -1" type="cylinder" material="black"/>
+                        <!-- <geom name="arm_right_7_collision" class="collision" size="0.025 0.004875" pos="0 0 -0.063725" quat="0 0 0 -1" type="cylinder" material="black"/> -->
                         <!-- <geom class="visual" pos="0 0 -0.092475" quat="0 0 0 -1" material="black" mesh="gripper_base_link"/>
                         <geom class="collision" pos="0 0 -0.092475" quat="0 0 0 -1" material="black" mesh="gripper_base_link_collision"/>
                         <body name="gripper_right_motor_double_link" pos="0 -0.02025 -0.122475" quat="0 0 0 -1">
@@ -360,7 +360,7 @@
                   <inertial pos="-0.0201699 -0.000510665 -0.0602836" quat="0.343485 0.610901 0.618186 0.3559" mass="1.61177" diaginertia="0.00773279 0.006503 0.00387932"/>
                   <joint name="leg_left_6_joint" pos="0 0 0" axis="1 0 0" range="-0.5236 0.5236" actuatorfrcrange="-100 100"/>
                   <geom class="visual" rgba="0.7 0.7 0.7 1" mesh="l_ankle_X_lo_res"/>
-                  <geom name="left_foot_collision" class="collision" size="0.1 0.06 0.006" pos="-0.005 0 -0.1" type="box" contype="6"/>
+                  <geom name="left_foot_collision" class="collision" size="0.1 0.06 0.02" pos="-0.005 0 -0.087" type="box"/>
                   <site name="left_foot" pos="0 0 -0.1"/>
                 </body>
               </body>
@@ -397,7 +397,7 @@
                   <inertial pos="-0.0201699 0.000510665 -0.0602836" quat="0.3559 0.618186 0.610901 0.343485" mass="1.61177" diaginertia="0.00773279 0.006503 0.00387932"/>
                   <joint name="leg_right_6_joint" pos="0 0 0" axis="1 0 0" range="-0.5236 0.5236" actuatorfrcrange="-100 100"/>
                   <geom class="visual" rgba="0.7 0.7 0.7 1" mesh="r_ankle_X_lo_res"/>
-                  <geom name="right_foot_collision" class="collision" size="0.1 0.06 0.006" pos="-0.005 0 -0.1" type="box" contype="6"/>
+                  <geom name="right_foot_collision" class="collision" size="0.1 0.06 0.02" pos="-0.005 0 -0.087" type="box"/>
                   <site name="right_foot" pos="0 0 -0.1"/>
                 </body>
               </body>
