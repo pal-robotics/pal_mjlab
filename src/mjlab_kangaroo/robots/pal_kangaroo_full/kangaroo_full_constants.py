@@ -360,7 +360,7 @@ KANG_FULL_ARTICULATION = EntityArticulationInfoCfg(
 
 KANG_FULL_ROBOT_CFG = EntityCfg(
     init_state=KNEES_BENT_KEYFRAME,
-    collisions=(FEET_ONLY_COLLISION,),
+    collisions=(FULL_COLLISION,),
     spec_fn=get_spec,
     articulation=KANG_FULL_ARTICULATION,
 )

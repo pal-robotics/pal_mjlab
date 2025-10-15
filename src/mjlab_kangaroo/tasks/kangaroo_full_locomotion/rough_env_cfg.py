@@ -29,10 +29,10 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
             )
             for side in ["left", "right"]
         ]
-        g1_cfg = replace(
+        robot_cfg = replace(
             KANG_FULL_ROBOT_CFG, sensors=tuple(foot_contact_sensors)
         )
-        self.scene.entities = {"robot": g1_cfg}
+        self.scene.entities = {"robot": robot_cfg}
 
         sensor_names = [
             "left_foot_ground_contact",
@@ -86,7 +86,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         }
 
         # CommandsCfg
-        self.commands.twist.rel_standing_envs = 0.2
+        self.commands.twist.rel_standing_envs = 0.3
         self.commands.twist.viz.z_offset = 0.75
 
         # EventCfg
@@ -95,20 +95,25 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         ]
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
         self.events.reset_robot_joints.params["velocity_range"] = (0.0, 0.0)
-        self.events.push_robot = None
+        self.events.push_robot.params["velocity_range"] = {
+            "x": (-0.5, 0.5),
+            "y": (-0.5, 0.5),
+            "z": (-0.2, 0.2),
+            "roll": (-0.52, 0.52),
+            "pitch": (-0.52, 0.52),
+            "yaw": (-0.52, 0.52),
+        }
 
         # RewardCfg
         self.rewards.track_lin_vel_exp.weight = 2.0
-        self.rewards.track_ang_vel_exp.weight = 1.0
+        self.rewards.track_ang_vel_exp.weight = 2.0
         self.rewards.air_contact_time.weight = 1.0
         self.rewards.air_contact_time.params["sensor_names"] = sensor_names
         self.rewards.air_contact_time.params["command_threshold"] = 0.1
         self.rewards.air_contact_time.params["mode_time"] = 0.3
-        # self.rewards.air_time.weight = 2.0
-        # self.rewards.air_time.params["sensor_names"] = sensor_names
         self.rewards.foot_clearance.weight = 0.5
         self.rewards.foot_clearance.params["target_height"] = 0.20
-        self.rewards.foot_clearance.params["min_speed"] = 0.0
+        self.rewards.foot_clearance.params["min_speed"] = 0.1
         self.rewards.foot_clearance.params["min_clearance"] = 0.045
         self.rewards.foot_clearance.params["std"] = 0.05
         self.rewards.foot_clearance.params["tanh_mult"] = 2.0
@@ -147,7 +152,6 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.rewards.lin_vel_z_l2.weight = -0.1
         self.rewards.ang_vel_xy_l2.weight = -0.1
         self.rewards.action_rate_l2.weight = -0.01
-        # self.rewards.flat_orientation_l2 = None
         self.rewards.flat_orientation_l2.weight = -0.1
         self.rewards.feet_slide = None
         # self.rewards.feet_slide.weight = -0.05
@@ -172,6 +176,10 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         #     ".*_ankle_xy_slider_r",
         #     ".*_leg_length_slider$",
         # }
+        self.rewards.base_height.weight = -0.001
+        self.rewards.base_height.params["target_height"] = (
+            robot_cfg.init_state.pos[2]
+        )
 
         # CurriculumCfg
         self.curriculum.command_vel = None

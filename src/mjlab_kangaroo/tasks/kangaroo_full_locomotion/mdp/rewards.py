@@ -227,7 +227,7 @@ def foot_clearance_reward_2(
     std: float,
     tanh_mult: float,
     min_clearance: float = 0.045,
-    min_speed: float = 0.0,
+    min_speed: float = 0.05,
     command_name: str = "twist",
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
@@ -392,3 +392,20 @@ class feet_air_contact_time:
         self.current_air_time[env_ids] = 0.0
         self.current_contact_time[env_ids] = 0.0
         self.last_air_time[env_ids] = 0.0
+
+
+def base_height_l2(
+    env: ManagerBasedRlEnv,
+    target_height: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Penalize asset height from its target using L2 squared kernel.
+
+    Note:
+        For flat terrain ONLY, target height is in the world frame.
+        TODO: adapt for rough terrain.
+    """
+    asset: Entity = env.scene[asset_cfg.name]
+
+    # Compute the L2 squared penalty
+    return torch.square(asset.data.root_link_pos_w[:, 2] - target_height)

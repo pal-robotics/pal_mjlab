@@ -301,6 +301,17 @@ class RewardCfg:
             "threshold": 100.0,
         },
     )
+    base_height: RewardTerm = term(
+        RewardTerm,
+        func=mdp.base_height_l2,
+        weight=-0.01,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", geom_names=[]
+            ),  # Override in robot cfg.
+            "target_height": 1.0,
+        },
+    )
 
 
 @dataclass
