@@ -155,7 +155,6 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.rewards.action_rate_l2.weight = -0.01
         self.rewards.flat_orientation_l2.weight = -0.1
 
-        self.rewards.feet_slide = None
         self.rewards.feet_slide.weight = -0.01
         self.rewards.feet_slide.params["sensor_names"] = sensor_names
         self.rewards.feet_slide.params["asset_cfg"].geom_names = [
