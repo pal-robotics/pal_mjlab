@@ -11,6 +11,8 @@ This repository showcase the implementation of PAL's robots into MjLab.
 |:--:|:--:|
 | Légende 1 | Légende 2 | -->
 
+> [!WARNING]
+> Kangaroo locomotion is still WIP.
 
 ## What's MjLab?
 
