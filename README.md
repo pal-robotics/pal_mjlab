@@ -25,7 +25,7 @@ It’s really easy to install, and sim-to-real has been tested successfully on t
 ### Clone the repository
 
 ```bash
-git clone https://github.com/louislelay/mjlab_kangaroo.git && cd mjlab_kangaroo
+git clone https://github.com/louislelay/pal_mjlab.git && cd pal_mjlab
 ```
 
 ### List available environments
