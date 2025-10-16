@@ -40,13 +40,13 @@ uv run pal_play Mjlab-Velocity-Flat-Talos --agent random # send random actions t
 ### Train
 
 ```bash
-uv run pal_train Mjlab-Velocity-Flat-Talos --env.scene.num-envs 4096
+uv run pal_train Mjlab-Velocity-Flat-Pal-Talos --env.scene.num-envs 4096
 ```
 
 ### Play
 
 ```bash
-uv run pal_play Mjlab-Velocity-Flat-Talos-Play --wandb-run-path your-org/mjlab/run-id
+uv run pal_play Mjlab-Velocity-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
 ```
 
 ## Acknowledgements
