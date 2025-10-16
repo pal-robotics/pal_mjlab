@@ -1,9 +1,18 @@
-# Kangaroo in MjLab
+# PAL Robotics in MjLab
 
-This repository showcase the implementation of PAL's Kangaroo robot into MjLab. 
+This repository showcase the implementation of PAL's robots into MjLab. 
 
 > [!WARNING]
 > As MjLab is still in early development, this repository may be impacted by breaking changes. If an issue were to arise when running one of the scripts, feel free to open an issue or contribute to the project. Thanks you for your understanding!
+
+![Demo 1](medias/talos_velocity.gif)
+
+<!-- | ![Demo 1](medias/talos_velocity.gif) | ![Demo 2](medias/kang_velocity.gif) |
+|:--:|:--:|
+| Légende 1 | Légende 2 | -->
+
+> [!WARNING]
+> Kangaroo locomotion is still WIP.
 
 ## What's MjLab?
 
@@ -22,44 +31,27 @@ git clone https://github.com/louislelay/mjlab_kangaroo.git && cd mjlab_kangaroo
 ### List available environments
 
 ```bash
-uv run scripts/list_envs.py
+uv run pal_list_envs
 ```
 
 ### Dummy agents
 
 ```bash
-uv run scripts/zero_agent.py --task mjlab_kangaroo-Velocity-Flat-Kangaroo
-```
-
-or
-
-```bash
-uv run scripts/random_agent.py --task mjlab_kangaroo-Velocity-Flat-Kangaroo
+uv run pal_play Mjlab-Velocity-Flat-Talos --agent zero # send zero actions to the robot
+uv run pal_play Mjlab-Velocity-Flat-Talos --agent random # send random actions to the robot
 ```
 
 ### Train
 
 ```bash
-uv run scripts/train.py mjlab_kangaroo-Velocity-Flat-Kangaroo --env.scene.num-envs 4096
+uv run pal_train Mjlab-Velocity-Flat-Talos --env.scene.num-envs 4096
 ```
 
 ### Play
 
 ```bash
-uv run scripts/play.py --task mjlab_kangaroo-Velocity-Flat-Kangaroo-Play --wandb-run-path your-org/mjlab/run-id
+uv run pal_play Mjlab-Velocity-Flat-Talos-Play --wandb-run-path your-org/mjlab/run-id
 ```
-
-## Repository current state
-
-Here's a video of our early result:
-
-![result](medias/kang_mjlab.gif)
-
-Current focus/painpoints:
-
-- Reward tuning + adding some air time/foot clearance
-- Rough terrain is buggy with MjWarp
-- Actuators are not on pair with how it's done for Isaac Lab
 
 ## Acknowledgements
 

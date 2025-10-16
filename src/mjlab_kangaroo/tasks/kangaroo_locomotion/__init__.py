@@ -1,7 +1,7 @@
 import gymnasium as gym
 
 gym.register(
-  id="mjlab_kangaroo-Velocity-Rough-Kangaroo",
+  id="Mjlab-Velocity-Rough-Kangaroo",
   entry_point="mjlab.envs:ManagerBasedRlEnv",
   disable_env_checker=True,
   kwargs={
@@ -11,7 +11,7 @@ gym.register(
 )
 
 gym.register(
-  id="mjlab_kangaroo-Velocity-Rough-Kangaroo-Play",
+  id="Mjlab-Velocity-Rough-Kangaroo-Play",
   entry_point="mjlab.envs:ManagerBasedRlEnv",
   disable_env_checker=True,
   kwargs={
@@ -21,7 +21,7 @@ gym.register(
 )
 
 gym.register(
-  id="mjlab_kangaroo-Velocity-Flat-Kangaroo",
+  id="Mjlab-Velocity-Flat-Kangaroo",
   entry_point="mjlab.envs:ManagerBasedRlEnv",
   disable_env_checker=True,
   kwargs={
@@ -31,7 +31,7 @@ gym.register(
 )
 
 gym.register(
-  id="mjlab_kangaroo-Velocity-Flat-Kangaroo-Play",
+  id="Mjlab-Velocity-Flat-Kangaroo-Play",
   entry_point="mjlab.envs:ManagerBasedRlEnv",
   disable_env_checker=True,
   kwargs={
