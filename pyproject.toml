@@ -25,3 +25,4 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 mjlab = { git = "https://github.com/mujocolab/mjlab" }
+

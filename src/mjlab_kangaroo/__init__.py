@@ -1,3 +1,3 @@
 from pathlib import Path
 
-mjlab_kangaroo_SRC_PATH: Path = Path(__file__).parent
+MJLAB_PAL_SRC_PATH: Path = Path(__file__).parent

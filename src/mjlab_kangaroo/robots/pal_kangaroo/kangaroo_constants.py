@@ -4,7 +4,7 @@ from pathlib import Path
 
 import mujoco
 
-from mjlab_kangaroo import mjlab_kangaroo_SRC_PATH
+from mjlab_kangaroo import MJLAB_PAL_SRC_PATH
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
@@ -14,7 +14,7 @@ from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
 ##
 
 KANG_XML: Path = (
-    mjlab_kangaroo_SRC_PATH / "robots" / "pal_kangaroo" / "xmls" / "kangaroo.xml"
+    MJLAB_PAL_SRC_PATH / "robots" / "pal_kangaroo" / "xmls" / "kangaroo.xml"
 )
 assert KANG_XML.exists()
 
