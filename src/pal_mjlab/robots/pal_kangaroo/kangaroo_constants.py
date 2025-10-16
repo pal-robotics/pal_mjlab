@@ -4,7 +4,7 @@ from pathlib import Path
 
 import mujoco
 
-from mjlab_kangaroo import MJLAB_PAL_SRC_PATH
+from pal_mjlab import MJLAB_PAL_SRC_PATH
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg

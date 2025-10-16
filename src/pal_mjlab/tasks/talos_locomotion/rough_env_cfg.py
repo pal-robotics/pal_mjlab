@@ -1,6 +1,6 @@
 from dataclasses import dataclass, replace
 
-from mjlab_kangaroo.robots import (
+from pal_mjlab.robots import (
     TALOS_ACTION_SCALE,
     TALOS_ROBOT_CFG,
 )

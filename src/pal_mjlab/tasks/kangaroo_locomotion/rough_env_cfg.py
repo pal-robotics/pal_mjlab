@@ -1,10 +1,10 @@
 from dataclasses import dataclass, replace
 
-from mjlab_kangaroo.robots.pal_kangaroo.kangaroo_constants import (
+from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
     KANG_ACTION_SCALE,
     KANG_ROBOT_CFG,
 )
-from mjlab_kangaroo.tasks.kangaroo_locomotion.velocity_env_cfg import (
+from pal_mjlab.tasks.kangaroo_locomotion.velocity_env_cfg import (
     LocomotionVelocityEnvCfg,
 )
 

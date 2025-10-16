@@ -1,5 +1,5 @@
 [project]
-name = "mjlab-kangaroo"
+name = "pal-mjlab"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -13,10 +13,10 @@ dependencies = [
 ]
 
 [project.scripts]
-mjlab-kangaroo = "mjlab_kangaroo:main"
-pal_train = "mjlab_kangaroo.scripts.train:main"
-pal_play = "mjlab_kangaroo.scripts.play:main"
-pal_list_envs = "mjlab_kangaroo.scripts.list_envs:main"
+pal-mjlab = "pal_mjlab:main"
+pal_train = "pal_mjlab.scripts.train:main"
+pal_play = "pal_mjlab.scripts.play:main"
+pal_list_envs = "pal_mjlab.scripts.list_envs:main"
 
 
 [build-system]

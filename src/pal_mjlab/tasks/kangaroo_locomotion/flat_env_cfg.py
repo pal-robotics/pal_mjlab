@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from mjlab_kangaroo.tasks.kangaroo_locomotion.rough_env_cfg import (
+from pal_mjlab.tasks.kangaroo_locomotion.rough_env_cfg import (
     KangRoughEnvCfg,
 )
 
