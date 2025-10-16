@@ -4,4 +4,4 @@ import mjlab_kangaroo.tasks  # noqa: F401
 from mjlab.scripts.train import main
 
 if __name__ == "__main__":
-  main()
+    main()
