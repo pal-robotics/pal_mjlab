@@ -33,8 +33,8 @@ uv run pal_list_envs
 ### Dummy agents
 
 ```bash
-uv run pal_play Mjlab-Velocity-Flat-Talos --agent zero # send zero actions to the robot
-uv run pal_play Mjlab-Velocity-Flat-Talos --agent random # send random actions to the robot
+uv run pal_play Mjlab-Velocity-Flat-Pal-Talos --agent zero # send zero actions to the robot
+uv run pal_play Mjlab-Velocity-Flat-Pal-Talos --agent random # send random actions to the robot
 ```
 
 ### Train
