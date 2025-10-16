@@ -96,12 +96,12 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
         self.events.reset_robot_joints.params["velocity_range"] = (0.0, 0.0)
         self.events.push_robot.params["velocity_range"] = {
-            "x": (-0.5, 0.5),
-            "y": (-0.5, 0.5),
+            "x": (-1.0, 1.0),
+            "y": (-1.0, 1.0),
             "z": (-0.2, 0.2),
             "roll": (-0.52, 0.52),
             "pitch": (-0.52, 0.52),
-            "yaw": (-0.52, 0.52),
+            "yaw": (-0.79, 0.79),
         }
 
         # RewardCfg
@@ -122,7 +122,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         ]
 
         self.rewards.dof_pos_limits = None
-        # self.rewards.posture = None
+
         self.rewards.posture.weight = -0.01
         self.rewards.posture.params["asset_cfg"].joint_names = {
             r".*(pelvis_(1|2)_joint|arm_(left|right)_(1|4)_joint).*",
@@ -148,34 +148,36 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
             ".*_ankle_xy_slider_r": 0.03,
             ".*_leg_length_slider$": 0.18,
         }
+
         self.rewards.termination_penalty.weight = -20.0
         self.rewards.lin_vel_z_l2.weight = -0.1
         self.rewards.ang_vel_xy_l2.weight = -0.1
         self.rewards.action_rate_l2.weight = -0.01
         self.rewards.flat_orientation_l2.weight = -0.1
+
         self.rewards.feet_slide = None
-        # self.rewards.feet_slide.weight = -0.05
-        # self.rewards.feet_slide.params["sensor_names"] = sensor_names
-        # self.rewards.feet_slide.params["asset_cfg"].geom_names = [
-        #     r"^(left|right)_foot_collision$"
-        # ]
-        # self.rewards.contact_forces = None
+        self.rewards.feet_slide.weight = -0.01
+        self.rewards.feet_slide.params["sensor_names"] = sensor_names
+        self.rewards.feet_slide.params["asset_cfg"].geom_names = [
+            r"^(left|right)_foot_collision$"
+        ]
         self.rewards.contact_forces.weight = -0.0002
-        self.rewards.contact_forces.params["threshold"] = 800
+        self.rewards.contact_forces.params["threshold"] = 500
         self.rewards.contact_forces.params["sensor_names"] = sensor_names
         self.rewards.contact_forces.params["asset_cfg"].geom_names = [
             r"^(left|right)_foot_collision$"
         ]
-        self.rewards.electrical_power = None
-        # self.rewards.electrical_power.weight = -0.0002
-        # self.rewards.electrical_power.params["asset_cfg"].joint_names = {
-        #     ".*_hip_z_slider",
-        #     ".*_hip_xy_slider_l",
-        #     ".*_hip_xy_slider_r",
-        #     ".*_ankle_xy_slider_l",
-        #     ".*_ankle_xy_slider_r",
-        #     ".*_leg_length_slider$",
-        # }
+
+        self.rewards.electrical_power.weight = -0.0001
+        self.rewards.electrical_power.params["asset_cfg"].joint_names = {
+            ".*_hip_z_slider",
+            ".*_hip_xy_slider_l",
+            ".*_hip_xy_slider_r",
+            ".*_ankle_xy_slider_l",
+            ".*_ankle_xy_slider_r",
+            ".*_leg_length_slider$",
+        }
+
         self.rewards.base_height.weight = -0.001
         self.rewards.base_height.params["target_height"] = (
             robot_cfg.init_state.pos[2]

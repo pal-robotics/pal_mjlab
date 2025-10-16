@@ -171,20 +171,20 @@ KANG_FULL_BENT_KNEES_JOINTS = {
     "right_ankle_xy_crank_r__ankle_xy_bar1_r": 0.49185508489608765,
 }
 
-# Passive 
+# Passive
 KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=KANG_FULL_PASSIVE_JOINTS,
     effort_limit=100.0,
     armature=0.01,
-    stiffness=0.1,
-    damping=0.5,
+    stiffness=0.0,
+    damping=0.0,
 )
 
 # TODO: which joints are measured?
-# stiffness_scale = 1.0  # Start with no scaling
+stiffness_scale = 1.0  # Start with no scaling
 # stiffness_scale = 0.5 # Stage 1 (50% reduction)
 # stiffness_scale = 0.25 # Stage 2 (75% reduction)
-stiffness_scale = 0.1  # Stage 3 (90% reduction)
+# stiffness_scale = 0.1  # Stage 3 (90% reduction)
 
 KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
