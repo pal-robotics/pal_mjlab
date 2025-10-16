@@ -66,7 +66,7 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
       r"arm_.*_7_.*": 0.3, #wrist
     }
 
-    self.viewer.body_name = "torso_2_link"
+    self.viewer.body_name = "base_link"
     self.commands.twist.viz.z_offset = 0.75
 
     self.curriculum.command_vel = None
