@@ -5,11 +5,7 @@ This repository showcase the implementation of PAL's robots into MjLab.
 > [!WARNING]
 > As MjLab is still in early development, this repository may be impacted by breaking changes. If an issue were to arise when running one of the scripts, feel free to open an issue or contribute to the project. Thanks you for your understanding!
 
-![Demo 1](medias/talos_velocity.gif)
-
-<!-- | ![Demo 1](medias/talos_velocity.gif) | ![Demo 2](medias/kang_velocity.gif) |
-|:--:|:--:|
-| Légende 1 | Légende 2 | -->
+https://github.com/user-attachments/assets/7935ed66-16ae-4fcb-8b3f-3f2cc3d8589b
 
 > [!WARNING]
 > Kangaroo locomotion is still WIP.
