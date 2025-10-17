@@ -18,7 +18,6 @@ pal_train = "pal_mjlab.scripts.train:main"
 pal_play = "pal_mjlab.scripts.play:main"
 pal_list_envs = "pal_mjlab.scripts.list_envs:main"
 
-
 [build-system]
 requires = ["uv_build>=0.8.18,<0.9.0"]
 build-backend = "uv_build"
