@@ -18,19 +18,19 @@ It’s really easy to install, and sim-to-real has been tested successfully on t
 
 ## Quickstart
 
-Clone the repository
+Clone the repository.
 
 ```bash
 git clone https://github.com/louislelay/pal_mjlab.git && cd pal_mjlab
 ```
 
-List available environments
+List available environments.
 
 ```bash
 uv run pal_list_envs
 ```
 
-Use the dummy agents
+Use the dummy agents.
 
 ```bash
 uv run pal_play Mjlab-Velocity-Flat-Pal-Talos --agent zero # send zero actions to the robot
@@ -54,6 +54,9 @@ uv run pal_play Mjlab-Velocity-Flat-Pal-Talos-Play --wandb-run-path your-org/mjl
 ### Motion Tracking
 
 Using [GMR](https://github.com/YanjieZe/GMR), create a `.csv` file using one of the motion provided by the [LaFAN1 dataset](https://github.com/ubisoft/ubisoft-laforge-animation-dataset).
+
+> [!NOTE]
+> For ease of use, we provide `talos_dancing.csv`.
 
 ```bash
 cd path/to/GMR
@@ -85,8 +88,6 @@ Evaluate the policy.
 ```bash
 uv run pal_play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
 ```
-
-
 
 ## Acknowledgements
 
