@@ -6,7 +6,7 @@ from mjlab.utils.spec_config import ContactSensorCfg
 from mjlab_kangaroo.robots import (
     KANG_FULL_ROBOT_CFG,
     KANG_FULL_LINEAR_ACTUATORS,
-    KANG_FULL_REVOLUTE_ACTUATORS,
+    # KANG_FULL_REVOLUTE_ACTUATORS,
 )
 from mjlab_kangaroo.tasks.kangaroo_full_locomotion.velocity_env_cfg import (
     LocomotionVelocityEnvCfg,
@@ -60,6 +60,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.actions.joint_pos.scale = 0.1
 
         # ObservationCfg
+        # TODO: consider also the "measured" passive joints
         self.observations.policy.joint_pos.params = {
             "asset_cfg": SceneEntityCfg(
                 "robot",

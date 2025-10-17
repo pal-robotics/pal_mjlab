@@ -200,13 +200,14 @@ class feet_air_time:
         self.last_air_time[env_ids] = 0.0
 
 
-def foot_clearance_reward(
+def foot_clearance(
     env: ManagerBasedRlEnv,
     target_height: float,
     std: float,
     tanh_mult: float,
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
+    """Reward reaching a certain step height."""
     asset: Entity = env.scene[asset_cfg.name]
     foot_z_target_error = torch.square(
         asset.data.geom_pos_w[:, asset_cfg.geom_ids, 2] - target_height
@@ -221,7 +222,7 @@ def foot_clearance_reward(
     return torch.exp(-torch.sum(reward, dim=1) / std)
 
 
-def foot_clearance_reward_2(
+def foot_clearance_when_moving(
     env: ManagerBasedRlEnv,
     target_height: float,
     std: float,
@@ -231,8 +232,9 @@ def foot_clearance_reward_2(
     command_name: str = "twist",
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
+    """Reward reaching a certain step height while moving."""
     asset: Entity = env.scene[asset_cfg.name]
-    # TODO: adjust if RayCaster present
+    # TODO: adjust height calculation  if RayCaster is present (rough ground)
 
     # height of each foot
     foot_height = asset.data.geom_pos_w[:, asset_cfg.geom_ids, 2]
@@ -251,7 +253,7 @@ def foot_clearance_reward_2(
     body_vel = torch.linalg.norm(asset.data.root_link_lin_vel_b[:, :2], dim=1)
     moving_env = (cmd > min_speed) | (body_vel > min_speed)
 
-    # foot-level clearance condition, then reduce to env-level (any foot high enough)
+    # foot-level clearance condition
     foot_high = foot_height > min_clearance
     any_foot_high = torch.any(foot_high, dim=1)
 
@@ -273,43 +275,44 @@ def foot_clearance_stop_aware(
     min_clearance: float = 0.045,
     v_enter: float = 0.06,  # start “walk” around here
     v_exit: float = 0.10,  # definitely “walk” above here
-    stop_height_penalty: float = 5.0,  # weight for height when stopping
-    stop_speed_penalty: float = 0.5,  # weight for foot horiz speed when stopping
+    stop_height_penalty: float = 5.0,
+    stop_speed_penalty: float = 0.5,
     command_name: str = "twist",
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
+    """Reward high steps while moving, but penalize stepping in-place,"""
     asset: Entity = env.scene[asset_cfg.name]
+    # TODO: adjust height calculation  if RayCaster is present (rough ground)
 
-    # --- foot kinematics ---
+    # foot kinematics
     foot_height = asset.data.geom_pos_w[:, asset_cfg.geom_ids, 2]  # [B, nfeet]
     foot_speed_xy = torch.norm(
         asset.data.geom_lin_vel_w[:, asset_cfg.geom_ids, :2], dim=2
     )  # [B, nfeet]
 
-    # --- positive clearance shaping for walking ---
+    # positive clearance shaping for walking
     z_err_sq = (foot_height - target_height).pow(2)  # [B, nfeet]
     speed_tanh = torch.tanh(tanh_mult * foot_speed_xy)  # [B, nfeet]
     walk_clearance = torch.exp(
         -torch.sum(z_err_sq * speed_tanh, dim=1) / std
     )  # [B]
 
-    # --- commanded speed magnitude (use only command to avoid feedback loops) ---
+    # commanded speed magnitude
     cmd = env.command_manager.get_command(
         command_name
     )  # [B, 3] e.g. vx, vy, wz
     cmd_mag = torch.linalg.norm(cmd, dim=1)  # [B]
 
-    # --- smooth gate: 0 at low speed, 1 at high speed (Schmitt-like with smoothing) ---
+    # smooth gate: 0 at low speed, 1 at high speed
     # map cmd_mag in [v_enter, v_exit] to s in [0,1], clamp, then smoothstep
     denom = v_exit - v_enter + 1e-6
     s = ((cmd_mag - v_enter) / denom).clamp(0.0, 1.0)
-    # smoothstep(s) = 3s^2 - 2s^3 (C1 continuous, nicer gradients than hard gates)
+    # smoothstep(s) = 3s^2 - 2s^3 (C1 continuous, nicer gradients)
     w_move = 3 * s * s - 2 * s * s * s  # [B]
     w_stop = 1.0 - w_move
 
-    # --- small penalty when "stopping": discourage stepping/fidgeting ---
-    # penalize feet being above a tiny clearance and penalize horizontal foot motion
-
+    # small penalty when "stopping": discourage stepping/fidgeting
+    # penalize feet being above a tiny clearance and horizontal motions
     foot_above = torch.clamp(foot_height - min_clearance, min=0.0)
     stop_penalty = stop_height_penalty * torch.sum(
         foot_above * foot_above, dim=1
@@ -317,7 +320,7 @@ def foot_clearance_stop_aware(
         foot_speed_xy * foot_speed_xy, dim=1
     )  # [B]
 
-    # --- combine: reward is positive during motion, negative when stopped ---
+    # combine: reward is positive during motion, negative when stopped
     reward = w_move * walk_clearance - w_stop * stop_penalty
     return reward
 
@@ -327,6 +330,7 @@ def feet_slide(
     sensor_names: list[str],
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
+    """Penalize feet horizontal velocities while in contact."""
     asset: Entity = env.scene[asset_cfg.name]
     contact_list = []
     for sensor_name in sensor_names:
@@ -344,6 +348,7 @@ def contact_forces(
     sensor_names: list[str],
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
+    """Penalize contact forces over a given threshold."""
     asset: Entity = env.scene[asset_cfg.name]
     forces_over_thresh = torch.zeros(env.num_envs, device=env.device)
     for sensor_name in sensor_names:
@@ -456,13 +461,9 @@ def base_height_l2(
     target_height: float,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
-    """Penalize asset height from its target using L2 squared kernel.
-
-    Note:
-        For flat terrain ONLY, target height is in the world frame.
-        TODO: adapt for rough terrain.
-    """
+    """Penalize asset height from its target using L2 squared kernel."""
     asset: Entity = env.scene[asset_cfg.name]
+    # TODO: adjust height calculation  if RayCaster is present (rough ground)
 
     # Compute the L2 squared penalty
     return torch.square(asset.data.root_link_pos_w[:, 2] - target_height)
