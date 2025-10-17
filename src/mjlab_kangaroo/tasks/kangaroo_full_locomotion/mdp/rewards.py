@@ -265,6 +265,63 @@ def foot_clearance_reward_2(
     return reward
 
 
+def foot_clearance_stop_aware(
+    env: ManagerBasedRlEnv,
+    target_height: float,
+    std: float,
+    tanh_mult: float,
+    min_clearance: float = 0.045,
+    v_enter: float = 0.06,  # start “walk” around here
+    v_exit: float = 0.10,  # definitely “walk” above here
+    stop_height_penalty: float = 5.0,  # weight for height when stopping
+    stop_speed_penalty: float = 0.5,  # weight for foot horiz speed when stopping
+    command_name: str = "twist",
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+    asset: Entity = env.scene[asset_cfg.name]
+
+    # --- foot kinematics ---
+    foot_height = asset.data.geom_pos_w[:, asset_cfg.geom_ids, 2]  # [B, nfeet]
+    foot_speed_xy = torch.norm(
+        asset.data.geom_lin_vel_w[:, asset_cfg.geom_ids, :2], dim=2
+    )  # [B, nfeet]
+
+    # --- positive clearance shaping for walking ---
+    z_err_sq = (foot_height - target_height).pow(2)  # [B, nfeet]
+    speed_tanh = torch.tanh(tanh_mult * foot_speed_xy)  # [B, nfeet]
+    walk_clearance = torch.exp(
+        -torch.sum(z_err_sq * speed_tanh, dim=1) / std
+    )  # [B]
+
+    # --- commanded speed magnitude (use only command to avoid feedback loops) ---
+    cmd = env.command_manager.get_command(
+        command_name
+    )  # [B, 3] e.g. vx, vy, wz
+    cmd_mag = torch.linalg.norm(cmd, dim=1)  # [B]
+
+    # --- smooth gate: 0 at low speed, 1 at high speed (Schmitt-like with smoothing) ---
+    # map cmd_mag in [v_enter, v_exit] to s in [0,1], clamp, then smoothstep
+    denom = v_exit - v_enter + 1e-6
+    s = ((cmd_mag - v_enter) / denom).clamp(0.0, 1.0)
+    # smoothstep(s) = 3s^2 - 2s^3 (C1 continuous, nicer gradients than hard gates)
+    w_move = 3 * s * s - 2 * s * s * s  # [B]
+    w_stop = 1.0 - w_move
+
+    # --- small penalty when "stopping": discourage stepping/fidgeting ---
+    # penalize feet being above a tiny clearance and penalize horizontal foot motion
+
+    foot_above = torch.clamp(foot_height - min_clearance, min=0.0)
+    stop_penalty = stop_height_penalty * torch.sum(
+        foot_above * foot_above, dim=1
+    ) + stop_speed_penalty * torch.sum(
+        foot_speed_xy * foot_speed_xy, dim=1
+    )  # [B]
+
+    # --- combine: reward is positive during motion, negative when stopped ---
+    reward = w_move * walk_clearance - w_stop * stop_penalty
+    return reward
+
+
 def feet_slide(
     env: ManagerBasedRlEnv,
     sensor_names: list[str],

@@ -113,10 +113,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.rewards.air_contact_time.params["mode_time"] = 0.3
         self.rewards.foot_clearance.weight = 0.5
         self.rewards.foot_clearance.params["target_height"] = 0.20
-        self.rewards.foot_clearance.params["min_speed"] = 0.1
         self.rewards.foot_clearance.params["min_clearance"] = 0.045
-        self.rewards.foot_clearance.params["std"] = 0.05
-        self.rewards.foot_clearance.params["tanh_mult"] = 2.0
         self.rewards.foot_clearance.params["asset_cfg"].geom_names = [
             r"^(left|right)_foot_collision$"
         ]
@@ -155,7 +152,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.rewards.action_rate_l2.weight = -0.01
         self.rewards.flat_orientation_l2.weight = -0.1
 
-        self.rewards.feet_slide.weight = -0.01
+        self.rewards.feet_slide.weight = -0.1
         self.rewards.feet_slide.params["sensor_names"] = sensor_names
         self.rewards.feet_slide.params["asset_cfg"].geom_names = [
             r"^(left|right)_foot_collision$"
@@ -177,7 +174,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
             ".*_leg_length_slider$",
         }
 
-        self.rewards.base_height.weight = -0.001
+        self.rewards.base_height.weight = -0.1
         self.rewards.base_height.params["target_height"] = (
             robot_cfg.init_state.pos[2]
         )

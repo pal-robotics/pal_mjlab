@@ -211,16 +211,33 @@ class RewardCfg:
     #         "reward_mode": "continuous",
     #     },
     # )
+    # foot_clearance: RewardTerm = term(
+    #     RewardTerm,
+    #     func=mdp.foot_clearance_reward_2,
+    #     weight=1.0,
+    #     params={
+    #         "target_height": 0.20,
+    #         "std": 0.02,
+    #         "tanh_mult": 2.0,
+    #         "min_clearance": 0.045,
+    #         "min_speed": 0.1,
+    #         "command_name": "twist",
+    #         "asset_cfg": SceneEntityCfg(
+    #             "robot", geom_names=[]
+    #         ),  # Override in robot cfg.
+    #     },
+    # )
     foot_clearance: RewardTerm = term(
         RewardTerm,
-        func=mdp.foot_clearance_reward_2,
+        func=mdp.foot_clearance_stop_aware,
         weight=1.0,
         params={
             "target_height": 0.20,
             "std": 0.02,
             "tanh_mult": 2.0,
             "min_clearance": 0.045,
-            "min_speed": 0.0,
+            "stop_height_penalty": 5.0,
+            "stop_speed_penalty": 0.5,
             "command_name": "twist",
             "asset_cfg": SceneEntityCfg(
                 "robot", geom_names=[]
