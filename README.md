@@ -18,40 +18,76 @@ It’s really easy to install, and sim-to-real has been tested successfully on t
 
 ## Quickstart
 
-### Clone the repository
+Clone the repository
 
 ```bash
 git clone https://github.com/louislelay/pal_mjlab.git && cd pal_mjlab
 ```
 
-### List available environments
+List available environments
 
 ```bash
 uv run pal_list_envs
 ```
 
-### Dummy agents
+Use the dummy agents
 
 ```bash
 uv run pal_play Mjlab-Velocity-Flat-Pal-Talos --agent zero # send zero actions to the robot
 uv run pal_play Mjlab-Velocity-Flat-Pal-Talos --agent random # send random actions to the robot
 ```
 
-### Train
+### Velocity Tracking
+
+Train the policy.
 
 ```bash
 uv run pal_train Mjlab-Velocity-Flat-Pal-Talos --env.scene.num-envs 4096
 ```
 
-### Play
+Evaluate the policy.
 
 ```bash
 uv run pal_play Mjlab-Velocity-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
 ```
 
+### Motion Tracking
+
+Using [GMR](https://github.com/YanjieZe/GMR), create a `.csv` file using one of the motion provided by the [LaFAN1 dataset](https://github.com/ubisoft/ubisoft-laforge-animation-dataset).
+
+```bash
+cd path/to/GMR
+# retarget the wanted motion to Talos
+python scripts/bvh_to_robot.py --bvh_file path/to/motion.bvh --save_path path/to/motion.pkl --robot pal_talos --rate_limit --format lafan1
+# convert the file to be mjlab-compatible
+python scripts/batch_gmr_pkl_to_csv.py --folder path/to/folder
+```
+
+Convert from csv to npz.
+
+```bash
+MUJOCO_GL=egl uv run -m mjlab.scripts.csv_to_npz \
+    --input-file path/to/motion.csv \
+    --output-name motion_name \
+    --input-fps 30 \
+    --output-fps 50 \
+    --render
+```
+
+Train the policy.
+
+```bash
+MUJOCO_GL=egl uv run pal_train Mjlab-Tracking-Flat-Pal-Talos --registry-name your-org/csv_to_npz/motion_name
+```
+
+Evaluate the policy.
+
+```bash
+uv run pal_play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
+```
+
+
+
 ## Acknowledgements
 
-- PAL Robotics
-- MjLab
-- MuJoCo Warp
-- Isaac Lab
+We're grateful to the people behind MjLab, PAL Robotics, MuJoCo Warp and Isaac Lab.
