@@ -56,7 +56,7 @@ uv run pal_play Mjlab-Velocity-Flat-Pal-Talos-Play --wandb-run-path your-org/mjl
 Using [GMR](https://github.com/YanjieZe/GMR), create a `.csv` file using one of the motion provided by the [LaFAN1 dataset](https://github.com/ubisoft/ubisoft-laforge-animation-dataset).
 
 > [!NOTE]
-> For ease of use, we provide `talos_dancing.csv`.
+> For ease of use, we provide `talos_walking.csv`.
 
 ```bash
 cd path/to/GMR
