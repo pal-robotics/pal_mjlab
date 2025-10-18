@@ -307,8 +307,8 @@ def foot_clearance_stop_aware(
     # map cmd_mag in [v_enter, v_exit] to s in [0,1], clamp, then smoothstep
     denom = v_exit - v_enter + 1e-6
     s = ((cmd_mag - v_enter) / denom).clamp(0.0, 1.0)
-    # smoothstep(s) = 3s^2 - 2s^3 (C1 continuous, nicer gradients)
-    w_move = 3 * s * s - 2 * s * s * s  # [B]
+    # smoothstep(s) = 3s^2 - 2s^3 (C1 continuous)
+    w_move = 3 * s**2 - 2 * s**3  # [B]
     w_stop = 1.0 - w_move
 
     # small penalty when "stopping": discourage stepping/fidgeting
