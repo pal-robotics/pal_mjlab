@@ -51,7 +51,7 @@ Evaluate the policy.
 uv run pal_play Mjlab-Velocity-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
 ```
 
-### Motion Tracking
+### Motion Imitation
 
 Using [GMR](https://github.com/YanjieZe/GMR), create a `.csv` file using one of the motion provided by the [LaFAN1 dataset](https://github.com/ubisoft/ubisoft-laforge-animation-dataset).
 
@@ -69,7 +69,7 @@ python scripts/batch_gmr_pkl_to_csv.py --folder path/to/folder
 Convert from csv to npz.
 
 ```bash
-MUJOCO_GL=egl uv run -m mjlab.scripts.csv_to_npz \
+MUJOCO_GL=egl uv run -m pal_mjlab.scripts.csv_to_npz \
     --input-file path/to/motion.csv \
     --output-name motion_name \
     --input-fps 30 \
