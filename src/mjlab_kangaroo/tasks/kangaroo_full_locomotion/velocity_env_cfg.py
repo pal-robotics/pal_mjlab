@@ -188,7 +188,7 @@ class RewardCfg:
     track_lin_vel_exp: RewardTerm = term(
         RewardTerm,
         func=mdp.track_lin_vel_exp,
-        weight=0.0,
+        weight=1.0,
         params={"command_name": "twist", "std": math.sqrt(0.25)},
     )
     track_ang_vel_exp: RewardTerm = term(
@@ -208,8 +208,8 @@ class RewardCfg:
             "min_clearance": 0.045,
             "v_enter": 0.06,
             "v_exit": 0.1,
-            "stop_height_penalty": 5.0,
-            "stop_speed_penalty": 0.5,
+            "stop_height_penalty": 2.0,
+            "stop_speed_penalty": 0.2,
             "command_name": "twist",
             "asset_cfg": SceneEntityCfg(
                 "robot", geom_names=[]
@@ -226,6 +226,17 @@ class RewardCfg:
             "command_name": "twist",
             "command_threshold": 0.05,
             "sensor_names": [],
+        },
+    )
+    base_orientation: RewardTerm = term(
+        RewardTerm,
+        func=mdp.base_orientation_l2,
+        weight=0.1,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", geom_names=[]
+            ),  # Override in robot cfg.
+            "desired_gravity": [0, 0, -1],
         },
     )
 
@@ -268,6 +279,17 @@ class RewardCfg:
                 "robot", geom_names=[]
             ),  # Override in robot cfg.
             "sensor_names": [],
+        },
+    )
+    feet_too_near: RewardTerm = term(
+        RewardTerm,
+        func=mdp.feet_too_near,
+        weight=-0.1,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", geom_names=[]
+            ),  # Override in robot cfg.
+            "threshold": 0.2,
         },
     )
     electrical_power: RewardTerm = term(
@@ -325,7 +347,7 @@ class CurriculumCfg:
         params={
             "command_name": "twist",
             "velocity_stages": [
-                {"step": 500 * 24, "range": (-3.0, 3.0)},
+                {"step": 1_000_000, "range": (-2.5, 2.5)},
             ],
         },
     )

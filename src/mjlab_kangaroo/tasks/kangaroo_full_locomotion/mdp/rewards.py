@@ -456,6 +456,17 @@ class feet_air_contact_time:
         self.last_air_time[env_ids] = 0.0
 
 
+def feet_too_near(
+    env: ManagerBasedRlEnv,
+    threshold: float = 0.2,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    asset: Entity = env.scene[asset_cfg.name]
+    feet_pos = asset.data.geom_pos_w[:, asset_cfg.body_ids, :]
+    distance = torch.norm(feet_pos[:, 0] - feet_pos[:, 1], dim=-1)
+    return (threshold - distance).clamp(min=0)
+
+
 def base_height_l2(
     env: ManagerBasedRlEnv,
     target_height: float,
@@ -467,3 +478,19 @@ def base_height_l2(
 
     # Compute the L2 squared penalty
     return torch.square(asset.data.root_link_pos_w[:, 2] - target_height)
+
+
+def base_orientation_l2(
+    env: ManagerBasedRlEnv,
+    desired_gravity: list[float],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+    """Reward the agent for aligning its gravity with the desired gravity vector using L2 squared kernel."""
+    asset: Entity = env.scene[asset_cfg.name]
+
+    desired_gravity = torch.tensor(desired_gravity, device=env.device)
+    cos_dist = torch.sum(
+        asset.data.projected_gravity_b * desired_gravity, dim=-1
+    )  # cosine distance
+    normalized = 0.5 * cos_dist + 0.5  # map from [-1, 1] to [0, 1]
+    return torch.square(normalized)

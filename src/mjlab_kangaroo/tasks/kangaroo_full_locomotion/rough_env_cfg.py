@@ -87,7 +87,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         }
 
         # CommandsCfg
-        self.commands.twist.rel_standing_envs = 0.3
+        self.commands.twist.rel_standing_envs = 0.1
         self.commands.twist.viz.z_offset = 0.75
 
         # EventCfg
@@ -158,6 +158,13 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.rewards.feet_slide.params["asset_cfg"].geom_names = [
             r"^(left|right)_foot_collision$"
         ]
+
+        self.rewards.feet_too_near.weight = -0.1
+        self.rewards.feet_too_near.params["threshold"] = 0.2
+        self.rewards.feet_too_near.params["asset_cfg"].geom_names = [
+            r"^(left|right)_foot_collision$"
+        ]
+
         self.rewards.contact_forces.weight = -0.0002
         self.rewards.contact_forces.params["threshold"] = 500
         self.rewards.contact_forces.params["sensor_names"] = sensor_names
@@ -179,9 +186,6 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.rewards.base_height.params["target_height"] = (
             robot_cfg.init_state.pos[2]
         )
-
-        # CurriculumCfg
-        self.curriculum.command_vel = None
 
         # ViewerConfig
         self.viewer.body_name = "baselink"
