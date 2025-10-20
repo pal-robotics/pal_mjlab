@@ -22,25 +22,41 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"^(left|right)_foot_collision$"
         ]
 
-        # self.rewards.pose.params["asset_cfg"].joint_names = {
-        #     # r"^leg_(left|right)_(?:knee|femur|length)_joint$",
-        #     r".*leg_(left|right)_(2|length)_joint.*",
-        #     r".*leg_(left|right)_(1|3|4|5)_joint.*",
-        #     r".*(pelvis_(1|2)_joint|arm_(left|right)_(1|4)_joint).*",
-        #     r".*leg_(left|right)_(femur|knee)_joint.*",
-        #     r".*arm_(left|right)_(2|3)_joint.*",
-        # }
-        # self.rewards.pose.params["std"] = {
-        #     # r"^leg_(left|right)_(?:knee|femur|length)_joint$": 6.0,
-        #     r".*leg_(left|right)_(2|length)_joint.*": 6.0,
-        #     r".*leg_(left|right)_(1|3|4|5)_joint.*": 3.0,
-        #     r".*(pelvis_(1|2)_joint|arm_(left|right)_(1|4)_joint).*": 1.0,
-        #     r".*leg_(left|right)_(femur|knee)_joint.*": 4.0,
-        #     r".*arm_(left|right)_(2|3)_joint.*": 0.3,
-        # }
+        self.rewards.pose.params["asset_cfg"].joint_names = {
+            # r"^leg_(left|right)_(?:knee|femur|length)_joint$",
+            r".*leg_(left|right)_(2|length)_joint.*",
+            r".*leg_(left|right)_(1|3|4|5)_joint.*",
+            r".*(pelvis_(1|2)_joint|arm_(left|right)_(1|4)_joint).*",
+            r".*leg_(left|right)_(femur|knee)_joint.*",
+            r".*arm_(left|right)_(2|3)_joint.*",
+        }
+        self.rewards.pose.params["std"] = {
+            # # r"^leg_(left|right)_(?:knee|femur|length)_joint$": 6.0,
+            # r".*leg_(left|right)_(2|length)_joint.*": 6.0,
+            # r".*leg_(left|right)_(1|3|4|5)_joint.*": 3.0,
+            # r".*(pelvis_(1|2)_joint|arm_(left|right)_(1|4)_joint).*": 1.0,
+            # r".*leg_(left|right)_(femur|knee)_joint.*": 4.0,
+            # r".*arm_(left|right)_(2|3)_joint.*": 0.3,
+
+            # Lower body.
+            r"leg_.*_1_.*": 0.15,
+            r"leg_.*_2_.*": 0.3,
+            r"leg_.*_3_.*": 0.15,
+            r"leg_.*_length_.*": 0.35,
+            r"leg_.*_4_.*": 0.25,
+            r"leg_.*_5_.*": 0.1,
+            # Waist.
+            r".*pelvis_2.*": 0.15,
+            r".*pelvis_1.*": 0.1,
+            # Arms.
+            r"arm_.*_1_.*": 0.35,
+            r"arm_.*_2_.*": 0.15,
+            r"arm_.*_3_.*": 0.1,
+            r"arm_.*_4_.*": 0.25,
+        }
 
         self.rewards.air_time = None
-        self.rewards.pose = None
+        # self.rewards.pose = None
         self.rewards.dof_pos_limits = None
         self.rewards.action_rate_l2 = None
         self.rewards.air_time = None
