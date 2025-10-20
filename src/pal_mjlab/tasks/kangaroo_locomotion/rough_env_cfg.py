@@ -23,12 +23,27 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
         ]
 
         self.rewards.pose.params["asset_cfg"].joint_names = {
-            # r"^leg_(left|right)_(?:knee|femur|length)_joint$",
-            r".*leg_(left|right)_(2|length)_joint.*",
-            r".*leg_(left|right)_(1|3|4|5)_joint.*",
-            r".*(pelvis_(1|2)_joint|arm_(left|right)_(1|4)_joint).*",
-            r".*leg_(left|right)_(femur|knee)_joint.*",
-            r".*arm_(left|right)_(2|3)_joint.*",
+            # # r"^leg_(left|right)_(?:knee|femur|length)_joint$",
+            # r".*leg_(left|right)_(2|length)_joint.*",
+            # r".*leg_(left|right)_(1|3|4|5)_joint.*",
+            # r".*(pelvis_(1|2)_joint|arm_(left|right)_(1|4)_joint).*",
+            # r".*leg_(left|right)_(femur|knee)_joint.*",
+            # r".*arm_(left|right)_(2|3)_joint.*",
+
+            r"leg_.*_1_.*",
+            r"leg_.*_2_.*",
+            r"leg_.*_3_.*",
+            r"leg_.*_length_.*",
+            r"leg_.*_4_.*",
+            r"leg_.*_5_.*",
+            # Waist.
+            r".*pelvis_2.*",
+            r".*pelvis_1.*",
+            # Arms.
+            r"arm_.*_1_.*",
+            r"arm_.*_2_.*",
+            r"arm_.*_3_.*",
+            r"arm_.*_4_.*",
         }
         self.rewards.pose.params["std"] = {
             # # r"^leg_(left|right)_(?:knee|femur|length)_joint$": 6.0,
@@ -42,7 +57,7 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"leg_.*_1_.*": 0.15,
             r"leg_.*_2_.*": 0.3,
             r"leg_.*_3_.*": 0.15,
-            r"leg_.*_length_.*": 0.35,
+            r"leg_.*_length_.*": 3.5,
             r"leg_.*_4_.*": 0.25,
             r"leg_.*_5_.*": 0.1,
             # Waist.
