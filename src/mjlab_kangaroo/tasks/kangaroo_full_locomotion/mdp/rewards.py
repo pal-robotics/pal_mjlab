@@ -342,6 +342,22 @@ def feet_slide(
     return torch.sum(geom_vel.norm(dim=-1) * contacts, dim=1)
 
 
+def full_feet_contacts(
+    env: ManagerBasedRlEnv,
+    n_contacts: float,
+    sensor_names: list[str],
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+    """Reward feet full contact (n. contact points == desired n. points)."""
+    asset: Entity = env.scene[asset_cfg.name]
+    full_contact_list = []
+    for sensor_name in sensor_names:
+        sensor_data = asset.data.sensor_data[sensor_name]
+        foot_contact = sensor_data[:, 0] == n_contacts
+        full_contact_list.append(foot_contact)
+    return torch.sum(torch.stack(full_contact_list, dim=1), dim=1)
+
+
 def contact_forces(
     env: ManagerBasedRlEnv,
     threshold: float,

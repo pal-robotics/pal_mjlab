@@ -87,7 +87,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         }
 
         # CommandsCfg
-        self.commands.twist.rel_standing_envs = 0.1
+        self.commands.twist.rel_standing_envs = 0.2
         self.commands.twist.viz.z_offset = 0.75
 
         # EventCfg
@@ -106,12 +106,15 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         }
 
         # RewardCfg
+        # ---- Rewards ----
         self.rewards.track_lin_vel_exp.weight = 2.0
         self.rewards.track_ang_vel_exp.weight = 2.0
+
         self.rewards.air_contact_time.weight = 1.0
         self.rewards.air_contact_time.params["sensor_names"] = sensor_names
         self.rewards.air_contact_time.params["command_threshold"] = 0.1
         self.rewards.air_contact_time.params["mode_time"] = 0.3
+
         self.rewards.foot_clearance.weight = 0.5
         self.rewards.foot_clearance.params["target_height"] = 0.20
         self.rewards.foot_clearance.params["min_clearance"] = 0.045
@@ -119,6 +122,11 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"^(left|right)_foot_collision$"
         ]
 
+        self.rewards.full_feet_contacts.weight = 0.01
+        self.rewards.full_feet_contacts.params["sensor_names"] = sensor_names
+        self.rewards.full_feet_contacts.params["n_contacts"] = 4
+
+        # ---- Penalties ----
         self.rewards.dof_pos_limits = None
 
         self.rewards.posture.weight = -0.01
