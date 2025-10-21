@@ -1,6 +1,6 @@
 # PAL Robotics in MjLab
 
-This repository showcase the implementation of PAL's robots into MjLab. 
+This repository showcase the implementation of [PAL](https://pal-robotics.com/)'s robots into [MjLab](https://github.com/mujocolab/mjlab). 
 
 > [!WARNING]
 > As MjLab is still in early development, this repository may be impacted by breaking changes. If an issue were to arise when running one of the scripts, feel free to open an issue or contribute to the project. Thanks you for your understanding!
@@ -12,9 +12,9 @@ https://github.com/user-attachments/assets/7935ed66-16ae-4fcb-8b3f-3f2cc3d8589b
 
 ## What's MjLab?
 
-MjLab is a project to have the Isaac Lab API using MjWarp as the backend. You can find it [here](https://github.com/mujocolab/mjlab). If you’re wondering about the motivation behind it or how it differs from Newton, you can learn more [here](https://github.com/mujocolab/mjlab/blob/main/docs/motivation.md).
+MjLab is a project to have the [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/index.html) API using [MjWarp](https://mujoco.readthedocs.io/en/latest/mjwarp/index.html) as the backend. If you’re wondering about the motivation behind it or how it differs from Newton, you can learn more about it [here](https://github.com/mujocolab/mjlab/blob/main/docs/motivation.md).
 
-It’s really easy to install, and sim-to-real has been tested successfully on the G1 and Go1 for RL locomotion and motion imitation, see more [here](https://x.com/kevin_zakka/status/1972757435707424898?t=4Ho4ovrCAEOWTCxVG3BKrw&s=19).
+It’s really easy to install, and sim-to-real has been tested successfully on the G1 and Go1 for RL locomotion and motion imitation, see the announcement [tweet](https://x.com/kevin_zakka/status/1972757435707424898?t=4Ho4ovrCAEOWTCxVG3BKrw&s=19) for videos.
 
 ## Quickstart
 
