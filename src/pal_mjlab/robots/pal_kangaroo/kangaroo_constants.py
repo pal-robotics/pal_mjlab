@@ -193,7 +193,7 @@ FULL_COLLISION = CollisionCfg(
     friction={_foot_regex: (0.6,)},
     solimp={_foot_regex: (0.9, 0.95, 0.023)},
     contype=1,
-    conaffinity=0,
+    conaffinity=1,  # self collision acitivated now (set to 0 otherwise)
 )
 
 ##
@@ -218,7 +218,7 @@ KANG_ARTICULATION = EntityArticulationInfoCfg(
 
 KANG_ROBOT_CFG = EntityCfg(
     init_state=INIT_STATE,
-    collisions=(FEET_ONLY_COLLISION,),
+    collisions=(FULL_COLLISION,),
     spec_fn=get_spec,
     articulation=KANG_ARTICULATION,
 )

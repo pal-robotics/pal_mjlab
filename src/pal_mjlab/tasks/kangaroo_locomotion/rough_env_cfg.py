@@ -19,7 +19,7 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.actions.joint_pos.scale = KANG_ACTION_SCALE
 
         self.events.foot_friction.params["asset_cfg"].geom_names = [
-            r"^(left|right)_foot_collision$"
+            r".*_foot_collision"
         ]
 
         self.rewards.pose.params["asset_cfg"].joint_names = {
@@ -30,16 +30,19 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             # r".*leg_(left|right)_(femur|knee)_joint.*",
             # r".*arm_(left|right)_(2|3)_joint.*",
 
+            # Lower body.
             r"leg_.*_1_.*",
             r"leg_.*_2_.*",
             r"leg_.*_3_.*",
             r"leg_.*_length_.*",
             r"leg_.*_4_.*",
             r"leg_.*_5_.*",
+            # r"leg_.*_femur_.*",
+            # r"leg_.*_knee_.*",
             # # Waist.
             r".*pelvis_2.*",
             r".*pelvis_1.*",
-            # # Arms.
+            # # # Arms.
             r"arm_.*_1_.*",
             r"arm_.*_2_.*",
             r"arm_.*_3_.*",
@@ -54,27 +57,28 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             # r".*arm_(left|right)_(2|3)_joint.*": 0.3,
 
             # Lower body.
-            r"leg_.*_1_.*": 0.3,
-            r"leg_.*_2_.*": 3.0,
-            r"leg_.*_3_.*": 0.3,
-            r"leg_.*_length_.*": 1.0,
-            r"leg_.*_4_.*": 0.1,
-            r"leg_.*_5_.*": 0.3,
-            # # Waist.
-            r".*pelvis_2.*": 0.3,
-            r".*pelvis_1.*": 0.3,
-            # # Arms.
-            r"arm_.*_1_.*": 3.0,
-            r"arm_.*_2_.*": 0.3,
-            r"arm_.*_3_.*": 0.3,
-            r"arm_.*_4_.*": 3.0,
+            r"leg_.*_1_.*": 0.1,
+            r"leg_.*_2_.*": 0.25,
+            r"leg_.*_3_.*": 0.1,
+            r"leg_.*_length_.*": 0.08,
+            r"leg_.*_4_.*": 0.25,
+            r"leg_.*_5_.*": 0.20,
+            # r"leg_.*_femur_.*": 10.0,
+            # r"leg_.*_knee_.*": 10.0,
+            # # # Waist.
+            r".*pelvis_1.*": 0.1,
+            r".*pelvis_2.*": 0.1,
+            # # # Arms.
+            r"arm_.*_1_.*": 0.2,
+            r"arm_.*_2_.*": 0.1,
+            r"arm_.*_3_.*": 0.1,
+            r"arm_.*_4_.*": 0.2,
         }
 
         self.rewards.air_time = None
         # self.rewards.pose = None
         # self.rewards.dof_pos_limits = None
-        self.rewards.action_rate_l2 = None
-        self.rewards.air_time = None
+        # self.rewards.action_rate_l2 = None
 
         self.viewer.body_name = "base_link"
         self.commands.twist.viz.z_offset = 0.75
