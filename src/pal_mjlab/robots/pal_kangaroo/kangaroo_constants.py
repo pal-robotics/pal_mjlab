@@ -170,7 +170,7 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 # Collision config.
 ##
 
-_foot_regex = "^[left][right]_foot_collision$"
+_foot_regex = ".*_foot_collision"
 
 # This disables all collisions except the feet.
 # Furthermore, feet self collisions are disabled.
