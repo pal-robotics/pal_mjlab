@@ -287,7 +287,7 @@ FULL_COLLISION = CollisionCfg(
     friction={_foot_regex: (0.6,)},
     solimp={_foot_regex: (0.9, 0.95, 0.023)},
     contype=1,
-    conaffinity=1,  # self collision acitivated now
+    conaffinity=1,  # self collision acitivated now (set to 0 otherwise)
 )
 
 ##

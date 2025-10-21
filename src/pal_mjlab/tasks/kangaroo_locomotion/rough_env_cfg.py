@@ -36,10 +36,10 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"leg_.*_length_.*",
             r"leg_.*_4_.*",
             r"leg_.*_5_.*",
-            # Waist.
+            # # Waist.
             r".*pelvis_2.*",
             r".*pelvis_1.*",
-            # Arms.
+            # # Arms.
             r"arm_.*_1_.*",
             r"arm_.*_2_.*",
             r"arm_.*_3_.*",
@@ -54,25 +54,25 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             # r".*arm_(left|right)_(2|3)_joint.*": 0.3,
 
             # Lower body.
-            r"leg_.*_1_.*": 0.15,
-            r"leg_.*_2_.*": 0.3,
-            r"leg_.*_3_.*": 0.15,
-            r"leg_.*_length_.*": 3.5,
-            r"leg_.*_4_.*": 0.25,
-            r"leg_.*_5_.*": 0.1,
-            # Waist.
-            r".*pelvis_2.*": 0.15,
-            r".*pelvis_1.*": 0.1,
-            # Arms.
-            r"arm_.*_1_.*": 0.35,
-            r"arm_.*_2_.*": 0.15,
-            r"arm_.*_3_.*": 0.1,
-            r"arm_.*_4_.*": 0.25,
+            r"leg_.*_1_.*": 0.3,
+            r"leg_.*_2_.*": 3.0,
+            r"leg_.*_3_.*": 0.3,
+            r"leg_.*_length_.*": 1.0,
+            r"leg_.*_4_.*": 0.1,
+            r"leg_.*_5_.*": 0.3,
+            # # Waist.
+            r".*pelvis_2.*": 0.3,
+            r".*pelvis_1.*": 0.3,
+            # # Arms.
+            r"arm_.*_1_.*": 3.0,
+            r"arm_.*_2_.*": 0.3,
+            r"arm_.*_3_.*": 0.3,
+            r"arm_.*_4_.*": 3.0,
         }
 
         self.rewards.air_time = None
         # self.rewards.pose = None
-        self.rewards.dof_pos_limits = None
+        # self.rewards.dof_pos_limits = None
         self.rewards.action_rate_l2 = None
         self.rewards.air_time = None
 
