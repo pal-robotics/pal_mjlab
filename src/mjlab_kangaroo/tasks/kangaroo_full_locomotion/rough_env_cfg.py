@@ -195,6 +195,8 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
             robot_cfg.init_state.pos[2]
         )
 
+        self.curriculum.command_vel = None
+
         # ViewerConfig
         self.viewer.body_name = "baselink"
 

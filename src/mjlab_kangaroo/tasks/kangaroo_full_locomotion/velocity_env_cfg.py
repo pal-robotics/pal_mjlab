@@ -359,7 +359,7 @@ class CurriculumCfg:
         params={
             "command_name": "twist",
             "velocity_stages": [
-                {"step": 1000 * 24, "range": (-2.5, 2.5)},
+                {"step": 1000 * 24, "range": (-1.5, 1.5)},
             ],
         },
     )
