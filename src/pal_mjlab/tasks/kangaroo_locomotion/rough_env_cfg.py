@@ -1,4 +1,4 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace, field
 
 from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
     KANG_ACTION_SCALE,
@@ -6,21 +6,67 @@ from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
 )
 from mjlab.tasks.velocity.velocity_env_cfg import (
     LocomotionVelocityEnvCfg,
+    RewardCfg
 )
+from pal_mjlab.tasks.kangaroo_locomotion import mdp as mdp
+from mjlab.utils.spec_config import ContactSensorCfg
+
+from mjlab.managers.manager_term_config import RewardTermCfg as RewardTerm
+from mjlab.managers.manager_term_config import term
+from mjlab.managers.scene_entity_config import SceneEntityCfg
+
+# @dataclass
+# class RewardKangCfg(RewardCfg):
+    # pose_length: RewardTerm = term(
+    #     RewardTerm,
+    #     func=mdp.posture,
+    #     weight=1.0,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", joint_names=[r"leg_.*_length_.*"]),
+    #         "std": {r"leg_.*_length_joint": 0.08},
+    #     },
+    # )
+    # base_height: RewardTerm = term(
+    #     RewardTerm,
+    #     func=mdp.base_height_l2,
+    #     weight=5.0,
+    #     params={
+    #         "target_height": 1.0,
+    #     },
+    # )
 
 
 @dataclass
 class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
+    # rewards: RewardKangCfg = field(default_factory=RewardKangCfg)
     def __post_init__(self):
         super().__post_init__()
 
-        self.scene.entities = {"robot": replace(KANG_ROBOT_CFG)}
+        foot_contact_sensors = [
+            ContactSensorCfg(
+                name=f"{side}_foot_ground_contact",
+                body1=f"leg_{side}_5_link",
+                body2="terrain",
+                num=1,
+                data=("found",),
+                reduce="netforce",
+            )
+            for side in ["left", "right"]
+        ]
+        kangaroo_cfg = replace(KANG_ROBOT_CFG, sensors=tuple(foot_contact_sensors))
+        self.scene.entities = {"robot": kangaroo_cfg}
 
         self.actions.joint_pos.scale = KANG_ACTION_SCALE
 
+        sensor_names = ["left_foot_ground_contact", "right_foot_ground_contact"]
         self.events.foot_friction.params["asset_cfg"].geom_names = [
-            r".*_foot_collision"
+            "left_foot_collision", "right_foot_collision"
         ]
+        # self.rewards.pose.func = mdp.posture_louis
+        # self.rewards.pose.weight = 2.0
+
+        # self.rewards.air_time.params["sensor_names"] = sensor_names
+
 
         self.rewards.pose.params["asset_cfg"].joint_names = {
             # # r"^leg_(left|right)_(?:knee|femur|length)_joint$",
@@ -39,10 +85,10 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"leg_.*_5_.*",
             # r"leg_.*_femur_.*",
             # r"leg_.*_knee_.*",
-            # # Waist.
+            # Waist.
             r".*pelvis_2.*",
             r".*pelvis_1.*",
-            # # # Arms.
+            # Arms.
             r"arm_.*_1_.*",
             r"arm_.*_2_.*",
             r"arm_.*_3_.*",
@@ -55,25 +101,49 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             # r".*(pelvis_(1|2)_joint|arm_(left|right)_(1|4)_joint).*": 1.0,
             # r".*leg_(left|right)_(femur|knee)_joint.*": 4.0,
             # r".*arm_(left|right)_(2|3)_joint.*": 0.3,
+            # # Lower body.
+            # r"leg_.*_1_.*": 0.3,
+            # r"leg_.*_2_.*": 3.0,
+            # r"leg_.*_3_.*": 0.3,
+            # r"leg_.*_length_.*": 1.0,
+            # r"leg_.*_4_.*": 0.1,
+            # r"leg_.*_5_.*": 0.3,
+            # # r"leg_.*_femur_.*": 0.2,
+            # # r"leg_.*_knee_.*": 0.2,
+            # # Waist.
+            # r".*pelvis_1.*": 0.3,
+            # r".*pelvis_2.*": 0.3,
+            # # Arms.
+            # r"arm_.*_1_.*": 3.0,
+            # r"arm_.*_2_.*": 0.3,
+            # r"arm_.*_3_.*": 0.3,
+            # r"arm_.*_4_.*": 3.0,
+
+
+
+
 
             # Lower body.
-            r"leg_.*_1_.*": 0.1,
-            r"leg_.*_2_.*": 0.25,
-            r"leg_.*_3_.*": 0.1,
-            r"leg_.*_length_.*": 0.08,
+            r"leg_.*_1_.*": 0.15,
+            r"leg_.*_2_.*": 0.3,
+            r"leg_.*_3_.*": 0.15,
+            r"leg_.*_length_.*": 0.1,
             r"leg_.*_4_.*": 0.25,
-            r"leg_.*_5_.*": 0.20,
-            # r"leg_.*_femur_.*": 10.0,
-            # r"leg_.*_knee_.*": 10.0,
-            # # # Waist.
-            r".*pelvis_1.*": 0.1,
-            r".*pelvis_2.*": 0.1,
-            # # # Arms.
-            r"arm_.*_1_.*": 0.2,
-            r"arm_.*_2_.*": 0.1,
+            r"leg_.*_5_.*": 0.1,
+            # r"leg_.*_femur_.*": 0.2,
+            # r"leg_.*_knee_.*": 0.2,
+            # Waist.
+            r".*pelvis_1.*": 0.08,
+            r".*pelvis_2.*": 0.15,
+            # Arms.
+            r"arm_.*_1_.*": 0.35,
+            r"arm_.*_2_.*": 0.15,
             r"arm_.*_3_.*": 0.1,
-            r"arm_.*_4_.*": 0.2,
+            r"arm_.*_4_.*": 0.25,
         }
+
+        self.rewards.action_rate_l2.weight = -0.01
+        # self.rewards.air_time.weight = 1.0
 
         self.rewards.air_time = None
         # self.rewards.pose = None
