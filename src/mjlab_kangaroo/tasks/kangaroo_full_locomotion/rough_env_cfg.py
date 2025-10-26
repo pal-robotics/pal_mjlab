@@ -122,44 +122,36 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"^(left|right)_foot_collision$"
         ]
 
-        self.rewards.full_feet_contacts.weight = 0.01
+        self.rewards.full_feet_contacts.weight = 0.1
         self.rewards.full_feet_contacts.params["sensor_names"] = sensor_names
         self.rewards.full_feet_contacts.params["n_contacts"] = 4
 
         # ---- Penalties ----
         self.rewards.dof_pos_limits = None
-
-        self.rewards.posture.weight = -0.01
-        self.rewards.posture.params["asset_cfg"].joint_names = {
-            r".*(pelvis_(1|2)_joint|arm_(left|right)_(1|4)_joint).*",
-            r".*arm_(left|right)_(2|3)_joint.*",
-        }
-        self.rewards.posture.params["std"] = {
-            r".*(pelvis_(1|2)_joint|arm_(left|right)_(1|4)_joint).*": 1.0,
-            r".*arm_(left|right)_(2|3)_joint.*": 0.3,
-        }
-        self.rewards.posture.params["asset_cfg"].joint_names = {
-            ".*_hip_z_slider",
-            ".*_hip_xy_slider_l",
-            ".*_hip_xy_slider_r",
-            ".*_ankle_xy_slider_l",
-            ".*_ankle_xy_slider_r",
-            ".*_leg_length_slider$",
-        }
-        self.rewards.posture.params["std"] = {
-            ".*_hip_z_slider": 0.036,
-            ".*_hip_xy_slider_l": 0.08,
-            ".*_hip_xy_slider_r": 0.03,
-            ".*_ankle_xy_slider_l": 0.03,
-            ".*_ankle_xy_slider_r": 0.03,
-            ".*_leg_length_slider$": 0.18,
-        }
+        self.rewards.posture = None
+        # self.rewards.posture.weight = -0.1
+        # self.rewards.posture.params["asset_cfg"].joint_names = {
+        #     ".*_hip_z_slider",
+        #     ".*_hip_xy_slider_l",
+        #     ".*_hip_xy_slider_r",
+        #     ".*_ankle_xy_slider_l",
+        #     ".*_ankle_xy_slider_r",
+        #     ".*_leg_length_slider$",
+        # }
+        # self.rewards.posture.params["std"] = {
+        #     ".*_hip_z_slider": 0.036,
+        #     ".*_hip_xy_slider_l": 0.08,
+        #     ".*_hip_xy_slider_r": 0.03,
+        #     ".*_ankle_xy_slider_l": 0.03,
+        #     ".*_ankle_xy_slider_r": 0.03,
+        #     ".*_leg_length_slider$": 0.18,
+        # }
 
         self.rewards.termination_penalty.weight = -20.0
-        self.rewards.lin_vel_z_l2.weight = -0.1
+        self.rewards.lin_vel_z_l2.weight = -1.0
         self.rewards.ang_vel_xy_l2.weight = -0.1
         self.rewards.action_rate_l2.weight = -0.01
-        self.rewards.flat_orientation_l2.weight = -0.1
+        self.rewards.flat_orientation_l2.weight = -1.0
 
         self.rewards.feet_slide.weight = -0.1
         self.rewards.feet_slide.params["sensor_names"] = sensor_names
@@ -190,7 +182,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
             ".*_leg_length_slider$",
         }
 
-        self.rewards.base_height.weight = -0.1
+        self.rewards.base_height.weight = -1.0
         self.rewards.base_height.params["target_height"] = (
             robot_cfg.init_state.pos[2]
         )

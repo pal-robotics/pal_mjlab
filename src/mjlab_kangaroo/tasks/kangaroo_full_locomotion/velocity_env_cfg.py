@@ -242,7 +242,7 @@ class RewardCfg:
     full_feet_contacts: RewardTerm = term(
         RewardTerm,
         func=mdp.full_feet_contacts,
-        weight=0.01,
+        weight=0.1,
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot", geom_names=[]
