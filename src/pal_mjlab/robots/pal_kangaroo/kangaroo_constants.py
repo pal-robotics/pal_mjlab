@@ -170,7 +170,7 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 # Collision config.
 ##
 
-_foot_regex = "^[left][right]_foot_collision$"
+_foot_regex = ".*_foot_collision"
 
 # This disables all collisions except the feet.
 # Furthermore, feet self collisions are disabled.
@@ -193,7 +193,7 @@ FULL_COLLISION = CollisionCfg(
     friction={_foot_regex: (0.6,)},
     solimp={_foot_regex: (0.9, 0.95, 0.023)},
     contype=1,
-    conaffinity=0,
+    conaffinity=1,  # self collision acitivated now (set to 0 otherwise)
 )
 
 ##
@@ -208,7 +208,7 @@ KANG_ARTICULATION = EntityArticulationInfoCfg(
         KANG_LEGS_4_ACTUATOR_CFG,
         KANG_LEGS_5_ACTUATOR_CFG,
         KANG_LEGS_LENGTH_ACTUATOR_CFG,
-        KANG_LEGS_PASSIVE_ACTUATOR_CFG,
+        # KANG_LEGS_PASSIVE_ACTUATOR_CFG,
         KANG_ARMS_ACTUATOR_CFG,
         KANG_PELVIS_1_ACTUATOR_CFG,
         KANG_PELVIS_2_ACTUATOR_CFG,
@@ -218,7 +218,7 @@ KANG_ARTICULATION = EntityArticulationInfoCfg(
 
 KANG_ROBOT_CFG = EntityCfg(
     init_state=INIT_STATE,
-    collisions=(FULL_COLLISION,),
+    collisions=(FEET_ONLY_COLLISION,),
     spec_fn=get_spec,
     articulation=KANG_ARTICULATION,
 )

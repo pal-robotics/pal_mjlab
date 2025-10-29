@@ -166,7 +166,8 @@
                     diaginertia="0.0019868 0.00170803 0.000338695"/>
                   <joint name="leg_left_5_joint" axis="-1 0 0" range="-0.471239 0.471239"/>
                   <geom class="visual" material="light_gray" mesh="leg_7_link"/>
-                  <geom name="left_foot_collision" size="0.045 0.005 0.1205" pos="0.01305 0 -0.035" quat="0.579228 0.40558 0.40558 0.579228" type="box" group="3" material="bright_orange"/>
+                  <!-- <geom name="left_foot_collision" size="0.045 0.005 0.1205" pos="0.01305 0 -0.035" quat="0.579228 0.40558 0.40558 0.579228" type="box" group="3" material="bright_orange"/> -->
+                  <geom name="left_foot_collision" size="0.045 0.03 0.1205" pos="0.01305 0 -0.01" quat="0.579228 0.40558 0.40558 0.579228" type="box" group="3" material="bright_orange"/>
                   <site name="left_foot" pos="0.0575 0 -0.01" size="0.015"/>
                 </body>
               </body>
@@ -218,7 +219,8 @@
                     diaginertia="0.0019868 0.00170803 0.000338695"/>
                   <joint name="leg_right_5_joint" axis="-1 0 0" range="-0.471239 0.471239"/>
                   <geom class="visual" material="light_gray" mesh="leg_7_link"/>
-                  <geom name="right_foot_collision" size="0.045 0.005 0.1205" pos="0.01305 0 -0.035" quat="0.579228 0.40558 0.40558 0.579228" type="box" group="3" material="bright_orange"/>
+                  <!-- <geom name="right_foot_collision" size="0.045 0.005 0.1205" pos="0.01305 0 -0.035" quat="0.579228 0.40558 0.40558 0.579228" type="box" group="3" material="bright_orange"/> -->
+                  <geom name="right_foot_collision" size="0.045 0.03 0.1205" pos="0.01305 0 -0.01" quat="0.579228 0.40558 0.40558 0.579228" type="box" group="3" material="bright_orange"/>
                   <site name="right_foot" pos="0.0575 0 -0.01" size="0.015"/>
                 </body>
               </body>
