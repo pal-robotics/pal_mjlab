@@ -1,23 +1,28 @@
 [project]
-name = "mjlab-kangaroo"
+name = "pal-mjlab"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [
     { name = "Louis Le Lay", email = "louislelay@pal-robotics.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.10,<3.14"
 dependencies = [
-    "mjlab>=0.0.4",
-    "mujoco-warp",
+    "mjlab",
+    "ruff>=0.14.0",
 ]
 
 [project.scripts]
-mjlab-kangaroo = "mjlab_kangaroo:main"
+pal-mjlab = "pal_mjlab:main"
+pal_train = "pal_mjlab.scripts.train:main"
+pal_play = "pal_mjlab.scripts.play:main"
+pal_list_envs = "pal_mjlab.scripts.list_envs:main"
+pal_npz = "pal_mjlab.scripts.csv_to_npz:main"
 
 [build-system]
 requires = ["uv_build>=0.8.18,<0.9.0"]
 build-backend = "uv_build"
 
 [tool.uv.sources]
-mujoco-warp = { git = "https://github.com/google-deepmind/mujoco_warp" }
+mjlab = { git = "https://github.com/mujocolab/mjlab" }
+
