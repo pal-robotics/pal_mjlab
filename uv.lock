@@ -800,39 +800,6 @@ dependencies = [
     { name = "warp-lang" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "gymnasium", specifier = "==1.2.1" },
-    { name = "moviepy" },
-    { name = "mujoco", index = "https://py.mujoco.org/" },
-    { name = "mujoco-warp", git = "https://github.com/google-deepmind/mujoco_warp?rev=486642c3fa262a989b482e0e506716d5793d61a9" },
-    { name = "prettytable" },
-    { name = "rsl-rl-lib" },
-    { name = "tensorboard", specifier = ">=2.20.0" },
-    { name = "tensordict" },
-    { name = "torch" },
-    { name = "torch", marker = "sys_platform == 'darwin' and extra == 'cu12'", specifier = ">=2.7.0" },
-    { name = "torch", marker = "sys_platform != 'darwin' and extra == 'cu12'", specifier = ">=2.7.0", index = "https://download.pytorch.org/whl/cu128", conflict = { package = "mjlab", extra = "cu12" } },
-    { name = "tqdm" },
-    { name = "trimesh", specifier = ">=4.8.3" },
-    { name = "tyro" },
-    { name = "viser", specifier = ">=1.0.15" },
-    { name = "wandb" },
-    { name = "warp-lang", marker = "sys_platform != 'darwin'", index = "https://pypi.nvidia.com/" },
-    { name = "warp-lang", marker = "sys_platform == 'darwin'" },
-]
-provides-extras = ["cu12"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "ipdb", specifier = ">=0.13.13" },
-    { name = "pre-commit" },
-    { name = "pyright", specifier = ">=1.1.386" },
-    { name = "pytest", specifier = ">=8.4.2" },
-    { name = "ruff", specifier = ">=0.13.1" },
-    { name = "ty", specifier = ">=0.0.1a21" },
-]
-
 [[package]]
 name = "ml-dtypes"
 version = "0.5.3"
@@ -1447,7 +1414,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mjlab", directory = "../mjlab" },
+    { name = "mjlab", git = "https://github.com/mujocolab/mjlab" },
     { name = "ruff", specifier = ">=0.14.0" },
 ]
 
