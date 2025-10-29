@@ -180,20 +180,14 @@ KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG = ActuatorCfg(
     damping=0.0,
 )
 
-# TODO: which joints are measured?
-stiffness_scale = 1.0  # Start with no scaling
-# stiffness_scale = 0.5 # Stage 1 (50% reduction)
-# stiffness_scale = 0.25 # Stage 2 (75% reduction)
-# stiffness_scale = 0.1  # Stage 3 (90% reduction)
-
 KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         ".*_hip_z_slider",
     ],
     effort_limit=3000.0,
     armature=0.01,
-    stiffness=300000.0 * stiffness_scale,
-    damping=1095.0 * sqrt(stiffness_scale),
+    stiffness=75000.0,
+    damping=550.0,
 )
 
 KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = ActuatorCfg(
@@ -202,8 +196,8 @@ KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = ActuatorCfg(
     ],
     effort_limit=3000.0,
     armature=0.01,
-    stiffness=700000.0 * stiffness_scale,
-    damping=1673.0 * sqrt(stiffness_scale),
+    stiffness=175000.0,
+    damping=840.0,
 )
 
 KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = ActuatorCfg(
@@ -212,8 +206,8 @@ KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = ActuatorCfg(
     ],
     effort_limit=3000.0,
     armature=0.01,
-    stiffness=700000.0 * stiffness_scale,
-    damping=1673.0 * sqrt(stiffness_scale),
+    stiffness=175000.0,
+    damping=840.0,
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = ActuatorCfg(
@@ -222,8 +216,8 @@ KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = ActuatorCfg(
     ],
     effort_limit=3000.0,
     armature=0.01,
-    stiffness=800000.0 * stiffness_scale,
-    damping=1789.0 * sqrt(stiffness_scale),
+    stiffness=200000.0,
+    damping=890.0,
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = ActuatorCfg(
@@ -232,8 +226,8 @@ KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = ActuatorCfg(
     ],
     effort_limit=3000.0,
     armature=0.01,
-    stiffness=800000.0 * stiffness_scale,
-    damping=1789.0 * sqrt(stiffness_scale),
+    stiffness=200000.0,
+    damping=890.0,
 )
 
 KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = ActuatorCfg(
@@ -242,8 +236,8 @@ KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = ActuatorCfg(
     ],
     effort_limit=5000.0,
     armature=0.01,
-    stiffness=1000000.0 * stiffness_scale,
-    damping=2000.0 * sqrt(stiffness_scale),
+    stiffness=250000.0,
+    damping=1000.0,
 )
 
 KANG_FULL_ARMS_ACTUATOR_CFG = ActuatorCfg(

@@ -60,7 +60,6 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.actions.joint_pos.scale = 0.1
 
         # ObservationCfg
-        # TODO: consider also the "measured" passive joints
         self.observations.policy.joint_pos.params = {
             "asset_cfg": SceneEntityCfg(
                 "robot",
@@ -129,24 +128,6 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         # ---- Penalties ----
         self.rewards.dof_pos_limits = None
         self.rewards.posture = None
-        # self.rewards.posture.weight = -0.1
-        # self.rewards.posture.params["asset_cfg"].joint_names = {
-        #     ".*_hip_z_slider",
-        #     ".*_hip_xy_slider_l",
-        #     ".*_hip_xy_slider_r",
-        #     ".*_ankle_xy_slider_l",
-        #     ".*_ankle_xy_slider_r",
-        #     ".*_leg_length_slider$",
-        # }
-        # self.rewards.posture.params["std"] = {
-        #     ".*_hip_z_slider": 0.036,
-        #     ".*_hip_xy_slider_l": 0.08,
-        #     ".*_hip_xy_slider_r": 0.03,
-        #     ".*_ankle_xy_slider_l": 0.03,
-        #     ".*_ankle_xy_slider_r": 0.03,
-        #     ".*_leg_length_slider$": 0.18,
-        # }
-
         self.rewards.termination_penalty.weight = -20.0
         self.rewards.lin_vel_z_l2.weight = -1.0
         self.rewards.ang_vel_xy_l2.weight = -0.1

@@ -138,7 +138,7 @@ class ObservationCfg:
 class EventCfg:
     foot_friction: EventTerm = term(
         EventTerm,
-        mode="startup",
+        mode="reset",
         func=mdp.randomize_field,
         params={
             "asset_cfg": SceneEntityCfg(
