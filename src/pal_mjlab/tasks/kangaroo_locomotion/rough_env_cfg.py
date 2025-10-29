@@ -4,11 +4,9 @@ from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
     KANG_ACTION_SCALE,
     KANG_ROBOT_CFG,
 )
-from mjlab.tasks.velocity.velocity_env_cfg import (
-    LocomotionVelocityEnvCfg,
-    RewardCfg
-)
+from mjlab.tasks.velocity.velocity_env_cfg import LocomotionVelocityEnvCfg
 from mjlab.utils.spec_config import ContactSensorCfg
+
 
 @dataclass
 class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
@@ -31,12 +29,15 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
 
         self.actions.joint_pos.scale = KANG_ACTION_SCALE
 
-        sensor_names = ["left_foot_ground_contact", "right_foot_ground_contact"]
         self.events.foot_friction.params["asset_cfg"].geom_names = [
-            "left_foot_collision", "right_foot_collision"
+            "left_foot_collision",
+            "right_foot_collision",
         ]
 
-
+        # self.rewards.air_time.params["sensor_names"] = [
+        #     "left_foot_ground_contact",
+        #     "right_foot_ground_contact"
+        # ]
         self.rewards.pose.params["asset_cfg"].joint_names = {
             # Lower body.
             r"leg_.*_1_.*",
@@ -75,16 +76,16 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"arm_.*_3_.*": 0.1,
             r"arm_.*_4_.*": 0.25,
         }
-
         self.rewards.action_rate_l2.weight = -0.01
         # self.rewards.air_time.weight = 1.0
-
         self.rewards.air_time = None
 
         self.viewer.body_name = "base_link"
+
         self.commands.twist.viz.z_offset = 0.75
 
         self.curriculum.command_vel = None
+
 
 @dataclass
 class KangRoughEnvCfg_PLAY(KangRoughEnvCfg):
