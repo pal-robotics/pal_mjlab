@@ -86,7 +86,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
 
         # CommandsCfg
         self.commands.twist.rel_standing_envs = 0.2
-        self.commands.twist.viz.z_offset = 0.75
+        self.commands.twist.viz.z_offset = 1.2
 
         # EventCfg
         self.events.foot_friction.params["asset_cfg"].geom_names = [
