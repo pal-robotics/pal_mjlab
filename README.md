@@ -3,7 +3,7 @@
 This repository showcase the implementation of [PAL](https://pal-robotics.com/)'s robots into [MjLab](https://github.com/mujocolab/mjlab). 
 
 > [!WARNING]
-> As MjLab is still in early development, this repository may be impacted by breaking changes. If an issue were to arise when running one of the scripts, feel free to open an issue or contribute to the project. Thanks you for your understanding!
+> As MjLab is still in early development, this repository may be impacted by breaking changes. If an issue were to arise when running one of the scripts, feel free to open an issue or contribute to the project. Thank you for your understanding!
 
 <table>
   <tr>
@@ -17,6 +17,14 @@ This repository showcase the implementation of [PAL](https://pal-robotics.com/)'
       <figure>
         <video src="https://github.com/user-attachments/assets/c0d6c444-a0a2-4c93-99a5-895ae7d31317" controls muted loop playsinline style="width:100%; height:auto;"></video>
         <figcaption align="center"><em>Motion Imitation for Talos</em></figcaption>
+      </figure>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <figure>
+        <video src="https://github.com/user-attachments/assets/1705c214-6689-43c4-afef-a5800bbeb3ac" controls muted loop playsinline style="width:100%; height:auto;"></video>
+        <figcaption align="center"><em>Velocity Tracking for Kangaroo-Full-Model</em></figcaption>
       </figure>
     </td>
   </tr>
@@ -106,4 +114,4 @@ uv run pal_play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjl
 
 ## Acknowledgements
 
-We're grateful to the people behind MjLab, PAL Robotics, MuJoCo Warp and Isaac Lab.
+We're grateful to the people behind MjLab, PAL Robotics, MuJoCo Warp, Isaac Lab, and the [Inria HUCEBOT Team](https://team.inria.fr/hucebot/).
