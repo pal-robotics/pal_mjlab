@@ -70,7 +70,7 @@ class CommandsCfg:
         mdp.UniformVelocityCommandCfg,
         asset_name="robot",
         resampling_time_range=(3.0, 8.0),
-        rel_standing_envs=0.1,
+        rel_standing_envs=0.2,
         rel_heading_envs=1.0,
         heading_command=True,
         heading_control_stiffness=0.5,
@@ -177,7 +177,16 @@ class EventCfg:
         func=mdp.push_by_setting_velocity,
         mode="interval",
         interval_range_s=(1.0, 3.0),
-        params={"velocity_range": {"x": (-1.0, 1.0), "y": (-1.0, 1.0)}},
+        params={
+            "velocity_range": {
+                "x": (-1.0, 1.0),
+                "y": (-1.0, 1.0),
+                "z": (-0.2, 0.2),
+                "roll": (-0.52, 0.52),
+                "pitch": (-0.52, 0.52),
+                "yaw": (-0.79, 0.79),
+            }
+        },
     )
 
 
@@ -187,19 +196,19 @@ class RewardCfg:
     track_lin_vel_exp: RewardTerm = term(
         RewardTerm,
         func=mdp.track_lin_vel_exp,
-        weight=1.0,
+        weight=2.0,
         params={"command_name": "twist", "std": math.sqrt(0.25)},
     )
     track_ang_vel_exp: RewardTerm = term(
         RewardTerm,
         func=mdp.track_ang_vel_exp,
-        weight=1.0,
+        weight=2.0,
         params={"command_name": "twist", "std": math.sqrt(0.25)},
     )
     foot_clearance: RewardTerm = term(
         RewardTerm,
         func=mdp.foot_clearance_stop_aware,
-        weight=1.0,
+        weight=0.5,
         params={
             "target_height": 0.20,
             "std": 0.02,
@@ -221,21 +230,10 @@ class RewardCfg:
         weight=1.0,
         params={
             "asset_name": "robot",
-            "mode_time": 0.00,
+            "mode_time": 0.3,
             "command_name": "twist",
-            "command_threshold": 0.05,
+            "command_threshold": 0.1,
             "sensor_names": [],
-        },
-    )
-    base_orientation: RewardTerm = term(
-        RewardTerm,
-        func=mdp.base_orientation_l2,
-        weight=0.1,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot", geom_names=[]
-            ),  # Override in robot cfg.
-            "desired_gravity": [0, 0, -1],
         },
     )
     full_feet_contacts: RewardTerm = term(
@@ -250,30 +248,29 @@ class RewardCfg:
             "n_contacts": 4,
         },
     )
+    base_orientation: RewardTerm = term(
+        RewardTerm,
+        func=mdp.base_orientation_l2,
+        weight=0.1,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", geom_names=[]
+            ),  # Override in robot cfg.
+            "desired_gravity": [0, 0, -1],
+        },
+    )
 
     # ---- Penalties ----
     termination_penalty: RewardTerm = term(
         RewardTerm,
         func=mdp.is_terminated,
-        weight=-200.0,
+        weight=-20.0,
     )
-    posture: RewardTerm = term(
-        RewardTerm,
-        func=mdp.posture,
-        weight=-1.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-            "std": [],
-        },
-    )
-    dof_pos_limits: RewardTerm = term(
-        RewardTerm, func=mdp.joint_pos_limits, weight=-1.0
-    )
-    action_rate_l2: RewardTerm = term(RewardTerm, func=mdp.action_rate_l2, weight=-0.1)
-    lin_vel_z_l2: RewardTerm = term(RewardTerm, func=mdp.lin_vel_z_l2, weight=-0.1)
+    action_rate_l2: RewardTerm = term(RewardTerm, func=mdp.action_rate_l2, weight=-0.01)
+    lin_vel_z_l2: RewardTerm = term(RewardTerm, func=mdp.lin_vel_z_l2, weight=-1.0)
     ang_vel_xy_l2: RewardTerm = term(RewardTerm, func=mdp.ang_vel_xy_l2, weight=-0.1)
     flat_orientation_l2: RewardTerm = term(
-        RewardTerm, func=mdp.flat_orientation_l2, weight=-0.1
+        RewardTerm, func=mdp.flat_orientation_l2, weight=-1.0
     )
     feet_slide: RewardTerm = term(
         RewardTerm,
@@ -297,30 +294,30 @@ class RewardCfg:
             "threshold": 0.2,
         },
     )
-    electrical_power: RewardTerm = term(
-        RewardTerm,
-        func=mdp.electrical_power_cost,
-        weight=-0.001,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-        },
-    )
     contact_forces: RewardTerm = term(
         RewardTerm,
         func=mdp.contact_forces,
-        weight=-0.01,
+        weight=-0.0002,
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot", geom_names=[]
             ),  # Override in robot cfg.
             "sensor_names": [],
-            "threshold": 100.0,
+            "threshold": 500.0,
+        },
+    )
+    electrical_power: RewardTerm = term(
+        RewardTerm,
+        func=mdp.electrical_power_cost,
+        weight=-0.0001,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
         },
     )
     base_height: RewardTerm = term(
         RewardTerm,
         func=mdp.base_height_l2,
-        weight=-0.01,
+        weight=-1.0,
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot", geom_names=[]
@@ -344,17 +341,6 @@ class TerminationCfg:
 class CurriculumCfg:
     terrain_levels: CurrTerm | None = term(
         CurrTerm, func=mdp.terrain_levels_vel, params={"command_name": "twist"}
-    )
-
-    command_vel: CurrTerm | None = term(
-        CurrTerm,
-        func=mdp.commands_vel,
-        params={
-            "command_name": "twist",
-            "velocity_stages": [
-                {"step": 1000 * 24, "range": (-1.5, 1.5)},
-            ],
-        },
     )
 
 
