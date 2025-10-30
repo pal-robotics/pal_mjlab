@@ -40,9 +40,7 @@ def ang_vel_xy_l2(
     """Penalize xy-axis base angular velocity using L2 squared kernel."""
     # extract the used quantities (to enable type-hinting)
     asset: Entity = env.scene[asset_cfg.name]
-    return torch.sum(
-        torch.square(asset.data.root_link_ang_vel_b[:, :2]), dim=1
-    )
+    return torch.sum(torch.square(asset.data.root_link_ang_vel_b[:, :2]), dim=1)
 
 
 def track_lin_vel_exp(
@@ -88,18 +86,14 @@ class feet_air_time:
 
     def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
         self.threshold_min = cfg.params["threshold_min"]
-        self.threshold_max = cfg.params.get(
-            "threshold_max", self.threshold_min + 0.3
-        )
+        self.threshold_max = cfg.params.get("threshold_max", self.threshold_min + 0.3)
         self.asset_name = cfg.params["asset_name"]
         self.sensor_names = cfg.params["sensor_names"]
         self.num_feet = len(self.sensor_names)
         self.command_name = cfg.params["command_name"]
         self.command_threshold = cfg.params["command_threshold"]
         self.reward_mode = cfg.params.get("reward_mode", "continuous")
-        self.command_scale_type = cfg.params.get(
-            "command_scale_type", "smooth"
-        )
+        self.command_scale_type = cfg.params.get("command_scale_type", "smooth")
         self.command_scale_width = cfg.params.get("command_scale_width", 0.2)
 
         asset: Entity = env.scene[self.asset_name]
@@ -115,9 +109,7 @@ class feet_air_time:
         self.current_contact_time = torch.zeros(
             env.num_envs, self.num_feet, device=env.device
         )
-        self.last_air_time = torch.zeros(
-            env.num_envs, self.num_feet, device=env.device
-        )
+        self.last_air_time = torch.zeros(env.num_envs, self.num_feet, device=env.device)
 
     def __call__(self, env: ManagerBasedRlEnv, **kwargs) -> torch.Tensor:
         asset: Entity = env.scene[self.asset_name]
@@ -148,8 +140,7 @@ class feet_air_time:
 
         self.current_contact_time = torch.where(
             in_contact,
-            self.current_contact_time
-            + env.step_dt,  # Increment when in contact.
+            self.current_contact_time + env.step_dt,  # Increment when in contact.
             torch.zeros_like(self.current_contact_time),  # Reset when in air.
         )
 
@@ -165,16 +156,11 @@ class feet_air_time:
             reward = torch.sum(reward_per_foot, dim=1)
         else:
             # This mode gives (air_time - threshold) as reward on landing.
-            air_time_over_min = (
-                self.last_air_time - self.threshold_min
-            ).clamp(min=0.0)
+            air_time_over_min = (self.last_air_time - self.threshold_min).clamp(min=0.0)
             air_time_clamped = air_time_over_min.clamp(
                 max=self.threshold_max - self.threshold_min
             )
-            reward = (
-                torch.sum(air_time_clamped * first_contact, dim=1)
-                / env.step_dt
-            )
+            reward = torch.sum(air_time_clamped * first_contact, dim=1) / env.step_dt
 
         command = env.command_manager.get_command(self.command_name)
         assert command is not None
@@ -183,8 +169,7 @@ class feet_air_time:
             scale = 0.5 * (
                 1.0
                 + torch.tanh(
-                    (command_norm - self.command_threshold)
-                    / self.command_scale_width
+                    (command_norm - self.command_threshold) / self.command_scale_width
                 )
             )
             reward *= scale
@@ -214,9 +199,7 @@ def foot_clearance(
     )
     foot_velocity_tanh = torch.tanh(
         tanh_mult
-        * torch.norm(
-            asset.data.geom_lin_vel_w[:, asset_cfg.geom_ids, :2], dim=2
-        )
+        * torch.norm(asset.data.geom_lin_vel_w[:, asset_cfg.geom_ids, :2], dim=2)
     )
     reward = foot_z_target_error * foot_velocity_tanh
     return torch.exp(-torch.sum(reward, dim=1) / std)
@@ -241,15 +224,11 @@ def foot_clearance_when_moving(
     foot_z_target_error = (foot_height - target_height).pow(2)
 
     # horizontal speed of each foot
-    foot_speed = torch.norm(
-        asset.data.geom_lin_vel_w[:, asset_cfg.geom_ids, :2], dim=2
-    )
+    foot_speed = torch.norm(asset.data.geom_lin_vel_w[:, asset_cfg.geom_ids, :2], dim=2)
     foot_velocity_tanh = torch.tanh(tanh_mult * foot_speed)
 
     # robot command velocity and body velocity
-    cmd = torch.linalg.norm(
-        env.command_manager.get_command(command_name), dim=1
-    )
+    cmd = torch.linalg.norm(env.command_manager.get_command(command_name), dim=1)
     body_vel = torch.linalg.norm(asset.data.root_link_lin_vel_b[:, :2], dim=1)
     moving_env = (cmd > min_speed) | (body_vel > min_speed)
 
@@ -293,14 +272,10 @@ def foot_clearance_stop_aware(
     # positive clearance shaping for walking
     z_err_sq = (foot_height - target_height).pow(2)  # [B, nfeet]
     speed_tanh = torch.tanh(tanh_mult * foot_speed_xy)  # [B, nfeet]
-    walk_clearance = torch.exp(
-        -torch.sum(z_err_sq * speed_tanh, dim=1) / std
-    )  # [B]
+    walk_clearance = torch.exp(-torch.sum(z_err_sq * speed_tanh, dim=1) / std)  # [B]
 
     # commanded speed magnitude
-    cmd = env.command_manager.get_command(
-        command_name
-    )  # [B, 3] e.g. vx, vy, wz
+    cmd = env.command_manager.get_command(command_name)  # [B, 3] e.g. vx, vy, wz
     cmd_mag = torch.linalg.norm(cmd, dim=1)  # [B]
 
     # smooth gate: 0 at low speed, 1 at high speed
@@ -316,9 +291,7 @@ def foot_clearance_stop_aware(
     foot_above = torch.clamp(foot_height - min_clearance, min=0.0)
     stop_penalty = stop_height_penalty * torch.sum(
         foot_above * foot_above, dim=1
-    ) + stop_speed_penalty * torch.sum(
-        foot_speed_xy * foot_speed_xy, dim=1
-    )  # [B]
+    ) + stop_speed_penalty * torch.sum(foot_speed_xy * foot_speed_xy, dim=1)  # [B]
 
     # combine: reward is positive during motion, negative when stopped
     reward = w_move * walk_clearance - w_stop * stop_penalty
@@ -400,9 +373,7 @@ class feet_air_contact_time:
         self.current_contact_time = torch.zeros(
             env.num_envs, self.num_feet, device=env.device
         )
-        self.last_air_time = torch.zeros(
-            env.num_envs, self.num_feet, device=env.device
-        )
+        self.last_air_time = torch.zeros(env.num_envs, self.num_feet, device=env.device)
 
     def __call__(self, env: ManagerBasedRlEnv, **kwargs) -> torch.Tensor:
         asset: Entity = env.scene[self.asset_name]
@@ -432,8 +403,7 @@ class feet_air_contact_time:
 
         self.current_contact_time = torch.where(
             in_contact,
-            self.current_contact_time
-            + env.step_dt,  # Increment when in contact.
+            self.current_contact_time + env.step_dt,  # Increment when in contact.
             torch.zeros_like(self.current_contact_time),  # Reset when in air.
         )
 
@@ -456,9 +426,7 @@ class feet_air_contact_time:
 
         reward = torch.where(
             torch.logical_or(cmd > 0.0, body_vel > self.command_threshold),
-            torch.where(
-                t_max < self.mode_time, t_min, torch.zeros_like(t_min)
-            ),
+            torch.where(t_max < self.mode_time, t_min, torch.zeros_like(t_min)),
             stance_cmd_reward,
         )
 

@@ -8,23 +8,19 @@ import gymnasium as gym
 import torch
 import tyro
 from rsl_rl.runners import OnPolicyRunner
-from typing_extensions import assert_never
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper
-from mjlab.tasks.tracking.rl import MotionTrackingOnPolicyRunner
 from mjlab.third_party.isaaclab.isaaclab_tasks.utils.parse_cfg import (
     load_cfg_from_registry,
 )
 from mjlab.utils.os import get_wandb_checkpoint_path
 from mjlab.utils.torch import configure_torch_backends
-from mjlab.viewer import NativeMujocoViewer, ViserViewer
 
 from pal_mjlab.tasks.kangaroo_full_locomotion.flat_env_cfg import (
     KangFullFlatEnvCfg,
 )
 
-import pal_mjlab.tasks
 from mjlab.third_party.isaaclab.isaaclab.utils.math import unscale_transform
 import numpy as np
 from tqdm import tqdm
@@ -58,9 +54,7 @@ def run_play(
     print(f"[INFO]: Using device: {device}")
 
     if checkpoint_file is not None and motion_file is None:
-        raise ValueError(
-            "Must provide `motion_file` if using `checkpoint_file`."
-        )
+        raise ValueError("Must provide `motion_file` if using `checkpoint_file`.")
 
     env_cfg = cast(
         ManagerBasedRlEnvCfg,
@@ -80,22 +74,16 @@ def run_play(
     if video_width is not None:
         env_cfg.sim.render.width = video_width
 
-    log_root_path = (
-        Path("logs") / "rsl_rl" / agent_cfg.experiment_name
-    ).resolve()
+    log_root_path = (Path("logs") / "rsl_rl" / agent_cfg.experiment_name).resolve()
     print(f"[INFO]: Loading experiment from: {log_root_path}")
 
     if checkpoint_file is not None:
         resume_path = Path(checkpoint_file)
         if not resume_path.exists():
-            raise FileNotFoundError(
-                f"Checkpoint file not found: {resume_path}"
-            )
+            raise FileNotFoundError(f"Checkpoint file not found: {resume_path}")
     else:
         assert wandb_run_path is not None
-        resume_path = get_wandb_checkpoint_path(
-            log_root_path, Path(wandb_run_path)
-        )
+        resume_path = get_wandb_checkpoint_path(log_root_path, Path(wandb_run_path))
     print(f"[INFO]: Loading checkpoint: {resume_path}")
     log_dir = resume_path.parent
 
@@ -122,9 +110,7 @@ def run_play(
 
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
-    runner = OnPolicyRunner(
-        env, asdict(agent_cfg), log_dir=str(log_dir), device=device
-    )
+    runner = OnPolicyRunner(env, asdict(agent_cfg), log_dir=str(log_dir), device=device)
     runner.load(str(resume_path), map_location=device)
 
     policy = runner.get_inference_policy(device=device)
@@ -142,9 +128,7 @@ def run_play(
 
     robot = env.unwrapped.scene.entities["robot"]
 
-    actuator_ids, actuator_names = robot.find_actuators(
-        KANG_FULL_LINEAR_ACTUATORS
-    )
+    actuator_ids, actuator_names = robot.find_actuators(KANG_FULL_LINEAR_ACTUATORS)
 
     if isinstance(env_cfg, KangFullFlatEnvCfg):
         rescale_to_limits = env_cfg.actions.joint_pos.rescale_to_limits
@@ -162,8 +146,7 @@ def run_play(
             offset[:, index_list] = torch.tensor(value_list, device=env.device)
         else:
             raise ValueError(
-                "Unsupported offset type."
-                " Supported types are float and dict."
+                "Unsupported offset type. Supported types are float and dict."
             )
 
     # Initialize lists to store quantities
@@ -228,19 +211,11 @@ def run_play(
     motors_pos_arr = np.concatenate(motors_pos_list, axis=0)
     raw_actions_arr = np.concatenate(raw_actions_list, axis=0)
     proc_actions_arr = np.concatenate(proc_actions_list, axis=0)
-    left_foot_contact_force_arr = np.concatenate(
-        left_foot_contact_force_list, axis=0
-    )
-    right_foot_contact_force_arr = np.concatenate(
-        right_foot_contact_force_list, axis=0
-    )
+    left_foot_contact_force_arr = np.concatenate(left_foot_contact_force_list, axis=0)
+    right_foot_contact_force_arr = np.concatenate(right_foot_contact_force_list, axis=0)
     # Split actuators into left and right based on their names
-    left_indices = [
-        i for i, name in enumerate(actuator_names) if "left" in name
-    ]
-    right_indices = [
-        i for i, name in enumerate(actuator_names) if "right" in name
-    ]
+    left_indices = [i for i, name in enumerate(actuator_names) if "left" in name]
+    right_indices = [i for i, name in enumerate(actuator_names) if "right" in name]
     # Plot positions
     fig_left, axs_left = plt.subplots(
         len(left_indices),
@@ -266,9 +241,7 @@ def run_play(
             .cpu()
             .numpy()
         )
-        axs_left[idx].axhline(
-            joint_min, color="red", linestyle=":", label="Joint Min"
-        )
+        axs_left[idx].axhline(joint_min, color="red", linestyle=":", label="Joint Min")
         axs_left[idx].axhline(
             joint_max, color="green", linestyle=":", label="Joint Max"
         )
@@ -303,9 +276,7 @@ def run_play(
             .cpu()
             .numpy()
         )
-        axs_right[idx].axhline(
-            joint_min, color="red", linestyle=":", label="Joint Min"
-        )
+        axs_right[idx].axhline(joint_min, color="red", linestyle=":", label="Joint Min")
         axs_right[idx].axhline(
             joint_max, color="green", linestyle=":", label="Joint Max"
         )

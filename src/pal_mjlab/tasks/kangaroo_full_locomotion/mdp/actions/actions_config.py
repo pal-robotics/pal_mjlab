@@ -10,9 +10,7 @@ from pal_mjlab.tasks.kangaroo_full_locomotion.mdp.actions import (
 
 @dataclass(kw_only=True)
 class JointPositionToLimitsCfg(JointActionCfg):
-    class_type: type[ActionTerm] = (
-        custom_joint_actions.JointPositionToLimitsAction
-    )
+    class_type: type[ActionTerm] = custom_joint_actions.JointPositionToLimitsAction
     rescale_to_limits: bool = True
     """Whether to rescale the action to the joint limits. Defaults to True.
 

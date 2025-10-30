@@ -51,9 +51,7 @@ class JointPositionToLimitsAction(JointAction):
 
     def process_actions(self, actions: torch.Tensor):
         self._raw_actions[:] = actions
-        self._processed_actions = (
-            self._raw_actions * self._scale + self._offset
-        )
+        self._processed_actions = self._raw_actions * self._scale + self._offset
         if self.cfg.rescale_to_limits:
             if not self._use_tanh:  # clip to [-1, 1]
                 actions = (self._processed_actions).clamp(-1.0, 1.0)
@@ -62,12 +60,8 @@ class JointPositionToLimitsAction(JointAction):
             # rescale within the joint limits
             actions = unscale_transform(
                 actions,
-                self._asset.data.soft_joint_pos_limits[
-                    :, self._actuator_ids, 0
-                ],
-                self._asset.data.soft_joint_pos_limits[
-                    :, self._actuator_ids, 1
-                ],
+                self._asset.data.soft_joint_pos_limits[:, self._actuator_ids, 0],
+                self._asset.data.soft_joint_pos_limits[:, self._actuator_ids, 1],
             )
             self._processed_actions[:] = actions[:]
 

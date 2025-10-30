@@ -15,11 +15,7 @@ from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
 ##
 
 KANG_FULL_XML: Path = (
-    MJLAB_PAL_SRC_PATH
-    / "robots"
-    / "pal_kangaroo_full"
-    / "xmls"
-    / "kangaroo_full.xml"
+    MJLAB_PAL_SRC_PATH / "robots" / "pal_kangaroo_full" / "xmls" / "kangaroo_full.xml"
 )
 assert KANG_FULL_XML.exists()
 

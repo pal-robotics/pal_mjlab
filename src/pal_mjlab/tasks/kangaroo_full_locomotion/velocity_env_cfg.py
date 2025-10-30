@@ -183,7 +183,6 @@ class EventCfg:
 
 @dataclass
 class RewardCfg:
-
     # ---- Rewards ----
     track_lin_vel_exp: RewardTerm = term(
         RewardTerm,
@@ -270,15 +269,9 @@ class RewardCfg:
     dof_pos_limits: RewardTerm = term(
         RewardTerm, func=mdp.joint_pos_limits, weight=-1.0
     )
-    action_rate_l2: RewardTerm = term(
-        RewardTerm, func=mdp.action_rate_l2, weight=-0.1
-    )
-    lin_vel_z_l2: RewardTerm = term(
-        RewardTerm, func=mdp.lin_vel_z_l2, weight=-0.1
-    )
-    ang_vel_xy_l2: RewardTerm = term(
-        RewardTerm, func=mdp.ang_vel_xy_l2, weight=-0.1
-    )
+    action_rate_l2: RewardTerm = term(RewardTerm, func=mdp.action_rate_l2, weight=-0.1)
+    lin_vel_z_l2: RewardTerm = term(RewardTerm, func=mdp.lin_vel_z_l2, weight=-0.1)
+    ang_vel_xy_l2: RewardTerm = term(RewardTerm, func=mdp.ang_vel_xy_l2, weight=-0.1)
     flat_orientation_l2: RewardTerm = term(
         RewardTerm, func=mdp.flat_orientation_l2, weight=-0.1
     )

@@ -28,9 +28,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
             )
             for side in ["left", "right"]
         ]
-        robot_cfg = replace(
-            KANG_FULL_ROBOT_CFG, sensors=tuple(foot_contact_sensors)
-        )
+        robot_cfg = replace(KANG_FULL_ROBOT_CFG, sensors=tuple(foot_contact_sensors))
         self.scene.entities = {"robot": robot_cfg}
 
         sensor_names = [
@@ -163,9 +161,7 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         }
 
         self.rewards.base_height.weight = -1.0
-        self.rewards.base_height.params["target_height"] = (
-            robot_cfg.init_state.pos[2]
-        )
+        self.rewards.base_height.params["target_height"] = robot_cfg.init_state.pos[2]
 
         self.curriculum.command_vel = None
 
