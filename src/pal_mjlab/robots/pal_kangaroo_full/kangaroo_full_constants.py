@@ -1,7 +1,6 @@
 """PAL Robotics Kangaroo (full-model) constants."""
 
 from pathlib import Path
-import re
 
 import mujoco
 
@@ -87,17 +86,6 @@ KANG_FULL_REVOLUTE_ACTUATORS = [
 ]
 
 KANG_FULL_BENT_KNEES_JOINTS = {
-    # # arms
-    # "arm_left_1_joint": 0.24,
-    # "arm_right_1_joint": -0.24,
-    # "arm_.*_2_joint": 1.32,
-    # "arm_left_3_joint": 1.57,
-    # "arm_right_3_joint": -1.57,
-    # "arm_.*_4_joint": 0.8,
-    # # torso
-    # "pelvis_1_joint": 0.0,
-    # "pelvis_2_joint": 0.0,
-    # legs
     "baselink__left_hip_z_motor": 0.012612334452569485,
     "left_hip_z_slider": -0.0069928900338709354,
     "left_hip_z_yaw": 0.17689171433448792,
@@ -275,17 +263,6 @@ KANG_FULL_PELVIS_2_ACTUATOR_CFG = ActuatorCfg(
 INIT_STATE = EntityCfg.InitialStateCfg(
     pos=(0.0, 0.0, 1.02),
     joint_pos={
-        # # arms
-        # "arm_left_1_joint": 0.24,
-        # "arm_right_1_joint": -0.24,
-        # "arm_.*_2_joint": 1.32,
-        # "arm_left_3_joint": 1.57,
-        # "arm_right_3_joint": -1.57,
-        # "arm_.*_4_joint": 0.8,
-        # # torso
-        # "pelvis_1_joint": 0.0,
-        # "pelvis_2_joint": 0.0,
-        # legs active
         ".*_hip_z_slider": 0.0,
         ".*_hip_xy_slider_l": 0.0,
         ".*_hip_xy_slider_r": 0.0,
@@ -346,9 +323,6 @@ KANG_FULL_ARTICULATION = EntityArticulationInfoCfg(
         KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG,
         KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG,
         KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG,
-        # KANG_FULL_ARMS_ACTUATOR_CFG,
-        # KANG_FULL_PELVIS_1_ACTUATOR_CFG,
-        # KANG_FULL_PELVIS_2_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.99,
 )
@@ -359,28 +333,3 @@ KANG_FULL_ROBOT_CFG = EntityCfg(
     spec_fn=get_spec,
     articulation=KANG_FULL_ARTICULATION,
 )
-
-
-def match_list(n: str, targets: list[str]) -> bool:
-    """Check name match on a list of target patterns."""
-    for t in targets:
-        if re.match(t, n):
-            return True
-    return False
-
-
-KANG_FULL_ACTION_SCALE: dict[str, float] = {}
-for a in KANG_FULL_ARTICULATION.actuators:
-    # e = a.effort_limit
-    # s = a.stiffness
-    names = a.joint_names_expr
-
-    for n in names:
-        if match_list(n, KANG_FULL_PASSIVE_JOINTS):
-            continue
-        elif match_list(n, KANG_FULL_REVOLUTE_ACTUATORS):
-            KANG_FULL_ACTION_SCALE[n] = 0.5
-        elif match_list(n, KANG_FULL_LINEAR_ACTUATORS):
-            KANG_FULL_ACTION_SCALE[n] = 0.1
-        else:
-            continue
