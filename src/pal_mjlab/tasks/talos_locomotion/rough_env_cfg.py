@@ -68,7 +68,7 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
         # rewards
         self.rewards.upright.params["asset_cfg"].body_names = ["torso_2_link"]
         # Tight control when stationary: maintain stable default pose.
-        self.rewards.pose.params["std_standing"] = {".*": 0.05,}
+        self.rewards.pose.params["std_standing"] = {".*": 0.02,}
         # Moderate leg freedom for stepping, loose arms for natural pendulum swing.
         self.rewards.pose.params["std_walking"] = {
             # Lower body.
@@ -89,7 +89,7 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"arm_.*_4_.*": 0.15, # elbow
             r"arm_.*_5_.*": 0.1, # elbow
             r"arm_.*_6_.*": 0.1, # wrist
-            r"arm_.*_7_.*": 0.3, # wrist
+            r"arm_.*_7_.*": 0.2, # wrist
         }
         self.rewards.pose.params["std_running"] = {
             # Lower body.
@@ -104,13 +104,13 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
             r".*torso_1.*": 0.3, # yaw
             r".*head.*": 0.1,
             # Arms.
-            r"arm_.*_1_.*": 0.5, # yaw
+            r"arm_.*_1_.*": 0.2, # yaw
             r"arm_.*_2_.*": 0.2, # roll
-            r"arm_.*_3_.*": 0.15, # yaw
+            r"arm_.*_3_.*": 0.1, # yaw
             r"arm_.*_4_.*": 0.35, # elbow
             r"arm_.*_5_.*": 0.1, # elbow
             r"arm_.*_6_.*": 0.1, # wrist
-            r"arm_.*_7_.*": 0.3, # wrist
+            r"arm_.*_7_.*": 0.2, # wrist
         }
         self.rewards.foot_clearance.params["asset_cfg"].site_names = site_names
         self.rewards.foot_swing_height.params["asset_cfg"].site_names = site_names
