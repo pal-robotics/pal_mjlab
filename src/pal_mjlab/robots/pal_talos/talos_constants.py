@@ -107,11 +107,6 @@ LEG_2_ARMATURE = factor_leg * LEG_235_MOTOR_INERTIA * LEG_26_REDUCTION_RATIO**2
 LEG_35_ARMATURE = factor_leg * LEG_235_MOTOR_INERTIA * REDUCTION_RATIO**2
 LEG_4_ARMATURE = factor_leg * LEG_4_MOTOR_INERTIA * LEG_4_REDUCTION_RATIO**2
 LEG_6_ARMATURE = factor_leg * LEG_16_MOTOR_INERTIA * LEG_26_REDUCTION_RATIO**2
-print(LEG_1_ARMATURE)
-print(LEG_2_ARMATURE)
-print(LEG_35_ARMATURE)
-print(LEG_4_ARMATURE)
-print(LEG_6_ARMATURE)
 # joints effort limit
 LEG_1_EFFORT_LIMIT = 100.0
 LEG_2_EFFORT_LIMIT = 160.0
@@ -266,8 +261,6 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 
 _foot_regex = "^[left][right]_foot_collision$"
 
-# This disables all collisions except the feet.
-# Furthermore, feet self collisions are disabled.
 FEET_ONLY_COLLISION = CollisionCfg(
     geom_names_expr=[_foot_regex],
     contype=0,
@@ -278,18 +271,12 @@ FEET_ONLY_COLLISION = CollisionCfg(
     solimp=(0.9, 0.95, 0.023),
 )
 
-# This enables all collisions, excluding self collisions.
-# Foot collisions are given custom condim, friction and solimp.
 FULL_COLLISION = CollisionCfg(
     geom_names_expr=[".*_collision"],
-    condim={_foot_regex: 3},
+    condim={_foot_regex: 3, ".*_collision": 1},
     priority={_foot_regex: 1},
     friction={_foot_regex: (0.6,)},
-    solimp={_foot_regex: (0.9, 0.95, 0.023)},
-    contype=1,
-    conaffinity=1,  # self collision acitivated now (set to 0 otherwise)
 )
-
 ##
 # Final config.
 ##
@@ -334,3 +321,13 @@ for a in TALOS_ARTICULATION.actuators:
     for n in names:
         if n in e and n in s and s[n]:
             TALOS_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
+
+
+if __name__ == "__main__":
+    import mujoco.viewer as viewer
+
+    from mjlab.entity.entity import Entity
+
+    robot = Entity(TALOS_ROBOT_CFG)
+
+    viewer.launch(robot.spec.compile())

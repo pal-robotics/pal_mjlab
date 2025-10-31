@@ -31,3 +31,5 @@ class PalTalosFlatEnvCfg_PLAY(PalTalosFlatEnvCfg):
 
         # Effectively infinite episode length.
         self.episode_length_s = int(1e9)
+        self.observations.policy.enable_corruption = False
+        self.events.push_robot = None
