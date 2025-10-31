@@ -259,7 +259,7 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 # Collision config.
 ##
 
-_foot_regex = "^[left][right]_foot_collision$"
+_foot_regex = ".*_foot_collision"
 
 FEET_ONLY_COLLISION = CollisionCfg(
     geom_names_expr=[_foot_regex],
