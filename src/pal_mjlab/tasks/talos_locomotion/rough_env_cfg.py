@@ -55,6 +55,7 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.events.foot_friction.params["asset_cfg"].geom_names = geom_names
 
         # rewards
+        self.rewards.upright.params["asset_cfg"].body_names = ["torso_2_link"]
         # Tight control when stationary: maintain stable default pose.
         self.rewards.pose.params["std_standing"] = {".*": 0.05}
         # Moderate leg freedom for stepping, loose arms for natural pendulum swing.
@@ -105,7 +106,7 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.rewards.foot_slip.params["asset_cfg"].site_names = site_names
         self.rewards.foot_swing_height.params["target_height"] = target_foot_height
         self.rewards.foot_clearance.params["target_height"] = target_foot_height
-        self.rewards.body_ang_vel.params["asset_cfg"].body_names = ["base_link"]
+        self.rewards.body_ang_vel.params["asset_cfg"].body_names = ["torso_2_link"]
 
         # observations
         self.observations.critic.foot_height.params["asset_cfg"].site_names = site_names
