@@ -36,18 +36,18 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
             num_slots=1,
             track_air_time=True,
         )
-        # body_ground_cfg = ContactSensorCfg(
-        #     name="body_ground_contact",
-        #     primary=ContactMatch(
-        #         mode="body",
-        #         pattern=r"^(leg_left_4_link|leg_right_4_link|torso_2_link|arm_left_7_link|arm_right_7_link|arm_left_5_link|arm_right_5_link|)$",
-        #         entity="robot",
-        #     ),
-        #     secondary=ContactMatch(mode="body", pattern="terrain"),
-        #     fields=("found",),
-        #     reduce="none",
-        #     num_slots=1,
-        # )
+        body_ground_cfg = ContactSensorCfg(
+            name="body_ground_contact",
+            primary=ContactMatch(
+                mode="body",
+                pattern=r"^(leg_left_4_link|leg_right_4_link|torso_2_link|arm_left_7_link|arm_right_7_link|arm_left_5_link|arm_right_5_link|)$",
+                entity="robot",
+            ),
+            secondary=ContactMatch(mode="body", pattern="terrain"),
+            fields=("found",),
+            reduce="none",
+            num_slots=1,
+        )
         self_collision_cfg = ContactSensorCfg(
             name="self_collision",
             primary=ContactMatch(mode="subtree", pattern="base_link", entity="robot"),
@@ -57,7 +57,7 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
             num_slots=1,
         )
         # scene
-        self.scene.sensors = (feet_ground_cfg, self_collision_cfg) #, body_ground_cfg)
+        self.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
 
         # actions
         self.actions.joint_pos.scale = TALOS_ACTION_SCALE
@@ -123,8 +123,8 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.observations.critic.foot_height.params["asset_cfg"].site_names = site_names
 
         # terminations
-        self.terminations.illegal_contact = None
-        # self.terminations.illegal_contact.params["sensor_name"] = "body_ground_contact"
+        # self.terminations.illegal_contact = None
+        self.terminations.illegal_contact.params["sensor_name"] = "body_ground_contact"
 
         self.viewer.body_name = "base_link"
         self.commands.twist.viz.z_offset = 1.5
