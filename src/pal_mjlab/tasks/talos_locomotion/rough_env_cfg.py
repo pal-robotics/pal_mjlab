@@ -44,20 +44,8 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
             reduce="none",
             num_slots=1,
         )
-        # knee_ground_cfg = ContactSensorCfg(
-        #     name="knee_ground_contact",
-        #     primary=ContactMatch(
-        #         mode="body",
-        #         pattern=r"^(leg_left_4_link|leg_right_4_link)$",
-        #         entity="robot",
-        #     ),
-        #     secondary=ContactMatch(mode="body", pattern="terrain"),
-        #     fields=("found",),
-        #     reduce="netforce",
-        #     num_slots=1,
-        # )
         # scene
-        self.scene.sensors = (feet_ground_cfg, self_collision_cfg, knee_ground_cfg)
+        self.scene.sensors = (feet_ground_cfg, self_collision_cfg,)
 
         # actions
         self.actions.joint_pos.scale = TALOS_ACTION_SCALE
@@ -123,7 +111,6 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.observations.critic.foot_height.params["asset_cfg"].site_names = site_names
 
         # terminations
-        # self.terminations.illegal_contact.params["sensor_name"] = "knee_ground_contact"
         self.terminations.illegal_contact = None
 
         self.viewer.body_name = "base_link"
