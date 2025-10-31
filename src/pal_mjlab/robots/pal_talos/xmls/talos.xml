@@ -191,7 +191,7 @@
                         <geom class="collision" pos="0 0 -0.092475" quat="1 0 0 0" material="black" mesh="gripper_base_link_collision"/>
                         <body name="gripper_left_motor_double_link" pos="0 0.02025 -0.122475">
                           <inertial pos="0.019654 0.018572 -0.011998" quat="0.434706 0.588708 -0.0217956 0.68116" mass="0.134356" diaginertia="0.000272 0.000221 8e-05"/>
-                          <joint name="gripper_left_joint" pos="0 0 0" axis="1 0 0" range="-0.959931 0"/>
+                          <!-- <joint name="gripper_left_joint" pos="0 0 0" axis="1 0 0" range="-0.959931 0"/> -->
                           <geom class="visual" material="orange" mesh="gripper_motor_double"/>
                           <!-- <geom class="collision" material="orange" mesh="gripper_motor_double_collision"/> -->
                         </body>
