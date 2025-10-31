@@ -57,7 +57,49 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
         # rewards
         self.rewards.upright.params["asset_cfg"].body_names = ["torso_2_link"]
         # Tight control when stationary: maintain stable default pose.
-        self.rewards.pose.params["std_standing"] = {".*": 0.05}
+        # TODO LOUIS: Find what joint has been added ????
+        self.rewards.pose.params["asset_cfg"].joint_names = {
+            # Lower body.
+            r"leg_.*_3_.*", # pitch
+            r"leg_.*_2_.*", # roll
+            r"leg_.*_1_.*",
+            r"leg_.*_4_.*",
+            r"leg_.*_5_.*",
+            r"leg_.*_6_.*",
+            # Waist.
+            r".*torso_2.*", # pitch
+            r".*torso_1.*", # yaw
+            r".*head.*",
+            # Arms.
+            r"arm_.*_1_.*", # yaw
+            r"arm_.*_2_.*", # roll
+            r"arm_.*_3_.*", # yaw
+            r"arm_.*_4_.*", # elbow
+            r"arm_.*_5_.*", # elbow
+            r"arm_.*_6_.*", # wrist
+            r"arm_.*_7_.*", # wrist
+        }
+        self.rewards.pose.params["std_standing"] = {
+            # Lower body.
+            r"leg_.*_3_.*": 0.05, # pitch
+            r"leg_.*_2_.*": 0.05, # roll
+            r"leg_.*_1_.*": 0.05,
+            r"leg_.*_4_.*": 0.05,
+            r"leg_.*_5_.*": 0.05,
+            r"leg_.*_6_.*": 0.05,
+            # Waist.
+            r".*torso_2.*": 0.05, # pitch
+            r".*torso_1.*": 0.05, # yaw
+            r".*head.*": 0.05,
+            # Arms.
+            r"arm_.*_1_.*": 0.05, # yaw
+            r"arm_.*_2_.*": 0.05, # roll
+            r"arm_.*_3_.*": 0.05, # yaw
+            r"arm_.*_4_.*": 0.05, # elbow
+            r"arm_.*_5_.*": 0.05, # elbow
+            r"arm_.*_6_.*": 0.05, # wrist
+            r"arm_.*_7_.*": 0.05, # wrist
+        }
         # Moderate leg freedom for stepping, loose arms for natural pendulum swing.
         self.rewards.pose.params["std_walking"] = {
             # Lower body.
