@@ -300,7 +300,7 @@ TALOS_ARTICULATION = EntityArticulationInfoCfg(
 
 TALOS_ROBOT_CFG = EntityCfg(
     init_state=INIT_STATE,
-    collisions=(FULL_COLLISION,),
+    collisions=(FEET_ONLY_COLLISION,),
     spec_fn=get_spec,
     articulation=TALOS_ARTICULATION,
 )
