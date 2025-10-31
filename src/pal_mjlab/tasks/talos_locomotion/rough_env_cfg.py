@@ -47,17 +47,13 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
         knee_ground_cfg = ContactSensorCfg(
             name="knee_ground_contact",
             primary=ContactMatch(
-                mode="subtree",
-                pattern="leg_left_4_link",
+                mode="body",
+                pattern=r"^(leg_left_4_link|leg_right_4_link)$",
                 entity="robot",
             ),
-            secondary=ContactMatch(
-                mode="subtree",
-                pattern="leg_left_4_link",
-                entity="robot",
-            ),
+            secondary=ContactMatch(mode="body", pattern="terrain"),
             fields=("found",),
-            reduce="none",
+            reduce="netforce",
             num_slots=1,
         )
         # scene
