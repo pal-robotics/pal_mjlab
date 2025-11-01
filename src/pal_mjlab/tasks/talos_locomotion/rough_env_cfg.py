@@ -135,6 +135,13 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
             {"step": 15000 * 24, "lin_vel_x": (-2.0, 3.0)},
         ]
 
+        self.curriculum.soft_landing_weight.params["weight_stages"] = [
+            {"step": 0, "weight": -1e-5},
+            {"step": 7000 * 24, "weight": -0.007},
+        ]
+
+
+
 @dataclass
 class PalTalosRoughEnvCfg_PLAY(PalTalosRoughEnvCfg):
     def __post_init__(self):
