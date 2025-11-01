@@ -133,7 +133,7 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
             {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
             {"step": 10000 * 24, "lin_vel_x": (-1.5, 2.0), "ang_vel_z": (-0.7, 0.7)},
             {"step": 15000 * 24, "lin_vel_x": (-2.0, 3.0)},
-        ],
+        ]
 
 @dataclass
 class PalTalosRoughEnvCfg_PLAY(PalTalosRoughEnvCfg):
