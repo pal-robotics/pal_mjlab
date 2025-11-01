@@ -129,15 +129,15 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.viewer.body_name = "base_link"
         self.commands.twist.viz.z_offset = 1.5
 
-        self.curriculum.command_vel.params["velocity_stages"] = [
-            {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
-            {"step": 10000 * 24, "lin_vel_x": (-1.5, 2.0), "ang_vel_z": (-0.7, 0.7)},
-            {"step": 15000 * 24, "lin_vel_x": (-2.0, 3.0)},
-        ]
+        # self.curriculum.command_vel.params["velocity_stages"] = [
+        #     {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
+        #     {"step": 5500 * 24, "lin_vel_x": (-1.5, 2.0), "ang_vel_z": (-0.7, 0.7)},
+        #     {"step": 10500 * 24, "lin_vel_x": (-2.0, 3.0)},
+        # ]
 
         self.curriculum.soft_landing_weight.params["weight_stages"] = [
             {"step": 0, "weight": -1e-5},
-            {"step": 7000 * 24, "weight": -0.007},
+            {"step": 2000 * 24, "weight": -0.007},
         ]
 
 
