@@ -68,7 +68,7 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
         # rewards
         self.rewards.upright.params["asset_cfg"].body_names = ["torso_2_link"]
         # Tight control when stationary: maintain stable default pose.
-        self.rewards.pose.params["std_standing"] = {".*": 0.02,}
+        self.rewards.pose.params["std_standing"] = {".*": 0.03,}
         # Moderate leg freedom for stepping, loose arms for natural pendulum swing.
         self.rewards.pose.params["std_walking"] = {
             # Lower body.
@@ -129,6 +129,11 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.viewer.body_name = "base_link"
         self.commands.twist.viz.z_offset = 1.5
 
+        self.curriculum.command_vel.params["velocity_stages"] = [
+            {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
+            {"step": 10000 * 24, "lin_vel_x": (-1.5, 2.0), "ang_vel_z": (-0.7, 0.7)},
+            {"step": 15000 * 24, "lin_vel_x": (-2.0, 3.0)},
+        ],
 
 @dataclass
 class PalTalosRoughEnvCfg_PLAY(PalTalosRoughEnvCfg):
