@@ -101,7 +101,7 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"leg_.*_1_.*": 0.2,
             r"leg_.*_2_.*": 0.5,
             r"leg_.*_3_.*": 0.2,
-            r"leg_.*_length_.*": 0.6,
+            r"leg_.*_knee_.*": 0.6,
             r"leg_.*_4_.*": 0.35,
             r"leg_.*_5_.*": 0.15,
             # Waist.
