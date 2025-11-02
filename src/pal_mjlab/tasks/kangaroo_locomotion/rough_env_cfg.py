@@ -58,7 +58,7 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"leg_.*_1_.*",
             r"leg_.*_2_.*",
             r"leg_.*_3_.*",
-            r"leg_.*_length_.*",
+            r"leg_.*_knee_.*",
             r"leg_.*_4_.*",
             r"leg_.*_5_.*",
             # Waist.
@@ -71,7 +71,7 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"leg_.*_1_.*": 0.05,
             r"leg_.*_2_.*": 0.05,
             r"leg_.*_3_.*": 0.05,
-            r"leg_.*_length_.*": 0.05,
+            r"leg_.*_knee_.*": 0.05,
             r"leg_.*_4_.*": 0.05,
             r"leg_.*_5_.*": 0.05,
             # Waist.
@@ -84,7 +84,7 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"leg_.*_1_.*": 0.15,
             r"leg_.*_2_.*": 0.3, # pitch
             r"leg_.*_3_.*": 0.15,
-            r"leg_.*_length_.*": 0.35, # knee
+            r"leg_.*_knee_.*": 0.35, # knee
             r"leg_.*_4_.*": 0.25,
             r"leg_.*_5_.*": 0.1,
             # Waist.
