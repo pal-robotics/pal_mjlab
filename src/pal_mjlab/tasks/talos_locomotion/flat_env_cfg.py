@@ -32,7 +32,7 @@ class PalTalosFlatEnvCfg_PLAY(PalTalosFlatEnvCfg):
         # self.commands.twist.ranges.ang_vel_z = (-0.7, 0.7)
 
 
-        self.commands.twist.ranges.lin_vel_x = (0.0, 0.0)
+        self.commands.twist.ranges.lin_vel_x = (0.1, 2.0)
         self.commands.twist.ranges.lin_vel_y = (0.0, 0.0)
         self.commands.twist.ranges.ang_vel_z = (0.0, 0.0)
         self.commands.twist.ranges.heading = (0.0, 0.0)

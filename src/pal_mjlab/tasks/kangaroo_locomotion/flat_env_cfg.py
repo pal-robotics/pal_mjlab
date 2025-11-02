@@ -15,15 +15,6 @@ class KangFlatEnvCfg(KangRoughEnvCfg):
         self.scene.terrain.terrain_generator = None
         self.curriculum.terrain_levels = None
 
-        self.curriculum.command_vel = None
-
-        assert self.events.push_robot is not None
-        self.events.push_robot.params["velocity_range"] = {
-            "x": (-0.5, 0.5),
-            "y": (-0.5, 0.5),
-        }
-
-
 @dataclass
 class KangFlatEnvCfg_PLAY(KangFlatEnvCfg):
     def __post_init__(self):
@@ -31,3 +22,9 @@ class KangFlatEnvCfg_PLAY(KangFlatEnvCfg):
 
         # Effectively infinite episode length.
         self.episode_length_s = int(1e9)
+
+        self.observations.policy.enable_corruption = False
+        self.events.push_robot = None
+
+        self.commands.twist.ranges.lin_vel_x = (-1.5, 2.0)
+        self.commands.twist.ranges.ang_vel_z = (-0.7, 0.7)

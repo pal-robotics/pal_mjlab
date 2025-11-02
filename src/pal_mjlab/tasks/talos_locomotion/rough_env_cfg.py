@@ -75,7 +75,7 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"leg_.*_3_.*": 0.3, # pitch
             r"leg_.*_2_.*": 0.15, # roll
             r"leg_.*_1_.*": 0.15,
-            r"leg_.*_4_.*": 0.35,
+            r"leg_.*_4_.*": 0.35, # knee
             r"leg_.*_5_.*": 0.25,
             r"leg_.*_6_.*": 0.1,
             # Waist.
@@ -140,9 +140,8 @@ class PalTalosRoughEnvCfg(LocomotionVelocityEnvCfg):
             {"step": 3000 * 24, "weight": -0.007},
         ]
 
+        # self.events.reset_base.params["pose_range"] =  {"x": (0.0, 0.0), "y": (0.0, 0.0), "yaw": (4.0, 4.0)}
 
-
-@dataclass
 class PalTalosRoughEnvCfg_PLAY(PalTalosRoughEnvCfg):
     def __post_init__(self):
         super().__post_init__()
