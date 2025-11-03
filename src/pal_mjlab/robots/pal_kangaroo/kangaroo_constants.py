@@ -181,19 +181,15 @@ FEET_ONLY_COLLISION = CollisionCfg(
     condim=3,
     priority=1,
     friction=(0.6,),
-    solimp=(0.9, 0.95, 0.023),
 )
 
 # This enables all collisions, excluding self collisions.
 # Foot collisions are given custom condim, friction and solimp.
 FULL_COLLISION = CollisionCfg(
     geom_names_expr=[".*_collision"],
-    condim={_foot_regex: 3},
+    condim={_foot_regex: 3, ".*_collision": 1},
     priority={_foot_regex: 1},
     friction={_foot_regex: (0.6,)},
-    solimp={_foot_regex: (0.9, 0.95, 0.023)},
-    contype=1,
-    conaffinity=1,  # self collision acitivated now (set to 0 otherwise)
 )
 
 ##
@@ -218,7 +214,7 @@ KANG_ARTICULATION = EntityArticulationInfoCfg(
 
 KANG_ROBOT_CFG = EntityCfg(
     init_state=INIT_STATE,
-    collisions=(FEET_ONLY_COLLISION,),
+    collisions=(FULL_COLLISION,),
     spec_fn=get_spec,
     articulation=KANG_ARTICULATION,
 )
@@ -242,3 +238,13 @@ for a in KANG_ARTICULATION.actuators:
 
         if n in e and n in s and s[n]:
             KANG_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
+
+
+if __name__ == "__main__":
+    import mujoco.viewer as viewer
+
+    from mjlab.entity.entity import Entity
+
+    robot = Entity(KANG_ROBOT_CFG)
+
+    viewer.launch(robot.spec.compile())
