@@ -58,7 +58,7 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"leg_.*_1_.*",
             r"leg_.*_2_.*",
             r"leg_.*_3_.*",
-            r"leg_.*_knee_.*",
+            r"leg_.*_length_.*",
             r"leg_.*_4_.*",
             r"leg_.*_5_.*",
             # Waist.
@@ -71,7 +71,7 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"leg_.*_1_.*": 0.05,
             r"leg_.*_2_.*": 0.05,
             r"leg_.*_3_.*": 0.05,
-            r"leg_.*_knee_.*": 0.05,
+            r"leg_.*_length_.*": 0.05,
             r"leg_.*_4_.*": 0.05,
             r"leg_.*_5_.*": 0.05,
             # Waist.
@@ -84,7 +84,7 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"leg_.*_1_.*": 0.15,
             r"leg_.*_2_.*": 0.3, # pitch
             r"leg_.*_3_.*": 0.15,
-            r"leg_.*_knee_.*": 0.35, # knee
+            r"leg_.*_length_.*": 0.07, # length
             r"leg_.*_4_.*": 0.25,
             r"leg_.*_5_.*": 0.1,
             # Waist.
@@ -101,7 +101,7 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
             r"leg_.*_1_.*": 0.2,
             r"leg_.*_2_.*": 0.5,
             r"leg_.*_3_.*": 0.2,
-            r"leg_.*_knee_.*": 0.6,
+            r"leg_.*_length_.*": 0.1,
             r"leg_.*_4_.*": 0.35,
             r"leg_.*_5_.*": 0.15,
             # Waist.
@@ -119,13 +119,15 @@ class KangRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.rewards.foot_swing_height.params["target_height"] = target_foot_height
         self.rewards.foot_clearance.params["target_height"] = target_foot_height
         self.rewards.body_ang_vel.params["asset_cfg"].body_names = ["pelvis_2_link"]
-        self.rewards.track_angular_velocity.weight = 1.0
+        self.rewards.foot_clearance.weight = -5.0
+        self.rewards.track_linear_velocity.weight = 4.0
 
         # observations
         self.observations.critic.foot_height.params["asset_cfg"].site_names = site_names
 
         # terminations
         self.terminations.illegal_contact = None
+        self.terminations.fell_over = None
         # self.terminations.illegal_contact.params["sensor_name"] = "body_ground_contact"
 
         self.viewer.body_name = "base_link"
