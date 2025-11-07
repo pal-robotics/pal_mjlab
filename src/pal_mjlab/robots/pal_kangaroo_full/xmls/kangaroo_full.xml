@@ -679,4 +679,10 @@
     <framelinvel objtype="site" objname="right_foot" name="right_foot_global_linvel"/>
     <framelinvel objtype="site" objname="left_foot" name="left_foot_global_linvel"/>
   </sensor> -->
+  <sensor>
+    <gyro name="imu_ang_vel" site="imu"/>
+    <velocimeter name="imu_lin_vel" site="imu"/>
+    <accelerometer name="imu_lin_acc" site="imu"/>
+    <subtreeangmom name="root_angmom" body="baselink"/>
+  </sensor>
 </mujoco>

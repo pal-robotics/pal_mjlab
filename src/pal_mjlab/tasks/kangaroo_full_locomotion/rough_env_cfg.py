@@ -1,14 +1,14 @@
 from dataclasses import dataclass, replace
 
 from mjlab.managers.scene_entity_config import SceneEntityCfg
-from mjlab.utils.spec_config import ContactSensorCfg
+from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.tasks.velocity.velocity_env_cfg import (
+  LocomotionVelocityEnvCfg,
+)
 
 from pal_mjlab.robots import (
     KANG_FULL_ROBOT_CFG,
     KANG_FULL_LINEAR_ACTUATORS,
-)
-from pal_mjlab.tasks.kangaroo_full_locomotion.velocity_env_cfg import (
-    LocomotionVelocityEnvCfg,
 )
 
 
@@ -17,26 +17,39 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
     def __post_init__(self):
         super().__post_init__()
 
-        foot_contact_sensors = [
-            ContactSensorCfg(
-                name=f"{side}_foot_ground_contact",
-                body1=f"{side}_ankle_xy_foot",
-                body2="terrain",
-                num=1,
-                data=("found", "force", "pos"),
-                reduce="netforce",
-            )
-            for side in ["left", "right"]
-        ]
-        robot_cfg = replace(KANG_FULL_ROBOT_CFG, sensors=tuple(foot_contact_sensors))
-        self.scene.entities = {"robot": robot_cfg}
+        self.scene.entities = {"robot": replace(KANG_FULL_ROBOT_CFG)}
 
-        sensor_names = [
-            "left_foot_ground_contact",
-            "right_foot_ground_contact",
-        ]
+        # constants
+        geom_names = ["left_foot_collision", "right_foot_collision"]
+        site_names = ["left_foot", "right_foot"]
+        target_foot_height = 0.15
 
-        # ActionCfg
+        # sensors
+        feet_ground_cfg = ContactSensorCfg(
+            name="feet_ground_contact",
+            primary=ContactMatch(
+                mode="body",
+                pattern=r"^(left_ankle_xy_foot|right_ankle_xy_foot)$",
+                entity="robot",
+            ),
+            secondary=ContactMatch(mode="body", pattern="terrain"),
+            fields=("found", "force"),
+            reduce="netforce",
+            num_slots=1,
+            track_air_time=True,
+        )
+        self_collision_cfg = ContactSensorCfg(
+            name="self_collision",
+            primary=ContactMatch(mode="subtree", pattern="baselink", entity="robot"),
+            secondary=ContactMatch(mode="subtree", pattern="baselink", entity="robot"),
+            fields=("found",),
+            reduce="none",
+            num_slots=1,
+        )
+        # scene
+        self.scene.sensors = (self_collision_cfg, feet_ground_cfg,)
+
+        # actions
         self.actions.joint_pos.actuator_names = KANG_FULL_LINEAR_ACTUATORS
         offs = {
             "left_hip_z_slider": 0.0,
@@ -56,59 +69,69 @@ class KangFullRoughEnvCfg(LocomotionVelocityEnvCfg):
         self.actions.joint_pos.offset = offs
         self.actions.joint_pos.scale = 0.1
 
-        # ObservationCfg
-        self.observations.policy.joint_pos.params = {
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=KANG_FULL_LINEAR_ACTUATORS,
-            )
-        }
-        self.observations.policy.joint_vel.params = {
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=KANG_FULL_LINEAR_ACTUATORS,
-            )
-        }
-        self.observations.critic.joint_pos.params = {
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=KANG_FULL_LINEAR_ACTUATORS,
-            )
-        }
-        self.observations.critic.joint_vel.params = {
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=KANG_FULL_LINEAR_ACTUATORS,
-            )
-        }
+        # observations
+        self.observations.policy.joint_pos.params["asset_cfg"] = SceneEntityCfg(
+            "robot", joint_names=KANG_FULL_LINEAR_ACTUATORS,
+        )
+        self.observations.policy.joint_vel.params["asset_cfg"] = SceneEntityCfg(
+            "robot", joint_names=KANG_FULL_LINEAR_ACTUATORS,
+        )
+        self.observations.critic.joint_pos.params["asset_cfg"] = SceneEntityCfg(
+            "robot", joint_names=KANG_FULL_LINEAR_ACTUATORS,
+        )
+        self.observations.critic.joint_vel.params["asset_cfg"] = SceneEntityCfg(
+            "robot", joint_names=KANG_FULL_LINEAR_ACTUATORS,
+        )
 
-        # EventCfg
-        self.events.foot_friction.params["asset_cfg"].geom_names = [
-            r"^(left|right)_foot_collision$"
-        ]
+        # events
+        self.events.foot_friction.params["asset_cfg"].geom_names = geom_names
 
-        # RewardCfg
-        self.rewards.foot_clearance.params["asset_cfg"].geom_names = [
-            r"^(left|right)_foot_collision$"
-        ]
-        self.rewards.air_contact_time.params["sensor_names"] = sensor_names
-        self.rewards.full_feet_contacts.params["sensor_names"] = sensor_names
-        self.rewards.feet_slide.params["sensor_names"] = sensor_names
-        self.rewards.feet_slide.params["asset_cfg"].geom_names = [
-            r"^(left|right)_foot_collision$"
-        ]
-        self.rewards.feet_too_near.params["asset_cfg"].geom_names = [
-            r"^(left|right)_foot_collision$"
-        ]
-        self.rewards.contact_forces.params["sensor_names"] = sensor_names
-        self.rewards.contact_forces.params["asset_cfg"].geom_names = [
-            r"^(left|right)_foot_collision$"
-        ]
-        self.rewards.base_height.params["target_height"] = robot_cfg.init_state.pos[2]
+        # rewards
+        self.rewards.upright.params["asset_cfg"].body_names = ["pelvis_2_link"]
+        self.rewards.pose.params["asset_cfg"] = SceneEntityCfg(
+            "robot", joint_names=KANG_FULL_LINEAR_ACTUATORS,
+        )
+        # Tight control when stationary: maintain stable default pose.
+        self.rewards.pose.params["std_standing"] = {
+            r".*_hip_z_slider": 0.05, # yaw
+            r".*_hip_xy_slider_l": 0.05,
+            r".*_hip_xy_slider_r": 0.05,
+            r".*_leg_length_slider": 0.05,
+            r".*_ankle_xy_slider_l": 0.05,
+            r".*_ankle_xy_slider_r": 0.05,
+        }
+        # Moderate leg freedom for stepping, loose arms for natural pendulum swing.
+        self.rewards.pose.params["std_walking"] = {
+            r".*_hip_z_slider": 0.15, # yaw
+            r".*_hip_xy_slider_l": 0.3,
+            r".*_hip_xy_slider_r": 0.3,
+            r".*_leg_length_slider": 0.35,
+            r".*_ankle_xy_slider_l": 0.2,
+            r".*_ankle_xy_slider_r": 0.2,
+        }
+        self.rewards.pose.params["std_running"] = {
+            r".*_hip_z_slider": 0.2,
+            r".*_hip_xy_slider_l": 0.5,
+            r".*_hip_xy_slider_r": 0.5,
+            r".*_leg_length_slider": 0.6,
+            r".*_ankle_xy_slider_l": 0.25,
+            r".*_ankle_xy_slider_r": 0.25,
+        }
+        self.rewards.foot_clearance.params["asset_cfg"].site_names = site_names
+        self.rewards.foot_swing_height.params["asset_cfg"].site_names = site_names
+        self.rewards.foot_slip.params["asset_cfg"].site_names = site_names
+        self.rewards.foot_swing_height.params["target_height"] = target_foot_height
+        self.rewards.foot_clearance.params["target_height"] = target_foot_height
+        self.rewards.body_ang_vel.params["asset_cfg"].body_names = ["pelvis_2_link"]
 
-        # Visualization settings
+        # observations
+        self.observations.critic.foot_height.params["asset_cfg"].site_names = site_names
+
+        # terminations
+        self.terminations.illegal_contact = None
+
         self.viewer.body_name = "baselink"
-        self.commands.twist.viz.z_offset = 1.2
+        self.commands.twist.viz.z_offset = 1.5
 
 
 @dataclass
