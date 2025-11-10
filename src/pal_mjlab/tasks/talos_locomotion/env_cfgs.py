@@ -113,7 +113,7 @@ def PAL_TALOS_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
     assert cfg.commands is not None
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.viz.z_offset = 1.25
+    twist_cmd.viz.z_offset = 1.75
     cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
 
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
