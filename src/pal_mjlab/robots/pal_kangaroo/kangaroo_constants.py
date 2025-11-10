@@ -4,7 +4,7 @@ from pathlib import Path
 
 import mujoco
 
-from pal_mjlab import MJLAB_PAL_SRC_PATH
+from pal_mjlab import PAL_MJLAB_SRC_PATH
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
@@ -13,20 +13,20 @@ from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
 # MJCF and assets.
 ##
 
-KANG_XML: Path = (
-    MJLAB_PAL_SRC_PATH / "robots" / "pal_kangaroo" / "xmls" / "kangaroo.xml"
+KANGAROO_XML: Path = (
+    PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo" / "xmls" / "kangaroo.xml"
 )
-assert KANG_XML.exists()
+assert KANGAROO_XML.exists()
 
 
 def get_assets(meshdir: str) -> dict[str, bytes]:
     assets: dict[str, bytes] = {}
-    update_assets(assets, KANG_XML.parent / "assets", meshdir)
+    update_assets(assets, KANGAROO_XML.parent / "assets", meshdir)
     return assets
 
 
 def get_spec() -> mujoco.MjSpec:
-    spec = mujoco.MjSpec.from_file(str(KANG_XML))
+    spec = mujoco.MjSpec.from_file(str(KANGAROO_XML))
     spec.assets = get_assets(spec.meshdir)
     return spec
 
@@ -36,7 +36,7 @@ def get_spec() -> mujoco.MjSpec:
 ##
 
 
-KANG_LEGS_PASSIVE_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_PASSIVE_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         "leg_.*_femur_joint",
         "leg_.*_knee_joint",
@@ -48,7 +48,7 @@ KANG_LEGS_PASSIVE_ACTUATOR_CFG = ActuatorCfg(
 )
 
 
-KANG_LEGS_1_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_1_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         "leg_.*_1_joint",
     ],
@@ -58,7 +58,7 @@ KANG_LEGS_1_ACTUATOR_CFG = ActuatorCfg(
     damping=2.55,
 )
 
-KANG_LEGS_2_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_2_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         "leg_.*_2_joint",
     ],
@@ -67,7 +67,7 @@ KANG_LEGS_2_ACTUATOR_CFG = ActuatorCfg(
     stiffness=100.0,
     damping=6.35,
 )
-KANG_LEGS_3_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_3_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         "leg_.*_3_joint",
     ],
@@ -76,7 +76,7 @@ KANG_LEGS_3_ACTUATOR_CFG = ActuatorCfg(
     stiffness=100.0,
     damping=6.35,
 )
-KANG_LEGS_4_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_4_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         "leg_.*_4_joint",
     ],
@@ -85,7 +85,7 @@ KANG_LEGS_4_ACTUATOR_CFG = ActuatorCfg(
     stiffness=100.0,
     damping=6.35,
 )
-KANG_LEGS_5_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_5_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         "leg_.*_5_joint",
     ],
@@ -95,7 +95,7 @@ KANG_LEGS_5_ACTUATOR_CFG = ActuatorCfg(
     damping=2.55,
 )
 
-KANG_LEGS_LENGTH_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_LENGTH_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         "leg_.*_length_joint",
     ],
@@ -104,7 +104,7 @@ KANG_LEGS_LENGTH_ACTUATOR_CFG = ActuatorCfg(
     stiffness=1100.0,
     damping=70.0,
 )
-KANG_ARMS_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_ARMS_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         "arm_.*_1_joint",
         "arm_.*_2_joint",
@@ -116,7 +116,7 @@ KANG_ARMS_ACTUATOR_CFG = ActuatorCfg(
     stiffness=100.0,
     damping=10.0,
 )
-KANG_PELVIS_1_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_PELVIS_1_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         "pelvis_1_joint",
     ],
@@ -126,7 +126,7 @@ KANG_PELVIS_1_ACTUATOR_CFG = ActuatorCfg(
     damping=5.1,
 )
 
-KANG_PELVIS_2_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_PELVIS_2_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=[
         "pelvis_2_joint",
     ],
@@ -196,32 +196,39 @@ FULL_COLLISION = CollisionCfg(
 # Final config.
 ##
 
-KANG_ARTICULATION = EntityArticulationInfoCfg(
+KANGAROO_ARTICULATION = EntityArticulationInfoCfg(
     actuators=(
-        KANG_LEGS_1_ACTUATOR_CFG,
-        KANG_LEGS_2_ACTUATOR_CFG,
-        KANG_LEGS_3_ACTUATOR_CFG,
-        KANG_LEGS_4_ACTUATOR_CFG,
-        KANG_LEGS_5_ACTUATOR_CFG,
-        KANG_LEGS_LENGTH_ACTUATOR_CFG,
-        # KANG_LEGS_PASSIVE_ACTUATOR_CFG,
-        KANG_ARMS_ACTUATOR_CFG,
-        KANG_PELVIS_1_ACTUATOR_CFG,
-        KANG_PELVIS_2_ACTUATOR_CFG,
+        KANGAROO_LEGS_1_ACTUATOR_CFG,
+        KANGAROO_LEGS_2_ACTUATOR_CFG,
+        KANGAROO_LEGS_3_ACTUATOR_CFG,
+        KANGAROO_LEGS_4_ACTUATOR_CFG,
+        KANGAROO_LEGS_5_ACTUATOR_CFG,
+        KANGAROO_LEGS_LENGTH_ACTUATOR_CFG,
+        # KANGAROO_LEGS_PASSIVE_ACTUATOR_CFG,
+        KANGAROO_ARMS_ACTUATOR_CFG,
+        KANGAROO_PELVIS_1_ACTUATOR_CFG,
+        KANGAROO_PELVIS_2_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.9,
 )
 
-KANG_ROBOT_CFG = EntityCfg(
+
+def get_kangaroo_robot_cfg() -> EntityCfg:
+  """Get a fresh KANGAROO robot configuration instance.
+
+  Returns a new EntityCfg instance each time to avoid mutation issues when
+  the config is shared across multiple places.
+  """
+  return EntityCfg(
     init_state=INIT_STATE,
     collisions=(FULL_COLLISION,),
     spec_fn=get_spec,
-    articulation=KANG_ARTICULATION,
-)
+    articulation=KANGAROO_ARTICULATION,
+  )
 
-KANG_ACTION_SCALE: dict[str, float] = {}
+KANGAROO_ACTION_SCALE: dict[str, float] = {}
 
-for a in KANG_ARTICULATION.actuators:
+for a in KANGAROO_ARTICULATION.actuators:
     e = a.effort_limit
     s = a.stiffness
     names = a.joint_names_expr
@@ -232,12 +239,8 @@ for a in KANG_ARTICULATION.actuators:
         s = {n: s for n in names}
 
     for n in names:
-        # skip femur or knee joints
-        # if re.match(r"leg_.*_femur_joint", n) or re.match(r"leg_.*_knee_joint", n):
-        #     continue
-
         if n in e and n in s and s[n]:
-            KANG_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
+            KANGAROO_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
 
 
 if __name__ == "__main__":
@@ -245,6 +248,6 @@ if __name__ == "__main__":
 
     from mjlab.entity.entity import Entity
 
-    robot = Entity(KANG_ROBOT_CFG)
+    robot = Entity(get_kangaroo_robot_cfg())
 
     viewer.launch(robot.spec.compile())

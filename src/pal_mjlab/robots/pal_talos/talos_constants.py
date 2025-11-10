@@ -1,10 +1,10 @@
-"""Unitree Go1 constants."""
+"""PAL Robotics Talos constants."""
 
 from pathlib import Path
 
 import mujoco
 
-from pal_mjlab import MJLAB_PAL_SRC_PATH
+from pal_mjlab import PAL_MJLAB_SRC_PATH
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
@@ -13,7 +13,7 @@ from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
 # MJCF and assets.
 ##
 
-TALOS_XML: Path = MJLAB_PAL_SRC_PATH / "robots" / "pal_talos" / "xmls" / "talos.xml"
+TALOS_XML: Path = PAL_MJLAB_SRC_PATH / "robots" / "pal_talos" / "xmls" / "talos.xml"
 assert TALOS_XML.exists()
 
 
@@ -298,12 +298,18 @@ TALOS_ARTICULATION = EntityArticulationInfoCfg(
     soft_joint_pos_limit_factor=0.9,
 )
 
-TALOS_ROBOT_CFG = EntityCfg(
+def get_talos_robot_cfg() -> EntityCfg:
+  """Get a fresh Talos robot configuration instance.
+
+  Returns a new EntityCfg instance each time to avoid mutation issues when
+  the config is shared across multiple places.
+  """
+  return EntityCfg(
     init_state=INIT_STATE,
     collisions=(FULL_COLLISION,),
     spec_fn=get_spec,
     articulation=TALOS_ARTICULATION,
-)
+  )
 
 TALOS_ACTION_SCALE: dict[str, float] = {}
 
@@ -327,6 +333,6 @@ if __name__ == "__main__":
 
     from mjlab.entity.entity import Entity
 
-    robot = Entity(TALOS_ROBOT_CFG)
+    robot = Entity(get_talos_robot_cfg())
 
     viewer.launch(robot.spec.compile())
