@@ -12,6 +12,8 @@ from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import create_velocity_env_cfg
 from mjlab.utils.retval import retval
 
+import mjlab.tasks.velocity.mdp as mdp
+from mjlab.managers.manager_term_config import TerminationTermCfg
 
 @retval
 def PAL_TALOS_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
@@ -32,18 +34,18 @@ def PAL_TALOS_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
         track_air_time=True,
     )
     # TODO Louis: Adds illegal contact termination, otherwise Talos is walking on his knees
-    # body_ground_cfg = ContactSensorCfg(
-    #     name="body_ground_contact",
-    #     primary=ContactMatch(
-    #         mode="body",
-    #         pattern=r"^(leg_left_4_link|leg_right_4_link|torso_2_link|arm_left_7_link|arm_right_7_link|arm_left_5_link|arm_right_5_link|)$",
-    #         entity="robot",
-    #     ),
-    #     secondary=ContactMatch(mode="body", pattern="terrain"),
-    #     fields=("found",),
-    #     reduce="none",
-    #     num_slots=1,
-    # )
+    body_ground_cfg = ContactSensorCfg(
+        name="body_ground_contact",
+        primary=ContactMatch(
+            mode="body",
+            pattern=r"^(leg_left_4_link|leg_right_4_link|torso_2_link|arm_left_7_link|arm_right_7_link|arm_left_5_link|arm_right_5_link|)$",
+            entity="robot",
+        ),
+        secondary=ContactMatch(mode="body", pattern="terrain"),
+        fields=("found",),
+        reduce="none",
+        num_slots=1,
+    )
     self_collision_cfg = ContactSensorCfg(
         name="self_collision",
         primary=ContactMatch(mode="subtree", pattern="base_link", entity="robot"),
@@ -111,7 +113,13 @@ def PAL_TALOS_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
     assert cfg.commands is not None
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.viz.z_offset = 1.15
+    twist_cmd.viz.z_offset = 1.25
+    cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
+
+    cfg.terminations["illegal_contacts"] = TerminationTermCfg(
+      func=mdp.illegal_contact,
+      params={"sensor_name": "body_ground_contact"},
+    )
     return cfg
 
 

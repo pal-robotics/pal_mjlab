@@ -12,6 +12,8 @@ from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import create_velocity_env_cfg
 from mjlab.utils.retval import retval
 
+import mjlab.tasks.velocity.mdp as mdp
+from mjlab.managers.manager_term_config import TerminationTermCfg
 
 @retval
 def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
@@ -30,6 +32,18 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
         reduce="netforce",
         num_slots=1,
         track_air_time=True,
+    )
+    body_ground_cfg = ContactSensorCfg(
+        name="body_ground_contact",
+        primary=ContactMatch(
+            mode="body",
+            pattern=r"^(leg_left_femur_link|leg_right_femur_link|leg_left_knee_link|leg_right_knee_link)$",
+            entity="robot",
+        ),
+        secondary=ContactMatch(mode="body", pattern="terrain"),
+        fields=("found",),
+        reduce="none",
+        num_slots=1,
     )
     self_collision_cfg = ContactSensorCfg(
         name="self_collision",
@@ -117,6 +131,12 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
         # Arms.
         r"arm_.*",
     }
+    cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
+
+    cfg.terminations["illegal_contacts"] = TerminationTermCfg(
+      func=mdp.illegal_contact,
+      params={"sensor_name": "body_ground_contact"},
+    )
     return cfg
 
 
