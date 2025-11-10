@@ -142,8 +142,8 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
     
     cfg.rewards["height"] = RewardTermCfg(
       func=mdp.torso_height,
-      weight=1.0,
-      params={"z_des": 2.0, "std": 0.5},
+      weight=2.0,
+      params={"z_des": 1.0, "std": 0.5},
     )
 
     # TODO Louis: Train with this and try deployment to PAL Physics Simulator
