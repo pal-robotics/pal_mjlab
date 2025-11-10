@@ -113,7 +113,7 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
         body_ang_vel_weight=-0.05,
         angular_momentum_weight=-0.02,
         self_collision_weight=-1.0,
-        air_time_weight=0.0,
+        air_time_weight=1.0,
     )
     assert cfg.commands is not None
     twist_cmd = cfg.commands["twist"]
