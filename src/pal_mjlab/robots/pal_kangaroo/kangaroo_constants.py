@@ -37,10 +37,10 @@ def get_spec() -> mujoco.MjSpec:
 
 
 KANGAROO_LEGS_PASSIVE_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=[
+    joint_names_expr=(
         "leg_.*_femur_joint",
         "leg_.*_knee_joint",
-    ],
+    ),
     effort_limit=100.0,
     armature=0.01,
     stiffness=0.0,
@@ -49,9 +49,9 @@ KANGAROO_LEGS_PASSIVE_ACTUATOR_CFG = ActuatorCfg(
 
 
 KANGAROO_LEGS_1_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=[
+    joint_names_expr=(
         "leg_.*_1_joint",
-    ],
+    ),
     effort_limit=80.0,
     armature=0.01,
     stiffness=40.0,
@@ -59,36 +59,36 @@ KANGAROO_LEGS_1_ACTUATOR_CFG = ActuatorCfg(
 )
 
 KANGAROO_LEGS_2_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=[
+    joint_names_expr=(
         "leg_.*_2_joint",
-    ],
+    ),
     effort_limit=230.0,
     armature=0.01,
     stiffness=100.0,
     damping=6.35,
 )
 KANGAROO_LEGS_3_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=[
+    joint_names_expr=(
         "leg_.*_3_joint",
-    ],
+    ),
     effort_limit=139.0,
     armature=0.01,
     stiffness=100.0,
     damping=6.35,
 )
 KANGAROO_LEGS_4_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=[
+    joint_names_expr=(
         "leg_.*_4_joint",
-    ],
+    ),
     effort_limit=140.0,
     armature=0.01,
     stiffness=100.0,
     damping=6.35,
 )
 KANGAROO_LEGS_5_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=[
+    joint_names_expr=(
         "leg_.*_5_joint",
-    ],
+    ),
     effort_limit=82.0,
     armature=0.01,
     stiffness=40.0,
@@ -96,30 +96,30 @@ KANGAROO_LEGS_5_ACTUATOR_CFG = ActuatorCfg(
 )
 
 KANGAROO_LEGS_LENGTH_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=[
+    joint_names_expr=(
         "leg_.*_length_joint",
-    ],
+    ),
     effort_limit=1100.0,
     armature=0.01,
     stiffness=1100.0,
     damping=70.0,
 )
 KANGAROO_ARMS_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=[
+    joint_names_expr=(
         "arm_.*_1_joint",
         "arm_.*_2_joint",
         "arm_.*_3_joint",
         "arm_.*_4_joint",
-    ],
+    ),
     armature=0.01,
     effort_limit=43.0,
     stiffness=100.0,
     damping=10.0,
 )
 KANGAROO_PELVIS_1_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=[
+    joint_names_expr=(
         "pelvis_1_joint",
-    ],
+    ),
     effort_limit=100.0,
     armature=0.01,
     stiffness=80.0,
@@ -127,9 +127,9 @@ KANGAROO_PELVIS_1_ACTUATOR_CFG = ActuatorCfg(
 )
 
 KANGAROO_PELVIS_2_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=[
+    joint_names_expr=(
         "pelvis_2_joint",
-    ],
+    ),
     effort_limit=100.0,
     armature=0.01,
     stiffness=40.0,
@@ -175,7 +175,7 @@ _foot_regex = ".*_foot_collision"
 # This disables all collisions except the feet.
 # Furthermore, feet self collisions are disabled.
 FEET_ONLY_COLLISION = CollisionCfg(
-    geom_names_expr=[_foot_regex],
+    geom_names_expr=[_foot_regex),
     contype=0,
     conaffinity=1,
     condim=3,
@@ -186,7 +186,7 @@ FEET_ONLY_COLLISION = CollisionCfg(
 # This enables all collisions, excluding self collisions.
 # Foot collisions are given custom condim, friction and solimp.
 FULL_COLLISION = CollisionCfg(
-    geom_names_expr=[".*_collision"],
+    geom_names_expr=[".*_collision"),
     condim={_foot_regex: 3, ".*_collision": 1},
     priority={_foot_regex: 1},
     friction={_foot_regex: (0.6,)},
