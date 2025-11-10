@@ -1,12 +1,8 @@
 from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (  # noqa: F401
-    KANG_ROBOT_CFG,
-    KANG_ACTION_SCALE,
+    get_kangaroo_robot_cfg,
+    KANGAROO_ACTION_SCALE,
 )
 from pal_mjlab.robots.pal_talos.talos_constants import (  # noqa: F401
-    TALOS_ROBOT_CFG,
+    get_talos_robot_cfg,
     TALOS_ACTION_SCALE,
-)
-from pal_mjlab.robots.pal_kangaroo_full.kangaroo_full_constants import (
-    KANG_FULL_ROBOT_CFG,
-    KANG_FULL_LINEAR_ACTUATORS,
 )

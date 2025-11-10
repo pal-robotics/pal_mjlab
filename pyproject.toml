@@ -14,9 +14,6 @@ dependencies = [
 
 [project.scripts]
 pal-mjlab = "pal_mjlab:main"
-pal_train = "pal_mjlab.scripts.train:main"
-pal_play = "pal_mjlab.scripts.play:main"
-pal_list_envs = "pal_mjlab.scripts.list_envs:main"
 pal_npz = "pal_mjlab.scripts.csv_to_npz:main"
 
 [build-system]
@@ -26,3 +23,5 @@ build-backend = "uv_build"
 [tool.uv.sources]
 mjlab = { git = "https://github.com/mujocolab/mjlab" }
 
+[project.entry-points."mjlab.tasks"]
+pal_mjlab = "pal_mjlab.tasks"

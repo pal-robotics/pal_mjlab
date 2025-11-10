@@ -1,9 +1,9 @@
-# PAL Robotics in MjLab
+# PAL Robotics in mjlab
 
-This repository showcase the implementation of [PAL](https://pal-robotics.com/)'s robots into [MjLab](https://github.com/mujocolab/mjlab). 
+This repository showcase the implementation of [PAL](https://pal-robotics.com/)'s robots into [mjlab](https://github.com/mujocolab/mjlab). 
 
 > [!WARNING]
-> As MjLab is still in early development, this repository may be impacted by breaking changes. If an issue were to arise when running one of the scripts, feel free to open an issue or contribute to the project. Thank you for your understanding!
+> As mjlab is still in early development, this repository may be impacted by breaking changes. If an issue were to arise when running one of the scripts, feel free to open an issue or contribute to the project. Thank you for your understanding!
 
 <table>
   <tr>
@@ -24,7 +24,7 @@ This repository showcase the implementation of [PAL](https://pal-robotics.com/)'
     <td width="50%">
       <figure>
         <video src="https://github.com/user-attachments/assets/1705c214-6689-43c4-afef-a5800bbeb3ac" controls muted loop playsinline style="width:100%; height:auto;"></video>
-        <figcaption align="center"><em>Velocity Tracking for Kangaroo-Full-Model</em></figcaption>
+        <figcaption align="center"><em>Velocity Tracking for Kangaroo Full-Model (v0.1.0)</em></figcaption>
       </figure>
     </td>
   </tr>
@@ -33,9 +33,9 @@ This repository showcase the implementation of [PAL](https://pal-robotics.com/)'
 > [!WARNING]
 > Kangaroo locomotion is still WIP.
 
-## What's MjLab?
+## What's mjlab?
 
-MjLab is a project to have the [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/index.html) API using [MjWarp](https://mujoco.readthedocs.io/en/latest/mjwarp/index.html) as the backend. If you’re wondering about the motivation behind it or how it differs from Newton, you can learn more about it [here](https://github.com/mujocolab/mjlab/blob/main/docs/motivation.md).
+mjlab is a project to have the [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/index.html) API using [MjWarp](https://mujoco.readthedocs.io/en/latest/mjwarp/index.html) as the backend. If you’re wondering about the motivation behind it or how it differs from Newton, you can learn more about it [here](https://github.com/mujocolab/mjlab/blob/main/docs/motivation.md).
 
 It’s really easy to install, and sim-to-real has been tested successfully on the G1 and Go1 for RL locomotion and motion imitation, see the announcement [tweet](https://x.com/kevin_zakka/status/1972757435707424898?t=4Ho4ovrCAEOWTCxVG3BKrw&s=19) for videos.
 
@@ -50,14 +50,14 @@ git clone https://github.com/louislelay/pal_mjlab.git && cd pal_mjlab
 List available environments.
 
 ```bash
-uv run pal_list_envs
+uv run list_envs --keyword pal
 ```
 
 Use the dummy agents.
 
 ```bash
-uv run pal_play Mjlab-Velocity-Flat-Pal-Talos --agent zero # send zero actions to the robot
-uv run pal_play Mjlab-Velocity-Flat-Pal-Talos --agent random # send random actions to the robot
+uv run play mjlab-Velocity-Flat-Pal-Talos --agent zero # send zero actions to the robot
+uv run play mjlab-Velocity-Flat-Pal-Talos --agent random # send random actions to the robot
 ```
 
 ### Velocity Tracking
@@ -65,13 +65,13 @@ uv run pal_play Mjlab-Velocity-Flat-Pal-Talos --agent random # send random actio
 Train the policy.
 
 ```bash
-uv run pal_train Mjlab-Velocity-Flat-Pal-Talos --env.scene.num-envs 4096
+uv run train mjlab-Velocity-Flat-Pal-Talos --env.scene.num-envs 4096
 ```
 
 Evaluate the policy.
 
 ```bash
-uv run pal_play Mjlab-Velocity-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
+uv run play mjlab-Velocity-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
 ```
 
 ### Motion Imitation
@@ -103,15 +103,15 @@ MUJOCO_GL=egl uv run -m pal_mjlab.scripts.csv_to_npz \
 Train the policy.
 
 ```bash
-MUJOCO_GL=egl uv run pal_train Mjlab-Tracking-Flat-Pal-Talos --registry-name your-org/csv_to_npz/motion_name
+MUJOCO_GL=egl uv run train mjlab-Tracking-Flat-Pal-Talos --registry-name your-org/csv_to_npz/motion_name
 ```
 
 Evaluate the policy.
 
 ```bash
-uv run pal_play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
+uv run play mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
 ```
 
 ## Acknowledgements
 
-We're grateful to the people behind MjLab, PAL Robotics, MuJoCo Warp, Isaac Lab, and the [Inria HUCEBOT Team](https://team.inria.fr/hucebot/).
+We're grateful to the people behind mjlab, PAL Robotics, MuJoCo Warp, Isaac Lab, and the [Inria HUCEBOT Team](https://team.inria.fr/hucebot/).

@@ -1,10 +1,10 @@
-"""Unitree Go1 constants."""
+"""PAL Robotics Talos constants."""
 
 from pathlib import Path
 
 import mujoco
 
-from pal_mjlab import MJLAB_PAL_SRC_PATH
+from pal_mjlab import PAL_MJLAB_SRC_PATH
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
@@ -13,7 +13,7 @@ from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
 # MJCF and assets.
 ##
 
-TALOS_XML: Path = MJLAB_PAL_SRC_PATH / "robots" / "pal_talos" / "xmls" / "talos.xml"
+TALOS_XML: Path = PAL_MJLAB_SRC_PATH / "robots" / "pal_talos" / "xmls" / "talos.xml"
 assert TALOS_XML.exists()
 
 
@@ -107,11 +107,6 @@ LEG_2_ARMATURE = factor_leg * LEG_235_MOTOR_INERTIA * LEG_26_REDUCTION_RATIO**2
 LEG_35_ARMATURE = factor_leg * LEG_235_MOTOR_INERTIA * REDUCTION_RATIO**2
 LEG_4_ARMATURE = factor_leg * LEG_4_MOTOR_INERTIA * LEG_4_REDUCTION_RATIO**2
 LEG_6_ARMATURE = factor_leg * LEG_16_MOTOR_INERTIA * LEG_26_REDUCTION_RATIO**2
-print(LEG_1_ARMATURE)
-print(LEG_2_ARMATURE)
-print(LEG_35_ARMATURE)
-print(LEG_4_ARMATURE)
-print(LEG_6_ARMATURE)
 # joints effort limit
 LEG_1_EFFORT_LIMIT = 100.0
 LEG_2_EFFORT_LIMIT = 160.0
@@ -264,10 +259,8 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 # Collision config.
 ##
 
-_foot_regex = "^[left][right]_foot_collision$"
+_foot_regex = ".*_foot_collision"
 
-# This disables all collisions except the feet.
-# Furthermore, feet self collisions are disabled.
 FEET_ONLY_COLLISION = CollisionCfg(
     geom_names_expr=[_foot_regex],
     contype=0,
@@ -275,21 +268,14 @@ FEET_ONLY_COLLISION = CollisionCfg(
     condim=3,
     priority=1,
     friction=(0.6,),
-    solimp=(0.9, 0.95, 0.023),
 )
 
-# This enables all collisions, excluding self collisions.
-# Foot collisions are given custom condim, friction and solimp.
 FULL_COLLISION = CollisionCfg(
     geom_names_expr=[".*_collision"],
-    condim={_foot_regex: 3},
+    condim={_foot_regex: 3, ".*_collision": 1},
     priority={_foot_regex: 1},
     friction={_foot_regex: (0.6,)},
-    solimp={_foot_regex: (0.9, 0.95, 0.023)},
-    contype=1,
-    conaffinity=1,  # self collision acitivated now (set to 0 otherwise)
 )
-
 ##
 # Final config.
 ##
@@ -312,12 +298,20 @@ TALOS_ARTICULATION = EntityArticulationInfoCfg(
     soft_joint_pos_limit_factor=0.9,
 )
 
-TALOS_ROBOT_CFG = EntityCfg(
-    init_state=INIT_STATE,
-    collisions=(FULL_COLLISION,),
-    spec_fn=get_spec,
-    articulation=TALOS_ARTICULATION,
-)
+
+def get_talos_robot_cfg() -> EntityCfg:
+    """Get a fresh Talos robot configuration instance.
+
+    Returns a new EntityCfg instance each time to avoid mutation issues when
+    the config is shared across multiple places.
+    """
+    return EntityCfg(
+        init_state=INIT_STATE,
+        collisions=(FULL_COLLISION,),
+        spec_fn=get_spec,
+        articulation=TALOS_ARTICULATION,
+    )
+
 
 TALOS_ACTION_SCALE: dict[str, float] = {}
 
@@ -334,3 +328,13 @@ for a in TALOS_ARTICULATION.actuators:
     for n in names:
         if n in e and n in s and s[n]:
             TALOS_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
+
+
+if __name__ == "__main__":
+    import mujoco.viewer as viewer
+
+    from mjlab.entity.entity import Entity
+
+    robot = Entity(get_talos_robot_cfg())
+
+    viewer.launch(robot.spec.compile())

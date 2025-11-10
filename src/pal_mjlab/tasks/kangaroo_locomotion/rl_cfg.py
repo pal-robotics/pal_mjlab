@@ -8,7 +8,7 @@ from mjlab.rl import (
 
 
 @dataclass
-class KangPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+class PalKangarooPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     policy: RslRlPpoActorCriticCfg = field(
         default_factory=lambda: RslRlPpoActorCriticCfg(
             init_noise_std=1.0,
