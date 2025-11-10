@@ -8,7 +8,7 @@ from tqdm import tqdm
 from mjlab.entity import Entity
 from mjlab.scene import Scene
 from mjlab.sim.sim import Simulation, SimulationCfg
-from pal_mjlab.tasks.talos_tracking.flat_env_cfg import TalosFlatEnvCfg
+from pal_mjlab.tasks.talos_tracking.env_cfgs import TalosFlatEnvCfg
 from mjlab.third_party.isaaclab.isaaclab.utils.math import (
     axis_angle_from_quat,
     quat_apply_inverse,
