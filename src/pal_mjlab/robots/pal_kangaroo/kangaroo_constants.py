@@ -175,7 +175,7 @@ _foot_regex = ".*_foot_collision"
 # This disables all collisions except the feet.
 # Furthermore, feet self collisions are disabled.
 FEET_ONLY_COLLISION = CollisionCfg(
-    geom_names_expr=(_foot_regex),
+    geom_names_expr=(_foot_regex,),
     contype=0,
     conaffinity=1,
     condim=3,
@@ -186,7 +186,7 @@ FEET_ONLY_COLLISION = CollisionCfg(
 # This enables all collisions, excluding self collisions.
 # Foot collisions are given custom condim, friction and solimp.
 FULL_COLLISION = CollisionCfg(
-    geom_names_expr=(".*_collision"),
+    geom_names_expr=(".*_collision",),
     condim={_foot_regex: 3, ".*_collision": 1},
     priority={_foot_regex: 1},
     friction={_foot_regex: (0.6,)},
