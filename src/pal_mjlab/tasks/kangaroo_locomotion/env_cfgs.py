@@ -12,8 +12,10 @@ from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import create_velocity_env_cfg
 from mjlab.utils.retval import retval
 
-import mjlab.tasks.velocity.mdp as mdp
-from mjlab.managers.manager_term_config import TerminationTermCfg
+import pal_mjlab.tasks.kangaroo_locomotion.mdp as mdp
+from mjlab.managers.manager_term_config import ObservationTermCfg, TerminationTermCfg
+from mjlab.managers.manager_term_config import RewardTermCfg
+from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
 @retval
 def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
@@ -79,11 +81,11 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
             r"leg_.*_1_.*": 0.15,
             r"leg_.*_2_.*": 0.3,  # pitch
             r"leg_.*_3_.*": 0.15,
-            r"leg_.*_length_.*": 0.07,  # length
+            r"leg_.*_length_.*": 0.25,  # length
             r"leg_.*_4_.*": 0.25,
             r"leg_.*_5_.*": 0.1,
             # Waist.
-            r"pelvis_1.*": 0.1,
+            r"pelvis_1.*": 0.08,
             r"pelvis_2.*": 0.2,
             # Arms.
             r"arm_.*_1_.*": 0.15,  # pitch
@@ -96,16 +98,16 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
             r"leg_.*_1_.*": 0.2,
             r"leg_.*_2_.*": 0.5,
             r"leg_.*_3_.*": 0.2,
-            r"leg_.*_length_.*": 0.1,
+            r"leg_.*_length_.*": 0.35,
             r"leg_.*_4_.*": 0.35,
             r"leg_.*_5_.*": 0.15,
             # Waist.
-            r"pelvis_1.*": 0.2,
+            r"pelvis_1.*": 0.08,
             r"pelvis_2.*": 0.3,
             # Arms.
-            r"arm_.*_1_.*": 0.2,
+            r"arm_.*_1_.*": 0.5,
             r"arm_.*_2_.*": 0.2,
-            r"arm_.*_3_.*": 0.1,
+            r"arm_.*_3_.*": 0.15,
             r"arm_.*_4_.*": 0.35,
         },
         body_ang_vel_weight=-0.05,
@@ -136,6 +138,24 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
       func=mdp.illegal_contact,
       params={"sensor_name": "body_ground_contact"},
+    )
+    
+    cfg.rewards["height"] = RewardTermCfg(
+      func=mdp.torso_height,
+      weight=1.0,
+      params={"z_des": 2.0, "std": 0.5},
+    )
+
+    # TODO Louis: Train with this and try deployment to PAL Physics Simulator
+    cfg.observations["policy"].terms["base_lin_vel"] = None
+    cfg.observations["policy"].terms["base_lin_acc"] = ObservationTermCfg(
+      func=mdp.builtin_sensor,
+      params={"sensor_name": "robot/imu_lin_acc"},
+      noise=Unoise(n_min=-0.5, n_max=0.5),
+    )
+    cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
+      func=mdp.builtin_sensor,
+      params={"sensor_name": "robot/imu_lin_acc"},
     )
     return cfg
 
