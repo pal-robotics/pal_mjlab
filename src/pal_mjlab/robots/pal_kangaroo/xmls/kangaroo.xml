@@ -27,27 +27,27 @@
     <material name="bright_orange" rgba="1 0.65 0 0.2"/>
 
 
-    <mesh name="base_link_with_pelvis" content_type="model/stl" file="base_link_with_pelvis.stl"/>
-    <mesh name="pelvis_base_link" content_type="model/stl" file="pelvis_base_link.stl"/>
-    <mesh name="pelvis_1_link" content_type="model/stl" file="pelvis_1_link.stl"/>
-    <mesh name="pelvis_2_link" content_type="model/stl" file="pelvis_2_link.stl"/>
-    <mesh name="torso_link" content_type="model/stl" file="torso_link.stl"/>
-    <mesh name="leg_left_1_link" content_type="model/stl" file="leg_left_1_link.stl"/>
-    <mesh name="leg_left_2_link" content_type="model/stl" file="leg_left_2_link.stl"/>
-    <mesh name="leg_left_3_link" content_type="model/stl" file="leg_left_3_link.stl"/>
-    <mesh name="leg_femur_link" content_type="model/stl" file="leg_femur_link.stl"/>
-    <mesh name="leg_tibia_link" content_type="model/stl" file="leg_tibia_link.stl"/>
-    <mesh name="leg_6_link" content_type="model/stl" file="leg_6_link.stl"/>
-    <mesh name="leg_7_link" content_type="model/stl" file="leg_7_link.stl"/>
-    <mesh name="leg_right_1_link" content_type="model/stl" file="leg_right_1_link.stl"/>
-    <mesh name="leg_right_2_link" content_type="model/stl" file="leg_right_2_link.stl"/>
-    <mesh name="leg_right_3_link" content_type="model/stl" file="leg_right_3_link.stl"/>
-    <mesh name="arm_base_link" content_type="model/stl" file="arm_base_link.stl"/>
-    <mesh name="arm_1_link" content_type="model/stl" file="arm_1_link.stl"/>
-    <mesh name="arm_2_link" content_type="model/stl" file="arm_2_link.stl"/>
-    <mesh name="arm_3_link" content_type="model/stl" file="arm_3_link.stl"/>
-    <mesh name="arm_left_4_link" content_type="model/stl" file="arm_left_4_link.stl"/>
-    <mesh name="arm_right_4_link" content_type="model/stl" file="arm_right_4_link.stl"/>
+    <mesh name="base_link_with_pelvis" content_type="model/stl" file="base/base_link_with_pelvis.stl"/>
+    <mesh name="pelvis_base_link" content_type="model/stl"      file="pelvis/pelvis_base_link.stl"/>
+    <mesh name="pelvis_1_link" content_type="model/stl"         file="pelvis/pelvis_1_link.stl"/>
+    <mesh name="pelvis_2_link" content_type="model/stl"         file="pelvis/pelvis_2_link.stl"/>
+    <mesh name="torso_link" content_type="model/stl"            file="torso/torso_link.stl"/>
+    <mesh name="leg_left_1_link" content_type="model/stl"       file="leg/leg_left_1_link.stl"/>
+    <mesh name="leg_left_2_link" content_type="model/stl"       file="leg/leg_left_2_link.stl"/>
+    <mesh name="leg_left_3_link" content_type="model/stl"       file="leg/leg_left_3_link.stl"/>
+    <mesh name="leg_femur_link" content_type="model/stl"        file="leg/leg_femur_link.stl"/>
+    <mesh name="leg_tibia_link" content_type="model/stl"        file="leg/leg_tibia_link.stl"/>
+    <mesh name="leg_6_link" content_type="model/stl"            file="leg/leg_6_link.stl"/>
+    <mesh name="leg_7_link" content_type="model/stl"            file="leg/leg_7_link.stl"/>
+    <mesh name="leg_right_1_link" content_type="model/stl"      file="leg/leg_right_1_link.stl"/>
+    <mesh name="leg_right_2_link" content_type="model/stl"      file="leg/leg_right_2_link.stl"/>
+    <mesh name="leg_right_3_link" content_type="model/stl"      file="leg/leg_right_3_link.stl"/>
+    <mesh name="arm_base_link" content_type="model/stl"         file="arm/arm_base_link.stl"/>
+    <mesh name="arm_1_link" content_type="model/stl"            file="arm/arm_1_link.stl"/>
+    <mesh name="arm_2_link" content_type="model/stl"            file="arm/arm_2_link.stl"/>
+    <mesh name="arm_3_link" content_type="model/stl"            file="arm/arm_3_link.stl"/>
+    <mesh name="arm_left_4_link" content_type="model/stl"       file="arm/arm_left_4_link.stl"/>
+    <mesh name="arm_right_4_link" content_type="model/stl"      file="arm/arm_right_4_link.stl"/>
   </asset>
 
   <worldbody>
@@ -77,7 +77,7 @@
           <geom name="pelvis_2_collision" size="0.163724 0.162985" pos="4.77798e-07 -1.67441e-06 0.234507" quat="1 -3.97075e-06 -1.19191e-05 0" class="collision"/>
           <geom pos="0 0.105954 0.390496" quat="0.766033 0.642802 0 0" class="visual" material="light_gray" mesh="arm_base_link"/>
           <geom pos="0 -0.105954 0.390496" quat="1.01637e-06 8.52866e-07 0.642802 0.766033" class="visual" material="light_gray" mesh="arm_base_link"/>
-          <site name="imu_in_pelvis" pos="0.071 -0.0014 0.0261" quat="0 -0.707107 0.707107 0"/>
+          <site name="imu" pos="0.071 -0.0014 0.0261" quat="0 -0.707107 0.707107 0"/>
           <body name="arm_left_1_link" pos="0 0.120835 0.387873" quat="0.766033 0.642802 0 0">
             <inertial pos="-0.0065019 -0.002469 -0.040465" quat="0.939587 0.00749227 -0.143667 0.310611" mass="0.84824" 
               diaginertia="0.00252565 0.00231317 0.000718382"/>
@@ -303,15 +303,15 @@
     <framequat objtype="site" objname="imu" name="orientation"/>
     <framelinvel objtype="site" objname="right_foot" name="right_foot_global_linvel"/>
     <framelinvel objtype="site" objname="left_foot" name="left_foot_global_linvel"/>
-  </sensor>
+  </sensor> -->
 
-  <keyframe>
+  <!-- <keyframe>
     <key name="home" qpos="0 0 0.95 1 0 0 0 0 0 0 1.24 1.57 1.25 0 1.24 -1.57 1.25 0 0.05 0 0.6 -0.07 0 0.91 1.82 0 0.05 0 0.6 -0.07 0 0.91 1.82" ctrl="0 0 0 1.24 1.57 1.25 0 1.24 -1.57 1.25 0 0.05 0 0.6 -0.07 0 0 0.05 0 0.6 -0.07 0"/>
   </keyframe> -->
   <sensor>
-    <gyro name="imu_ang_vel" site="imu_in_pelvis"/>
-    <velocimeter name="imu_lin_vel" site="imu_in_pelvis"/>
-    <accelerometer name="imu_lin_acc" site="imu_in_pelvis"/>
+    <gyro name="imu_ang_vel" site="imu"/>
+    <velocimeter name="imu_lin_vel" site="imu"/>
+    <accelerometer name="imu_lin_acc" site="imu"/>
     <subtreeangmom name="root_angmom" body="base_link"/>
   </sensor>
 </mujoco>
