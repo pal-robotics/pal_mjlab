@@ -214,17 +214,18 @@ KANGAROO_ARTICULATION = EntityArticulationInfoCfg(
 
 
 def get_kangaroo_robot_cfg() -> EntityCfg:
-  """Get a fresh KANGAROO robot configuration instance.
+    """Get a fresh KANGAROO robot configuration instance.
 
-  Returns a new EntityCfg instance each time to avoid mutation issues when
-  the config is shared across multiple places.
-  """
-  return EntityCfg(
-    init_state=INIT_STATE,
-    collisions=(FULL_COLLISION,),
-    spec_fn=get_spec,
-    articulation=KANGAROO_ARTICULATION,
-  )
+    Returns a new EntityCfg instance each time to avoid mutation issues when
+    the config is shared across multiple places.
+    """
+    return EntityCfg(
+        init_state=INIT_STATE,
+        collisions=(FULL_COLLISION,),
+        spec_fn=get_spec,
+        articulation=KANGAROO_ARTICULATION,
+    )
+
 
 KANGAROO_ACTION_SCALE: dict[str, float] = {}
 

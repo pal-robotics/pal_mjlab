@@ -3,8 +3,8 @@
 from copy import deepcopy
 
 from pal_mjlab.robots import (
-  KANGAROO_ACTION_SCALE,
-  get_kangaroo_robot_cfg,
+    KANGAROO_ACTION_SCALE,
+    get_kangaroo_robot_cfg,
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
@@ -63,17 +63,17 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
         posture_std_walking={
             # Lower body.
             r"leg_.*_1_.*": 0.15,
-            r"leg_.*_2_.*": 0.3, # pitch
+            r"leg_.*_2_.*": 0.3,  # pitch
             r"leg_.*_3_.*": 0.15,
-            r"leg_.*_length_.*": 0.07, # length
+            r"leg_.*_length_.*": 0.07,  # length
             r"leg_.*_4_.*": 0.25,
             r"leg_.*_5_.*": 0.1,
             # Waist.
             r"pelvis_1.*": 0.1,
             r"pelvis_2.*": 0.2,
             # Arms.
-            r"arm_.*_1_.*": 0.15, # pitch
-            r"arm_.*_2_.*": 0.15, # roll
+            r"arm_.*_1_.*": 0.15,  # pitch
+            r"arm_.*_2_.*": 0.15,  # roll
             r"arm_.*_3_.*": 0.1,
             r"arm_.*_4_.*": 0.15,
         },
@@ -104,7 +104,7 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.viz.z_offset = 1.15
     assert cfg.rewards["pose"].params["asset_cfg"].joint_names
-    cfg.rewards["pose"].params["asset_cfg"].joint_names={
+    cfg.rewards["pose"].params["asset_cfg"].joint_names = {
         # Lower body.
         r"leg_.*_1_.*",
         r"leg_.*_2_.*",
@@ -122,18 +122,18 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
 
 @retval
 def PAL_KANGAROO_FLAT_ENV_CFG() -> ManagerBasedRlEnvCfg:
-  """Create PAL Robotics KANGAROO flat terrain velocity tracking configuration."""
-  # Start with rough terrain config.
-  cfg = deepcopy(PAL_KANGAROO_ROUGH_ENV_CFG)
+    """Create PAL Robotics KANGAROO flat terrain velocity tracking configuration."""
+    # Start with rough terrain config.
+    cfg = deepcopy(PAL_KANGAROO_ROUGH_ENV_CFG)
 
-  # Change to flat terrain.
-  assert cfg.scene.terrain is not None
-  cfg.scene.terrain.terrain_type = "plane"
-  cfg.scene.terrain.terrain_generator = None
+    # Change to flat terrain.
+    assert cfg.scene.terrain is not None
+    cfg.scene.terrain.terrain_type = "plane"
+    cfg.scene.terrain.terrain_generator = None
 
-  # Disable terrain curriculum.
-  assert cfg.curriculum is not None
-  assert "terrain_levels" in cfg.curriculum
-  del cfg.curriculum["terrain_levels"]
+    # Disable terrain curriculum.
+    assert cfg.curriculum is not None
+    assert "terrain_levels" in cfg.curriculum
+    del cfg.curriculum["terrain_levels"]
 
-  return cfg
+    return cfg

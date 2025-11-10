@@ -298,18 +298,20 @@ TALOS_ARTICULATION = EntityArticulationInfoCfg(
     soft_joint_pos_limit_factor=0.9,
 )
 
-def get_talos_robot_cfg() -> EntityCfg:
-  """Get a fresh Talos robot configuration instance.
 
-  Returns a new EntityCfg instance each time to avoid mutation issues when
-  the config is shared across multiple places.
-  """
-  return EntityCfg(
-    init_state=INIT_STATE,
-    collisions=(FULL_COLLISION,),
-    spec_fn=get_spec,
-    articulation=TALOS_ARTICULATION,
-  )
+def get_talos_robot_cfg() -> EntityCfg:
+    """Get a fresh Talos robot configuration instance.
+
+    Returns a new EntityCfg instance each time to avoid mutation issues when
+    the config is shared across multiple places.
+    """
+    return EntityCfg(
+        init_state=INIT_STATE,
+        collisions=(FULL_COLLISION,),
+        spec_fn=get_spec,
+        articulation=TALOS_ARTICULATION,
+    )
+
 
 TALOS_ACTION_SCALE: dict[str, float] = {}
 
