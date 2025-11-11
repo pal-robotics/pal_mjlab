@@ -17,6 +17,7 @@ from mjlab.managers.manager_term_config import ObservationTermCfg, TerminationTe
 from mjlab.managers.manager_term_config import RewardTermCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
+
 @retval
 def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO rough terrain velocity tracking configuration."""
@@ -136,26 +137,26 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
     cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
 
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
-      func=mdp.illegal_contact,
-      params={"sensor_name": "body_ground_contact"},
+        func=mdp.illegal_contact,
+        params={"sensor_name": "body_ground_contact"},
     )
-    
+
     cfg.rewards["height"] = RewardTermCfg(
-      func=mdp.torso_height,
-      weight=-0.5,
-      params={"z_des": 1.0, "std": 0.5},
+        func=mdp.torso_height,
+        weight=-0.5,
+        params={"z_des": 1.0, "std": 0.5},
     )
 
     # TODO Louis: Train with this and try deployment to PAL Physics Simulator
     cfg.observations["policy"].terms["base_lin_vel"] = None
     cfg.observations["policy"].terms["base_lin_acc"] = ObservationTermCfg(
-      func=mdp.builtin_sensor,
-      params={"sensor_name": "robot/imu_lin_acc"},
-      noise=Unoise(n_min=-0.5, n_max=0.5),
+        func=mdp.builtin_sensor,
+        params={"sensor_name": "robot/imu_lin_acc"},
+        noise=Unoise(n_min=-0.5, n_max=0.5),
     )
     cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
-      func=mdp.builtin_sensor,
-      params={"sensor_name": "robot/imu_lin_acc"},
+        func=mdp.builtin_sensor,
+        params={"sensor_name": "robot/imu_lin_acc"},
     )
     return cfg
 

@@ -49,9 +49,7 @@ KANGAROO_LEGS_PASSIVE_ACTUATOR_CFG = ActuatorCfg(
 
 
 KANGAROO_LEGS_1_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=(
-        "leg_.*_1_joint",
-    ),
+    joint_names_expr=("leg_.*_1_joint",),
     effort_limit=80.0,
     armature=0.01,
     stiffness=40.0,
@@ -59,36 +57,28 @@ KANGAROO_LEGS_1_ACTUATOR_CFG = ActuatorCfg(
 )
 
 KANGAROO_LEGS_2_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=(
-        "leg_.*_2_joint",
-    ),
+    joint_names_expr=("leg_.*_2_joint",),
     effort_limit=230.0,
     armature=0.01,
     stiffness=100.0,
     damping=6.35,
 )
 KANGAROO_LEGS_3_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=(
-        "leg_.*_3_joint",
-    ),
+    joint_names_expr=("leg_.*_3_joint",),
     effort_limit=139.0,
     armature=0.01,
     stiffness=100.0,
     damping=6.35,
 )
 KANGAROO_LEGS_4_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=(
-        "leg_.*_4_joint",
-    ),
+    joint_names_expr=("leg_.*_4_joint",),
     effort_limit=140.0,
     armature=0.01,
     stiffness=100.0,
     damping=6.35,
 )
 KANGAROO_LEGS_5_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=(
-        "leg_.*_5_joint",
-    ),
+    joint_names_expr=("leg_.*_5_joint",),
     effort_limit=82.0,
     armature=0.01,
     stiffness=40.0,
@@ -96,9 +86,7 @@ KANGAROO_LEGS_5_ACTUATOR_CFG = ActuatorCfg(
 )
 
 KANGAROO_LEGS_LENGTH_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=(
-        "leg_.*_length_joint",
-    ),
+    joint_names_expr=("leg_.*_length_joint",),
     effort_limit=1100.0,
     armature=0.01,
     stiffness=1100.0,
@@ -117,9 +105,7 @@ KANGAROO_ARMS_ACTUATOR_CFG = ActuatorCfg(
     damping=10.0,
 )
 KANGAROO_PELVIS_1_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=(
-        "pelvis_1_joint",
-    ),
+    joint_names_expr=("pelvis_1_joint",),
     effort_limit=100.0,
     armature=0.01,
     stiffness=80.0,
@@ -127,9 +113,7 @@ KANGAROO_PELVIS_1_ACTUATOR_CFG = ActuatorCfg(
 )
 
 KANGAROO_PELVIS_2_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=(
-        "pelvis_2_joint",
-    ),
+    joint_names_expr=("pelvis_2_joint",),
     effort_limit=100.0,
     armature=0.01,
     stiffness=40.0,

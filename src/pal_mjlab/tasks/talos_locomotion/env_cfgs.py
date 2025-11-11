@@ -15,6 +15,7 @@ from mjlab.utils.retval import retval
 import mjlab.tasks.velocity.mdp as mdp
 from mjlab.managers.manager_term_config import TerminationTermCfg
 
+
 @retval
 def PAL_TALOS_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics Talos rough terrain velocity tracking configuration."""
@@ -117,8 +118,8 @@ def PAL_TALOS_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
     cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
 
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
-      func=mdp.illegal_contact,
-      params={"sensor_name": "body_ground_contact"},
+        func=mdp.illegal_contact,
+        params={"sensor_name": "body_ground_contact"},
     )
     return cfg
 

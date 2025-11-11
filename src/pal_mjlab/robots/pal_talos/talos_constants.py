@@ -146,14 +146,21 @@ ARM_2_ACTUATOR_CFG = ActuatorCfg(
     damping=ARM_2_DAMPING,
 )
 ARM_34_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=("arm_.*_3_joint", "arm_.*_4_joint",),
+    joint_names_expr=(
+        "arm_.*_3_joint",
+        "arm_.*_4_joint",
+    ),
     effort_limit=ARM_34_EFFORT_LIMIT,
     armature=ARM_34_ARMATURE,
     stiffness=ARM_34_STIFFNESS,
     damping=ARM_34_DAMPING,
 )
 ARM_567_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=("arm_.*_5_joint", "arm_.*_6_joint", "arm_.*_7_joint",),
+    joint_names_expr=(
+        "arm_.*_5_joint",
+        "arm_.*_6_joint",
+        "arm_.*_7_joint",
+    ),
     effort_limit=ARM_567_EFFORT_LIMIT,
     armature=ARM_567_ARMATURE,
     stiffness=ARM_567_STIFFNESS,
@@ -198,7 +205,10 @@ LEG_2_ACTUATOR_CFG = ActuatorCfg(
     damping=LEG_2_DAMPING,
 )
 LEG_35_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=("leg_.*_3_joint", "leg_.*_5_joint",),
+    joint_names_expr=(
+        "leg_.*_3_joint",
+        "leg_.*_5_joint",
+    ),
     effort_limit=LEG_35_EFFORT_LIMIT,
     armature=LEG_35_ARMATURE,
     stiffness=LEG_35_STIFFNESS,
