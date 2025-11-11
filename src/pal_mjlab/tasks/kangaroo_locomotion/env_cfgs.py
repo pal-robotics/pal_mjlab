@@ -142,7 +142,7 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
     
     cfg.rewards["height"] = RewardTermCfg(
       func=mdp.torso_height,
-      weight=2.0,
+      weight=-0.5,
       params={"z_des": 1.0, "std": 0.5},
     )
 

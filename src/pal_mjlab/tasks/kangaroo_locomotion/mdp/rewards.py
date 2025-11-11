@@ -22,9 +22,17 @@ def torso_height(
 
     z = asset.data.root_link_pos_w[:, 2]
     z_err = z - z_des
+
+    # As before: penalize being too low more than being too high
     z_err_scaled = torch.where(z_err < 0, z_err, z_err * 0.25)
+
+    # Squared error
     z_err_squared = torch.square(z_err_scaled)
 
-    env.extras["log"]["Metrics/mean_height"] = torch.mean(z)
+    # Height penalty: 0 when perfect, >0 as we deviate
+    penalty = z_err_squared / (std**2)
 
-    return torch.exp(-z_err_squared / std**2)
+    env.extras["log"]["Metrics/mean_height"] = torch.mean(z)
+    env.extras["log"]["Metrics/mean_height_penalty"] = torch.mean(penalty)
+
+    return penalty
