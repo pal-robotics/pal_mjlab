@@ -88,10 +88,10 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
             r"pelvis_1.*": 0.08,
             r"pelvis_2.*": 0.2,
             # Arms.
-            r"arm_.*_1_.*": 0.15,  # pitch
-            r"arm_.*_2_.*": 0.15,  # roll
+            r"arm_.*_1_.*": 0.2,  # pitch
+            r"arm_.*_2_.*": 0.1,  # roll
             r"arm_.*_3_.*": 0.1,
-            r"arm_.*_4_.*": 0.15,
+            r"arm_.*_4_.*": 0.2,
         },
         posture_std_running={
             # Lower body.
@@ -105,8 +105,8 @@ def PAL_KANGAROO_ROUGH_ENV_CFG() -> ManagerBasedRlEnvCfg:
             r"pelvis_1.*": 0.08,
             r"pelvis_2.*": 0.3,
             # Arms.
-            r"arm_.*_1_.*": 0.5,
-            r"arm_.*_2_.*": 0.2,
+            r"arm_.*_1_.*": 0.4,
+            r"arm_.*_2_.*": 0.15,
             r"arm_.*_3_.*": 0.15,
             r"arm_.*_4_.*": 0.35,
         },
