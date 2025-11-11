@@ -132,28 +132,35 @@ LEG_6_DAMPING = 2.0 * DAMPING_RATIO * LEG_6_ARMATURE * NATURAL_FREQ
 
 # arm actuators
 ARM_1_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=["arm_.*_1_joint"],
+    joint_names_expr=("arm_.*_1_joint",),
     effort_limit=ARM_1_EFFORT_LIMIT,
     armature=ARM_1_ARMATURE,
     stiffness=ARM_1_STIFFNESS,
     damping=ARM_1_DAMPING,
 )
 ARM_2_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=["arm_.*_2_joint"],
+    joint_names_expr=("arm_.*_2_joint",),
     effort_limit=ARM_2_EFFORT_LIMIT,
     armature=ARM_2_ARMATURE,
     stiffness=ARM_2_STIFFNESS,
     damping=ARM_2_DAMPING,
 )
 ARM_34_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=["arm_.*_3_joint", "arm_.*_4_joint"],
+    joint_names_expr=(
+        "arm_.*_3_joint",
+        "arm_.*_4_joint",
+    ),
     effort_limit=ARM_34_EFFORT_LIMIT,
     armature=ARM_34_ARMATURE,
     stiffness=ARM_34_STIFFNESS,
     damping=ARM_34_DAMPING,
 )
 ARM_567_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=["arm_.*_5_joint", "arm_.*_6_joint", "arm_.*_7_joint"],
+    joint_names_expr=(
+        "arm_.*_5_joint",
+        "arm_.*_6_joint",
+        "arm_.*_7_joint",
+    ),
     effort_limit=ARM_567_EFFORT_LIMIT,
     armature=ARM_567_ARMATURE,
     stiffness=ARM_567_STIFFNESS,
@@ -161,7 +168,7 @@ ARM_567_ACTUATOR_CFG = ActuatorCfg(
 )
 # torso actuators
 TORSO_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=["torso_.*_joint"],
+    joint_names_expr=("torso_.*_joint",),
     effort_limit=TORSO_EFFORT_LIMIT,
     armature=TORSO_ARMATURE,
     stiffness=TORSO_STIFFNESS,
@@ -169,14 +176,14 @@ TORSO_ACTUATOR_CFG = ActuatorCfg(
 )
 # head actuators
 HEAD_1_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=["head_1_joint"],
+    joint_names_expr=("head_1_joint",),
     effort_limit=HEAD_1_EFFORT_LIMIT,
     armature=HEAD_ARMATURE,
     stiffness=HEAD_STIFFNESS,
     damping=HEAD_DAMPING,
 )
 HEAD_2_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=["head_2_joint"],
+    joint_names_expr=("head_2_joint",),
     effort_limit=HEAD_2_EFFORT_LIMIT,
     armature=HEAD_ARMATURE,
     stiffness=HEAD_STIFFNESS,
@@ -184,35 +191,38 @@ HEAD_2_ACTUATOR_CFG = ActuatorCfg(
 )
 # leg actuators
 LEG_1_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=["leg_.*_1_joint"],
+    joint_names_expr=("leg_.*_1_joint",),
     effort_limit=LEG_1_EFFORT_LIMIT,
     armature=LEG_1_ARMATURE,
     stiffness=LEG_1_STIFFNESS,
     damping=LEG_1_DAMPING,
 )
 LEG_2_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=["leg_.*_2_joint"],
+    joint_names_expr=("leg_.*_2_joint",),
     effort_limit=LEG_2_EFFORT_LIMIT,
     armature=LEG_2_ARMATURE,
     stiffness=LEG_2_STIFFNESS,
     damping=LEG_2_DAMPING,
 )
 LEG_35_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=["leg_.*_3_joint", "leg_.*_5_joint"],
+    joint_names_expr=(
+        "leg_.*_3_joint",
+        "leg_.*_5_joint",
+    ),
     effort_limit=LEG_35_EFFORT_LIMIT,
     armature=LEG_35_ARMATURE,
     stiffness=LEG_35_STIFFNESS,
     damping=LEG_35_DAMPING,
 )
 LEG_4_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=["leg_.*_4_joint"],
+    joint_names_expr=("leg_.*_4_joint",),
     effort_limit=LEG_4_EFFORT_LIMIT,
     armature=LEG_4_ARMATURE,
     stiffness=LEG_4_STIFFNESS,
     damping=LEG_4_DAMPING,
 )
 LEG_6_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=["leg_.*_6_joint"],
+    joint_names_expr=("leg_.*_6_joint",),
     effort_limit=LEG_6_EFFORT_LIMIT,
     armature=LEG_6_ARMATURE,
     stiffness=LEG_6_STIFFNESS,
@@ -262,7 +272,7 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 _foot_regex = ".*_foot_collision"
 
 FEET_ONLY_COLLISION = CollisionCfg(
-    geom_names_expr=[_foot_regex],
+    geom_names_expr=(_foot_regex,),
     contype=0,
     conaffinity=1,
     condim=3,
@@ -271,7 +281,7 @@ FEET_ONLY_COLLISION = CollisionCfg(
 )
 
 FULL_COLLISION = CollisionCfg(
-    geom_names_expr=[".*_collision"],
+    geom_names_expr=(".*_collision",),
     condim={_foot_regex: 3, ".*_collision": 1},
     priority={_foot_regex: 1},
     friction={_foot_regex: (0.6,)},

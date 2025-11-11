@@ -56,8 +56,8 @@ uv run list_envs --keyword pal
 Use the dummy agents.
 
 ```bash
-uv run play mjlab-Velocity-Flat-Pal-Talos --agent zero # send zero actions to the robot
-uv run play mjlab-Velocity-Flat-Pal-Talos --agent random # send random actions to the robot
+uv run play Mjlab-Velocity-Flat-Pal-Talos --agent zero # send zero actions to the robot
+uv run play Mjlab-Velocity-Flat-Pal-Talos --agent random # send random actions to the robot
 ```
 
 ### Velocity Tracking
@@ -65,13 +65,13 @@ uv run play mjlab-Velocity-Flat-Pal-Talos --agent random # send random actions t
 Train the policy.
 
 ```bash
-uv run train mjlab-Velocity-Flat-Pal-Talos --env.scene.num-envs 4096
+uv run train Mjlab-Velocity-Flat-Pal-Talos --env.scene.num-envs 4096
 ```
 
 Evaluate the policy.
 
 ```bash
-uv run play mjlab-Velocity-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
+uv run play Mjlab-Velocity-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
 ```
 
 ### Motion Imitation
@@ -103,13 +103,13 @@ MUJOCO_GL=egl uv run -m pal_mjlab.scripts.csv_to_npz \
 Train the policy.
 
 ```bash
-MUJOCO_GL=egl uv run train mjlab-Tracking-Flat-Pal-Talos --registry-name your-org/csv_to_npz/motion_name
+MUJOCO_GL=egl uv run train Mjlab-Tracking-Flat-Pal-Talos --registry-name your-org/csv_to_npz/motion_name
 ```
 
 Evaluate the policy.
 
 ```bash
-uv run play mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
+uv run play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
 ```
 
 ## Acknowledgements
