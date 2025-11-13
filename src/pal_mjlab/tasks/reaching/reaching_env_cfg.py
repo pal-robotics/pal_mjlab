@@ -59,6 +59,8 @@ def create_reaching_env_cfg(
   action_scale: float | dict[str, float],
   viewer_body_name: str,
   posture_jn: tuple[str, ...],
+  action_rate_body_jn: tuple[str, ...],
+  action_rate_leftarm_jn: tuple[str, ...],
   posture_std: dict[str, float],
   foot_friction_geom_names: tuple[str, ...] | str,
   pos_x: tuple[float, float] = (-0.5, 0.5),
@@ -221,38 +223,42 @@ def create_reaching_env_cfg(
       },
     ),
     "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
-    "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1, ),
+    "action_rate_body_l2": RewardTermCfg(func=mdp.action_rate_l2_louis, weight=-0.01, params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=action_rate_body_jn),
+    },),
+    "action_rate_left_arm_l2": RewardTermCfg(func=mdp.action_rate_l2_louis, weight=-0.0001, params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=action_rate_leftarm_jn),
+    },),
   }
 
   curriculum = {
-    "pos_left_curr": CurriculumTermCfg(
-       func=mdp.reward_weight,
-       params={
-           "reward_name": "pos_left",
-           "weight_stages": [
-               {"step": 0, "weight": -0.5},
-               {"step": 2500 * 24, "weight": -2.0},
-           ],
-       },
-    ),
-    "pos_left_fine_grained_curr": CurriculumTermCfg(
-       func=mdp.reward_weight,
-       params={
-           "reward_name": "pos_left_fine_grained",
-           "weight_stages": [
-               {"step": 0, "weight": 0.5},
-               {"step": 2500 * 24, "weight": 2.0},
-           ],
-       },
-    ),
-    "action_rate_l2_curr": CurriculumTermCfg(
+    # "pos_left_curr": CurriculumTermCfg(
+    #    func=mdp.reward_weight,
+    #    params={
+    #        "reward_name": "pos_left",
+    #        "weight_stages": [
+    #            {"step": 0, "weight": -0.5},
+    #            {"step": 2500 * 24, "weight": -2.0},
+    #        ],
+    #    },
+    # ),
+    # "pos_left_fine_grained_curr": CurriculumTermCfg(
+    #    func=mdp.reward_weight,
+    #    params={
+    #        "reward_name": "pos_left_fine_grained",
+    #        "weight_stages": [
+    #            {"step": 0, "weight": 0.5},
+    #            {"step": 2500 * 24, "weight": 2.0},
+    #        ],
+    #    },
+    # ),
+    "action_rate_left_arm_l2_curr": CurriculumTermCfg(
         func=mdp.reward_weight,
         params={
-            "reward_name": "action_rate_l2",
+            "reward_name": "action_rate_left_arm_l2",
             "weight_stages": [
                 {"step": 0, "weight": -0.0001},
                 {"step": 5_000 * 24, "weight": -0.005},
-                {"step": 7_500 * 24, "weight": -0.01},
             ],
         },
     ),

@@ -46,6 +46,22 @@ def PAL_KANGAROO_ENV_CFG() -> ManagerBasedRlEnvCfg:
             r"arm_right_4_joint": 0.1,
             r"arm_right_(?![124]_joint)\d+_joint": 0.05,
         },
+        action_rate_body_jn = (
+            # Lower body.
+            r"leg_.*_1_.*",
+            r"leg_.*_2_.*",
+            r"leg_.*_3_.*",
+            r"leg_.*_length_.*",
+            r"leg_.*_4_.*",
+            r"leg_.*_5_.*",
+            # Waist.
+            r"pelvis_.*",
+            # Arms.
+            r"arm_right.*",
+        ),
+        action_rate_leftarm_jn = (
+            r"arm_left.*",
+        ),
     )
     return cfg
 
@@ -90,5 +106,21 @@ def PAL_KANGAROO_HANDS_ENV_CFG() -> ManagerBasedRlEnvCfg:
             r"arm_right_4_joint": 0.1,
             r"arm_right_(?![124]_joint)\d+_joint": 0.05,
         },
+        action_rate_body_jn = (
+            # Lower body.
+            r"leg_.*_1_.*",
+            r"leg_.*_2_.*",
+            r"leg_.*_3_.*",
+            r"leg_.*_length_.*",
+            r"leg_.*_4_.*",
+            r"leg_.*_5_.*",
+            # Waist.
+            r"pelvis_.*",
+            # Arms.
+            r"arm_right.*",
+        ),
+        action_rate_leftarm_jn = (
+            r"arm_left.*",
+        ),
     )
     return cfg

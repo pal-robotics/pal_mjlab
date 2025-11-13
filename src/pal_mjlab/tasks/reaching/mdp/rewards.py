@@ -98,3 +98,23 @@ def position_command_error_tanh(
     # return torch.exp(-distance / 0.08)
 
 
+class action_rate_l2_louis:
+
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+    asset: Entity = env.scene[cfg.params["asset_cfg"].name]
+
+    _, joint_names = asset.find_joints(
+      cfg.params["asset_cfg"].joint_names,
+    )
+    self._joint_ids = [asset.actuator_names.index(jname) for jname in joint_names 
+                if jname in asset.actuator_names]
+
+  def __call__(
+    self, env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg
+  ) -> torch.Tensor:
+    asset: Entity = env.scene[asset_cfg.name]
+    # print(env.action_manager.action[:, self._joint_ids])
+
+    return torch.sum(
+        torch.square(env.action_manager.action[:, self._joint_ids] - env.action_manager.prev_action[:, self._joint_ids]), dim=1
+    )
