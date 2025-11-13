@@ -51,6 +51,54 @@ def get_kangaroo_hands_spec() -> mujoco.MjSpec:
     return spec
 
 ##
+# Actuator parameters calculs.
+##
+
+# params (BeyondMimic paper methodology)
+NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
+DAMPING_RATIO = 2.0 # over-damped
+# gear ratio
+S_PLUS_GEAR_RATIO = 121
+S_MINUS_GEAR_RATIO = 101
+XS_GEAR_RATIO = 101
+# joints inertia
+S_PLUS_MOTOR_INERTIA = 1.728e-5
+S_MINUS_MOTOR_INERTIA = 1.3e-5
+XS_MOTOR_INERTIA = 1.3e-5
+# joints armature (reflected inertia)
+S_PLUS_ARMATURE = S_PLUS_MOTOR_INERTIA * S_PLUS_GEAR_RATIO**2
+S_MINUS_ARMATURE = S_MINUS_MOTOR_INERTIA * S_MINUS_GEAR_RATIO**2
+XS_ARMATURE = XS_MOTOR_INERTIA * XS_GEAR_RATIO**2
+# joints effort limit (mehhh...)
+S_PLUS_EFFORT_LIMIT = 50
+S_MINUS_EFFORT_LIMIT = 25
+XS_EFFORT_LIMIT = 25
+# joints stiffness
+S_PLUS_STIFFNESS = S_PLUS_ARMATURE * NATURAL_FREQ**2
+S_MINUS_STIFFNESS = S_MINUS_ARMATURE * NATURAL_FREQ**2
+XS_STIFFNESS = XS_ARMATURE * NATURAL_FREQ**2
+# joints damping
+S_PLUS_DAMPING = 2.0 * DAMPING_RATIO * S_PLUS_ARMATURE * NATURAL_FREQ
+S_MINUS_DAMPING = 2.0 * DAMPING_RATIO * S_MINUS_ARMATURE * NATURAL_FREQ
+XS_DAMPING = 2.0 * DAMPING_RATIO * XS_ARMATURE * NATURAL_FREQ
+
+#print(f"s+ effort limit is {S_PLUS_EFFORT_LIMIT}")
+#print(f"s- effort limit is {S_MINUS_EFFORT_LIMIT}")
+#print(f"xs effort limit is {XS_EFFORT_LIMIT}")
+
+#print(f"s+ armature is {S_PLUS_ARMATURE}")
+#print(f"s- armature is {S_MINUS_ARMATURE}")
+#print(f"xs armature is {XS_ARMATURE}")
+
+#print(f"s+ stiffness is {S_PLUS_STIFFNESS}")
+#print(f"s- stiffness is {S_MINUS_STIFFNESS}")
+#print(f"xs stiffness is {XS_STIFFNESS}")
+
+#print(f"s+ damping is {S_PLUS_DAMPING}")
+#print(f"s- damping is {S_MINUS_DAMPING}")
+#print(f"xs damping is {XS_DAMPING}")
+
+##
 # Actuator config.
 ##
 
@@ -133,30 +181,33 @@ KANGAROO_LEGS_LENGTH_ACTUATOR_CFG = ActuatorCfg(
     stiffness=1100.0,
     damping=70.0,
 )
-# ARMS ACTUATORS
-KANGAROO_ARMS_ACTUATOR_CFG = ActuatorCfg(
+# ACTUATORS
+KANGAROO_S_PLUS_ACTUATOR_CFG = ActuatorCfg(
     joint_names_expr=(
-        "arm_.*",
+        "arm_.*_1_joint", "arm_.*_2_joint", "pelvis_1_joint", "pelvis_2_joint",
     ),
-    armature=0.01,
-    effort_limit=43.0,
-    stiffness=100.0,
-    damping=10.0,
+    armature=S_PLUS_ARMATURE,
+    effort_limit=S_PLUS_EFFORT_LIMIT,
+    stiffness=S_PLUS_STIFFNESS,
+    damping=S_PLUS_DAMPING,
 )
-# PELVIS ACTUATORS
-KANGAROO_PELVIS_1_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=("pelvis_1_joint",),
-    effort_limit=100.0,
-    armature=0.01,
-    stiffness=80.0,
-    damping=5.1,
+KANGAROO_S_MINUS_ACTUATOR_CFG = ActuatorCfg(
+    joint_names_expr=(
+        r"arm_.*_(?![1267]_joint)\d+_joint",
+    ),
+    armature=S_MINUS_ARMATURE,
+    effort_limit=S_MINUS_EFFORT_LIMIT,
+    stiffness=S_MINUS_STIFFNESS,
+    damping=S_MINUS_DAMPING,
 )
-KANGAROO_PELVIS_2_ACTUATOR_CFG = ActuatorCfg(
-    joint_names_expr=("pelvis_2_joint",),
-    effort_limit=100.0,
-    armature=0.01,
-    stiffness=40.0,
-    damping=2.55,
+KANGAROO_XS_ACTUATOR_CFG = ActuatorCfg(
+    joint_names_expr=(
+        r"arm_.*_(?![12345]_joint)\d+_joint",
+    ),
+    armature=XS_ARMATURE,
+    effort_limit=XS_EFFORT_LIMIT,
+    stiffness=XS_STIFFNESS,
+    damping=XS_DAMPING,
 )
 
 # TODO: hands and gripper actuators cfg
@@ -222,8 +273,8 @@ KANGAROO_ARTICULATION = EntityArticulationInfoCfg(
         KANGAROO_LEGS_1_ACTUATOR_CFG, KANGAROO_LEGS_2_ACTUATOR_CFG, KANGAROO_LEGS_3_ACTUATOR_CFG, # hips
         KANGAROO_LEGS_4_ACTUATOR_CFG, KANGAROO_LEGS_5_ACTUATOR_CFG, # ankles
         KANGAROO_LEGS_LENGTH_ACTUATOR_CFG,
-        KANGAROO_ARMS_ACTUATOR_CFG,
-        KANGAROO_PELVIS_1_ACTUATOR_CFG, KANGAROO_PELVIS_2_ACTUATOR_CFG,
+        KANGAROO_S_PLUS_ACTUATOR_CFG,
+        KANGAROO_S_MINUS_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.9,
 )
@@ -232,8 +283,9 @@ KANGAROO_HANDS_ARTICULATION = EntityArticulationInfoCfg(
         KANGAROO_LEGS_1_ACTUATOR_CFG, KANGAROO_LEGS_2_ACTUATOR_CFG, KANGAROO_LEGS_3_ACTUATOR_CFG, # hips
         KANGAROO_LEGS_4_ACTUATOR_CFG, KANGAROO_LEGS_5_ACTUATOR_CFG, # ankles
         KANGAROO_LEGS_LENGTH_ACTUATOR_CFG,
-        KANGAROO_ARMS_ACTUATOR_CFG,
-        KANGAROO_PELVIS_1_ACTUATOR_CFG, KANGAROO_PELVIS_2_ACTUATOR_CFG,
+        KANGAROO_S_PLUS_ACTUATOR_CFG,
+        KANGAROO_S_MINUS_ACTUATOR_CFG,
+        KANGAROO_XS_ACTUATOR_CFG,
         #KANGAROO_HANDS_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.9,
@@ -243,7 +295,7 @@ def get_kangaroo_robot_cfg() -> EntityCfg:
     """Get a fresh KANGAROO (4 DoF per arms) robot configuration instance."""
     return EntityCfg(
         init_state=INIT_STATE,
-        collisions=(FULL_COLLISION,),
+        collisions=(FEET_ONLY_COLLISION,),
         spec_fn=get_kangaroo_spec,
         articulation=KANGAROO_ARTICULATION,
     )
@@ -251,7 +303,7 @@ def get_kangaroo_hands_robot_cfg() -> EntityCfg:
     """Get a fresh KANGAROO with hands (7 DoF per arms) robot configuration instance."""
     return EntityCfg(
         init_state=INIT_STATE,
-        collisions=(FULL_COLLISION,),
+        collisions=(FEET_ONLY_COLLISION,),
         spec_fn=get_kangaroo_hands_spec,
         articulation=KANGAROO_HANDS_ARTICULATION,
     )

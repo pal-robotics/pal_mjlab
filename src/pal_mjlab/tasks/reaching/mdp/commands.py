@@ -186,8 +186,8 @@ class UniformPoseCommand(CommandTerm):
 class PoseRanges:
     """Ranges for sampling pose commands."""
     pos_x: tuple[float, float] = (-0.5, 0.5)
-    pos_y: tuple[float, float] = (0.5, 0.1)
-    pos_z: tuple[float, float] = (0.0, 1.0)
+    pos_y: tuple[float, float] = (-0.5, 0.5)
+    pos_z: tuple[float, float] = (-0.5, 1.0)
     roll: tuple[float, float] = (-np.pi, np.pi)
     pitch: tuple[float, float] = (-np.pi, np.pi)
     yaw: tuple[float, float] = (-np.pi, np.pi)

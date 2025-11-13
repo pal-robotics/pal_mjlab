@@ -17,6 +17,7 @@ from mjlab.managers.manager_term_config import (
   ObservationTermCfg,
   RewardTermCfg,
   CommandTermCfg,
+  CurriculumTermCfg,
   TerminationTermCfg,
 )
 from mjlab.managers.scene_entity_config import SceneEntityCfg
@@ -48,7 +49,7 @@ VIEWER_CONFIG = ViewerConfig(
 
 SIM_CFG = SimulationCfg(
   nconmax=35,
-  njmax=300,
+  njmax=400,
   mujoco=MujocoCfg(
     timestep=0.005,
     iterations=10,
@@ -62,6 +63,9 @@ def create_reaching_env_cfg(
   action_scale: float | dict[str, float],
   viewer_body_name: str,
   foot_friction_geom_names: tuple[str, ...] | str,
+  pos_x: tuple[float, float] = (-0.5, 0.5),
+  pos_y: tuple[float, float] = (0.1, 0.5),
+  pos_z: tuple[float, float] = (0.0, 1.0),
 ) -> ManagerBasedRlEnvCfg:
   """Create a basic balancing task configuration.
 
@@ -94,12 +98,11 @@ def create_reaching_env_cfg(
       debug_vis=True,
       resampling_time_range=(3.0, 8.0),
       site_name="ee_left",
-      #ranges=UniformVelocityCommandCfg.Ranges(
-      #  lin_vel_x=(-1.0, 1.0),
-      #  lin_vel_y=(-1.0, 1.0),
-      #  ang_vel_z=(-0.5, 0.5),
-      #  heading=(-math.pi, math.pi),
-      #),
+      ranges=mdp.PoseRanges(
+          pos_x=pos_x,
+          pos_y=pos_y,
+          pos_z=pos_z,
+      )
     )
   }
 
@@ -126,6 +129,7 @@ def create_reaching_env_cfg(
       func=mdp.joint_vel_rel,
       noise=Unoise(n_min=-1.5, n_max=1.5),
     ),
+    "commands": ObservationTermCfg(func=mdp.commands_gen, params={"command_name": "pose_command_left"},),
     "actions": ObservationTermCfg(func=mdp.last_action),
   }
 
@@ -164,23 +168,23 @@ def create_reaching_env_cfg(
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
       },
     ),
-    "push_robot": EventTermCfg(
-      func=mdp.push_by_setting_velocity,
-      mode="interval",
-      interval_range_s=(1.0, 3.0),
-      params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
-    ),
-    "foot_friction": EventTermCfg(
-      mode="startup",
-      func=mdp.randomize_field,
-      domain_randomization=True,
-      params={
-        "asset_cfg": SceneEntityCfg("robot", geom_names=foot_friction_geom_names),
-        "operation": "abs",
-        "field": "geom_friction",
-        "ranges": (0.3, 1.2),
-      },
-    ),
+    #"push_robot": EventTermCfg(
+    #  func=mdp.push_by_setting_velocity,
+    #  mode="interval",
+    #  interval_range_s=(1.0, 3.0),
+    #  params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
+    #),
+    #"foot_friction": EventTermCfg(
+    #  mode="startup",
+    #  func=mdp.randomize_field,
+    #  domain_randomization=True,
+    #  params={
+    #    "asset_cfg": SceneEntityCfg("robot", geom_names=foot_friction_geom_names),
+    #    "operation": "abs",
+    #    "field": "geom_friction",
+    #    "ranges": (0.3, 1.2),
+    #  },
+    #),
   }
 
   rewards = {
@@ -194,10 +198,19 @@ def create_reaching_env_cfg(
     ),
     "pos_left": RewardTermCfg(
       func=mdp.position_command_error,
-      weight=-0.2,
+      weight=-0.5,
       params={
         "site_name": "ee_left",
         "command_name": "pose_command_left",
+      },
+    ),
+    "pos_left_fine_grained": RewardTermCfg(
+      func=mdp.position_command_error_tanh,
+      weight=0.5,
+      params={
+        "site_name": "ee_left",
+        "command_name": "pose_command_left",
+        "std": 0.1,
       },
     ),
     # TODO: make it not kang specific
@@ -214,9 +227,9 @@ def create_reaching_env_cfg(
           r"leg_.*_4_.*",
           r"leg_.*_5_.*",
           # Waist.
-          #r"pelvis_.*",
+          r"pelvis_.*",
           # Arms.
-          #r"arm_.*",
+          r"arm_right.*",
         )), 
         "std": {
             # Lower body.
@@ -227,14 +240,51 @@ def create_reaching_env_cfg(
             r"leg_.*_4_.*": 0.05,
             r"leg_.*_5_.*": 0.05,
             # Waist.
-            #r"pelvis_.*": 0.05,
+            r"pelvis_.*": 0.08,
             # Arms.
-            #r"arm_.*": 0.05,
+            r"arm_right_1_joint": 0.1,
+            r"arm_right_2_joint": 0.15,
+            r"arm_right_4_joint": 0.1,
+            r"arm_right_(?![124]_joint)\d+_joint": 0.05,
         },
       },
     ),
     "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
-    "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1),
+    "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1, ),
+  }
+
+  curriculum = {
+    "pos_left_curr": CurriculumTermCfg(
+       func=mdp.reward_weight,
+       params={
+           "reward_name": "pos_left",
+           "weight_stages": [
+               {"step": 0, "weight": -0.5},
+               {"step": 2500 * 24, "weight": -2.0},
+           ],
+       },
+    ),
+    "pos_left_fine_grained_curr": CurriculumTermCfg(
+       func=mdp.reward_weight,
+       params={
+           "reward_name": "pos_left_fine_grained",
+           "weight_stages": [
+               {"step": 0, "weight": 0.5},
+               {"step": 2500 * 24, "weight": 2.0},
+           ],
+       },
+    ),
+    "action_rate_l2_curr": CurriculumTermCfg(
+        func=mdp.reward_weight,
+        params={
+            "reward_name": "action_rate_l2",
+            "weight_stages": [
+                {"step": 0, "weight": -0.0001},
+                {"step": 5_000 * 24, "weight": -0.005},
+                {"step": 7_500 * 24, "weight": -0.01},
+            ],
+        },
+    ),
   }
 
   terminations = {
@@ -251,6 +301,7 @@ def create_reaching_env_cfg(
     commands=commands,
     actions=actions,
     rewards=rewards,
+    curriculum=curriculum,
     terminations=terminations,
     events=events,
     sim=SIM_CFG,
