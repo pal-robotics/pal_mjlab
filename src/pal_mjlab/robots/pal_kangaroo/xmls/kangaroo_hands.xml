@@ -63,6 +63,7 @@
         <joint name="pelvis_1_joint" pos="0 0 0" axis="0 0 -1" range="-0.349066 0.349066" actuatorfrcrange="-100 100" />
         <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.298039 0.298039 0.298039 1" mesh="pelvis_1_link" />
         <body name="pelvis_2_link" pos="-0.0591 0 0" quat="0.707105 0 -0.707108 0">
+          <site name="imu" pos="0.071 -0.0014 0.0261" quat="0 -0.707107 0.707107 0"/>
           <inertial pos="-0.0096298 -0.000857135 0.220739" quat="0.999875 0.0105643 0.00161433 -0.0116448" mass="13.7723" diaginertia="0.312791 0.291456 0.113386" />
           <joint name="pelvis_2_joint" pos="0 0 0" axis="0 0 -1" range="-1.309 1.309" actuatorfrcrange="-100 100" />
           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.298039 0.298039 0.298039 1" mesh="pelvis_2_link" />
@@ -97,6 +98,7 @@
                       <joint name="hand_left_palm_roll_joint" pos="0 0 0" axis="0 0 -1" range="-0.785398 0.785398" actuatorfrcrange="-10 10" damping="0.1" />
                       <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.298039 0.298039 0.298039 1" mesh="wrist_link" />
                       <body name="hand_left_palm_link" quat="0.707105 -0.707108 0 0">
+                        <site name="ee_left" pos="0.0 0.0 0.0"/>
                         <inertial pos="-0.052625 0.000781495 -0.00275893" quat="0.740136 -0.0434134 -7.69336e-05 0.671055" mass="0.0389736" diaginertia="2.76787e-05 1.98299e-05 1.10229e-05" />
                         <joint name="hand_left_palm_pitch_joint" pos="0 0 0" axis="0 0 1" range="-0.785398 0.785398" actuatorfrcrange="-10 10" damping="0.1" />
                         <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.298039 0.298039 0.298039 1" mesh="palm_left_link" />
@@ -214,6 +216,7 @@
                       <joint name="hand_right_palm_roll_joint" pos="0 0 0" axis="0 0 -1" range="-0.785398 0.785398" actuatorfrcrange="-10 10" damping="0.1" />
                       <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.298039 0.298039 0.298039 1" mesh="wrist_link" />
                       <body name="hand_right_palm_link" quat="0.707105 -0.707108 0 0">
+                        <site name="ee_right" pos="0.0 0.0 0.0"/>
                         <inertial pos="-0.052625 0.000781495 -0.00275893" quat="0.740136 -0.0434134 -7.69336e-05 0.671055" mass="0.0389736" diaginertia="2.76787e-05 1.98299e-05 1.10229e-05" />
                         <joint name="hand_right_palm_pitch_joint" pos="0 0 0" axis="0 0 1" range="-0.785398 0.785398" actuatorfrcrange="-10 10" damping="0.1" />
                         <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.298039 0.298039 0.298039 1" mesh="palm_right_link" />
@@ -438,7 +441,7 @@
       <position ctrlrange=" -0.785 0.785 " joint="hand_right_palm_pitch_joint" kp="100" name="hand_right_palm_pitch_position" />
       <position ctrlrange=" 0 1.571 " joint="hand_right_thumb_base_joint" kp="100" name="hand_right_thum_base_position" />
     </actuator>-->
-    <worldbody>
+    <!-- <worldbody>
       <geom conaffinity="0" contype="1" material="groundplane" name="floor" size="0 0 0.01" type="plane" group="0" />
     </worldbody>
     
@@ -454,7 +457,7 @@
       <map force="0.01" />
       <scale contactheight="0.2" contactwidth="0.5" forcewidth="0.3" />
       <quality shadowsize="8192" />
-    </visual>
+    </visual> -->
     <contact>
       <exclude body1="base_link" body2="pelvis_1_link" />
       <exclude body1="base_link" body2="pelvis_2_link" />
@@ -512,16 +515,6 @@
       <site group="5" rgba="1 0 0 1" size="0.01" />
     </default>
     
-
-  <sensor>
-    <gyro name="imu_ang_vel" site="imu"/>
-    <velocimeter name="imu_lin_vel" site="imu"/>
-    <accelerometer name="imu_lin_acc" site="imu"/>
-    <subtreeangmom name="root_angmom" body="base_link"/>
-  </sensor>
-    
-    
-    
   <equality>
       <connect anchor="0.0 0.0 0.0" body1="leg_left_4_link" body2="leg_left_knee_link" name="leg_left_closed_kin_joint" solref="0.002 1" />
       <connect anchor="0.0 0.0 0.0" body1="leg_right_4_link" body2="leg_right_knee_link" name="leg_right_closed_kin_joint" solref="0.002 1" />
@@ -550,4 +543,10 @@
     </equality>
     
     <compiler angle="radian" balanceinertia="true" discardvisual="false" strippath="false" />
+  <sensor>
+    <gyro name="imu_ang_vel" site="imu"/>
+    <velocimeter name="imu_lin_vel" site="imu"/>
+    <accelerometer name="imu_lin_acc" site="imu"/>
+    <subtreeangmom name="root_angmom" body="base_link"/>
+  </sensor>
 </mujoco>

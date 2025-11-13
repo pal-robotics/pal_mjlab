@@ -1,8 +1,4 @@
-"""Velocity tracking task configuration.
-
-This module defines the base configuration for velocity tracking tasks.
-Robot-specific configurations are located in the config/ directory.
-"""
+"""Reaching task configuration."""
 
 import math
 from copy import deepcopy
@@ -62,6 +58,8 @@ def create_reaching_env_cfg(
   robot_cfg: EntityCfg,
   action_scale: float | dict[str, float],
   viewer_body_name: str,
+  posture_jn: tuple[str, ...],
+  posture_std: dict[str, float],
   foot_friction_geom_names: tuple[str, ...] | str,
   pos_x: tuple[float, float] = (-0.5, 0.5),
   pos_y: tuple[float, float] = (0.1, 0.5),
@@ -218,35 +216,8 @@ def create_reaching_env_cfg(
       func=mdp.posture,
       weight=1.0,
       params={
-        "asset_cfg": SceneEntityCfg("robot", joint_names=(
-          # Lower body.
-          r"leg_.*_1_.*",
-          r"leg_.*_2_.*",
-          r"leg_.*_3_.*",
-          r"leg_.*_length_.*",
-          r"leg_.*_4_.*",
-          r"leg_.*_5_.*",
-          # Waist.
-          r"pelvis_.*",
-          # Arms.
-          r"arm_right.*",
-        )), 
-        "std": {
-            # Lower body.
-            r"leg_.*_1_.*": 0.05,
-            r"leg_.*_2_.*": 0.05,
-            r"leg_.*_3_.*": 0.05,
-            r"leg_.*_length_.*": 0.05,
-            r"leg_.*_4_.*": 0.05,
-            r"leg_.*_5_.*": 0.05,
-            # Waist.
-            r"pelvis_.*": 0.08,
-            # Arms.
-            r"arm_right_1_joint": 0.1,
-            r"arm_right_2_joint": 0.15,
-            r"arm_right_4_joint": 0.1,
-            r"arm_right_(?![124]_joint)\d+_joint": 0.05,
-        },
+        "asset_cfg": SceneEntityCfg("robot", joint_names=posture_jn), 
+        "std": posture_std,
       },
     ),
     "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),

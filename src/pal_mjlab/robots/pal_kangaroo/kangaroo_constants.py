@@ -16,8 +16,8 @@ from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
 # There are multiple arm-wise variants of the KANGAROO robot. For clarity, we use the following naming:
 # 
 # - kangaroo: simplified model with 4 DoF per arm and a fake forearm
-# - kangaroo_hands: simplified model with 7 DoF per arm and a Seed Robotics hand
-# - kangaroo_gripper: simplified model with 5 DoF per arm and a gripper
+# - kangaroo_hands: simplified model with 5 DoF per arm and a Seed Robotics hand
+# - kangaroo_gripper: simplified model with 7 DoF per arm and a gripper
 # - kangaroo_full: full model with 4 DoF per arm and a fake forearm
 
 KANGAROO_PATH: Path = (
@@ -280,13 +280,14 @@ KANGAROO_ARTICULATION = EntityArticulationInfoCfg(
 )
 KANGAROO_HANDS_ARTICULATION = EntityArticulationInfoCfg(
     actuators=(
+        # KANGAROO_LEGS_ACTUATOR_CFG,
         KANGAROO_LEGS_1_ACTUATOR_CFG, KANGAROO_LEGS_2_ACTUATOR_CFG, KANGAROO_LEGS_3_ACTUATOR_CFG, # hips
         KANGAROO_LEGS_4_ACTUATOR_CFG, KANGAROO_LEGS_5_ACTUATOR_CFG, # ankles
         KANGAROO_LEGS_LENGTH_ACTUATOR_CFG,
         KANGAROO_S_PLUS_ACTUATOR_CFG,
         KANGAROO_S_MINUS_ACTUATOR_CFG,
-        KANGAROO_XS_ACTUATOR_CFG,
-        #KANGAROO_HANDS_ACTUATOR_CFG,
+        # KANGAROO_XS_ACTUATOR_CFG,
+        # KANGAROO_HANDS_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.9,
 )
@@ -300,7 +301,7 @@ def get_kangaroo_robot_cfg() -> EntityCfg:
         articulation=KANGAROO_ARTICULATION,
     )
 def get_kangaroo_hands_robot_cfg() -> EntityCfg:
-    """Get a fresh KANGAROO with hands (7 DoF per arms) robot configuration instance."""
+    """Get a fresh KANGAROO with hands (5 DoF per arms) robot configuration instance."""
     return EntityCfg(
         init_state=INIT_STATE,
         collisions=(FEET_ONLY_COLLISION,),
