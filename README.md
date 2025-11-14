@@ -16,7 +16,7 @@ It’s really easy to install, and sim-to-real has been tested successfully on t
 Clone the repository.
 
 ```bash
-git clone https://github.com/louislelay/pal_mjlab.git && cd pal_mjlab
+git clone https://github.com/pal-robotics/pal_mjlab.git && cd pal_mjlab
 ```
 
 List available environments.
