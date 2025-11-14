@@ -93,8 +93,7 @@ uv run play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/r
   <tr>
     <td width="50%">
       <figure>
-        <video src="
-        https://github.com/user-attachments/assets/e98d538f-4f51-4c30-8f58-cb03ba260f22" controls muted loop playsinline style="width:100%; height:auto;"></video>
+        <video src="https://github.com/user-attachments/assets/7f1f57a1-68b0-4beb-9563-8dd4be2d7b23" controls muted loop playsinline style="width:100%; height:auto;"></video>
         <figcaption align="center"><em>Velocity Tracking for Talos</em></figcaption>
       </figure>
     </td>
