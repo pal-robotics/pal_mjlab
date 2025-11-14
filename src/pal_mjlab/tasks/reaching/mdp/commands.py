@@ -8,7 +8,6 @@ import torch
 
 from mjlab.managers import CommandTerm, CommandTermCfg
 from mjlab.third_party.isaaclab.isaaclab.utils.math import (
-    axis_angle_from_quat,
     matrix_from_quat,
     quat_conjugate,
     quat_error_magnitude,
@@ -42,9 +41,11 @@ class UniformPoseCommand(CommandTerm):
 
         # -- metrics
         self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
-        self.metrics["orientation_error"] = torch.zeros(self.num_envs, device=self.device)
+        self.metrics["orientation_error"] = torch.zeros(
+            self.num_envs, device=self.device
+        )
 
-    #def __str__(self) -> str:
+    # def __str__(self) -> str:
     #    msg = "UniformPoseCommand:\n"
     #    msg += f"\tCommand dimension: {tuple(self.command.shape[1:])}\n"
     #    msg += f"\tResampling time range: {self.cfg.resampling_time_range}\n"
@@ -68,9 +69,17 @@ class UniformPoseCommand(CommandTerm):
 
         # Transform position: p_w = p_root + R_root * p_b
         pos_rotated = quat_mul(
-            quat_mul(root_quat_w, torch.cat([torch.zeros(self.num_envs, 1, device=self.device), 
-                                             self.pose_command_b[:, :3]], dim=1)),
-            quat_conjugate(root_quat_w)
+            quat_mul(
+                root_quat_w,
+                torch.cat(
+                    [
+                        torch.zeros(self.num_envs, 1, device=self.device),
+                        self.pose_command_b[:, :3],
+                    ],
+                    dim=1,
+                ),
+            ),
+            quat_conjugate(root_quat_w),
         )[:, 1:]  # Extract xyz from quaternion product
         self.pose_command_w[:, :3] = root_pos_w + pos_rotated
 
@@ -140,7 +149,9 @@ class UniformPoseCommand(CommandTerm):
         quat = quat_from_euler_xyz(roll, pitch, yaw)
 
         # Make sure the quaternion has real part as positive
-        self.pose_command_b[env_ids, 3:] = quat_unique(quat) if self.cfg.make_quat_unique else quat
+        self.pose_command_b[env_ids, 3:] = (
+            quat_unique(quat) if self.cfg.make_quat_unique else quat
+        )
 
     def _update_command(self):
         """Update command - no action needed for static pose commands."""
@@ -148,17 +159,20 @@ class UniformPoseCommand(CommandTerm):
 
     def _debug_vis_impl(self, visualizer: DebugVisualizer) -> None:
         """Visualize goal and current poses using debug visualizer."""
-        #if not self.robot.is_initialized:
+        # if not self.robot.is_initialized:
         #    return
 
         env_idx = visualizer.env_idx
 
         # Visualize goal pose
         goal_pos = self.pose_command_w[env_idx, :3].cpu().numpy()
-        goal_quat = self.pose_command_w[env_idx, 3:].cpu().numpy()
-        goal_rotm = matrix_from_quat(
-            self.pose_command_w[env_idx, 3:].unsqueeze(0)
-        ).squeeze(0).cpu().numpy()
+        # goal_quat = self.pose_command_w[env_idx, 3:].cpu().numpy()
+        goal_rotm = (
+            matrix_from_quat(self.pose_command_w[env_idx, 3:].unsqueeze(0))
+            .squeeze(0)
+            .cpu()
+            .numpy()
+        )
 
         visualizer.add_frame(
             position=goal_pos,
@@ -171,7 +185,9 @@ class UniformPoseCommand(CommandTerm):
         # Visualize current site pose
         current_pos = self.robot.data.site_pos_w[env_idx, self.site_idx].cpu().numpy()
         current_quat = self.robot.data.site_quat_w[env_idx, self.site_idx]
-        current_rotm = matrix_from_quat(current_quat.unsqueeze(0)).squeeze(0).cpu().numpy()
+        current_rotm = (
+            matrix_from_quat(current_quat.unsqueeze(0)).squeeze(0).cpu().numpy()
+        )
 
         visualizer.add_frame(
             position=current_pos,
@@ -185,6 +201,7 @@ class UniformPoseCommand(CommandTerm):
 @dataclass(kw_only=True)
 class PoseRanges:
     """Ranges for sampling pose commands."""
+
     pos_x: tuple[float, float] = (-0.5, 0.5)
     pos_y: tuple[float, float] = (-0.5, 0.5)
     pos_z: tuple[float, float] = (-0.5, 1.0)
@@ -214,6 +231,7 @@ class UniformPoseCommandCfg(CommandTermCfg):
     @dataclass
     class VizCfg:
         """Visualization configuration."""
+
         goal_frame_scale: float = 0.1
         current_frame_scale: float = 0.15
         goal_frame_colors: tuple[tuple[float, float, float], ...] = (

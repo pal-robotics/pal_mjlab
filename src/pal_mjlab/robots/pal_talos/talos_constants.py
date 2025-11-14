@@ -28,13 +28,14 @@ def get_spec() -> mujoco.MjSpec:
     spec.assets = get_assets(spec.meshdir)
     return spec
 
+
 ##
 # Actuator parameters calculs.
 ##
 
 # params (BeyondMimic paper methodology)
 NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
-DAMPING_RATIO = 2.0 # over-damped
+DAMPING_RATIO = 2.0  # over-damped
 REDUCTION_RATIO = 100
 factor = 0.01
 
