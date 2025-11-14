@@ -1,20 +1,19 @@
-import gymnasium as gym
+from mjlab.tasks.registry import register_mjlab_task
 
-gym.register(
-    id="Mjlab-Reaching-Pal-Kangaroo",
-    entry_point="mjlab.envs:ManagerBasedRlEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.env_cfgs:PAL_KANGAROO_ENV_CFG",
-        "rl_cfg_entry_point": f"{__name__}.rl_cfg:PalKangarooPPORunnerCfg",
-    },
+from .env_cfgs import (
+  PAL_KANGAROO_ENV_CFG,
+  PAL_KANGAROO_HANDS_ENV_CFG,
 )
-gym.register(
-    id="Mjlab-Reaching-Pal-Kangaroo-Hands",
-    entry_point="mjlab.envs:ManagerBasedRlEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.env_cfgs:PAL_KANGAROO_HANDS_ENV_CFG",
-        "rl_cfg_entry_point": f"{__name__}.rl_cfg:PalKangarooPPORunnerCfg",
-    },
+from .rl_cfg import PalKangarooPPORunnerCfg
+
+register_mjlab_task(
+  task_id="Mjlab-Reaching-Pal-Kangaroo",
+  env_cfg=PAL_KANGAROO_ENV_CFG,
+  rl_cfg=PalKangarooPPORunnerCfg,
+)
+
+register_mjlab_task(
+  task_id="Mjlab-Reaching-Pal-Kangaroo-Hands",
+  env_cfg=PAL_KANGAROO_HANDS_ENV_CFG,
+  rl_cfg=PalKangarooPPORunnerCfg,
 )
