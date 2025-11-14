@@ -74,9 +74,9 @@ def PAL_KANGAROO_HANDS_ENV_CFG() -> ManagerBasedRlEnvCfg:
         action_scale=KANGAROO_HANDS_ACTION_SCALE,
         viewer_body_name="pelvis_2_link",
         foot_friction_geom_names=geom_names,
-        pos_x = (-0.6, -0.2),
-        pos_y = (-0.6, 0.6),
-        pos_z = (-0.6, 0.6),
+        pos_x = (-0.3, -0.2),
+        pos_y = (-0.3, 0.3),
+        pos_z = (-0.3, 0.3),
         posture_jn = (
             # Lower body.
             r"leg_.*_1_.*",
