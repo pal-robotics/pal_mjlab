@@ -7,7 +7,8 @@ import mujoco
 from pal_mjlab import PAL_MJLAB_SRC_PATH
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
-from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
+from mjlab.utils.spec_config import CollisionCfg
+from mjlab.actuator import BuiltinPositionActuatorCfg
 
 ##
 # MJCF and assets.
@@ -136,21 +137,21 @@ LEG_6_DAMPING = 2.0 * DAMPING_RATIO * LEG_6_ARMATURE * NATURAL_FREQ
 ##
 
 # arm actuators
-ARM_1_ACTUATOR_CFG = ActuatorCfg(
+ARM_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("arm_.*_1_joint",),
     effort_limit=ARM_1_EFFORT_LIMIT,
     armature=ARM_1_ARMATURE,
     stiffness=ARM_1_STIFFNESS,
     damping=ARM_1_DAMPING,
 )
-ARM_2_ACTUATOR_CFG = ActuatorCfg(
+ARM_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("arm_.*_2_joint",),
     effort_limit=ARM_2_EFFORT_LIMIT,
     armature=ARM_2_ARMATURE,
     stiffness=ARM_2_STIFFNESS,
     damping=ARM_2_DAMPING,
 )
-ARM_34_ACTUATOR_CFG = ActuatorCfg(
+ARM_34_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=(
         "arm_.*_3_joint",
         "arm_.*_4_joint",
@@ -160,7 +161,7 @@ ARM_34_ACTUATOR_CFG = ActuatorCfg(
     stiffness=ARM_34_STIFFNESS,
     damping=ARM_34_DAMPING,
 )
-ARM_567_ACTUATOR_CFG = ActuatorCfg(
+ARM_567_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=(
         "arm_.*_5_joint",
         "arm_.*_6_joint",
@@ -172,7 +173,7 @@ ARM_567_ACTUATOR_CFG = ActuatorCfg(
     damping=ARM_567_DAMPING,
 )
 # torso actuators
-TORSO_ACTUATOR_CFG = ActuatorCfg(
+TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("torso_.*_joint",),
     effort_limit=TORSO_EFFORT_LIMIT,
     armature=TORSO_ARMATURE,
@@ -180,14 +181,14 @@ TORSO_ACTUATOR_CFG = ActuatorCfg(
     damping=TORSO_DAMPING,
 )
 # head actuators
-HEAD_1_ACTUATOR_CFG = ActuatorCfg(
+HEAD_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("head_1_joint",),
     effort_limit=HEAD_1_EFFORT_LIMIT,
     armature=HEAD_ARMATURE,
     stiffness=HEAD_STIFFNESS,
     damping=HEAD_DAMPING,
 )
-HEAD_2_ACTUATOR_CFG = ActuatorCfg(
+HEAD_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("head_2_joint",),
     effort_limit=HEAD_2_EFFORT_LIMIT,
     armature=HEAD_ARMATURE,
@@ -195,21 +196,21 @@ HEAD_2_ACTUATOR_CFG = ActuatorCfg(
     damping=HEAD_DAMPING,
 )
 # leg actuators
-LEG_1_ACTUATOR_CFG = ActuatorCfg(
+LEG_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("leg_.*_1_joint",),
     effort_limit=LEG_1_EFFORT_LIMIT,
     armature=LEG_1_ARMATURE,
     stiffness=LEG_1_STIFFNESS,
     damping=LEG_1_DAMPING,
 )
-LEG_2_ACTUATOR_CFG = ActuatorCfg(
+LEG_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("leg_.*_2_joint",),
     effort_limit=LEG_2_EFFORT_LIMIT,
     armature=LEG_2_ARMATURE,
     stiffness=LEG_2_STIFFNESS,
     damping=LEG_2_DAMPING,
 )
-LEG_35_ACTUATOR_CFG = ActuatorCfg(
+LEG_35_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=(
         "leg_.*_3_joint",
         "leg_.*_5_joint",
@@ -219,14 +220,14 @@ LEG_35_ACTUATOR_CFG = ActuatorCfg(
     stiffness=LEG_35_STIFFNESS,
     damping=LEG_35_DAMPING,
 )
-LEG_4_ACTUATOR_CFG = ActuatorCfg(
+LEG_4_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("leg_.*_4_joint",),
     effort_limit=LEG_4_EFFORT_LIMIT,
     armature=LEG_4_ARMATURE,
     stiffness=LEG_4_STIFFNESS,
     damping=LEG_4_DAMPING,
 )
-LEG_6_ACTUATOR_CFG = ActuatorCfg(
+LEG_6_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("leg_.*_6_joint",),
     effort_limit=LEG_6_EFFORT_LIMIT,
     armature=LEG_6_ARMATURE,

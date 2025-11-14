@@ -7,7 +7,8 @@ import mujoco
 from pal_mjlab import PAL_MJLAB_SRC_PATH
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
-from mjlab.utils.spec_config import ActuatorCfg, CollisionCfg
+from mjlab.utils.spec_config import CollisionCfg
+from mjlab.actuator import BuiltinPositionActuatorCfg
 
 ##
 # MJCF and assets.
@@ -102,7 +103,7 @@ XS_DAMPING = 2.0 * DAMPING_RATIO * XS_ARMATURE * NATURAL_FREQ
 
 # LEGS ACTUATORS
 # TODO: use this instead once https://github.com/mujocolab/mjlab/pull/290 is merged
-# KANGAROO_LEGS_ACTUATOR_CFG = ActuatorCfg(
+# KANGAROO_LEGS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 #     joint_names_expr=(
 #         "leg_.*_1_joint",
 #         "leg_.*_2_joint",
@@ -137,42 +138,42 @@ XS_DAMPING = 2.0 * DAMPING_RATIO * XS_ARMATURE * NATURAL_FREQ
 #     },
 #     armature=0.01,
 # )
-KANGAROO_LEGS_1_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("leg_.*_1_joint",),
     effort_limit=80.0,
     armature=0.01,
     stiffness=40.0,
     damping=2.55,
 )
-KANGAROO_LEGS_2_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("leg_.*_2_joint",),
     effort_limit=230.0,
     armature=0.01,
     stiffness=100.0,
     damping=6.35,
 )
-KANGAROO_LEGS_3_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_3_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("leg_.*_3_joint",),
     effort_limit=139.0,
     armature=0.01,
     stiffness=100.0,
     damping=6.35,
 )
-KANGAROO_LEGS_4_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_4_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("leg_.*_4_joint",),
     effort_limit=140.0,
     armature=0.01,
     stiffness=100.0,
     damping=6.35,
 )
-KANGAROO_LEGS_5_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_5_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("leg_.*_5_joint",),
     effort_limit=82.0,
     armature=0.01,
     stiffness=40.0,
     damping=2.55,
 )
-KANGAROO_LEGS_LENGTH_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_LEGS_LENGTH_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("leg_.*_length_joint",),
     effort_limit=1100.0,
     armature=0.01,
@@ -180,7 +181,7 @@ KANGAROO_LEGS_LENGTH_ACTUATOR_CFG = ActuatorCfg(
     damping=70.0,
 )
 # ACTUATORS
-KANGAROO_S_PLUS_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=(
         "arm_.*_1_joint",
         "arm_.*_2_joint",
@@ -192,14 +193,14 @@ KANGAROO_S_PLUS_ACTUATOR_CFG = ActuatorCfg(
     stiffness=S_PLUS_STIFFNESS,
     damping=S_PLUS_DAMPING,
 )
-KANGAROO_S_MINUS_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
     armature=S_MINUS_ARMATURE,
     effort_limit=S_MINUS_EFFORT_LIMIT,
     stiffness=S_MINUS_STIFFNESS,
     damping=S_MINUS_DAMPING,
 )
-KANGAROO_XS_ACTUATOR_CFG = ActuatorCfg(
+KANGAROO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
     armature=XS_ARMATURE,
     effort_limit=XS_EFFORT_LIMIT,

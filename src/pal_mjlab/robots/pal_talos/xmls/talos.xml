@@ -515,6 +515,7 @@
     0 0 -0.4 0.8 -0.4 0 
     0 0 -0.4 0.8 -0.4 0"/>
   </keyframe> -->
+
   <sensor>
     <gyro name="imu_ang_vel" site="imu_in_pelvis"/>
     <velocimeter name="imu_lin_vel" site="imu_in_pelvis"/>
