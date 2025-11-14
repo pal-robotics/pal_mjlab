@@ -5,34 +5,6 @@ This repository showcase the implementation of [PAL](https://pal-robotics.com/)'
 > [!WARNING]
 > As mjlab is still in early development, this repository may be impacted by breaking changes. If an issue were to arise when running one of the scripts, feel free to open an issue or contribute to the project. Thank you for your understanding!
 
-<table>
-  <tr>
-    <td width="50%">
-      <figure>
-        <video src="https://github.com/user-attachments/assets/2a7958de-747f-4b3e-9c90-7f3a044d2f43" controls muted loop playsinline style="width:100%; height:auto;"></video>
-        <figcaption align="center"><em>Velocity Tracking for Talos</em></figcaption>
-      </figure>
-    </td>
-    <td width="50%">
-      <figure>
-        <video src="https://github.com/user-attachments/assets/c0d6c444-a0a2-4c93-99a5-895ae7d31317" controls muted loop playsinline style="width:100%; height:auto;"></video>
-        <figcaption align="center"><em>Motion Imitation for Talos</em></figcaption>
-      </figure>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <figure>
-        <video src="https://github.com/user-attachments/assets/1705c214-6689-43c4-afef-a5800bbeb3ac" controls muted loop playsinline style="width:100%; height:auto;"></video>
-        <figcaption align="center"><em>Velocity Tracking for Kangaroo Full-Model (v0.1.0)</em></figcaption>
-      </figure>
-    </td>
-  </tr>
-</table>
-
-> [!WARNING]
-> Kangaroo locomotion is still WIP.
-
 ## What's mjlab?
 
 mjlab is a project to have the [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/index.html) API using [MjWarp](https://mujoco.readthedocs.io/en/latest/mjwarp/index.html) as the backend. If you’re wondering about the motivation behind it or how it differs from Newton, you can learn more about it [here](https://github.com/mujocolab/mjlab/blob/main/docs/motivation.md).
@@ -111,6 +83,28 @@ Evaluate the policy.
 ```bash
 uv run play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
 ```
+
+## A few of our results
+
+> [!NOTE]
+> We only display a few and they're not necessarly up-to-date.
+
+<table>
+  <tr>
+    <td width="50%">
+      <figure>
+        <video src="https://github.com/user-attachments/assets/2a7958de-747f-4b3e-9c90-7f3a044d2f43" controls muted loop playsinline style="width:100%; height:auto;"></video>
+        <figcaption align="center"><em>Velocity Tracking for Talos</em></figcaption>
+      </figure>
+    </td>
+    <td width="50%">
+      <figure>
+        <video src="https://github.com/user-attachments/assets/c0d6c444-a0a2-4c93-99a5-895ae7d31317" controls muted loop playsinline style="width:100%; height:auto;"></video>
+        <figcaption align="center"><em>Motion Imitation for Talos</em></figcaption>
+      </figure>
+    </td>
+  </tr>
+</table>
 
 ## Acknowledgements
 
