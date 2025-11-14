@@ -43,7 +43,7 @@ uv run train Mjlab-Velocity-Flat-Pal-Talos --env.scene.num-envs 4096
 Evaluate the policy.
 
 ```bash
-uv run play Mjlab-Velocity-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
+uv run play Mjlab-Velocity-Flat-Pal-Talos --wandb-run-path your-org/mjlab/run-id
 ```
 
 ### Motion Imitation
