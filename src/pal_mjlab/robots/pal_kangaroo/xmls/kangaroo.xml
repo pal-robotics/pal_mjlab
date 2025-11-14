@@ -102,6 +102,7 @@
                   <joint name="arm_left_4_joint" range="-1.1345 2.4435"/>
                   <geom class="visual" material="light_gray" mesh="arm_left_4_link"/>
                   <geom name="arm_left_4_collision" size="0.054849 0.219217" pos="0.210246 -0.0167497 -0.0171982" quat="0.733112 0.0532001 0.678025 -2.2842e-07" class="collision"/>
+                  <site name="ee_left" pos="0.45 -0.02 0.0"/>
                 </body>
               </body>
             </body>
