@@ -229,7 +229,7 @@
                     <geom class="visual" mesh="arm5_tip_link" />
                     <geom pos="0 0 0.0303" quat="-0.707107 0 0 0.707106" class="visual" mesh="seedRobotics_adaptor" />
                     <geom pos="0 0 0.0498" quat="-1 0 0 0.000397654" class="visual" mesh="forearm_link" />
-                    <!-- <body name="hand_right_palm_base_link" pos="0 0 0.2158" quat="0.000280246 -0.707105 0.000280245 0.707108">
+                    <body name="hand_right_palm_base_link" pos="0 0 0.2158" quat="0.000280246 -0.707105 0.000280245 0.707108">
                       <inertial pos="0.00858508 -2.4614e-09 0.000249999" quat="0.5 0.5 -0.5 0.5" mass="0.0509809" diaginertia="1.88432e-05 1.37535e-05 9.79678e-06" />
                       <joint name="hand_right_palm_roll_joint" axis="0 0 -1" range="-0.785398 0.785398"/>
                       <geom class="visual" mesh="wrist_link" />
@@ -319,7 +319,7 @@
                           </body>
                         </body>
                       </body>
-                    </body> -->
+                    </body>
                   </body>
                 </body>
               </body>
