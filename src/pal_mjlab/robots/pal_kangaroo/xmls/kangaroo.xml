@@ -54,8 +54,7 @@
     <!-- <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
     <light name="spotlight" target="base_link" pos="1 0 20" dir="0 0 -1" mode="targetbody"/> -->
     <body name="base_link" pos="0 0 1.2">
-      <inertial pos="-0.10388 0.00292576 -0.0173482" quat="0.534501 0.501589 -0.492841 0.468855" mass="4.49765" 
-        diaginertia="0.0360221 0.0259667 0.017944"/>
+      <inertial pos="-0.0913441 -0.0313598 0.00676412" quat="0.445077 0.406142 -0.397876 0.691845" mass="4.82254" diaginertia="0.0600103 0.0509711 0.0269078" />
       <joint name="origin" type="free"/>
       <geom class="visual" material="dark_gray" mesh="base_link_with_pelvis"/>
       <geom pos="-0.0918 0 -0.0455" quat="1 0 0 0" class="visual" material="dark_gray" mesh="pelvis_base_link"/>
@@ -66,8 +65,7 @@
       <camera name="back" pos="-2.2 0 1" quat="0.601501 0.371748 -0.371748 -0.601501" mode="trackcom"/>
       <camera name="front" pos="2.2 0 1" quat="0.601501 0.371748 0.371748 0.601501" mode="trackcom"/>
       <body name="pelvis_1_link" pos="-0.0918 0 0.0065" quat="0.707105 0 0.707108 0">
-        <inertial pos="-0.02593 -1e-06 0.001466" quat="0.99984 0 -0.0179004 0" mass="1.24856" 
-          diaginertia="0.00539676 0.004808 0.00324424"/>
+        <inertial pos="-0.02593 -1e-06 0.001466" quat="0.99984 0 -0.0179004 0" mass="1.24856" diaginertia="0.00539676 0.004808 0.00324424"/>
         <joint name="pelvis_1_joint" axis="0 0 -1" range="-0.349066 0.349066"/>
         <geom class="visual" material="dark_gray" mesh="pelvis_1_link"/>
         <body name="pelvis_2_link" pos="-0.0591 0 0" quat="0.707105 0 -0.707108 0">

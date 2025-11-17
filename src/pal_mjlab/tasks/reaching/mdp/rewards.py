@@ -44,11 +44,8 @@ def position_command_error(
     )[:, 1:]  # Extract xyz from quaternion product
     des_pos_w = root_pos_w + pos_rotated
 
-    # Get current site pose
     current_site_pos_w = asset.data.site_pos_w[:, asset.site_names.index(site_name)]
-    # current_site_quat_w = asset.data.site_quat_w[:, asset.site_names.index(site_name)]
 
-    # Compute position error
     pos_error = current_site_pos_w - des_pos_w
 
     return torch.norm(pos_error, dim=1)
@@ -69,7 +66,6 @@ def position_command_error_tanh(
     root_pos_w = asset.data.site_pos_w[:, 0]  # Root site position
     root_quat_w = asset.data.site_quat_w[:, 0]  # Root site quaternion
 
-    # Transform position: p_w = p_root + R_root * p_b
     pos_rotated = quat_mul(
         quat_mul(
             root_quat_w,
@@ -81,17 +77,27 @@ def position_command_error_tanh(
     )[:, 1:]  # Extract xyz from quaternion product
     des_pos_w = root_pos_w + pos_rotated
 
-    # Get current site pose
     current_site_pos_w = asset.data.site_pos_w[:, asset.site_names.index(site_name)]
-    # current_site_quat_w = asset.data.site_quat_w[:, asset.site_names.index(site_name)]
 
-    # Compute position error
     pos_error = current_site_pos_w - des_pos_w
     distance = torch.norm(pos_error, dim=1)
 
-    ########################3
+    joint_names = asset.joint_names  # either 1D list/array or (1, N)
+
+    # # If it's (1, N), flatten it:
+    # if hasattr(joint_names, "shape") and len(joint_names.shape) == 2:
+    #     joint_names = joint_names[0]
+
+    # default_q = asset.data.default_joint_pos[0]  # (num_joints,)
+    # current_q = asset.data.joint_pos[0]          # (num_joints,)
+
+    # print(asset.actuator_names)
+    # print(asset.joint_names)
+
+    # for name, q_def, q in zip(joint_names, default_q, current_q):
+    #     print(f"{name:30s}  default={float(q_def): .5f}  current={float(q): .5f}")
+
     return 1 - torch.tanh(distance / std)
-    # return torch.exp(-distance / 0.08)
 
 
 class action_rate_l2_louis:
@@ -106,12 +112,15 @@ class action_rate_l2_louis:
             for jname in joint_names
             if jname in asset.actuator_names
         ]
+        # print(asset.actuator_names)
+        # print(joint_names)
+        # print(self._joint_ids)
+        
 
     def __call__(
         self, env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg
     ) -> torch.Tensor:
-        # asset: Entity = env.scene[asset_cfg.name]
-        # print(env.action_manager.action[:, self._joint_ids])
+        asset: Entity = env.scene[asset_cfg.name]
 
         return torch.sum(
             torch.square(
@@ -120,3 +129,4 @@ class action_rate_l2_louis:
             ),
             dim=1,
         )
+

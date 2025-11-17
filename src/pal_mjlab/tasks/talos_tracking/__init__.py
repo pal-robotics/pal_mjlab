@@ -1,19 +1,21 @@
 from mjlab.tasks.registry import register_mjlab_task
+from mjlab.tasks.tracking.rl import MotionTrackingOnPolicyRunner
 
-from .env_cfgs import (
-  PAL_TALOS_FLAT_TRACKING_ENV_CFG,
-  PAL_TALOS_FLAT_TRACKING_NO_STATE_ESTIMATION_ENV_CFG,
-)
-from .rl_cfg import PAL_TALOS_PPO_RUNNER_CFG
+from .env_cfgs import pal_talos_flat_tracking_env_cfg
+from .rl_cfg import pal_talos_tracking_ppo_runner_cfg
 
 register_mjlab_task(
   task_id="Mjlab-Tracking-Flat-Pal-Talos",
-  env_cfg=PAL_TALOS_FLAT_TRACKING_ENV_CFG,
-  rl_cfg=PAL_TALOS_PPO_RUNNER_CFG,
+  env_cfg=pal_talos_flat_tracking_env_cfg(),
+  play_env_cfg=pal_talos_flat_tracking_env_cfg(play=True),
+  rl_cfg=pal_talos_tracking_ppo_runner_cfg(),
+  runner_cls=MotionTrackingOnPolicyRunner,
 )
 
 register_mjlab_task(
   task_id="Mjlab-Tracking-Flat-Pal-Talos-No-State-Estimation",
-  env_cfg=PAL_TALOS_FLAT_TRACKING_NO_STATE_ESTIMATION_ENV_CFG,
-  rl_cfg=PAL_TALOS_PPO_RUNNER_CFG,
+  env_cfg=pal_talos_flat_tracking_env_cfg(has_state_estimation=False),
+  play_env_cfg=pal_talos_flat_tracking_env_cfg(has_state_estimation=False, play=True),
+  rl_cfg=pal_talos_tracking_ppo_runner_cfg(),
+  runner_cls=MotionTrackingOnPolicyRunner,
 )
