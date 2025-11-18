@@ -1,4 +1,4 @@
-"""Unitree Go1 constants."""
+"""Pal Robotics` KANGAROO constants."""
 
 from pathlib import Path
 
@@ -15,7 +15,6 @@ from mjlab.actuator import BuiltinPositionActuatorCfg
 ##
 
 # There are multiple arm-wise variants of the KANGAROO robot. For clarity, we use the following naming:
-#
 # - kangaroo: simplified model with 4 DoF per arm and a fake forearm
 # - kangaroo_hands: simplified model with 5 DoF per arm and a Seed Robotics hand
 # - kangaroo_gripper: simplified model with 7 DoF per arm and a gripper
@@ -102,42 +101,6 @@ XS_DAMPING = 2.0 * DAMPING_RATIO * XS_ARMATURE * NATURAL_FREQ
 ##
 
 # LEGS ACTUATORS
-# TODO: use this instead once https://github.com/mujocolab/mjlab/pull/290 is merged
-# KANGAROO_LEGS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-#     joint_names_expr=(
-#         "leg_.*_1_joint",
-#         "leg_.*_2_joint",
-#         "leg_.*_3_joint",
-#         "leg_.*_length_joint",
-#         "leg_.*_4_joint",
-#         "leg_.*_5_joint",
-#     ),
-#     effort_limit={
-#         "leg_.*_1_joint": 80.0,
-#         "leg_.*_2_joint": 230.0,
-#         "leg_.*_3_joint": 139.0,
-#         "leg_.*_length_joint": 1100.0,
-#         "leg_.*_4_joint": 140.0,
-#         "leg_.*_5_joint": 82.0,
-#     },
-#     stiffness={
-#         "leg_.*_1_joint": 40.0,
-#         "leg_.*_2_joint": 100.0,
-#         "leg_.*_3_joint": 100.0,
-#         "leg_.*_length_joint": 1100.0,
-#         "leg_.*_4_joint": 100.0,
-#         "leg_.*_5_joint": 40.0,
-#     },
-#     damping={
-#         "leg_.*_1_joint": 2.55,
-#         "leg_.*_2_joint": 6.35,
-#         "leg_.*_3_joint": 6.35,
-#         "leg_.*_length_joint": 70.0,
-#         "leg_.*_4_joint": 6.35,
-#         "leg_.*_5_joint": 2.55,
-#     },
-#     armature=0.01,
-# )
 KANGAROO_LEGS_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("leg_.*_1_joint",),
     effort_limit=80.0,
@@ -236,6 +199,7 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         # torso
         "pelvis_1_joint": 0.0,
         "pelvis_2_joint": 0.0,
+        # "hand_.*": 0.3,
     },
     joint_vel={".*": 0.0},
 )
