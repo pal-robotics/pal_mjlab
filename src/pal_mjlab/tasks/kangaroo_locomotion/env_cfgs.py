@@ -10,10 +10,11 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.manager_term_config import RewardTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
-from mjlab.tasks.velocity import mdp
+from pal_mjlab.tasks.kangaroo_locomotion import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.managers.manager_term_config import TerminationTermCfg
+from mjlab.managers.scene_entity_config import SceneEntityCfg
 
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO rough terrain velocity configuration."""
@@ -77,7 +78,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         "asset_cfg"
     ].site_names = site_names
 
-    cfg.rewards["pose"].params["asset_cfg"].joint_names = {
+    cfg.rewards["pose"].params["asset_cfg"].joint_names = (
         # Lower body.
         r"leg_.*_1_.*",
         r"leg_.*_2_.*",
@@ -89,7 +90,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"pelvis_.*",
         # Arms.
         r"arm_.*",
-    }
+    )
     cfg.rewards["pose"].params["std_standing"] = {
         # Lower body.
         r"leg_.*_1_.*": 0.05,
@@ -102,13 +103,13 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"pelvis_.*": 0.05,
         # Arms.
         r"arm_.*": 0.05,
-    },
+    }
     cfg.rewards["pose"].params["std_walking"] = {
         # Lower body.
         r"leg_.*_1_.*": 0.15,
         r"leg_.*_2_.*": 0.3,  # pitch
         r"leg_.*_3_.*": 0.15,
-        r"leg_.*_length_.*": 0.25,  # length
+        r"leg_.*_length_.*": 0.1,  # length
         r"leg_.*_4_.*": 0.25,
         r"leg_.*_5_.*": 0.1,
         # Waist.
@@ -119,13 +120,13 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"arm_.*_2_.*": 0.1,  # roll
         r"arm_.*_3_.*": 0.1,
         r"arm_.*_4_.*": 0.2,
-    },
+    }
     cfg.rewards["pose"].params["std_running"] = {
         # Lower body.
         r"leg_.*_1_.*": 0.2,
         r"leg_.*_2_.*": 0.5,
         r"leg_.*_3_.*": 0.2,
-        r"leg_.*_length_.*": 0.35,
+        r"leg_.*_length_.*": 0.1,
         r"leg_.*_4_.*": 0.35,
         r"leg_.*_5_.*": 0.15,
         # Waist.
@@ -136,11 +137,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"arm_.*_2_.*": 0.15,
         r"arm_.*_3_.*": 0.15,
         r"arm_.*_4_.*": 0.35,
-    },
+    }
 
 
-    cfg.rewards["upright"].params["asset_cfg"].body_names = ("torso_link",)
-    cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("torso_link",)
+    cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
+    cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
     for reward_name in ["foot_clearance", "foot_swing_height", "foot_slip"]:
         cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
@@ -153,6 +154,12 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         func=mdp.self_collision_cost,
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
+    )
+
+    cfg.rewards["joint_dev_length"] = RewardTermCfg(
+        func=mdp.stand_still_joint_deviation_l1,
+        weight=-1.0,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=("leg_.*_length_.*",))},
     )
 
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
