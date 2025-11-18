@@ -1,19 +1,17 @@
 """Reaching task configuration."""
 
 import math
-from copy import deepcopy
 
-from mjlab.entity.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.manager_term_config import (
     ActionTermCfg,
+    CommandTermCfg,
+    CurriculumTermCfg,
     EventTermCfg,
     ObservationGroupCfg,
     ObservationTermCfg,
     RewardTermCfg,
-    CommandTermCfg,
-    CurriculumTermCfg,
     TerminationTermCfg,
 )
 from mjlab.managers.scene_entity_config import SceneEntityCfg
@@ -24,87 +22,13 @@ from mjlab.terrains import TerrainImporterCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
 
-SCENE_CFG = SceneCfg(
-    terrain=TerrainImporterCfg(
-        terrain_type="plane",
-        terrain_generator=None,
-        max_init_terrain_level=1,
-    ),
-    num_envs=1,
-    extent=2.0,
-)
 
-VIEWER_CONFIG = ViewerConfig(
-    origin_type=ViewerConfig.OriginType.ASSET_BODY,
-    asset_name="robot",
-    body_name="",  # Override in robot cfg.
-    distance=3.0,
-    elevation=-5.0,
-    azimuth=90.0,
-)
+def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
+    """Create base reaching task configuration."""
 
-SIM_CFG = SimulationCfg(
-    nconmax=35,
-    njmax=400,
-    mujoco=MujocoCfg(
-        timestep=0.005,
-        iterations=10,
-        ls_iterations=20,
-    ),
-)
-
-
-def create_reaching_env_cfg(
-    robot_cfg: EntityCfg,
-    action_scale: float | dict[str, float],
-    viewer_body_name: str,
-    posture_jn: tuple[str, ...],
-    action_rate_body_jn: tuple[str, ...],
-    action_rate_leftarm_jn: tuple[str, ...],
-    posture_std: dict[str, float],
-    foot_friction_geom_names: tuple[str, ...] | str,
-    pos_x: tuple[float, float] = (-0.5, 0.5),
-    pos_y: tuple[float, float] = (0.1, 0.5),
-    pos_z: tuple[float, float] = (0.0, 1.0),
-) -> ManagerBasedRlEnvCfg:
-    """Create a basic balancing task configuration.
-
-    Args:
-      robot_cfg: Robot configuration (with sensors).
-      action_scale: Action scaling factor(s).
-      viewer_body_name: Body for camera tracking.
-      foot_friction_geom_names: Geometry names for friction randomization.
-
-    Returns:
-      Complete ManagerBasedRlEnvCfg for velocity task.
-    """
-    scene = deepcopy(SCENE_CFG)
-    scene.entities = {"robot": robot_cfg}
-
-    viewer = deepcopy(VIEWER_CONFIG)
-    viewer.body_name = viewer_body_name
-
-    actions: dict[str, ActionTermCfg] = {
-        "joint_pos": JointPositionActionCfg(
-            asset_name="robot",
-            actuator_names=(".*",),
-            scale=action_scale,
-            use_default_offset=True,
-        )
-    }
-    commands: dict[str, CommandTermCfg] = {
-        "pose_command_left": mdp.UniformPoseCommandCfg(
-            asset_name="robot",
-            debug_vis=True,
-            resampling_time_range=(3.0, 8.0),
-            site_name="ee_left",
-            ranges=mdp.PoseRanges(
-                pos_x=pos_x,
-                pos_y=pos_y,
-                pos_z=pos_z,
-            ),
-        )
-    }
+    ##
+    # Observations
+    ##
 
     policy_terms = {
         "base_lin_vel": ObservationTermCfg(
@@ -153,6 +77,41 @@ def create_reaching_env_cfg(
         ),
     }
 
+    ##
+    # Actions
+    ##
+
+    actions: dict[str, ActionTermCfg] = {
+        "joint_pos": JointPositionActionCfg(
+            asset_name="robot",
+            actuator_names=(".*",),
+            scale=0.5,  # Override per-robot.
+            use_default_offset=True,
+        )
+    }
+
+    ##
+    # Commands
+    ##
+
+    commands: dict[str, CommandTermCfg] = {
+        "pose_command_left": mdp.UniformPoseCommandCfg(
+            asset_name="robot",
+            debug_vis=True,
+            resampling_time_range=(3.0, 8.0),
+            site_name="ee_left",
+            ranges=mdp.PoseRanges(
+                pos_x=(0.0, 0.0),  # Set per-robot.
+                pos_y=(0.0, 0.0),  # Set per-robot.
+                pos_z=(0.0, 0.0),  # Set per-robot.
+            ),
+        )
+    }
+
+    ##
+    # Events
+    ##
+
     events = {
         "reset_base": EventTermCfg(
             func=mdp.reset_root_state_uniform,
@@ -175,24 +134,11 @@ def create_reaching_env_cfg(
                 "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
             },
         ),
-        # "push_robot": EventTermCfg(
-        #  func=mdp.push_by_setting_velocity,
-        #  mode="interval",
-        #  interval_range_s=(1.0, 3.0),
-        #  params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
-        # ),
-        # "foot_friction": EventTermCfg(
-        #  mode="startup",
-        #  func=mdp.randomize_field,
-        #  domain_randomization=True,
-        #  params={
-        #    "asset_cfg": SceneEntityCfg("robot", geom_names=foot_friction_geom_names),
-        #    "operation": "abs",
-        #    "field": "geom_friction",
-        #    "ranges": (0.3, 1.2),
-        #  },
-        # ),
     }
+
+    ##
+    # Rewards
+    ##
 
     rewards = {
         "upright": RewardTermCfg(
@@ -200,7 +146,7 @@ def create_reaching_env_cfg(
             weight=1.0,
             params={
                 "std": math.sqrt(0.2),
-                "asset_cfg": SceneEntityCfg("robot", body_names=(viewer_body_name,)),
+                "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
             },
         ),
         "pos_left": RewardTermCfg(
@@ -220,13 +166,12 @@ def create_reaching_env_cfg(
                 "std": 0.1,
             },
         ),
-        # TODO: make it not kang specific
         "pose": RewardTermCfg(
             func=mdp.posture,
             weight=1.0,
             params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=posture_jn),
-                "std": posture_std,
+                "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+                "std": {},  # Set per-robot.
             },
         ),
         "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
@@ -234,7 +179,9 @@ def create_reaching_env_cfg(
             func=mdp.action_rate_l2_louis,
             weight=-0.01,
             params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=action_rate_body_jn),
+                "asset_cfg": SceneEntityCfg(
+                    "robot", joint_names=(".*",)
+                ),  # Set per-robot.
             },
         ),
         "action_rate_left_arm_l2": RewardTermCfg(
@@ -242,33 +189,26 @@ def create_reaching_env_cfg(
             weight=-0.0001,
             params={
                 "asset_cfg": SceneEntityCfg(
-                    "robot", joint_names=action_rate_leftarm_jn
-                ),
+                    "robot", joint_names=(".*",)
+                ),  # Set per-robot.
             },
         ),
     }
+    ##
+    # Terminations
+    ##
 
+    terminations = {
+        "time_out": TerminationTermCfg(func=mdp.time_out, time_out=True),
+        "fell_over": TerminationTermCfg(
+            func=mdp.bad_orientation,
+            params={"limit_angle": math.radians(70.0)},
+        ),
+    }
+    ##
+    # Curriculum
+    ##
     curriculum = {
-        # "pos_left_curr": CurriculumTermCfg(
-        #    func=mdp.reward_weight,
-        #    params={
-        #        "reward_name": "pos_left",
-        #        "weight_stages": [
-        #            {"step": 0, "weight": -0.5},
-        #            {"step": 2500 * 24, "weight": -2.0},
-        #        ],
-        #    },
-        # ),
-        # "pos_left_fine_grained_curr": CurriculumTermCfg(
-        #    func=mdp.reward_weight,
-        #    params={
-        #        "reward_name": "pos_left_fine_grained",
-        #        "weight_stages": [
-        #            {"step": 0, "weight": 0.5},
-        #            {"step": 2500 * 24, "weight": 2.0},
-        #        ],
-        #    },
-        # ),
         "action_rate_left_arm_l2_curr": CurriculumTermCfg(
             func=mdp.reward_weight,
             params={
@@ -281,25 +221,44 @@ def create_reaching_env_cfg(
         ),
     }
 
-    terminations = {
-        "time_out": TerminationTermCfg(func=mdp.time_out, time_out=True),
-        "fell_over": TerminationTermCfg(
-            func=mdp.bad_orientation,
-            params={"limit_angle": math.radians(70.0)},
-        ),
-    }
+    ##
+    # Assemble and return
+    ##
 
     return ManagerBasedRlEnvCfg(
-        scene=scene,
+        scene=SceneCfg(
+            terrain=TerrainImporterCfg(
+                terrain_type="plane",
+                terrain_generator=None,
+                max_init_terrain_level=5,
+            ),
+            num_envs=1,
+            extent=2.0,
+        ),
         observations=observations,
-        commands=commands,
         actions=actions,
-        rewards=rewards,
-        curriculum=curriculum,
-        terminations=terminations,
+        commands=commands,
         events=events,
-        sim=SIM_CFG,
-        viewer=viewer,
+        rewards=rewards,
+        terminations=terminations,
+        curriculum=curriculum,
+        viewer=ViewerConfig(
+            origin_type=ViewerConfig.OriginType.ASSET_BODY,
+            asset_name="robot",
+            body_name="",  # Set per-robot.
+            distance=3.0,
+            elevation=-5.0,
+            azimuth=90.0,
+        ),
+        sim=SimulationCfg(
+            nconmax=35,
+            njmax=300,
+            mujoco=MujocoCfg(
+                timestep=0.005,
+                iterations=10,
+                ls_iterations=20,
+            ),
+        ),
         decimation=4,
         episode_length_s=20.0,
     )

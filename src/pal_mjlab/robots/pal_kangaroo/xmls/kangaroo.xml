@@ -1,4 +1,4 @@
-<mujoco model="kangaroo scene">
+<mujoco model="kangaroo">
   <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
   <option timestep="0.001" iterations="1" ls_iterations="5">
@@ -21,12 +21,12 @@
   </default>
 
   <asset>
+    <texture type="skybox" colorspace="auto" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+    <texture type="2d" colorspace="auto" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
     <material name="dark_gray" rgba="0.25098 0.25098 0.25098 1"/>
     <material name="light_gray" rgba="0.75294 0.75294 0.75294 1"/>
     <material name="light_blue_gray" rgba="0.894118 0.913725 0.929412 1"/>
     <material name="bright_orange" rgba="1 0.65 0 0.2"/>
-
-
     <mesh name="base_link_with_pelvis" content_type="model/stl" file="base/base_link_with_pelvis.stl"/>
     <mesh name="pelvis_base_link" content_type="model/stl"      file="pelvis/pelvis_base_link.stl"/>
     <mesh name="pelvis_1_link" content_type="model/stl"         file="pelvis/pelvis_1_link.stl"/>
@@ -51,9 +51,10 @@
   </asset>
 
   <worldbody>
+    <!-- <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+    <light name="spotlight" target="base_link" pos="1 0 20" dir="0 0 -1" mode="targetbody"/> -->
     <body name="base_link" pos="0 0 1.2">
-      <inertial pos="-0.10388 0.00292576 -0.0173482" quat="0.534501 0.501589 -0.492841 0.468855" mass="4.49765" 
-        diaginertia="0.0360221 0.0259667 0.017944"/>
+      <inertial pos="-0.0913441 -0.0313598 0.00676412" quat="0.445077 0.406142 -0.397876 0.691845" mass="4.82254" diaginertia="0.0600103 0.0509711 0.0269078" />
       <joint name="origin" type="free"/>
       <geom class="visual" material="dark_gray" mesh="base_link_with_pelvis"/>
       <geom pos="-0.0918 0 -0.0455" quat="1 0 0 0" class="visual" material="dark_gray" mesh="pelvis_base_link"/>
@@ -64,8 +65,7 @@
       <camera name="back" pos="-2.2 0 1" quat="0.601501 0.371748 -0.371748 -0.601501" mode="trackcom"/>
       <camera name="front" pos="2.2 0 1" quat="0.601501 0.371748 0.371748 0.601501" mode="trackcom"/>
       <body name="pelvis_1_link" pos="-0.0918 0 0.0065" quat="0.707105 0 0.707108 0">
-        <inertial pos="-0.02593 -1e-06 0.001466" quat="0.99984 0 -0.0179004 0" mass="1.24856" 
-          diaginertia="0.00539676 0.004808 0.00324424"/>
+        <inertial pos="-0.02593 -1e-06 0.001466" quat="0.99984 0 -0.0179004 0" mass="1.24856" diaginertia="0.00539676 0.004808 0.00324424"/>
         <joint name="pelvis_1_joint" axis="0 0 -1" range="-0.349066 0.349066"/>
         <geom class="visual" material="dark_gray" mesh="pelvis_1_link"/>
         <body name="pelvis_2_link" pos="-0.0591 0 0" quat="0.707105 0 -0.707108 0">
@@ -249,14 +249,11 @@
   <contact>
     <exclude body1="pelvis_2_link" body2="leg_left_1_link"/>
     <exclude body1="pelvis_2_link" body2="leg_right_1_link"/>
-
     <exclude body1="leg_left_1_link" body2="leg_right_1_link"/>
-
     <exclude body1="leg_left_1_link" body2="leg_left_femur_link"/>
     <exclude body1="leg_left_5_link" body2="leg_left_femur_link"/>
     <exclude body1="leg_left_5_link" body2="leg_left_knee_link"/>
     <exclude body1="leg_left_femur_link" body2="leg_left_knee_link"/>
-
     <exclude body1="leg_right_1_link" body2="leg_right_femur_link"/>
     <exclude body1="leg_right_5_link" body2="leg_right_femur_link"/>
     <exclude body1="leg_right_5_link" body2="leg_right_knee_link"/>
@@ -268,31 +265,7 @@
     <connect name="leg_right_closed_kin_joint" body1="leg_right_4_link" body2="leg_right_knee_link" anchor="0 0 0" solref="0.002"/>
   </equality>
 
-  <!-- <actuator>
-    <general name="pelvis_1_actuator_position" joint="pelvis_1_joint" group="2" ctrllimited="true" ctrlrange="-0.349066 0.349066" biastype="affine" gainprm="500" biasprm="0 -500"/>
-    <general name="pelvis_2_actuator_position" joint="pelvis_2_joint" group="2" ctrllimited="true" ctrlrange="-1.309 1.309" biastype="affine" gainprm="500" biasprm="0 -500"/>
-    <general name="arm_left_1_actuator_position" joint="arm_left_1_joint" group="2" ctrllimited="true" ctrlrange="-2.618 2.618" biastype="affine" gainprm="100" biasprm="0 -100"/>
-    <general name="arm_left_2_actuator_position" joint="arm_left_2_joint" group="2" ctrllimited="true" ctrlrange="-1.1345 2.4435" biastype="affine" gainprm="100" biasprm="0 -100"/>
-    <general name="arm_left_3_actuator_position" joint="arm_left_3_joint" group="2" ctrllimited="true" ctrlrange="-2.618 2.618" biastype="affine" gainprm="100" biasprm="0 -100"/>
-    <general name="arm_left_4_actuator_position" joint="arm_left_4_joint" group="2" ctrllimited="true" ctrlrange="-1.1345 2.4435" biastype="affine" gainprm="100" biasprm="0 -100"/>
-    <general name="arm_right_1_actuator_position" joint="arm_right_1_joint" group="2" ctrllimited="true" ctrlrange="-2.618 2.618" biastype="affine" gainprm="100" biasprm="0 -100"/>
-    <general name="arm_right_2_actuator_position" joint="arm_right_2_joint" group="2" ctrllimited="true" ctrlrange="-1.1345 2.4435" biastype="affine" gainprm="100" biasprm="0 -100"/>
-    <general name="arm_right_3_actuator_position" joint="arm_right_3_joint" group="2" ctrllimited="true" ctrlrange="-2.618 2.618" biastype="affine" gainprm="100" biasprm="0 -100"/>
-    <general name="arm_right_4_actuator_position" joint="arm_right_4_joint" group="2" ctrllimited="true" ctrlrange="-1.1345 2.4435" biastype="affine" gainprm="100" biasprm="0 -100"/>
-    <general name="leg_left_1_actuator_position" joint="leg_left_1_joint" group="2" ctrllimited="true" ctrlrange="-0.261799 0.698132" biastype="affine" gainprm="500" biasprm="0 -500"/>
-    <general name="leg_left_2_actuator_position" joint="leg_left_2_joint" group="2" ctrllimited="true" ctrlrange="-0.741765 0.741765" biastype="affine" gainprm="500" biasprm="0 -500"/>
-    <general name="leg_left_3_actuator_position" joint="leg_left_3_joint" group="2" ctrllimited="true" ctrlrange="-0.471239 0.471239" biastype="affine" gainprm="500" biasprm="0 -500"/>
-    <general name="leg_left_length_actuator_position" joint="leg_left_length_joint" group="2" ctrllimited="true" ctrlrange="0.131973 0.714166" biastype="affine" gainprm="3000" biasprm="0 -3000"/>
-    <general name="leg_left_4_actuator_position" joint="leg_left_4_joint" group="2" ctrllimited="true" ctrlrange="-0.741765 0.741765" biastype="affine" gainprm="100" biasprm="0 -100"/>
-    <general name="leg_left_5_actuator_position" joint="leg_left_5_joint" group="2" ctrllimited="true" ctrlrange="-0.471239 0.471239" biastype="affine" gainprm="100" biasprm="0 -100"/>
-    <general name="leg_right_1_actuator_position" joint="leg_right_1_joint" group="2" ctrllimited="true" ctrlrange="-0.261799 0.698132" biastype="affine" gainprm="500" biasprm="0 -500"/>
-    <general name="leg_right_2_actuator_position" joint="leg_right_2_joint" group="2" ctrllimited="true" ctrlrange="-0.741765 0.741765" biastype="affine" gainprm="500" biasprm="0 -500"/>
-    <general name="leg_right_3_actuator_position" joint="leg_right_3_joint" group="2" ctrllimited="true" ctrlrange="-0.471239 0.471239" biastype="affine" gainprm="500" biasprm="0 -500"/>
-    <general name="leg_right_length_actuator_position" joint="leg_right_length_joint" group="2" ctrllimited="true" ctrlrange="0.131973 0.714166" biastype="affine" gainprm="3000" biasprm="0 -3000"/>
-    <general name="leg_right_4_actuator_position" joint="leg_right_4_joint" group="2" ctrllimited="true" ctrlrange="-0.741765 0.741765" biastype="affine" gainprm="100" biasprm="0 -100"/>
-    <general name="leg_right_5_actuator_position" joint="leg_right_5_joint" group="2" ctrllimited="true" ctrlrange="-0.471239 0.471239" biastype="affine" gainprm="100" biasprm="0 -100"/>
-  </actuator> -->
-
+  <!-- TODO: Use those sensors instead of the copied one from mjlab -->
   <!-- <sensor>
     <gyro site="imu" name="gyro"/>
     <velocimeter site="imu" name="local_linvel"/>
@@ -307,8 +280,13 @@
   </sensor> -->
 
   <!-- <keyframe>
-    <key name="home" qpos="0 0 0.95 1 0 0 0 0 0 0 1.24 1.57 1.25 0 1.24 -1.57 1.25 0 0.05 0 0.6 -0.07 0 0.91 1.82 0 0.05 0 0.6 -0.07 0 0.91 1.82" ctrl="0 0 0 1.24 1.57 1.25 0 1.24 -1.57 1.25 0 0.05 0 0.6 -0.07 0 0 0.05 0 0.6 -0.07 0"/>
+    <key 
+      name="home" 
+      qpos="0 0 0.95 1 0 0 0 0 0 0 1.24 1.57 1.25 0 1.24 -1.57 1.25 0 0.05 0 0.6 -0.07 0 0.91 1.82 0 0.05 0 0.6 -0.07 0 0.91 1.82" 
+      ctrl="0 0 0 1.24 1.57 1.25 0 1.24 -1.57 1.25 0 0.05 0 0.6 -0.07 0 0 0.05 0 0.6 -0.07 0"
+    />
   </keyframe> -->
+
   <sensor>
     <gyro name="imu_ang_vel" site="imu"/>
     <velocimeter name="imu_lin_vel" site="imu"/>

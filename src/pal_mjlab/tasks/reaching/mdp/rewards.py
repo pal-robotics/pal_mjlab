@@ -44,11 +44,8 @@ def position_command_error(
     )[:, 1:]  # Extract xyz from quaternion product
     des_pos_w = root_pos_w + pos_rotated
 
-    # Get current site pose
     current_site_pos_w = asset.data.site_pos_w[:, asset.site_names.index(site_name)]
-    # current_site_quat_w = asset.data.site_quat_w[:, asset.site_names.index(site_name)]
 
-    # Compute position error
     pos_error = current_site_pos_w - des_pos_w
 
     return torch.norm(pos_error, dim=1)
@@ -69,7 +66,6 @@ def position_command_error_tanh(
     root_pos_w = asset.data.site_pos_w[:, 0]  # Root site position
     root_quat_w = asset.data.site_quat_w[:, 0]  # Root site quaternion
 
-    # Transform position: p_w = p_root + R_root * p_b
     pos_rotated = quat_mul(
         quat_mul(
             root_quat_w,
@@ -81,17 +77,12 @@ def position_command_error_tanh(
     )[:, 1:]  # Extract xyz from quaternion product
     des_pos_w = root_pos_w + pos_rotated
 
-    # Get current site pose
     current_site_pos_w = asset.data.site_pos_w[:, asset.site_names.index(site_name)]
-    # current_site_quat_w = asset.data.site_quat_w[:, asset.site_names.index(site_name)]
 
-    # Compute position error
     pos_error = current_site_pos_w - des_pos_w
     distance = torch.norm(pos_error, dim=1)
 
-    ########################3
     return 1 - torch.tanh(distance / std)
-    # return torch.exp(-distance / 0.08)
 
 
 class action_rate_l2_louis:
@@ -110,9 +101,6 @@ class action_rate_l2_louis:
     def __call__(
         self, env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg
     ) -> torch.Tensor:
-        # asset: Entity = env.scene[asset_cfg.name]
-        # print(env.action_manager.action[:, self._joint_ids])
-
         return torch.sum(
             torch.square(
                 env.action_manager.action[:, self._joint_ids]

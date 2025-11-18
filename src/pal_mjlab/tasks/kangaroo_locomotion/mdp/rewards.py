@@ -36,3 +36,23 @@ def torso_height(
     env.extras["log"]["Metrics/mean_height_penalty"] = torch.mean(penalty)
 
     return penalty
+
+
+def stand_still_joint_deviation_l1(
+    env: ManagerBasedRlEnv,
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+    asset: Entity = env.scene[asset_cfg.name]
+
+    error = (
+        asset.data.joint_pos[:, asset_cfg.joint_ids]
+        - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+    )
+    abs_error = torch.abs(error)
+
+    # amount beyond the 0.1 margin
+    excess = torch.relu(abs_error - 0.25)
+
+    # per-env penalty: sum of excess across all monitored joints
+    penalty = torch.sum(excess, dim=1)
+    return penalty

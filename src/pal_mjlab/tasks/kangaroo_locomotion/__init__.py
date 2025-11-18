@@ -1,21 +1,24 @@
-import gymnasium as gym
+from mjlab.tasks.registry import register_mjlab_task
+from mjlab.tasks.velocity.rl import VelocityOnPolicyRunner
 
-gym.register(
-    id="Mjlab-Velocity-Rough-Pal-Kangaroo",
-    entry_point="mjlab.envs:ManagerBasedRlEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.env_cfgs:PAL_KANGAROO_ROUGH_ENV_CFG",
-        "rl_cfg_entry_point": f"{__name__}.rl_cfg:PalKangarooPPORunnerCfg",
-    },
+from .env_cfgs import (
+    pal_kangaroo_rough_env_cfg,
+    pal_kangaroo_flat_env_cfg,
+)
+from .rl_cfg import pal_kangaroo_ppo_runner_cfg
+
+register_mjlab_task(
+    task_id="Mjlab-Velocity-Rough-Pal-Kangaroo",
+    env_cfg=pal_kangaroo_rough_env_cfg(),
+    play_env_cfg=pal_kangaroo_rough_env_cfg(play=True),
+    rl_cfg=pal_kangaroo_ppo_runner_cfg(),
+    runner_cls=VelocityOnPolicyRunner,
 )
 
-gym.register(
-    id="Mjlab-Velocity-Flat-Pal-Kangaroo",
-    entry_point="mjlab.envs:ManagerBasedRlEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.env_cfgs:PAL_KANGAROO_FLAT_ENV_CFG",
-        "rl_cfg_entry_point": f"{__name__}.rl_cfg:PalKangarooPPORunnerCfg",
-    },
+register_mjlab_task(
+    task_id="Mjlab-Velocity-Flat-Pal-Kangaroo",
+    env_cfg=pal_kangaroo_flat_env_cfg(),
+    play_env_cfg=pal_kangaroo_flat_env_cfg(play=True),
+    rl_cfg=pal_kangaroo_ppo_runner_cfg(),
+    runner_cls=VelocityOnPolicyRunner,
 )

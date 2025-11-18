@@ -1,22 +1,21 @@
-import gymnasium as gym
+from mjlab.tasks.registry import register_mjlab_task
+from mjlab.tasks.tracking.rl import MotionTrackingOnPolicyRunner
 
-gym.register(
-    id="Mjlab-Tracking-Flat-Pal-Talos",
-    entry_point="mjlab.envs:ManagerBasedRlEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.env_cfgs:PAL_TALOS_FLAT_TRACKING_ENV_CFG",
-        "rl_cfg_entry_point": f"{__name__}.rl_cfg:PalTalosFlatPPORunnerCfg",
-    },
+from .env_cfgs import pal_talos_flat_tracking_env_cfg
+from .rl_cfg import pal_talos_tracking_ppo_runner_cfg
+
+register_mjlab_task(
+    task_id="Mjlab-Tracking-Flat-Pal-Talos",
+    env_cfg=pal_talos_flat_tracking_env_cfg(),
+    play_env_cfg=pal_talos_flat_tracking_env_cfg(play=True),
+    rl_cfg=pal_talos_tracking_ppo_runner_cfg(),
+    runner_cls=MotionTrackingOnPolicyRunner,
 )
 
-
-gym.register(
-    id="Mjlab-Tracking-Flat-Pal-Talos-No-State-Estimation",
-    entry_point="mjlab.envs:ManagerBasedRlEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.env_cfgs:PAL_TALOS_FLAT_TRACKING_NO_STATE_ESTIMATION_ENV_CFG",
-        "rl_cfg_entry_point": f"{__name__}.rl_cfg:PalTalosFlatPPORunnerCfg",
-    },
+register_mjlab_task(
+    task_id="Mjlab-Tracking-Flat-Pal-Talos-No-State-Estimation",
+    env_cfg=pal_talos_flat_tracking_env_cfg(has_state_estimation=False),
+    play_env_cfg=pal_talos_flat_tracking_env_cfg(has_state_estimation=False, play=True),
+    rl_cfg=pal_talos_tracking_ppo_runner_cfg(),
+    runner_cls=MotionTrackingOnPolicyRunner,
 )

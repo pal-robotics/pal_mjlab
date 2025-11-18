@@ -1,21 +1,24 @@
-import gymnasium as gym
+from mjlab.tasks.registry import register_mjlab_task
+from mjlab.tasks.velocity.rl import VelocityOnPolicyRunner
 
-gym.register(
-    id="Mjlab-Velocity-Rough-Pal-Talos",
-    entry_point="mjlab.envs:ManagerBasedRlEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.env_cfgs:PAL_TALOS_ROUGH_ENV_CFG",
-        "rl_cfg_entry_point": f"{__name__}.rl_cfg:PalTalosPPORunnerCfg",
-    },
+from .env_cfgs import (
+    pal_talos_rough_env_cfg,
+    pal_talos_flat_env_cfg,
+)
+from .rl_cfg import pal_talos_ppo_runner_cfg
+
+register_mjlab_task(
+    task_id="Mjlab-Velocity-Rough-Pal-Talos",
+    env_cfg=pal_talos_rough_env_cfg(),
+    play_env_cfg=pal_talos_rough_env_cfg(play=True),
+    rl_cfg=pal_talos_ppo_runner_cfg(),
+    runner_cls=VelocityOnPolicyRunner,
 )
 
-gym.register(
-    id="Mjlab-Velocity-Flat-Pal-Talos",
-    entry_point="mjlab.envs:ManagerBasedRlEnv",
-    disable_env_checker=True,
-    kwargs={
-        "env_cfg_entry_point": f"{__name__}.env_cfgs:PAL_TALOS_FLAT_ENV_CFG",
-        "rl_cfg_entry_point": f"{__name__}.rl_cfg:PalTalosPPORunnerCfg",
-    },
+register_mjlab_task(
+    task_id="Mjlab-Velocity-Flat-Pal-Talos",
+    env_cfg=pal_talos_flat_env_cfg(),
+    play_env_cfg=pal_talos_flat_env_cfg(play=True),
+    rl_cfg=pal_talos_ppo_runner_cfg(),
+    runner_cls=VelocityOnPolicyRunner,
 )
