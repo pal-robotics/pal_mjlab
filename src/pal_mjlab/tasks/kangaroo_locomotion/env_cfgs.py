@@ -1,7 +1,5 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
-from copy import deepcopy
-
 from pal_mjlab.robots import (
     KANGAROO_ACTION_SCALE,
     get_kangaroo_robot_cfg,
@@ -16,6 +14,7 @@ from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.managers.manager_term_config import TerminationTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 
+
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO rough terrain velocity configuration."""
     cfg = make_velocity_env_cfg()
@@ -23,7 +22,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
 
     site_names = ("left_foot", "right_foot")
-    geom_names = ("left_foot_collision", "right_foot_collision")
 
     feet_ground_cfg = ContactSensorCfg(
         name="feet_ground_contact",
@@ -60,7 +58,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
     cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
 
-    if cfg.scene.terrain is not None and cfg.scene.terrain.terrain_generator is not None:
+    if (
+        cfg.scene.terrain is not None
+        and cfg.scene.terrain.terrain_generator is not None
+    ):
         cfg.scene.terrain.terrain_generator.curriculum = True
 
     joint_pos_action = cfg.actions["joint_pos"]
@@ -139,7 +140,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"arm_.*_4_.*": 0.35,
     }
 
-
     cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
     cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
@@ -159,7 +159,9 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["joint_dev_length"] = RewardTermCfg(
         func=mdp.stand_still_joint_deviation_l1,
         weight=-1.0,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=("leg_.*_length_.*",))},
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=("leg_.*_length_.*",))
+        },
     )
 
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
@@ -183,6 +185,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
                 cfg.scene.terrain.terrain_generator.border_width = 10.0
 
     return cfg
+
 
 def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO flat terrain velocity configuration."""

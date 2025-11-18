@@ -8,10 +8,6 @@ from pal_mjlab.robots import (
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
-from mjlab.managers.manager_term_config import RewardTermCfg
-from mjlab.sensor import ContactMatch, ContactSensorCfg
-from mjlab.tasks.velocity import mdp
-from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from pal_mjlab.tasks.reaching.reaching_env_cfg import make_reaching_env_cfg
 
 
@@ -73,7 +69,9 @@ def pal_kangaroo_flat_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
         # Arms.
         r"arm_right.*",
     )
-    cfg.rewards["action_rate_left_arm_l2"].params["asset_cfg"].joint_names = (r"arm_left.*",)
+    cfg.rewards["action_rate_left_arm_l2"].params["asset_cfg"].joint_names = (
+        r"arm_left.*",
+    )
 
     # Apply play mode overrides.
     if play:
@@ -85,7 +83,9 @@ def pal_kangaroo_flat_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
     return cfg
 
 
-def pal_kangaroo_hands_flat_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+def pal_kangaroo_hands_flat_reaching_env_cfg(
+    play: bool = False,
+) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO with hands reaching configuration."""
     cfg = make_reaching_env_cfg()
 
@@ -143,7 +143,9 @@ def pal_kangaroo_hands_flat_reaching_env_cfg(play: bool = False) -> ManagerBased
         # Arms.
         r"arm_right.*",
     )
-    cfg.rewards["action_rate_left_arm_l2"].params["asset_cfg"].joint_names = (r"arm_left.*",)
+    cfg.rewards["action_rate_left_arm_l2"].params["asset_cfg"].joint_names = (
+        r"arm_left.*",
+    )
 
     # Apply play mode overrides.
     if play:

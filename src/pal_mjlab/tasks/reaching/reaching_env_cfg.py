@@ -1,7 +1,6 @@
 """Reaching task configuration."""
 
 import math
-from dataclasses import replace
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -22,6 +21,7 @@ from pal_mjlab.tasks.reaching import mdp
 from mjlab.terrains import TerrainImporterCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
+
 
 def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     """Create base reaching task configuration."""
@@ -117,7 +117,11 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             func=mdp.reset_root_state_uniform,
             mode="reset",
             params={
-                "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
+                "pose_range": {
+                    "x": (-0.5, 0.5),
+                    "y": (-0.5, 0.5),
+                    "yaw": (-3.14, 3.14),
+                },
                 "velocity_range": {},
             },
         ),
@@ -135,7 +139,6 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     ##
     # Rewards
     ##
-
 
     rewards = {
         "upright": RewardTermCfg(
@@ -176,14 +179,18 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             func=mdp.action_rate_l2_louis,
             weight=-0.01,
             params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
+                "asset_cfg": SceneEntityCfg(
+                    "robot", joint_names=(".*",)
+                ),  # Set per-robot.
             },
         ),
         "action_rate_left_arm_l2": RewardTermCfg(
             func=mdp.action_rate_l2_louis,
             weight=-0.0001,
             params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
+                "asset_cfg": SceneEntityCfg(
+                    "robot", joint_names=(".*",)
+                ),  # Set per-robot.
             },
         ),
     }
@@ -213,7 +220,6 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             },
         ),
     }
-
 
     ##
     # Assemble and return

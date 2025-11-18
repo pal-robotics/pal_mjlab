@@ -82,21 +82,6 @@ def position_command_error_tanh(
     pos_error = current_site_pos_w - des_pos_w
     distance = torch.norm(pos_error, dim=1)
 
-    joint_names = asset.joint_names  # either 1D list/array or (1, N)
-
-    # # If it's (1, N), flatten it:
-    # if hasattr(joint_names, "shape") and len(joint_names.shape) == 2:
-    #     joint_names = joint_names[0]
-
-    # default_q = asset.data.default_joint_pos[0]  # (num_joints,)
-    # current_q = asset.data.joint_pos[0]          # (num_joints,)
-
-    # print(asset.actuator_names)
-    # print(asset.joint_names)
-
-    # for name, q_def, q in zip(joint_names, default_q, current_q):
-    #     print(f"{name:30s}  default={float(q_def): .5f}  current={float(q): .5f}")
-
     return 1 - torch.tanh(distance / std)
 
 
@@ -112,16 +97,10 @@ class action_rate_l2_louis:
             for jname in joint_names
             if jname in asset.actuator_names
         ]
-        # print(asset.actuator_names)
-        # print(joint_names)
-        # print(self._joint_ids)
-        
 
     def __call__(
         self, env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg
     ) -> torch.Tensor:
-        asset: Entity = env.scene[asset_cfg.name]
-
         return torch.sum(
             torch.square(
                 env.action_manager.action[:, self._joint_ids]
@@ -129,4 +108,3 @@ class action_rate_l2_louis:
             ),
             dim=1,
         )
-

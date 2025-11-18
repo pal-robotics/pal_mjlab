@@ -58,7 +58,10 @@ def pal_talos_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
     cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
 
-    if cfg.scene.terrain is not None and cfg.scene.terrain.terrain_generator is not None:
+    if (
+        cfg.scene.terrain is not None
+        and cfg.scene.terrain.terrain_generator is not None
+    ):
         cfg.scene.terrain.terrain_generator.curriculum = True
 
     joint_pos_action = cfg.actions["joint_pos"]
@@ -99,7 +102,7 @@ def pal_talos_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"arm_.*_5_.*": 0.1,  # elbow
         r"arm_.*_6_.*": 0.1,  # wrist
         r"arm_.*_7_.*": 0.2,  # wrist
-  }
+    }
     cfg.rewards["pose"].params["std_running"] = {
         # Lower body.
         r"leg_.*_3_.*": 0.5,  # pitch
@@ -184,4 +187,3 @@ def pal_talos_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
 
     return cfg
-

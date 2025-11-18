@@ -1,9 +1,6 @@
 """PAL Robotics Talos flat terrain tracking configuration."""
 
-from pal_mjlab.robots import (
-    TALOS_ACTION_SCALE, 
-    get_talos_robot_cfg
-)
+from pal_mjlab.robots import TALOS_ACTION_SCALE, get_talos_robot_cfg
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.manager_term_config import ObservationGroupCfg
@@ -73,14 +70,14 @@ def pal_talos_flat_tracking_env_cfg(
     # Modify observations if we don't have state estimation.
     if not has_state_estimation:
         new_policy_terms = {
-        k: v
-        for k, v in cfg.observations["policy"].terms.items()
-        if k not in ["motion_anchor_pos_b", "base_lin_vel"]
+            k: v
+            for k, v in cfg.observations["policy"].terms.items()
+            if k not in ["motion_anchor_pos_b", "base_lin_vel"]
         }
         cfg.observations["policy"] = ObservationGroupCfg(
-        terms=new_policy_terms,
-        concatenate_terms=True,
-        enable_corruption=True,
+            terms=new_policy_terms,
+            concatenate_terms=True,
+            enable_corruption=True,
         )
 
     # Apply play mode overrides.
