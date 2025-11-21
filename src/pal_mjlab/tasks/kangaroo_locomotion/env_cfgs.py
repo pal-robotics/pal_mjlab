@@ -3,6 +3,7 @@
 from pal_mjlab.robots import (
     KANGAROO_ACTION_SCALE,
     get_kangaroo_robot_cfg,
+    KANGAROO_ACTION_NAMES
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -13,7 +14,17 @@ from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.managers.manager_term_config import TerminationTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
-
+from mjlab.managers.manager_term_config import (
+  ActionTermCfg,
+  CommandTermCfg,
+  CurriculumTermCfg,
+  EventTermCfg,
+  ObservationGroupCfg,
+  ObservationTermCfg,
+  RewardTermCfg,
+  TerminationTermCfg,
+)
+from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO rough terrain velocity configuration."""
@@ -21,8 +32,12 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
 
-    site_names = ("left_foot", "right_foot")
+    cfg.sim.nconmax = 40
 
+    site_names = ("left_foot", "right_foot")
+    geom_names = tuple(
+        f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(0, 9)
+    )
     feet_ground_cfg = ContactSensorCfg(
         name="feet_ground_contact",
         primary=ContactMatch(
@@ -67,6 +82,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     joint_pos_action = cfg.actions["joint_pos"]
     assert isinstance(joint_pos_action, JointPositionActionCfg)
     joint_pos_action.scale = KANGAROO_ACTION_SCALE
+    joint_pos_action.actuator_names = KANGAROO_ACTION_NAMES
 
     cfg.viewer.body_name = "pelvis_2_link"
 
@@ -75,9 +91,22 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.viz.z_offset = 1.15
 
+    cfg.observations["policy"].terms["base_lin_vel"] = None
+    cfg.observations["policy"].terms["projected_gravity"] = None
+    cfg.observations["policy"].terms["base_lin_acc"] = ObservationTermCfg(
+        func=mdp.builtin_sensor,
+        params={"sensor_name": "robot/imu_lin_acc"},
+        noise=Unoise(n_min=-0.5, n_max=0.5),
+    )
+    cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
+        func=mdp.builtin_sensor,
+        params={"sensor_name": "robot/imu_lin_acc"},
+    )
     cfg.observations["critic"].terms["foot_height"].params[
         "asset_cfg"
     ].site_names = site_names
+
+    cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
 
     cfg.rewards["pose"].params["asset_cfg"].joint_names = (
         # Lower body.
@@ -97,7 +126,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"leg_.*_1_.*": 0.05,
         r"leg_.*_2_.*": 0.05,
         r"leg_.*_3_.*": 0.05,
-        r"leg_.*_length_.*": 0.05,
+        r"leg_.*_length_.*": 0.15,
         r"leg_.*_4_.*": 0.05,
         r"leg_.*_5_.*": 0.05,
         # Waist.
@@ -110,7 +139,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"leg_.*_1_.*": 0.15,
         r"leg_.*_2_.*": 0.3,  # pitch
         r"leg_.*_3_.*": 0.15,
-        r"leg_.*_length_.*": 0.1,  # length
+        r"leg_.*_length_.*": 0.25,  # length
         r"leg_.*_4_.*": 0.25,
         r"leg_.*_5_.*": 0.1,
         # Waist.
@@ -147,8 +176,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
 
     cfg.rewards["body_ang_vel"].weight = -0.05
-    cfg.rewards["angular_momentum"].weight = -0.02
-    cfg.rewards["air_time"].weight = 0.0
+    # cfg.rewards["angular_momentum"].weight = -0.02
+    cfg.rewards["air_time"].weight = 0.1
 
     cfg.rewards["self_collisions"] = RewardTermCfg(
         func=mdp.self_collision_cost,
@@ -156,19 +185,16 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={"sensor_name": self_collision_cfg.name},
     )
 
-    cfg.rewards["joint_dev_length"] = RewardTermCfg(
-        func=mdp.stand_still_joint_deviation_l1,
-        weight=-1.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=("leg_.*_length_.*",))
-        },
-    )
+    # cfg.rewards["self_collisions"] = None
+    # cfg.rewards["air_time"] = None
+    # cfg.rewards["angular_momentum"] = None
+    # cfg.curriculum["command_vel"] = None
 
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
         func=mdp.illegal_contact,
         params={"sensor_name": "body_ground_contact"},
     )
-
+    
     # Apply play mode overrides.
     if play:
         # Effectively infinite episode length.

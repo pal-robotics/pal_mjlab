@@ -1,0 +1,1176 @@
+<?xml version="1.0"?>
+<robot name="kangaroo">
+    <material name="Blue">
+        <color rgba="0.0 0.0 0.8 1.0" />
+    </material>
+    <material name="Green">
+        <color rgba="0.0 0.8 0.0 1.0" />
+    </material>
+    <material name="Grey">
+        <color rgba="0.7 0.7 0.7 1.0" />
+    </material>
+    <material name="LightGrey">
+        <color rgba="0.9 0.9 0.9 1.0" />
+    </material>
+    <material name="pal_DarkGrey">
+        <color rgba="0.298039215686275 0.298039215686275 0.298039215686275 1" />
+    </material>
+    <material name="Red">
+        <color rgba="0.8 0.0 0.0 1.0" />
+    </material>
+    <material name="White">
+        <color rgba="1.0 1.0 1.0 1.0" />
+    </material>
+    <material name="Orange">
+        <color rgba="1.0 0.5 0.0 1.0" />
+    </material>
+    <link name="base_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.098278 0.0050886 -0.0322547" />
+            <mass value="2.6738" />
+            <inertia ixx="0.022825" ixy="-0.00038658" ixz="0.00034009" iyy="0.008341"
+                iyz="-4.4033E-05" izz="0.027837" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh
+                    filename="assets/base/base_link_with_pelvis.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <link name="back_handle">
+        <inertial>
+            <origin rpy="0 0 3.14159" xyz="-0.1742 2.256E-05 -0.0026718" />
+            <mass value="0.32489" />
+            <inertia ixx="0.0054596" ixy="-2.9277E-08" ixz="-0.00058382" iyy="0.0015135"
+                iyz="1.3465E-08" izz="0.006106" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/base/handle.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="back_handle_fixed_joint" type="fixed" dont_collapse="true">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <parent link="base_link" />
+        <child link="back_handle" />
+    </joint>
+    <link name="pelvis_base_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.020292 -0.000245 0.050005" />
+            <mass value="1.823847" />
+            <inertia ixx="0.001676" ixy="1.9E-05" ixz="-0.000138" iyy="0.007958" iyz="-1.2E-05"
+                izz="0.00789" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/pelvis/pelvis_base_link.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="pelvis_fixed_joint" type="fixed" dont_collapse="true">
+        <origin rpy="0 0 0" xyz="-0.0918000000000001 0 -0.0455" />
+        <parent link="base_link" />
+        <child link="pelvis_base_link" />
+    </joint>
+    <link name="pelvis_1_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.02593 -1E-06 0.001466" />
+            <mass value="1.248563" />
+            <inertia ixx="0.005394" ixy="0" ixz="7.7E-05" iyy="0.004808" iyz="0" izz="0.003247" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/pelvis/pelvis_1_link.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="pelvis_1_joint" type="revolute">
+        <origin rpy="0 1.5708 0" xyz="0 0 0.052" />
+        <parent link="pelvis_base_link" />
+        <child link="pelvis_1_link" />
+        <axis xyz="0 0 -1" />
+        <limit effort="100" lower="-0.3490658504" upper="0.3490658504" velocity="3.14" />
+    </joint>
+    <link name="pelvis_2_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0 0 -0.011136" />
+            <mass value="0.435922" />
+            <inertia ixx="0.000633" ixy="-1.1E-05" ixz="0" iyy="0.000672" iyz="0" izz="0.001275" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/pelvis/pelvis_2_link.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="pelvis_2_joint" type="revolute">
+        <origin rpy="0 -1.5708 0" xyz="-0.0591 0 0" />
+        <parent link="pelvis_1_link" />
+        <child link="pelvis_2_link" />
+        <axis xyz="0 0 -1" />
+        <limit effort="100" lower="-1.308996939" upper="1.308996939" velocity="3.14" />
+    </joint><!--
+    extensions --><!--
+    <xacro:kangaroo_pelvis_differential_transmission name="${name}" number1="1" number2="2"
+    act_reduction1="1.0" act_reduction2="1.0"                                                jnt_reduction1="1.0" jnt_reduction2="1.395348837" /> --><!--
+    TORSO -->
+    <link name="torso_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.01 -0.00074 0.22222" />
+            <mass value="13.33642" />
+            <inertia ixx="0.28794" ixy="-0.00047" ixz="-0.00161" iyy="0.26647" iyz="0.00368"
+                izz="0.11215" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/torso/torso_link.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual><!-- Cylinder (main body) -->
+        <collision>
+            <origin rpy="0 0 0" xyz="0 0 0.2" />
+            <geometry>
+                <cylinder length="0.306347866543338" radius="0.174514453382318" />
+            </geometry>
+        </collision><!--
+        Top Sphere -->
+        <collision>
+            <origin rpy="0 0 0" xyz="0.0 0.0 0.353173933271669" />
+            <geometry>
+                <sphere radius="0.174514453382318" />
+            </geometry>
+        </collision><!--
+        Bottom Sphere -->
+        <collision>
+            <origin rpy="0 0 0" xyz="0.0 0.0 0.046826066728331006" />
+            <geometry>
+                <sphere radius="0.174514453382318" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="torso_link_joint" type="fixed" dont_collapse="true">
+        <origin rpy="0 0 0" xyz="0 0 0.0061" />
+        <parent link="pelvis_2_link" />
+        <child link="torso_link" />
+    </joint><!-- Torso front rgbd camera --><!-- <xacro:sensor_d435
+    name="torso_front_rgbd_camera"      parent="torso_link"      topics_ns="torso_front_rgbd_camera"
+    use_nominal_extrinsics="${simulation}">      <origin        xyz="0.1056 0 0.40767"        rpy="0 0.5236 0"/>
+    </xacro:sensor_d435> --><!-- Torso back rgbd camera --><!-- <xacro:sensor_d435      name="torso_back_rgbd_camera"
+    parent="torso_link"      topics_ns="torso_back_rgbd_camera"      use_nominal_extrinsics="${simulation}">
+    <origin        xyz="-0.1056 0 0.40767"        rpy="0 0.5236 ${180.0*deg_to_rad}"/>    </xacro:sensor_d435> --><!-- LEGS -->
+    <link name="leg_left_1_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0063167 0.0045949 -0.0083828" />
+            <mass value="2.7478" />
+            <inertia ixx="0.0019336" ixy="8.5058e-06" ixz="4.8385e-05" iyy="0.0018225"
+                iyz="-7.282e-06" izz="0.001426" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/leg/leg_left_1_link.stl"
+                    scale="1 1 1" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual><!-- Cylinder (main body) -->
+        <collision>
+            <origin rpy="0 0 0" xyz="0.0460974381954039 2.61722121352298e-07 -0.0031296116923038" />
+            <geometry>
+                <cylinder length="0.0826993462928503" radius="0.0795723341519774" />
+            </geometry>
+        </collision><!--
+        Top Sphere -->
+        <collision>
+            <origin rpy="0 0 0" xyz="0.0460974381954039 2.61722121352298e-07 0.03822006145412135" />
+            <geometry>
+                <sphere radius="0.0795723341519774" />
+            </geometry>
+        </collision><!--
+        Bottom Sphere -->
+        <collision>
+            <origin rpy="0 0 0" xyz="0.0460974381954039 2.61722121352298e-07 -0.044479284838728955" />
+            <geometry>
+                <sphere radius="0.0795723341519774" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="leg_left_1_joint" type="revolute">
+        <origin rpy="0 0 0" xyz="-0.0150025976417119 0.08 -0.0585" />
+        <parent link="base_link" />
+        <child link="leg_left_1_link" />
+        <axis xyz="0 0 1" />
+        <limit effort="80" lower="-0.2617993877991494" upper="0.6981317007977318" velocity="3.87" />
+    </joint>
+    <link name="leg_left_2_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.0029278 -9.6207E-05 1.0866E-09" />
+            <mass value="0.0905312454913012" />
+            <inertia ixx="6.10166860944865E-06" ixy="4.64490555644666E-08"
+                ixz="4.07017223451518E-13" iyy="3.88541683636482E-05" iyz="-1.04538188015163E-12"
+                izz="3.6228659424845E-05" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/leg/leg_left_2_link.stl"
+                    scale="1 1 1" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="leg_left_2_joint" type="revolute">
+        <origin rpy="0 0 0" xyz="0.015024 0 -0.1175" />
+        <parent link="leg_left_1_link" />
+        <child link="leg_left_2_link" />
+        <axis xyz="0 1 0" />
+        <limit effort="230" lower="-0.7417649320975901" upper="0.6632251157578453" velocity="3.87" />
+    </joint>
+    <link name="leg_left_3_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.033949 0.049989 -0.030543" />
+            <mass value="3.658" />
+            <inertia ixx="0.0025968" ixy="0.00018723" ixz="-0.00014976" iyy="0.0031521"
+                iyz="3.7258e-05" izz="0.0032376" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/leg/leg_left_3_link.stl"
+                    scale="1 1 1" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual><!-- Cylinder (main body) -->
+        <collision>
+            <origin rpy="0 0 0" xyz="-0.0336733479063389 0.0385644774263234 -0.0356634521697478" />
+            <geometry>
+                <cylinder length="0.0968239136648226" radius="0.107806017781018" />
+            </geometry>
+        </collision><!--
+        Top Sphere -->
+        <collision>
+            <origin rpy="0 0 0" xyz="-0.0336733479063389 0.0385644774263234 0.012748504662663501" />
+            <geometry>
+                <sphere radius="0.107806017781018" />
+            </geometry>
+        </collision><!--
+        Bottom Sphere -->
+        <collision>
+            <origin rpy="0 0 0" xyz="-0.0336733479063389 0.0385644774263234 -0.0840754090021591" />
+            <geometry>
+                <sphere radius="0.107806017781018" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="leg_left_3_joint" type="revolute">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <parent link="leg_left_2_link" />
+        <child link="leg_left_3_link" />
+        <axis xyz="1 0 0" />
+        <limit effort="139" lower="-0.47123889803846897" upper="0.47123889803846897" velocity="3.87" />
+    </joint>
+    <link name="leg_left_femur_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0527475093314697 0.000135688427874925 -0.146959283149568" />
+            <mass value="3.94567187082779" />
+            <inertia ixx="0.0111010751306264" ixy="2.24256967982894E-05" ixz="0.0025879993168672"
+                iyy="0.0121128398206334" iyz="-1.93362671261787E-05" izz="0.0025734913670898" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry><!-- The ballscrews are removed from the meshes for better visualization, but
+                they are        used for inertia computation etc -->
+                <mesh filename="assets/leg/leg_femur_link.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual><!-- Cylinder (main body) -->
+        <collision>
+            <origin rpy="0 -0.2617993877991494 0"
+                xyz="0.0679609028611423 0.0010415825568705 -0.12396118130337239" />
+            <geometry>
+                <cylinder length="0.391268198141901" radius="0.0910718312767096" />
+            </geometry>
+        </collision><!--
+        Top Sphere -->
+        <collision>
+            <origin rpy="0 -0.2617993877991494 0"
+                xyz="0.017327072150106954 0.0010415825568705 0.06500684749205293" />
+            <geometry>
+                <sphere radius="0.0910718312767096" />
+            </geometry>
+        </collision><!--
+        Bottom Sphere -->
+        <collision>
+            <origin rpy="0 -0.2617993877991494 0"
+                xyz="0.11859473357217765 0.0010415825568705 -0.3129292100987977" />
+            <geometry>
+                <sphere radius="0.0910718312767096" />
+            </geometry>
+        </collision>
+    </link>
+    <link name="leg_left_knee_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.0569664873635563 -5.41309796184553E-05 -0.148820781933269" />
+            <mass value="1.02238189690276" />
+            <inertia ixx="0.00193955870555937" ixy="-7.22330237538467E-08"
+                ixz="-0.000472475893337071" iyy="0.00215347079183119" iyz="1.36520012214457E-06"
+                izz="0.000391378760186175" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/leg/leg_tibia_link.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual><!-- Cylinder (main body) -->
+        <collision>
+            <origin rpy="0 0.5235987755982988 0"
+                xyz="-0.0569664873635563 7.99553099622616e-06 -0.148820781933269" />
+            <geometry>
+                <cylinder length="0.3" radius="0.055" />
+            </geometry>
+        </collision><!--
+        Top Sphere -->
+        <collision>
+            <origin rpy="0 0.5235987755982988 0"
+                xyz="0.018033512636443684 7.99553099622616e-06 -0.01891697136560319" />
+            <geometry>
+                <sphere radius="0.055" />
+            </geometry>
+        </collision><!-- Bottom
+        Sphere -->
+        <collision>
+            <origin rpy="0 0.5235987755982988 0"
+                xyz="-0.1319664873635563 7.99553099622616e-06 -0.27872459250093484" />
+            <geometry>
+                <sphere radius="0.055" />
+            </geometry>
+        </collision>
+    </link><!--
+    height -->
+    <link name="leg_left_length_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+            <mass value="0.1" />
+            <inertia ixx="8.583333333333335e-05" ixy="0.0" ixz="0.0" iyy="8.583333333333335e-05"
+                iyz="0.0" izz="5e-06" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 -0.291096695" />
+            <geometry>
+                <cylinder length="0.58219339" radius="0.00005" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="leg_left_length_joint" type="prismatic">
+        <origin rpy="0 3.141592653589793 0" xyz="0 0.0669 -0.09" />
+        <parent link="leg_left_3_link" />
+        <child link="leg_left_length_link" />
+        <axis xyz="0 0 1" />
+        <limit effort="1100" lower="0.131973" upper="0.71416639" velocity="10.0" />
+    </joint>
+    <joint name="leg_left_femur_joint" type="revolute">
+        <origin rpy="0 -1.2217304763960306 0" xyz="0 0.0669 -0.09" />
+        <parent link="leg_left_3_link" />
+        <child link="leg_left_femur_link" />
+        <axis xyz="0 1 0" />
+        <limit effort="100" lower="0.17453292519943295" upper="1.2217304763960306" velocity="3.87" />
+    </joint>
+    <joint name="leg_left_knee_joint" type="revolute">
+        <origin rpy="0 2.443460952792061 0" xyz="0.129944529468438 0 -0.357091611860635" />
+        <parent link="leg_left_femur_link" />
+        <child link="leg_left_knee_link" />
+        <axis xyz="0 -1 0" />
+        <limit effort="100" lower="0.3490658503988659" upper="2.443460952792061" velocity="3.87" />
+    </joint>
+    <link name="leg_left_knee_straight" />
+    <joint name="leg_left_knee_straight_joint" type="fixed" dont_collapse="true">
+        <parent link="leg_left_knee_link" />
+        <child link="leg_left_knee_straight" />
+        <origin rpy="0 -1.2217304763960306 0" xyz="0 0 0" />
+    </joint>
+    <link name="leg_left_knee_lower_bearing" />
+    <joint name="leg_left_knee_lower_bearing_joint" type="fixed" dont_collapse="true">
+        <parent link="leg_left_knee_straight" />
+        <child link="leg_left_knee_lower_bearing" />
+        <origin rpy="0 0 0" xyz="-0.38 0.0 0.0" />
+    </joint>
+    <link name="leg_left_4_link">
+        <inertial>
+            <origin rpy="0 0 0"
+                xyz="-0.00759994843981759 -6.94997526196062E-09 5.88281323654627E-08" />
+            <mass value="0.0905838346535586" />
+            <inertia ixx="4.05264139412808E-06" ixy="-5.2860301956695E-12"
+                ixz="4.99859544268276E-11" iyy="2.92762581820543E-05" iyz="6.24254988575372E-12"
+                izz="2.98863057177445E-05" />
+        </inertial>
+        <visual>
+            <origin rpy="0 -0.3490658503988659 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/leg/leg_6_link.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="leg_left_4_joint" type="revolute">
+        <origin rpy="0 3.490658503988659 0" xyz="0.0 0 0.0" />
+        <parent link="leg_left_length_link" />
+        <child link="leg_left_4_link" />
+        <axis xyz="0 1 0" />
+        <limit effort="140" lower="-0.7417649320975901" upper="0.6632251157578453" velocity="3.87" />
+    </joint>
+    <link name="leg_left_5_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0056012722847415 -5.98528992629133E-06 -0.0297244079568318" />
+            <mass value="0.61562973648731" />
+            <inertia ixx="0.000511104633992357" ixy="2.29520535343244E-08"
+                ixz="-0.000504403659563376" iyy="0.00170802543470207" iyz="-1.88812897159487E-09"
+                izz="0.00181438717200554" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/leg/leg_7_link.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+        <collision>
+            <origin rpy="0 -0.3490658503988659 0" xyz="0.01 0.0 -0.028" />
+            <geometry><!-- The length of the sole is around 24cm, but with the attached rubber sole
+                it would be 24.9cm -->
+                <box size="0.249 0.10 0.025" />
+            </geometry>
+        </collision><!-- The
+        FT sensors is still not available --><!--
+        <xacro:if value="${legs_type in ['ft-leg']}">        <inertial>          <origin xyz="0.0056012722847415
+        -8.11751E-06 -0.062005508" rpy="0 0 0" />          <mass value="0.826924" />          <inertia
+        ixx="0.000511104633992357" ixy="2.29520535343244E-08" ixz="-0.000504403659563376"
+        iyy="0.00170802543470207" iyz="-1.88812897159487E-09" izz="0.00181438717200554" />
+        </inertial>        <visual>          <origin xyz="0 0 0" rpy="0 ${-20.0 * deg_to_rad} 0" />          <geometry>            <mesh
+        filename="assets/leg/leg_7_link_ft.stl" />          </geometry>
+        <material name="">            <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+        </material>        </visual>        <xacro:link_collision           mujoco="${sim_type in ['mujoco-ros2-control',
+        'mujoco']}"          collision_type="${collision_type}"
+        mesh_file="assets/leg/leg_7_link_ft.stl"          scale="1 ${reflect}
+        1">            <properties>              <xacro:origin xyz="0 0 0" rpy="0 ${-20.0 * deg_to_rad} 0"
+        condition="${collision_type == 'mesh'}"/>              <xacro:origin xyz="0 0 0" rpy="0 0 0"
+        condition="${collision_type == 'capsule'}"/>            </properties>        </xacro:link_collision>
+        <collision>          <origin xyz="0.02 0.0 -0.056" rpy="0 ${-20.0 * deg_to_rad} 0" />          <geometry>            <box
+        size="0.249 0.10 0.025"/>          </geometry>        </collision>      </xacro:if> -->
+    </link>
+    <joint name="leg_left_5_joint" type="revolute">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <parent link="leg_left_4_link" />
+        <child link="leg_left_5_link" />
+        <axis xyz="-1 0 0" />
+        <limit effort="82" lower="-0.47123889803846897" upper="0.47123889803846897" velocity="3.87" />
+    </joint>
+    <link name="leg_left_5_aligned_link" />
+    <joint name="leg_left_5_aligned_joint" type="fixed" dont_collapse="true">
+        <parent link="leg_left_5_link" />
+        <child link="leg_left_5_aligned_link" />
+        <origin rpy="0 -0.3490658503988659 0" xyz="0 0 0" />
+    </joint><!-- The FT sensors is still
+    not available --><!-- <xacro:if
+    value="${legs_type in ['ft-leg']}">      <link name="${side}_ft_sensor_link"/>            <joint
+    name="${side}_ft_sensor_joint" type="fixed" dont_collapse="true">        <parent
+    link="leg_${side}_${roll_joint}_aligned_link" />        <child link="${side}_ft_sensor_link" />        <origin
+    xyz="0.00855050358313864 0 -0.023492315519661" rpy="0 ${-20.0 * deg_to_rad} 0" />      </joint>
+    </xacro:if> -->
+    <link name="left_sole_link" />
+    <joint name="left_sole_joint" type="fixed" dont_collapse="true">
+        <parent link="leg_left_5_aligned_link" />
+        <child link="left_sole_link" />
+        <origin rpy="0 0 0" xyz="0.0 0.0 -0.0425" /><!-- The FT sensors is still not available --><!-- <xacro:if value="${legs_type in
+        ['ft-leg']}">        <parent link="${side}_ft_sensor_link" />        <child link="${side}_sole_link" />
+        <origin xyz="0.006889 0 -0.0495" rpy="0 0 0" />      </xacro:if> -->
+    </joint>
+    <link name="left_foot_upper_left" />
+    <link name="left_foot_upper_right" />
+    <link name="left_foot_lower_left" />
+    <link name="left_foot_lower_right" />
+    <joint name="left_foot_upper_left_fix_joint" type="fixed" dont_collapse="true">
+        <parent link="left_sole_link" />
+        <child link="left_foot_upper_left" />
+        <origin rpy="0 0 0" xyz="0.11499999999999999 0.045 0.0" />
+    </joint>
+    <joint name="left_foot_upper_right_fix_joint" type="fixed" dont_collapse="true">
+        <parent link="left_sole_link" />
+        <child link="left_foot_upper_right" />
+        <origin rpy="0 0 0" xyz="0.11499999999999999 -0.045 0.0" />
+    </joint>
+    <joint name="left_foot_lower_left_fix_joint" type="fixed" dont_collapse="true">
+        <parent link="left_sole_link" />
+        <child link="left_foot_lower_left" />
+        <origin rpy="0 0 0" xyz="-0.095 0.045 0.0" />
+    </joint>
+    <joint name="left_foot_lower_right_fix_joint" type="fixed" dont_collapse="true">
+        <parent link="left_sole_link" />
+        <child link="left_foot_lower_right" />
+        <origin rpy="0 0 0" xyz="-0.095 -0.045 0.0" />
+    </joint><!-- <xacro:unless
+    value="${simulation}">      <xacro:kangaroo_ankle_transmission side="${side}"
+    roll_joint="${roll_joint}" pitch_joint="${pitch_joint}" read_actuator="${read_actuator}" />
+    </xacro:unless>      <xacro:if value="${simulation}">
+    <xacro:kangaroo_ankle_simple_simulation_transmission side="${side}" roll_joint="${roll_joint}"
+    pitch_joint="${pitch_joint}"/>        </xacro:if> -->
+    <link name="leg_right_1_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0063167 -0.0045949 -0.0083828" />
+            <mass value="2.7478" />
+            <inertia ixx="0.0019336" ixy="-8.5058e-06" ixz="-4.8385e-05" iyy="0.0018225"
+                iyz="7.282e-06" izz="0.001426" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/leg/leg_right_1_link.stl"
+                    scale="1 1 1" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual><!-- Cylinder (main body) -->
+        <collision>
+            <origin rpy="0 0 0" xyz="0.0460974381954039 -2.61722121352298e-07 -0.0031296116923038" />
+            <geometry>
+                <cylinder length="0.0826993462928503" radius="0.0795723341519774" />
+            </geometry>
+        </collision><!--
+        Top Sphere -->
+        <collision>
+            <origin rpy="0 0 0" xyz="0.0460974381954039 -2.61722121352298e-07 0.03822006145412135" />
+            <geometry>
+                <sphere radius="0.0795723341519774" />
+            </geometry>
+        </collision><!--
+        Bottom Sphere -->
+        <collision>
+            <origin rpy="0 0 0" xyz="0.0460974381954039 -2.61722121352298e-07 -0.044479284838728955" />
+            <geometry>
+                <sphere radius="0.0795723341519774" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="leg_right_1_joint" type="revolute">
+        <origin rpy="0 0 0" xyz="-0.0150025976417119 -0.08 -0.0585" />
+        <parent link="base_link" />
+        <child link="leg_right_1_link" />
+        <axis xyz="0 0 1" />
+        <limit effort="80" lower="-0.6981317007977318" upper="0.2617993877991494" velocity="3.87" />
+    </joint>
+    <link name="leg_right_2_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.0029278 -9.6207E-05 1.0866E-09" />
+            <mass value="0.0905312454913012" />
+            <inertia ixx="6.10166860944865E-06" ixy="4.64490555644666E-08"
+                ixz="4.07017223451518E-13" iyy="3.88541683636482E-05" iyz="-1.04538188015163E-12"
+                izz="3.6228659424845E-05" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/leg/leg_right_2_link.stl"
+                    scale="1 1 1" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="leg_right_2_joint" type="revolute">
+        <origin rpy="0 0 0" xyz="0.015024 0 -0.1175" />
+        <parent link="leg_right_1_link" />
+        <child link="leg_right_2_link" />
+        <axis xyz="0 1 0" />
+        <limit effort="230" lower="-0.7417649320975901" upper="0.6632251157578453" velocity="3.87" />
+    </joint>
+    <link name="leg_right_3_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.033949 -0.049989 -0.030543" />
+            <mass value="3.658" />
+            <inertia ixx="0.0025968" ixy="-0.00018723" ixz="0.00014976" iyy="0.0031521"
+                iyz="-3.7258e-05" izz="0.0032376" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/leg/leg_right_3_link.stl"
+                    scale="1 1 1" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual><!-- Cylinder (main body) -->
+        <collision>
+            <origin rpy="0 0 0" xyz="-0.0336733479063389 -0.0385644774263234 -0.0356634521697478" />
+            <geometry>
+                <cylinder length="0.0968239136648226" radius="0.107806017781018" />
+            </geometry>
+        </collision><!--
+        Top Sphere -->
+        <collision>
+            <origin rpy="0 0 0" xyz="-0.0336733479063389 -0.0385644774263234 0.012748504662663501" />
+            <geometry>
+                <sphere radius="0.107806017781018" />
+            </geometry>
+        </collision><!--
+        Bottom Sphere -->
+        <collision>
+            <origin rpy="0 0 0" xyz="-0.0336733479063389 -0.0385644774263234 -0.0840754090021591" />
+            <geometry>
+                <sphere radius="0.107806017781018" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="leg_right_3_joint" type="revolute">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <parent link="leg_right_2_link" />
+        <child link="leg_right_3_link" />
+        <axis xyz="1 0 0" />
+        <limit effort="139" lower="-0.47123889803846897" upper="0.47123889803846897" velocity="3.87" />
+    </joint>
+    <link name="leg_right_femur_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0527475093314697 0.000135688427874925 -0.146959283149568" />
+            <mass value="3.94567187082779" />
+            <inertia ixx="0.0111010751306264" ixy="2.24256967982894E-05" ixz="0.0025879993168672"
+                iyy="0.0121128398206334" iyz="-1.93362671261787E-05" izz="0.0025734913670898" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry><!-- The ballscrews are removed from the meshes for better visualization, but
+                they are        used for inertia computation etc -->
+                <mesh filename="assets/leg/leg_femur_link.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual><!-- Cylinder (main body) -->
+        <collision>
+            <origin rpy="0 -0.2617993877991494 0"
+                xyz="0.0679609028611423 -0.0010415825568705 -0.12396118130337239" />
+            <geometry>
+                <cylinder length="0.391268198141901" radius="0.0910718312767096" />
+            </geometry>
+        </collision><!--
+        Top Sphere -->
+        <collision>
+            <origin rpy="0 -0.2617993877991494 0"
+                xyz="0.017327072150106954 -0.0010415825568705 0.06500684749205293" />
+            <geometry>
+                <sphere radius="0.0910718312767096" />
+            </geometry>
+        </collision><!--
+        Bottom Sphere -->
+        <collision>
+            <origin rpy="0 -0.2617993877991494 0"
+                xyz="0.11859473357217765 -0.0010415825568705 -0.3129292100987977" />
+            <geometry>
+                <sphere radius="0.0910718312767096" />
+            </geometry>
+        </collision>
+    </link>
+    <link name="leg_right_knee_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.0569664873635563 -5.41309796184553E-05 -0.148820781933269" />
+            <mass value="1.02238189690276" />
+            <inertia ixx="0.00193955870555937" ixy="-7.22330237538467E-08"
+                ixz="-0.000472475893337071" iyy="0.00215347079183119" iyz="1.36520012214457E-06"
+                izz="0.000391378760186175" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/leg/leg_tibia_link.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual><!-- Cylinder (main body) -->
+        <collision>
+            <origin rpy="0 0.5235987755982988 0"
+                xyz="-0.0569664873635563 -7.99553099622616e-06 -0.148820781933269" />
+            <geometry>
+                <cylinder length="0.3" radius="0.055" />
+            </geometry>
+        </collision><!--
+        Top Sphere -->
+        <collision>
+            <origin rpy="0 0.5235987755982988 0"
+                xyz="0.018033512636443684 -7.99553099622616e-06 -0.01891697136560319" />
+            <geometry>
+                <sphere radius="0.055" />
+            </geometry>
+        </collision><!-- Bottom
+        Sphere -->
+        <collision>
+            <origin rpy="0 0.5235987755982988 0"
+                xyz="-0.1319664873635563 -7.99553099622616e-06 -0.27872459250093484" />
+            <geometry>
+                <sphere radius="0.055" />
+            </geometry>
+        </collision>
+    </link><!--
+    height -->
+    <link name="leg_right_length_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0 0.0 0.0" />
+            <mass value="0.1" />
+            <inertia ixx="8.583333333333335e-05" ixy="0.0" ixz="0.0" iyy="8.583333333333335e-05"
+                iyz="0.0" izz="5e-06" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 -0.291096695" />
+            <geometry>
+                <cylinder length="0.58219339" radius="0.00005" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="leg_right_length_joint" type="prismatic">
+        <origin rpy="0 3.141592653589793 0" xyz="0 -0.0669 -0.09" />
+        <parent link="leg_right_3_link" />
+        <child link="leg_right_length_link" />
+        <axis xyz="0 0 1" />
+        <limit effort="1100" lower="0.131973" upper="0.71416639" velocity="10.0" />
+    </joint>
+    <joint name="leg_right_femur_joint" type="revolute">
+        <origin rpy="0 -1.2217304763960306 0" xyz="0 -0.0669 -0.09" />
+        <parent link="leg_right_3_link" />
+        <child link="leg_right_femur_link" />
+        <axis xyz="0 1 0" />
+        <limit effort="100" lower="0.17453292519943295" upper="1.2217304763960306" velocity="3.87" />
+    </joint>
+    <joint name="leg_right_knee_joint" type="revolute">
+        <origin rpy="0 2.443460952792061 0" xyz="0.129944529468438 0 -0.357091611860635" />
+        <parent link="leg_right_femur_link" />
+        <child link="leg_right_knee_link" />
+        <axis xyz="0 -1 0" />
+        <limit effort="100" lower="0.3490658503988659" upper="2.443460952792061" velocity="3.87" />
+    </joint>
+    <link name="leg_right_knee_straight" />
+    <joint name="leg_right_knee_straight_joint" type="fixed" dont_collapse="true">
+        <parent link="leg_right_knee_link" />
+        <child link="leg_right_knee_straight" />
+        <origin rpy="0 -1.2217304763960306 0" xyz="0 0 0" />
+    </joint>
+    <link name="leg_right_knee_lower_bearing" />
+    <joint name="leg_right_knee_lower_bearing_joint" type="fixed" dont_collapse="true">
+        <parent link="leg_right_knee_straight" />
+        <child link="leg_right_knee_lower_bearing" />
+        <origin rpy="0 0 0" xyz="-0.38 0.0 0.0" />
+    </joint>
+    <link name="leg_right_4_link">
+        <inertial>
+            <origin rpy="0 0 0"
+                xyz="-0.00759994843981759 -6.94997526196062E-09 5.88281323654627E-08" />
+            <mass value="0.0905838346535586" />
+            <inertia ixx="4.05264139412808E-06" ixy="-5.2860301956695E-12"
+                ixz="4.99859544268276E-11" iyy="2.92762581820543E-05" iyz="6.24254988575372E-12"
+                izz="2.98863057177445E-05" />
+        </inertial>
+        <visual>
+            <origin rpy="0 -0.3490658503988659 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/leg/leg_6_link.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="leg_right_4_joint" type="revolute">
+        <origin rpy="0 3.490658503988659 0" xyz="0.0 0 0.0" />
+        <parent link="leg_right_length_link" />
+        <child link="leg_right_4_link" />
+        <axis xyz="0 1 0" />
+        <limit effort="140" lower="-0.7417649320975901" upper="0.6632251157578453" velocity="3.87" />
+    </joint>
+    <link name="leg_right_5_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0056012722847415 -5.98528992629133E-06 -0.0297244079568318" />
+            <mass value="0.61562973648731" />
+            <inertia ixx="0.000511104633992357" ixy="2.29520535343244E-08"
+                ixz="-0.000504403659563376" iyy="0.00170802543470207" iyz="-1.88812897159487E-09"
+                izz="0.00181438717200554" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/leg/leg_7_link.stl" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+        <collision>
+            <origin rpy="0 -0.3490658503988659 0" xyz="0.01 0.0 -0.028" />
+            <geometry><!-- The length of the sole is around 24cm, but with the attached rubber sole
+                it would be 24.9cm -->
+                <box size="0.249 0.10 0.025" />
+            </geometry>
+        </collision><!-- The
+        FT sensors is still not available --><!--
+        <xacro:if value="${legs_type in ['ft-leg']}">        <inertial>          <origin xyz="0.0056012722847415
+        -8.11751E-06 -0.062005508" rpy="0 0 0" />          <mass value="0.826924" />          <inertia
+        ixx="0.000511104633992357" ixy="2.29520535343244E-08" ixz="-0.000504403659563376"
+        iyy="0.00170802543470207" iyz="-1.88812897159487E-09" izz="0.00181438717200554" />
+        </inertial>        <visual>          <origin xyz="0 0 0" rpy="0 ${-20.0 * deg_to_rad} 0" />          <geometry>            <mesh
+        filename="assets/leg/leg_7_link_ft.stl" />          </geometry>
+        <material name="">            <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+        </material>        </visual>        <xacro:link_collision           mujoco="${sim_type in ['mujoco-ros2-control',
+        'mujoco']}"          collision_type="${collision_type}"
+        mesh_file="assets/leg/leg_7_link_ft.stl"          scale="1 ${reflect}
+        1">            <properties>              <xacro:origin xyz="0 0 0" rpy="0 ${-20.0 * deg_to_rad} 0"
+        condition="${collision_type == 'mesh'}"/>              <xacro:origin xyz="0 0 0" rpy="0 0 0"
+        condition="${collision_type == 'capsule'}"/>            </properties>        </xacro:link_collision>
+        <collision>          <origin xyz="0.02 0.0 -0.056" rpy="0 ${-20.0 * deg_to_rad} 0" />          <geometry>            <box
+        size="0.249 0.10 0.025"/>          </geometry>        </collision>      </xacro:if> -->
+    </link>
+    <joint name="leg_right_5_joint" type="revolute">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <parent link="leg_right_4_link" />
+        <child link="leg_right_5_link" />
+        <axis xyz="-1 0 0" />
+        <limit effort="82" lower="-0.47123889803846897" upper="0.47123889803846897" velocity="3.87" />
+    </joint>
+    <link name="leg_right_5_aligned_link" />
+    <joint name="leg_right_5_aligned_joint" type="fixed" dont_collapse="true">
+        <parent link="leg_right_5_link" />
+        <child link="leg_right_5_aligned_link" />
+        <origin rpy="0 -0.3490658503988659 0" xyz="0 0 0" />
+    </joint><!-- The FT sensors is still
+    not available --><!-- <xacro:if
+    value="${legs_type in ['ft-leg']}">      <link name="${side}_ft_sensor_link"/>            <joint
+    name="${side}_ft_sensor_joint" type="fixed" dont_collapse="true">        <parent
+    link="leg_${side}_${roll_joint}_aligned_link" />        <child link="${side}_ft_sensor_link" />        <origin
+    xyz="0.00855050358313864 0 -0.023492315519661" rpy="0 ${-20.0 * deg_to_rad} 0" />      </joint>
+    </xacro:if> -->
+    <link name="right_sole_link" />
+    <joint name="right_sole_joint" type="fixed" dont_collapse="true">
+        <parent link="leg_right_5_aligned_link" />
+        <child link="right_sole_link" />
+        <origin rpy="0 0 0" xyz="0.0 0.0 -0.0425" /><!-- The FT sensors is still not available --><!-- <xacro:if value="${legs_type in
+        ['ft-leg']}">        <parent link="${side}_ft_sensor_link" />        <child link="${side}_sole_link" />
+        <origin xyz="0.006889 0 -0.0495" rpy="0 0 0" />      </xacro:if> -->
+    </joint>
+    <link name="right_foot_upper_left" />
+    <link name="right_foot_upper_right" />
+    <link name="right_foot_lower_left" />
+    <link name="right_foot_lower_right" />
+    <joint name="right_foot_upper_left_fix_joint" type="fixed" dont_collapse="true">
+        <parent link="right_sole_link" />
+        <child link="right_foot_upper_left" />
+        <origin rpy="0 0 0" xyz="0.11499999999999999 0.045 0.0" />
+    </joint>
+    <joint name="right_foot_upper_right_fix_joint" type="fixed" dont_collapse="true">
+        <parent link="right_sole_link" />
+        <child link="right_foot_upper_right" />
+        <origin rpy="0 0 0" xyz="0.11499999999999999 -0.045 0.0" />
+    </joint>
+    <joint name="right_foot_lower_left_fix_joint" type="fixed" dont_collapse="true">
+        <parent link="right_sole_link" />
+        <child link="right_foot_lower_left" />
+        <origin rpy="0 0 0" xyz="-0.095 0.045 0.0" />
+    </joint>
+    <joint name="right_foot_lower_right_fix_joint" type="fixed" dont_collapse="true">
+        <parent link="right_sole_link" />
+        <child link="right_foot_lower_right" />
+        <origin rpy="0 0 0" xyz="-0.095 -0.045 0.0" />
+    </joint>
+    <link name="arm_left_base_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="5.0487E-20 -8.4182E-19 -8.6258E-19" />
+            <mass value="9.05E-07" />
+            <inertia ixx="1.5083E-13" ixy="1.999E-45" ixz="1.121E-44" iyy="1.5083E-13"
+                iyz="1.3225E-30" izz="1.5083E-13" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/arm_7dof/arm_base_link.STL" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="arm_left_fixed_joint" type="fixed" dont_collapse="true">
+        <origin rpy="1.3963 3.14159 3.14159" xyz="0 0.105954 0.384396" />
+        <parent link="torso_link" />
+        <child link="arm_left_base_link" />
+    </joint><!-- ARM 1 LINK -->
+    <link name="arm_left_1_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0070639 0.0030301 -0.05724" />
+            <mass value="1.1788" />
+            <inertia ixx="0.0018877" ixy="-1.381E-05" ixz="0.0001773" iyy="0.0017479"
+                iyz="0.00015024" izz="0.00093304" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/arm_7dof/arm1_link.STL" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="arm_left_1_joint" type="revolute">
+        <origin rpy="3.1416 0 3.1416" xyz="0 0 0" />
+        <parent link="arm_left_base_link" />
+        <child link="arm_left_1_link" />
+        <axis xyz="0 0 -1" />
+        <limit effort="43.0" lower="-2.6179938779914944" upper="2.6179938779914944" velocity="1.95" />
+    </joint><!--
+    ARM 2 LINK -->
+    <link name="arm_left_2_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.029543 -0.0049762 -0.03224" />
+            <mass value="1.2955" />
+            <inertia ixx="0.0010407" ixy="0.00021626" ixz="-7.8277E-05" iyy="0.0025763"
+                iyz="2.852E-05" izz="0.00278" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/arm_7dof/arm2_link.STL" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="arm_left_2_joint" type="revolute">
+        <origin rpy="0 1.5708 0" xyz="0.03711 0.02 -0.17011" />
+        <parent link="arm_left_1_link" />
+        <child link="arm_left_2_link" />
+        <axis xyz="0 0 1" />
+        <limit effort="43.0" lower="-1.1344640137963142" upper="2.443460952792061" velocity="1.95" />
+    </joint><!--
+    ARM 3 LINK -->
+    <link name="arm_left_3_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.00706385150119045 -0.00303012962734226 -0.057239609417753" />
+            <mass value="1.17879344725727" />
+            <inertia ixx="0.00188766846544263" ixy="-1.38098265613225E-05"
+                ixz="-0.000177300118622874" iyy="0.00174794520670999" iyz="-0.000150238800636052"
+                izz="0.000933036766099138" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/arm_7dof/arm3_link.STL" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="arm_left_3_joint" type="revolute">
+        <origin rpy="0 -1.5708 0" xyz="0.15989 -0.02 -0.03711" />
+        <parent link="arm_left_2_link" />
+        <child link="arm_left_3_link" />
+        <axis xyz="0 0 -1" />
+        <limit effort="43.0" lower="-2.6179938779914944" upper="2.6179938779914944" velocity="2.35" />
+    </joint><!--
+    Tool Link -->
+    <link name="arm_left_tool_link" />
+    <joint name="arm_left_tool_fixed_joint" type="fixed" dont_collapse="true">
+        <origin rpy="0 0 0" xyz="0.35 -0.02 -0.0255" />
+        <parent link="arm_left_4_link" />
+        <child link="arm_left_tool_link" />
+    </joint>
+    <link name="arm_right_base_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="5.0487E-20 -8.4182E-19 -8.6258E-19" />
+            <mass value="9.05E-07" />
+            <inertia ixx="1.5083E-13" ixy="1.999E-45" ixz="1.121E-44" iyy="1.5083E-13"
+                iyz="1.3225E-30" izz="1.5083E-13" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/arm_7dof/arm_base_link.STL" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="arm_right_fixed_joint" type="fixed" dont_collapse="true">
+        <origin rpy="1.3963 3.14159 0" xyz="0 -0.105954 0.384396" />
+        <parent link="torso_link" />
+        <child link="arm_right_base_link" />
+    </joint><!-- ARM 1 LINK -->
+    <link name="arm_right_1_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0070639 0.0030301 -0.05724" />
+            <mass value="1.1788" />
+            <inertia ixx="0.0018877" ixy="-1.381E-05" ixz="0.0001773" iyy="0.0017479"
+                iyz="0.00015024" izz="0.00093304" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/arm_7dof/arm1_link.STL" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="arm_right_1_joint" type="revolute">
+        <origin rpy="3.1416 0 3.1416" xyz="0 0 0" />
+        <parent link="arm_right_base_link" />
+        <child link="arm_right_1_link" />
+        <axis xyz="0 0 -1" />
+        <limit effort="43.0" lower="-2.6179938779914944" upper="2.6179938779914944" velocity="1.95" />
+    </joint><!--
+    ARM 2 LINK -->
+    <link name="arm_right_2_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.029543 -0.0049762 -0.03224" />
+            <mass value="1.2955" />
+            <inertia ixx="0.0010407" ixy="0.00021626" ixz="-7.8277E-05" iyy="0.0025763"
+                iyz="2.852E-05" izz="0.00278" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/arm_7dof/arm2_link.STL" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="arm_right_2_joint" type="revolute">
+        <origin rpy="0 1.5708 0" xyz="0.03711 0.02 -0.17011" />
+        <parent link="arm_right_1_link" />
+        <child link="arm_right_2_link" />
+        <axis xyz="0 0 1" />
+        <limit effort="43.0" lower="-1.1344640137963142" upper="2.443460952792061" velocity="1.95" />
+    </joint><!--
+    ARM 3 LINK -->
+    <link name="arm_right_3_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="-0.00706385150119045 -0.00303012962734226 -0.057239609417753" />
+            <mass value="1.17879344725727" />
+            <inertia ixx="0.00188766846544263" ixy="-1.38098265613225E-05"
+                ixz="-0.000177300118622874" iyy="0.00174794520670999" iyz="-0.000150238800636052"
+                izz="0.000933036766099138" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh filename="assets/arm_7dof/arm3_link.STL" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual>
+    </link>
+    <joint name="arm_right_3_joint" type="revolute">
+        <origin rpy="0 -1.5708 0" xyz="0.15989 -0.02 -0.03711" />
+        <parent link="arm_right_2_link" />
+        <child link="arm_right_3_link" />
+        <axis xyz="0 0 -1" />
+        <limit effort="43.0" lower="-2.6179938779914944" upper="2.6179938779914944" velocity="2.35" />
+    </joint><!--
+    Tool Link -->
+    <link name="arm_right_tool_link" />
+    <joint name="arm_right_tool_fixed_joint" type="fixed" dont_collapse="true">
+        <origin rpy="0 0 0" xyz="0.35 -0.02 -0.0255" />
+        <parent link="arm_right_4_link" />
+        <child link="arm_right_tool_link" />
+    </joint><!-- END EFFECTOR -->
+    <link name="arm_left_4_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0752641 -0.0079317 -0.023427" />
+            <mass value="1.4353488" />
+            <inertia ixx="0.0012553" ixy="-0.0012835" ixz="9.49E-05" iyy="0.0209442" iyz="-1.1E-06"
+                izz="0.0210127" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh
+                    filename="assets/arm_7dof/fake_forearm_left_link.stl"
+                    scale="1 1 1" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual><!-- Cylinder (main body) -->
+        <collision>
+            <origin rpy="0.805655 1.46244 0.73029" xyz="0.210246 -0.0167497 -0.0171982" />
+            <geometry>
+                <cylinder length="0.43843343404800533" radius="0.05484904304125771" />
+            </geometry>
+        </collision><!--
+        Top Sphere -->
+        <collision>
+            <origin rpy="0.805655 1.46244 0.73029"
+                xyz="0.42817704303974863 -0.03384937265563141 -0.0007777646385625954" />
+            <geometry>
+                <sphere radius="0.05484904304125771" />
+            </geometry>
+        </collision><!--
+        Bottom Sphere -->
+        <collision>
+            <origin rpy="0.805655 1.46244 0.73029"
+                xyz="-0.007685043039748651 0.00034997265563141075 -0.0336186353614374" />
+            <geometry>
+                <sphere radius="0.05484904304125771" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="arm_left_4_joint" type="revolute">
+        <origin rpy="3.14159 1.5708 0" xyz="-0.03711 -0.02 -0.17011" />
+        <parent link="arm_left_3_link" />
+        <child link="arm_left_4_link" />
+        <axis xyz="0 0 1" />
+        <limit effort="43.0" lower="-1.1345" upper="2.4435" velocity="2.35" />
+    </joint>
+    <link name="arm_right_4_link">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0.0752641 -0.0079317 -0.023427" />
+            <mass value="1.4353488" />
+            <inertia ixx="0.0012553" ixy="-0.0012835" ixz="9.49E-05" iyy="0.0209442" iyz="-1.1E-06"
+                izz="0.0210127" />
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0" />
+            <geometry>
+                <mesh
+                    filename="assets/arm_7dof/fake_forearm_right_link.stl"
+                    scale="1 1 1" />
+            </geometry>
+            <material name="pal_DarkGrey" />
+        </visual><!-- Cylinder (main body) -->
+        <collision>
+            <origin rpy="1.18814 1.49122 1.11539" xyz="0.210649 -0.0172373 -0.0265895" />
+            <geometry>
+                <cylinder length="0.43843343404800533" radius="0.05484904304125771" />
+            </geometry>
+        </collision><!--
+        Top Sphere -->
+        <collision>
+            <origin rpy="1.18814 1.49122 1.11539"
+                xyz="0.42917193785528285 -0.03340387728294976 -0.020082854717501843" />
+            <geometry>
+                <sphere radius="0.05484904304125771" />
+            </geometry>
+        </collision><!--
+        Bottom Sphere -->
+        <collision>
+            <origin rpy="1.18814 1.49122 1.11539"
+                xyz="-0.00787393785528287 -0.0010707227170502383 -0.03309614528249816" />
+            <geometry>
+                <sphere radius="0.05484904304125771" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="arm_right_4_joint" type="revolute">
+        <origin rpy="3.14159 1.5708 0" xyz="-0.03711 -0.02 -0.17011" />
+        <parent link="arm_right_3_link" />
+        <child link="arm_right_4_link" />
+        <axis xyz="0 0 1" />
+        <limit effort="43.0" lower="-1.1345" upper="2.4435" velocity="2.35" />
+    </joint>
+
+
+    <loop_joint name="leg_left_closed_kin_joint" type="spherical">
+        <link1 link="leg_left_4_link" rpy="0 0 0" xyz="0 0 0"/>
+        <link2 link="leg_left_knee_link" rpy="0 0 0" xyz="0 0 0"/>
+    </loop_joint>
+
+    <loop_joint name="leg_right_closed_kin_joint" type="spherical">
+        <link1 link="leg_right_4_link" rpy="0 0 0" xyz="0 0 0"/>
+        <link2 link="leg_right_knee_link" rpy="0 0 0" xyz="0 0 0"/>
+    </loop_joint>
+</robot>
