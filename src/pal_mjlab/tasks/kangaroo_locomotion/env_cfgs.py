@@ -176,8 +176,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
 
     cfg.rewards["body_ang_vel"].weight = -0.05
-    # cfg.rewards["angular_momentum"].weight = -0.02
-    cfg.rewards["air_time"].weight = 0.1
+    cfg.rewards["angular_momentum"].weight = -0.02
+    cfg.rewards["air_time"].weight = 0.25
 
     cfg.rewards["self_collisions"] = RewardTermCfg(
         func=mdp.self_collision_cost,
@@ -188,8 +188,27 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     # cfg.rewards["self_collisions"] = None
     # cfg.rewards["air_time"] = None
     # cfg.rewards["angular_momentum"] = None
-    # cfg.curriculum["command_vel"] = None
-
+    cfg.curriculum["air_time"] = CurriculumTermCfg(
+      func=mdp.reward_weight,
+      params={
+        "reward_name": "air_time",
+        "weight_stages": [
+          {"step": 0, "weight": 0.25},
+          {"step": 5000 * 24, "weight": 1.0},
+          {"step": 10_000 * 24, "weight": 2.0},
+        ],
+      },
+    )
+    cfg.curriculum["soft_landing"] = CurriculumTermCfg(
+      func=mdp.reward_weight,
+      params={
+        "reward_name": "soft_landing",
+        "weight_stages": [
+          {"step": 0, "weight": -1e-5},
+          {"step": 5000 * 24, "weight": -1e-2},
+        ],
+      },
+    )
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
         func=mdp.illegal_contact,
         params={"sensor_name": "body_ground_contact"},
