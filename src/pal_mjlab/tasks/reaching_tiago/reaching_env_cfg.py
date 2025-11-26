@@ -39,9 +39,13 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             noise=Unoise(n_min=-1.5, n_max=1.5),
         ),
         "actions": ObservationTermCfg(func=mdp.last_action),
-        "commands": ObservationTermCfg(
+        "pose_command_left": ObservationTermCfg(
             func=mdp.commands_gen,
             params={"command_name": "pose_command_left"},
+        ),
+        "pose_command_right": ObservationTermCfg(
+            func=mdp.commands_gen,
+            params={"command_name": "pose_command_right"},
         ),
     }
 
