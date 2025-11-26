@@ -182,7 +182,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
         "action_rate_left_arm_l2": RewardTermCfg(
             func=mdp.action_rate_l2_louis,
-            weight=-0.1,
+            weight=-0.0001,
             params={
                 "asset_cfg": SceneEntityCfg(
                     "robot", joint_names=(".*",)
@@ -213,6 +213,16 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     # Curriculum
     ## --------------------------------------------------------
     curriculum = {
+        "action_rate_curr": CurriculumTermCfg(
+            func=mdp.reward_weight,
+            params={
+                "reward_name": "action_rate_left_arm_l2",
+                "weight_stages": [
+                    {"step": 0, "weight": -0.0001},
+                    {"step": 5_000 * 24, "weight": -0.005},
+                ],
+            },
+        ),
     }
 
     ## --------------------------------------------------------
