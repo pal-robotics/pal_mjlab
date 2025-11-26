@@ -195,7 +195,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={"sensor_name": "body_ground_contact"},
     )
     
-    # Apply play mode overrides.
+    # Apply play mode overrides.kirby
+    
     if play:
         # Effectively infinite episode length.
         cfg.episode_length_s = int(1e9)

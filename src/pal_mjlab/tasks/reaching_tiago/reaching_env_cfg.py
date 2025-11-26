@@ -17,7 +17,7 @@ from mjlab.managers.manager_term_config import (
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.scene import SceneCfg
 from mjlab.sim import MujocoCfg, SimulationCfg
-from pal_mjlab.tasks.reaching import mdp
+from pal_mjlab.tasks.reaching_tiago import mdp
 from mjlab.terrains import TerrainImporterCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
@@ -80,10 +80,10 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     ## --------------------------------------------------------
 
     commands: dict[str, CommandTermCfg] = {
-        "pose_command_right": mdp.UniformPoseCommandCfg(
+        "pose_command_left": mdp.UniformPoseCommandCfg(
             asset_name="robot",
             debug_vis=True,
-            resampling_time_range=(3.0, 8.0),
+            resampling_time_range=(5.0, 10.0),
             site_name="ee_left",
             ranges=mdp.PoseRanges(
                 pos_x=(0.0, 0.0),  # Set per-robot.
@@ -98,23 +98,11 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     ## --------------------------------------------------------
 
     events = {
-        "reset_base": EventTermCfg(
-            func=mdp.reset_root_state_uniform,
-            mode="reset",
-            params={
-                "pose_range": {
-                    "x": (-0.5, 0.5),
-                    "y": (-0.5, 0.5),
-                    "yaw": (-3.14, 3.14),
-                },
-                "velocity_range": {},
-            },
-        ),
         "reset_robot_joints": EventTermCfg(
             func=mdp.reset_joints_by_offset,
             mode="reset",
             params={
-                "position_range": (0.0, 0.0),
+                "position_range": (0.1, 0.1),
                 "velocity_range": (0.0, 0.0),
                 "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
             },
@@ -126,14 +114,6 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     ## --------------------------------------------------------
 
     rewards = {
-        "upright": RewardTermCfg(
-            func=mdp.flat_orientation,
-            weight=1.0,
-            params={
-                "std": math.sqrt(0.2),
-                "asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per-robot.
-            },
-        ),
         "pos_left": RewardTermCfg(
             func=mdp.position_command_error,
             weight=-0.5,
@@ -144,40 +124,41 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "pos_left_fine_grained": RewardTermCfg(
             func=mdp.position_command_error_tanh,
-            weight=0.5,
+            weight=0.0,
             params={
                 "site_name": "ee_left",
                 "command_name": "pose_command_left",
                 "std": 0.1,
             },
         ),
-        "pose": RewardTermCfg(
-            func=mdp.posture,
-            weight=1.0,
+        "ee_orientation": RewardTermCfg(
+            func=mdp.orientation_command_error,
+            weight=-0.2,
             params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-                "std": {},  # Set per-robot.
+                "site_name": "ee_left",
+                "command_name": "pose_command_left",
             },
         ),
         "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
-        "action_rate_body_l2": RewardTermCfg(
-            func=mdp.action_rate_l2_louis,
-            weight=-0.01,
-            params={
-                "asset_cfg": SceneEntityCfg(
-                    "robot", joint_names=(".*",)
-                ),  # Set per-robot.
-            },
-        ),
         "action_rate_left_arm_l2": RewardTermCfg(
             func=mdp.action_rate_l2_louis,
-            weight=-0.0001,
+            weight=-0.1,
             params={
                 "asset_cfg": SceneEntityCfg(
                     "robot", joint_names=(".*",)
                 ),  # Set per-robot.
             },
         ),
+        "joint_acc_l2": RewardTermCfg(
+        func=mdp.joint_acc_l2,
+        weight=-0.1e-4,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=(".*",),
+            ),
+        },
+    ),
     }
 
     ## --------------------------------------------------------
