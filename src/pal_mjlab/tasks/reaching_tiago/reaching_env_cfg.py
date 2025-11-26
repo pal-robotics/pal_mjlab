@@ -158,16 +158,16 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             func=mdp.position_command_error,
             weight=-0.5,
             params={
-                "site_name": "ee_left",
-                "command_name": "pose_command_left",
+                "site_name": "ee_right",
+                "command_name": "pose_command_right",
             },
         ),
         "pos_right_fine_grained": RewardTermCfg(
             func=mdp.position_command_error_tanh,
             weight=0.0,
             params={
-                "site_name": "ee_left",
-                "command_name": "pose_command_left",
+                "site_name": "ee_right",
+                "command_name": "pose_command_right",
                 "std": 0.1,
             },
         ),
@@ -175,8 +175,8 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             func=mdp.orientation_command_error,
             weight=-0.2,
             params={
-                "site_name": "ee_left",
-                "command_name": "pose_command_left",
+                "site_name": "ee_right",
+                "command_name": "pose_command_right",
             },
         ),
         "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
