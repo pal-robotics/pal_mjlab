@@ -90,6 +90,17 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 pos_y=(0.0, 0.0),  # Set per-robot.
                 pos_z=(0.0, 0.0),  # Set per-robot.
             ),
+        ),
+        "pose_command_right": mdp.UniformPoseCommandCfg(
+            asset_name="robot",
+            debug_vis=True,
+            resampling_time_range=(5.0, 10.0),
+            site_name="ee_right",
+            ranges=mdp.PoseRanges(
+                pos_x=(0.0, 0.0),  # Set per-robot.
+                pos_y=(0.0, 0.0),  # Set per-robot.
+                pos_z=(0.0, 0.0),  # Set per-robot.
+            ),
         )
     }
 
@@ -131,7 +142,32 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "std": 0.1,
             },
         ),
-        "ee_orientation": RewardTermCfg(
+        "ee_left_orientation": RewardTermCfg(
+            func=mdp.orientation_command_error,
+            weight=-0.2,
+            params={
+                "site_name": "ee_left",
+                "command_name": "pose_command_left",
+            },
+        ),
+        "pos_right": RewardTermCfg(
+            func=mdp.position_command_error,
+            weight=-0.5,
+            params={
+                "site_name": "ee_left",
+                "command_name": "pose_command_left",
+            },
+        ),
+        "pos_right_fine_grained": RewardTermCfg(
+            func=mdp.position_command_error_tanh,
+            weight=0.0,
+            params={
+                "site_name": "ee_left",
+                "command_name": "pose_command_left",
+                "std": 0.1,
+            },
+        ),
+        "ee_right_orientation": RewardTermCfg(
             func=mdp.orientation_command_error,
             weight=-0.2,
             params={
@@ -199,7 +235,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         viewer=ViewerConfig(
             origin_type=ViewerConfig.OriginType.ASSET_BODY,
             asset_name="robot",
-            body_name="",  # Set per-robot.
+            body_name="base_footprint",  # Set per-robot.
             distance=3.0,
             elevation=-5.0,
             azimuth=90.0,

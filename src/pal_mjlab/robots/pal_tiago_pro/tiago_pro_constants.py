@@ -300,7 +300,7 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         # wheels
         "wheel_.*_joint": 0.0,
         # torso
-        "torso_lift_joint": 0.0,  
+        "torso_lift_joint": 0.0825 ,  
         # head
         "head_1_joint": 0.0,
         "head_2_joint": 0.0,
@@ -309,14 +309,14 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         "arm_left_2_joint": -1.8266,
         "arm_left_3_joint": 0.4698,
         "arm_left_4_joint": -2.3409,
-        "arm_left_5_joint": 0.0001,
+        "arm_left_5_joint": 0.0,
         "arm_left_6_joint": -1.2006,
         "arm_left_7_joint": 0.0,
         "arm_right_1_joint": -0.3576,
         "arm_right_2_joint": -1.8266,
         "arm_right_3_joint": -0.4698,
-        "arm_right_4_joint": -0.23409,
-        "arm_right_5_joint": 0.0002,
+        "arm_right_4_joint": -2.3409,
+        "arm_right_5_joint": 0.0,
         "arm_right_6_joint": -1.2006,
         "arm_right_7_joint": 0.0,
         # grippers 
@@ -356,7 +356,7 @@ TIAGO_ARTICULATION = EntityArticulationInfoCfg(
         ARM_5_L_ACTUATOR_CFG,
         ARM_6_L_ACTUATOR_CFG,
         ARM_7_L_ACTUATOR_CFG,
-        # TORSO_ACTUATOR_CFG,
+        TORSO_ACTUATOR_CFG,
         # HEAD_ACTUATOR_CFG,
         # WHEEL_ACTUATOR_CFG,
         # GRIPPER_ACTUATOR_CFG,
