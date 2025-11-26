@@ -126,7 +126,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"leg_.*_1_.*": 0.05,
         r"leg_.*_2_.*": 0.05,
         r"leg_.*_3_.*": 0.05,
-        r"leg_.*_length_.*": 0.15,
+        r"leg_.*_length_.*": 0.05,
         r"leg_.*_4_.*": 0.05,
         r"leg_.*_5_.*": 0.05,
         # Waist.
@@ -139,7 +139,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"leg_.*_1_.*": 0.15,
         r"leg_.*_2_.*": 0.3,  # pitch
         r"leg_.*_3_.*": 0.15,
-        r"leg_.*_length_.*": 0.25,  # length
+        r"leg_.*_length_.*": 0.15,  # length
         r"leg_.*_4_.*": 0.25,
         r"leg_.*_5_.*": 0.1,
         # Waist.
@@ -156,7 +156,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"leg_.*_1_.*": 0.2,
         r"leg_.*_2_.*": 0.5,
         r"leg_.*_3_.*": 0.2,
-        r"leg_.*_length_.*": 0.1,
+        r"leg_.*_length_.*": 0.25,
         r"leg_.*_4_.*": 0.35,
         r"leg_.*_5_.*": 0.15,
         # Waist.
@@ -188,27 +188,28 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     # cfg.rewards["self_collisions"] = None
     # cfg.rewards["air_time"] = None
     # cfg.rewards["angular_momentum"] = None
-    cfg.curriculum["air_time"] = CurriculumTermCfg(
-      func=mdp.reward_weight,
-      params={
-        "reward_name": "air_time",
-        "weight_stages": [
-          {"step": 0, "weight": 0.25},
-          {"step": 5000 * 24, "weight": 1.0},
-          {"step": 10_000 * 24, "weight": 2.0},
-        ],
-      },
-    )
-    cfg.curriculum["soft_landing"] = CurriculumTermCfg(
-      func=mdp.reward_weight,
-      params={
-        "reward_name": "soft_landing",
-        "weight_stages": [
-          {"step": 0, "weight": -1e-5},
-          {"step": 5000 * 24, "weight": -1e-2},
-        ],
-      },
-    )
+    # cfg.curriculum["air_time"] = CurriculumTermCfg(
+    #   func=mdp.reward_weight,
+    #   params={
+    #     "reward_name": "air_time",
+    #     "weight_stages": [
+    #       {"step": 0, "weight": 0.25},
+    #       {"step": 5000 * 24, "weight": 1.0},
+    #     #   {"step": 10_000 * 24, "weight": 2.0},
+    #     ],
+    #   },
+    # )
+    # cfg.curriculum["soft_landing"] = CurriculumTermCfg(
+    #   func=mdp.reward_weight,
+    #   params={
+    #     "reward_name": "soft_landing",
+    #     "weight_stages": [
+    #       {"step": 0, "weight": -1e-5},
+    #       {"step": 5000 * 24, "weight": -1e-2},
+    #     #   {"step": 15_000 * 24, "weight": -1.0},
+    #     ],
+    #   },
+    # )
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
         func=mdp.illegal_contact,
         params={"sensor_name": "body_ground_contact"},
