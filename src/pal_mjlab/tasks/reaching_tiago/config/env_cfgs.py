@@ -5,6 +5,9 @@ from pal_mjlab.robots import (
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
+from mjlab.managers.manager_term_config import RewardTermCfg
+from mjlab.sensor import ContactMatch, ContactSensorCfg
+from pal_mjlab.tasks.reaching_tiago import mdp
 from pal_mjlab.tasks.reaching_tiago.reaching_env_cfg import make_reaching_env_cfg
 
 def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -30,5 +33,26 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.commands["pose_command_right"].ranges.roll = (-3.14, 3.14)
     cfg.commands["pose_command_right"].ranges.pitch = (-3.14/2, 3.14/2)
     cfg.commands["pose_command_right"].ranges.yaw = (-3.14, 3.14)
+
+    self_collision_cfg = ContactSensorCfg(
+        name="self_collision",
+        primary=ContactMatch(mode="subtree", pattern="base_footprint", entity="robot"),
+        secondary=ContactMatch(mode="subtree", pattern="base_footprint", entity="robot"),
+        fields=("found",),
+        reduce="none",
+        num_slots=1,
+    )
+    cfg.scene.sensors = (self_collision_cfg)
+
+    cfg.rewards["pose"].params["std_standing"] = {
+        # Lower body.
+        r"torso_lift_link": 1.0,
+    }
+
+    cfg.rewards["self_collisions"] = RewardTermCfg(
+        func=mdp.self_collision_cost,
+        weight=-1.0,
+        params={"sensor_name": self_collision_cfg.name},
+    )
 
     return cfg

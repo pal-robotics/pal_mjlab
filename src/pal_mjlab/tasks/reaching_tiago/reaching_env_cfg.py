@@ -194,10 +194,18 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot",
-                joint_names=(".*",),
-            ),
-        },
-    ),
+                joint_names=(".*",),),
+            },
+        ),
+        "stand_still_joint_deviation_l1": RewardTermCfg(
+            func=mdp.stand_still_joint_deviation_l1,
+            weight=0.0,
+            params={
+                "asset_cfg": SceneEntityCfg(
+                    "robot",
+                    joint_names=(".*",),),
+            },
+        ),
     }
 
     ## --------------------------------------------------------

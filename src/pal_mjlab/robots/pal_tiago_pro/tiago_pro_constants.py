@@ -300,7 +300,7 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         # wheels
         "wheel_.*_joint": 0.0,
         # torso
-        "torso_lift_joint": 0.0825 ,  
+        "torso_lift_joint": 0.1 ,  
         # head
         "head_1_joint": 0.0,
         "head_2_joint": 0.0,
