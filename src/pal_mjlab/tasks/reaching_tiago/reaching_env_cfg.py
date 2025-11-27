@@ -32,7 +32,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     policy_terms = {
         "joint_pos": ObservationTermCfg(
             func=mdp.joint_pos_rel,
-            noise=Unoise(n_min=-0.01, n_max=0.01),
+            noise=Unoise(n_min=-0.07, n_max=0.07),
         ),
         "joint_vel": ObservationTermCfg(
             func=mdp.joint_vel_rel,
@@ -122,6 +122,17 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
             },
         ),
+        "reset_frictionloss": EventTermCfg(
+            mode="reset",
+            func=mdp.randomize_field,
+            domain_randomization=True,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
+                "field": "dof_frictionloss",
+                "ranges": (0.5, 2.0),
+                "operation": "abs",
+            },
+        )
     }
 
     ## --------------------------------------------------------
