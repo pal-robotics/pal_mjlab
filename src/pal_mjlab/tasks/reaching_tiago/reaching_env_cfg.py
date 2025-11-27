@@ -131,7 +131,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     rewards = {
         "pos_left": RewardTermCfg(
             func=mdp.position_command_error,
-            weight=-0.2,
+            weight=-2.0,
             params={
                 "site_name": "ee_left",
                 "command_name": "pose_command_left",
@@ -139,16 +139,16 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "pos_left_fine_grained": RewardTermCfg(
             func=mdp.position_command_error_tanh,
-            weight=0.1,
+            weight=2.0,
             params={
                 "site_name": "ee_left",
                 "command_name": "pose_command_left",
-                "std": 0.1,
+                "std": 0.05,
             },
         ),
         "ee_left_orientation": RewardTermCfg(
             func=mdp.orientation_command_error,
-            weight=-0.1,
+            weight=-0.2,
             params={
                 "site_name": "ee_left",
                 "command_name": "pose_command_left",
@@ -156,7 +156,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "pos_right": RewardTermCfg(
             func=mdp.position_command_error,
-            weight=-0.2,
+            weight=-2.0,
             params={
                 "site_name": "ee_right",
                 "command_name": "pose_command_right",
@@ -164,16 +164,16 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "pos_right_fine_grained": RewardTermCfg(
             func=mdp.position_command_error_tanh,
-            weight=0.1,
+            weight=2.0,
             params={
                 "site_name": "ee_right",
                 "command_name": "pose_command_right",
-                "std": 0.1,
+                "std": 0.05,
             },
         ),
         "ee_right_orientation": RewardTermCfg(
             func=mdp.orientation_command_error,
-            weight=-0.1,
+            weight=-0.2,
             params={
                 "site_name": "ee_right",
                 "command_name": "pose_command_right",
@@ -185,8 +185,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             weight=-0.0001,
             params={
                 "asset_cfg": SceneEntityCfg(
-                    "robot", joint_names=(".*",)
-                ),  # Set per-robot.
+                    "robot", joint_names=(".*",)),  # Set per-robot.
             },
         ),
         "joint_acc_l2": RewardTermCfg(
