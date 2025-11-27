@@ -176,6 +176,7 @@
         <inertial pos="0.0063167 -0.0045949 -0.0083828" quat="0.998081 0.0061833 0.0472134 -0.0395937" mass="2.7478" diaginertia="0.00193889 0.00182188 0.00142133" />
         <joint name="leg_right_1_joint" range="-0.698132 0.261799" actuatorfrcrange="-80 80" />
         <geom type="mesh" class="visual" mesh="leg_right_1_link" />
+        <geom name="leg_right_1_collision" size="0.0795723 0.0413497" pos="-0.0236664 -0.00650664 -0.00579961" quat="0.539802 -0.154604 0.827473 -1.45962e-06" class="collision"/>
         <body name="leg_right_2_link" pos="0.015024 0 -0.1175">
           <inertial pos="-0.0029278 -9.6207e-05 1.0866e-09" quat="0.500354 0.500354 0.499645 0.499645" mass="0.0905312" diaginertia="3.88542e-05 3.62287e-05 6.1016e-06" />
           <joint name="leg_right_2_joint" axis="0 1 0" range="-0.741765 0.663225" actuatorfrcrange="-230 230" />
@@ -235,7 +236,20 @@
       <connect anchor="0.0 0.0 0.0" body1="leg_left_4_link" body2="leg_left_knee_link" name="leg_left_closed_kin_joint" solref="0.002 1" />
       <connect anchor="0.0 0.0 0.0" body1="leg_right_4_link" body2="leg_right_knee_link" name="leg_right_closed_kin_joint" solref="0.002 1" />
   </equality>
-    
+  <contact>
+    <exclude body1="pelvis_2_link" body2="leg_left_1_link"/>
+    <exclude body1="pelvis_2_link" body2="leg_right_1_link"/>
+    <exclude body1="leg_left_1_link" body2="leg_right_1_link"/>
+    <exclude body1="leg_left_1_link" body2="leg_left_femur_link"/>
+    <exclude body1="leg_left_5_link" body2="leg_left_femur_link"/>
+    <exclude body1="leg_left_5_link" body2="leg_left_knee_link"/>
+    <exclude body1="leg_left_femur_link" body2="leg_left_knee_link"/>
+    <exclude body1="leg_right_1_link" body2="leg_right_femur_link"/>
+    <exclude body1="leg_right_5_link" body2="leg_right_femur_link"/>
+    <exclude body1="leg_right_5_link" body2="leg_right_knee_link"/>
+    <exclude body1="leg_right_femur_link" body2="leg_right_knee_link"/>
+  </contact>
+ 
   <sensor>
     <gyro name="imu_ang_vel" site="imu"/>
     <velocimeter name="imu_lin_vel" site="imu"/>

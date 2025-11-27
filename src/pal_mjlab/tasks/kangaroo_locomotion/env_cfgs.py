@@ -32,7 +32,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
 
-    cfg.sim.nconmax = 40
+    cfg.sim.nconmax = 45
 
     site_names = ("left_foot", "right_foot")
     geom_names = tuple(
