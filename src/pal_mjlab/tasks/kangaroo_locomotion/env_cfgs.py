@@ -188,7 +188,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
     cfg.rewards["power"] = RewardTermCfg(
         func=mdp.electrical_power_cost,
-        weight=-0.01,
+        weight=0.0,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=actuated_joints)},
     )
 
@@ -211,8 +211,9 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       params={
         "reward_name": "power",
         "weight_stages": [
-          {"step": 0, "weight": -0.01},
-          {"step": 5000 * 24, "weight": -0.1},
+          {"step": 0, "weight": 0.0},
+          {"step": 5000 * 24, "weight": -0.01},
+          {"step": 10000 * 24, "weight": -0.1},
         ],
       },
     )
