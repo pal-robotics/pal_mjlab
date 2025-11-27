@@ -36,8 +36,22 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     site_names = ("left_foot", "right_foot")
     geom_names = tuple(
-        f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(0, 9)
+        f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(0, 10)
     )
+    actuated_joints = (
+        # Lower body.
+        r"leg_.*_1_.*",
+        r"leg_.*_2_.*",
+        r"leg_.*_3_.*",
+        r"leg_.*_length_.*",
+        r"leg_.*_4_.*",
+        r"leg_.*_5_.*",
+        # Waist.
+        r"pelvis_.*",
+        # Arms.
+        r"arm_.*",
+    )
+
     feet_ground_cfg = ContactSensorCfg(
         name="feet_ground_contact",
         primary=ContactMatch(
@@ -108,19 +122,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
 
-    cfg.rewards["pose"].params["asset_cfg"].joint_names = (
-        # Lower body.
-        r"leg_.*_1_.*",
-        r"leg_.*_2_.*",
-        r"leg_.*_3_.*",
-        r"leg_.*_length_.*",
-        r"leg_.*_4_.*",
-        r"leg_.*_5_.*",
-        # Waist.
-        r"pelvis_.*",
-        # Arms.
-        r"arm_.*",
-    )
+    cfg.rewards["pose"].params["asset_cfg"].joint_names = actuated_joints
     cfg.rewards["pose"].params["std_standing"] = {
         # Lower body.
         r"leg_.*_1_.*": 0.05,
@@ -184,6 +186,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
     )
+    cfg.rewards["power"] = RewardTermCfg(
+        func=mdp.electrical_power_cost,
+        weight=-0.01,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=actuated_joints)},
+    )
 
     # cfg.rewards["self_collisions"] = None
     # cfg.rewards["air_time"] = None
@@ -199,17 +206,16 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     #     ],
     #   },
     # )
-    # cfg.curriculum["soft_landing"] = CurriculumTermCfg(
-    #   func=mdp.reward_weight,
-    #   params={
-    #     "reward_name": "soft_landing",
-    #     "weight_stages": [
-    #       {"step": 0, "weight": -1e-5},
-    #       {"step": 5000 * 24, "weight": -1e-2},
-    #     #   {"step": 15_000 * 24, "weight": -1.0},
-    #     ],
-    #   },
-    # )
+    cfg.curriculum["power"] = CurriculumTermCfg(
+      func=mdp.reward_weight,
+      params={
+        "reward_name": "power",
+        "weight_stages": [
+          {"step": 0, "weight": -0.01},
+          {"step": 5000 * 24, "weight": -0.1},
+        ],
+      },
+    )
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
         func=mdp.illegal_contact,
         params={"sensor_name": "body_ground_contact"},
