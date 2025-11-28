@@ -190,7 +190,9 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "command_name": "pose_command_right",
             },
         ),
-        "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
+        "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
+            weight=-1.0
+            ),
         "action_rate_l2": RewardTermCfg(
             func=mdp.action_rate_l2_louis,
             weight=-0.0001,
@@ -237,7 +239,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "reward_name": "action_rate_l2",
                 "weight_stages": [
                     {"step": 0, "weight": -0.0001},
-                    {"step": 5_000 * 24, "weight": -0.005}
+                    {"step": 5_000 * 24, "weight": -0.005},
                     {"step": 15_000 * 24, "weight": -0.01},
                 ],
             },
