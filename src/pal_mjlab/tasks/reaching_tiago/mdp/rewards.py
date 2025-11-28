@@ -127,8 +127,7 @@ def stand_still_joint_deviation_l1(
     abs_error = torch.abs(error)
 
     # amount beyond the 0.1 margin
-    excess = torch.relu(abs_error - 0.01) # louis: reduced it as 0.25 i almost all of his range
-    # excess = torch.relu(abs_error - 0.25)
+    excess = torch.relu(abs_error - 0.005) 
 
     # per-env penalty: sum of excess across all monitored joints
     penalty = torch.sum(excess, dim=1)

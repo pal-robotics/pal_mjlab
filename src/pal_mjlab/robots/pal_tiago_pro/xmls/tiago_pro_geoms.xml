@@ -58,6 +58,8 @@
 
       <geom name="col_base" type="cylinder" size="0.40 0.20" pos="0 0 0.12" contype="1" conaffinity="1" group="3" rgba="1 0 0 0.3" />
       <geom name="col_torso_head" type="cylinder" size="0.17 0.7" pos="-0.04 0 0.50" contype="1" conaffinity="1" group="3" rgba="0 0 1 0.3" />
+      <!-- <geom name="workspace_left" type="box" pos="0.45 0.15 0.606" size="0.35 0.35 0.40" rgba="0 1 0 0.15" contype="0" conaffinity="0" group="4" /> -->
+      <!-- <geom name="workspace_right" type="box" pos="0.45 -0.15 0.60" size="0.35 0.35 0.40" rgba="0 0 1 0.15" contype="0" conaffinity="0" group="4" /> -->
 
       <geom pos="-0.27512 0.18297 0.20864" quat="0 -0.382683 -0.92388 0" type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.1 0.1 0.1 1" mesh="sick_tim551" />
       <!-- <geom size="0.01 0.005" pos="-0.27512 0.18297 0.20864" quat="0 -0.382683 -0.92388 0" type="cylinder" rgba="0.1 0.1 0.1 1" group="3" /> -->
