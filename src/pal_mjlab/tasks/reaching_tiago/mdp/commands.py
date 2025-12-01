@@ -1,249 +1,189 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
-import numpy as np
 import torch
 
-from mjlab.managers import CommandTerm, CommandTermCfg
+from mjlab.entity import Entity
+from mjlab.managers.command_manager import CommandTerm
+from mjlab.managers.manager_term_config import CommandTermCfg
 from mjlab.third_party.isaaclab.isaaclab.utils.math import (
-    matrix_from_quat,
-    quat_conjugate,
-    quat_error_magnitude,
-    quat_from_euler_xyz,
-    quat_mul,
-    quat_unique,
-    sample_uniform,
+  quat_from_euler_xyz,
+  sample_uniform,
 )
-from mjlab.viewer.debug_visualizer import DebugVisualizer
 
 if TYPE_CHECKING:
-    from mjlab.entity import Entity
-    from mjlab.envs import ManagerBasedRlEnv
+  from mjlab.envs.manager_based_rl_env import ManagerBasedRlEnv
+  from mjlab.viewer.debug_visualizer import DebugVisualizer
 
 
-class UniformPoseCommand(CommandTerm):
-    cfg: UniformPoseCommandCfg
+class LiftingCommand(CommandTerm):
+  cfg: LiftingCommandCfg
 
-    def __init__(self, cfg: UniformPoseCommandCfg, env: ManagerBasedRlEnv):
-        super().__init__(cfg, env)
+  def __init__(self, cfg: LiftingCommandCfg, env: ManagerBasedRlEnv):
+    super().__init__(cfg, env)
 
-        # Extract the robot and site index for which the command is generated
-        self.robot: Entity = env.scene[cfg.asset_name]
-        self.site_idx = self.robot.site_names.index(cfg.site_name)
+    self.object: Entity = env.scene[cfg.asset_name]
 
-        # Create buffers
-        # -- commands: (x, y, z, qw, qx, qy, qz) in root frame
-        self.pose_command_b = torch.zeros(self.num_envs, 7, device=self.device)
-        self.pose_command_b[:, 3] = 1.0  # Initialize quaternion w component
-        self.pose_command_w = torch.zeros_like(self.pose_command_b)
+    self.target_height = torch.zeros(self.num_envs, device=self.device)
+    self.target_pos = torch.zeros(self.num_envs, 3, device=self.device)
 
-        # -- metrics
-        self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
-        self.metrics["orientation_error"] = torch.zeros(
-            self.num_envs, device=self.device
-        )
+    self.metrics["object_height"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["height_error"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["success_rate"] = torch.zeros(self.num_envs, device=self.device)
 
-    # def __str__(self) -> str:
-    #    msg = "UniformPoseCommand:\n"
-    #    msg += f"\tCommand dimension: {tuple(self.command.shape[1:])}\n"
-    #    msg += f"\tResampling time range: {self.cfg.resampling_time_range}\n"
-    #    return msg
+  @property
+  def command(self) -> torch.Tensor:
+    # Always return full 3D target position.
+    return self.target_pos
 
-    @property
-    def command(self) -> torch.Tensor:
-        """The desired pose command. Shape is (num_envs, 7).
+  def _update_metrics(self) -> None:
+    object_pos_w = self.object.data.root_link_pos_w
+    object_height = object_pos_w[:, 2]
 
-        The first three elements correspond to the position, followed by the quaternion
-        orientation in (w, x, y, z).
-        """
-        return self.pose_command_b
+    position_error = torch.norm(self.target_pos - object_pos_w, dim=-1)
+    height_error = torch.abs(self.target_height - object_height)
 
-    def _update_metrics(self):
-        """Update tracking error metrics."""
-        # Transform command from base frame to simulation world frame
-        # Get robot root state
-        root_pos_w = self.robot.data.site_pos_w[:, 0]  # Root site position
-        root_quat_w = self.robot.data.site_quat_w[:, 0]  # Root site quaternion
+    self.metrics["object_height"] = object_height
+    self.metrics["height_error"] = height_error
+    self.metrics["position_error"] = position_error
+    self.metrics["success_rate"] = (position_error < self.cfg.success_threshold).float()
 
-        # Transform position: p_w = p_root + R_root * p_b
-        pos_rotated = quat_mul(
-            quat_mul(
-                root_quat_w,
-                torch.cat(
-                    [
-                        torch.zeros(self.num_envs, 1, device=self.device),
-                        self.pose_command_b[:, :3],
-                    ],
-                    dim=1,
-                ),
-            ),
-            quat_conjugate(root_quat_w),
-        )[:, 1:]  # Extract xyz from quaternion product
-        self.pose_command_w[:, :3] = root_pos_w + pos_rotated
+  def compute_success(self) -> torch.Tensor:
+    position_error = self.metrics["position_error"]
+    return position_error < self.cfg.success_threshold
 
-        # Transform orientation: q_w = q_root * q_b
-        self.pose_command_w[:, 3:] = quat_mul(root_quat_w, self.pose_command_b[:, 3:])
+  def _resample_command(self, env_ids: torch.Tensor) -> None:
+    n = len(env_ids)
 
-        # Get current site pose
-        current_site_pos_w = self.robot.data.site_pos_w[:, self.site_idx]
-        current_site_quat_w = self.robot.data.site_quat_w[:, self.site_idx]
+    if self.cfg.difficulty == "fixed":
+      target_pos = torch.tensor(
+        [0.4, 0.0, 0.3], device=self.device, dtype=torch.float32
+      ).expand(n, 3)
+      # Add env_origins to make it absolute in world frame.
+      self.target_pos[env_ids] = target_pos + self._env.scene.env_origins[env_ids]
+    else:  # dynamic
+      x = sample_uniform(
+        self.cfg.target_position_range.x[0],
+        self.cfg.target_position_range.x[1],
+        (n,),
+        device=self.device,
+      )
+      y = sample_uniform(
+        self.cfg.target_position_range.y[0],
+        self.cfg.target_position_range.y[1],
+        (n,),
+        device=self.device,
+      )
+      z = sample_uniform(
+        self.cfg.target_position_range.z[0],
+        self.cfg.target_position_range.z[1],
+        (n,),
+        device=self.device,
+      )
+      target_pos = torch.stack([x, y, z], dim=-1) + self._env.scene.env_origins[env_ids]
+      self.target_pos[env_ids] = target_pos
 
-        # Compute position error
-        pos_error = current_site_pos_w - self.pose_command_w[:, :3]
-        self.metrics["position_error"] = torch.norm(pos_error, dim=-1)
+    self.target_height[env_ids] = self.target_pos[env_ids, 2]
 
-        # Compute orientation error
-        self.metrics["orientation_error"] = quat_error_magnitude(
-            self.pose_command_w[:, 3:], current_site_quat_w
-        )
+    # Reset object to new position.
+    if self.cfg.object_pose_range is not None:
+      x = sample_uniform(
+        self.cfg.object_pose_range.x[0],
+        self.cfg.object_pose_range.x[1],
+        (n,),
+        device=self.device,
+      )
+      y = sample_uniform(
+        self.cfg.object_pose_range.y[0],
+        self.cfg.object_pose_range.y[1],
+        (n,),
+        device=self.device,
+      )
+      z = sample_uniform(
+        self.cfg.object_pose_range.z[0],
+        self.cfg.object_pose_range.z[1],
+        (n,),
+        device=self.device,
+      )
+      pos = torch.stack([x, y, z], dim=-1) + self._env.scene.env_origins[env_ids]
 
-    def _resample_command(self, env_ids: torch.Tensor):
-        """Resample pose commands for specified environments.
+      # Sample orientation (yaw only, keep upright).
+      yaw = sample_uniform(
+        self.cfg.object_pose_range.yaw[0],
+        self.cfg.object_pose_range.yaw[1],
+        (n,),
+        device=self.device,
+      )
+      quat = quat_from_euler_xyz(
+        torch.zeros(n, device=self.device),  # roll
+        torch.zeros(n, device=self.device),  # pitch
+        yaw,
+      )
+      pose = torch.cat([pos, quat], dim=-1)
 
-        Args:
-            env_ids: Environment indices to resample commands for.
-        """
-        # Sample new pose targets
-        # -- position
-        self.pose_command_b[env_ids, 0] = sample_uniform(
-            self.cfg.ranges.pos_x[0],
-            self.cfg.ranges.pos_x[1],
-            (len(env_ids),),
-            device=self.device,
-        )
-        self.pose_command_b[env_ids, 1] = sample_uniform(
-            self.cfg.ranges.pos_y[0],
-            self.cfg.ranges.pos_y[1],
-            (len(env_ids),),
-            device=self.device,
-        )
-        self.pose_command_b[env_ids, 2] = sample_uniform(
-            self.cfg.ranges.pos_z[0],
-            self.cfg.ranges.pos_z[1],
-            (len(env_ids),),
-            device=self.device,
-        )
+      velocity = torch.zeros(n, 6, device=self.device)
 
-        # -- orientation (sample euler angles and convert to quaternion)
-        roll = sample_uniform(
-            self.cfg.ranges.roll[0],
-            self.cfg.ranges.roll[1],
-            (len(env_ids),),
-            device=self.device,
-        )
-        pitch = sample_uniform(
-            self.cfg.ranges.pitch[0],
-            self.cfg.ranges.pitch[1],
-            (len(env_ids),),
-            device=self.device,
-        )
-        yaw = sample_uniform(
-            self.cfg.ranges.yaw[0],
-            self.cfg.ranges.yaw[1],
-            (len(env_ids),),
-            device=self.device,
-        )
+      self.object.write_root_link_pose_to_sim(pose, env_ids=env_ids)
+      self.object.write_root_link_velocity_to_sim(velocity, env_ids=env_ids)
 
-        quat = quat_from_euler_xyz(roll, pitch, yaw)
+  def _update_command(self) -> None:
+    pass
 
-        # Make sure the quaternion has real part as positive
-        self.pose_command_b[env_ids, 3:] = (
-            quat_unique(quat) if self.cfg.make_quat_unique else quat
-        )
+  def _debug_vis_impl(self, visualizer: DebugVisualizer) -> None:
+    batch = visualizer.env_idx
+    if batch >= self.num_envs:
+      return
 
-    def _update_command(self):
-        """Update command - no action needed for static pose commands."""
-        pass
-
-    def _debug_vis_impl(self, visualizer: DebugVisualizer) -> None:
-        """Visualize goal and current poses using debug visualizer."""
-        # if not self.robot.is_initialized:
-        #    return
-
-        env_idx = visualizer.env_idx
-
-        # Visualize goal pose
-        goal_pos = self.pose_command_w[env_idx, :3].cpu().numpy()
-        # goal_quat = self.pose_command_w[env_idx, 3:].cpu().numpy()
-        goal_rotm = (
-            matrix_from_quat(self.pose_command_w[env_idx, 3:].unsqueeze(0))
-            .squeeze(0)
-            .cpu()
-            .numpy()
-        )
-
-        visualizer.add_frame(
-            position=goal_pos,
-            rotation_matrix=goal_rotm,
-            scale=self.cfg.viz.goal_frame_scale,
-            label="goal_pose",
-            axis_colors=self.cfg.viz.goal_frame_colors,
-        )
-
-        # Visualize current site pose
-        current_pos = self.robot.data.site_pos_w[env_idx, self.site_idx].cpu().numpy()
-        current_quat = self.robot.data.site_quat_w[env_idx, self.site_idx]
-        current_rotm = (
-            matrix_from_quat(current_quat.unsqueeze(0)).squeeze(0).cpu().numpy()
-        )
-
-        visualizer.add_frame(
-            position=current_pos,
-            rotation_matrix=current_rotm,
-            scale=self.cfg.viz.current_frame_scale,
-            label="current_pose",
-            axis_colors=self.cfg.viz.current_frame_colors,
-        )
+    if self.cfg.viz.show_target_height:
+      target_pos = self.target_pos[batch].cpu().numpy()
+      visualizer.add_sphere(
+        center=target_pos,
+        radius=0.03,
+        color=self.cfg.viz.target_color,
+        label="target_position",
+      )
 
 
 @dataclass(kw_only=True)
-class PoseRanges:
-    """Ranges for sampling pose commands."""
+class LiftingCommandCfg(CommandTermCfg):
+  asset_name: str
+  class_type: type[CommandTerm] = LiftingCommand
+  success_threshold: float = 0.05
+  difficulty: Literal["fixed", "dynamic"] = "fixed"
 
-    pos_x: tuple[float, float] = (-0.5, 0.5)
-    pos_y: tuple[float, float] = (-0.5, 0.5)
-    pos_z: tuple[float, float] = (-0.5, 1.0)
-    roll: tuple[float, float] = (-np.pi, np.pi)
-    pitch: tuple[float, float] = (-np.pi, np.pi)
-    yaw: tuple[float, float] = (-np.pi, np.pi)
+  @dataclass
+  class TargetPositionRangeCfg:
+    """Configuration for target position sampling in dynamic mode."""
 
+    x: tuple[float, float] = (0.3, 0.5)
+    y: tuple[float, float] = (-0.2, 0.2)
+    z: tuple[float, float] = (0.2, 0.4)
 
-@dataclass(kw_only=True)
-class UniformPoseCommandCfg(CommandTermCfg):
-    """Configuration for uniform pose command generator."""
+  # Only used in dynamic mode.
+  target_position_range: TargetPositionRangeCfg = field(
+    default_factory=TargetPositionRangeCfg
+  )
 
-    class_type: type[CommandTerm] = UniformPoseCommand
+  @dataclass
+  class ObjectPoseRangeCfg:
+    """Configuration for object pose sampling when resampling commands."""
 
-    asset_name: str
-    """Name of the robot asset in the scene."""
+    x: tuple[float, float] = (0.3, 0.35)
+    y: tuple[float, float] = (-0.1, 0.1)
+    z: tuple[float, float] = (0.02, 0.05)
+    yaw: tuple[float, float] = (-math.pi, math.pi)
 
-    site_name: str
-    """Name of the site to track."""
+  object_pose_range: ObjectPoseRangeCfg | None = field(
+    default_factory=ObjectPoseRangeCfg
+  )
 
-    ranges: PoseRanges = field(default_factory=PoseRanges)
-    """Ranges for sampling pose commands."""
+  @dataclass
+  class VizCfg:
+    show_target_height: bool = True
+    target_color: tuple[float, float, float, float] = (1.0, 0.5, 0.0, 0.3)
 
-    make_quat_unique: bool = True
-    """Whether to make quaternions unique (positive real part)."""
-
-    @dataclass
-    class VizCfg:
-        """Visualization configuration."""
-
-        goal_frame_scale: float = 0.1
-        current_frame_scale: float = 0.15
-        goal_frame_colors: tuple[tuple[float, float, float], ...] = (
-            (1.0, 0.5, 0.5),
-            (0.5, 1.0, 0.5),
-            (0.5, 0.5, 1.0),
-        )
-        current_frame_colors: tuple[tuple[float, float, float], ...] = (
-            (1.0, 0.0, 0.0),
-            (0.0, 1.0, 0.0),
-            (0.0, 0.0, 1.0),
-        )
-
-    viz: VizCfg = field(default_factory=VizCfg)
-    """Visualization configuration."""
+  viz: VizCfg = field(default_factory=VizCfg)

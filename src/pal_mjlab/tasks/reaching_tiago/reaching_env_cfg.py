@@ -1,6 +1,7 @@
 """Reaching task configuration."""
 
 import math
+import mujoco
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -21,6 +22,8 @@ from pal_mjlab.tasks.reaching_tiago import mdp
 from mjlab.terrains import TerrainImporterCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
+
+
 
 def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     """Create base reaching task configuration."""
@@ -46,6 +49,26 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         "pose_command_right": ObservationTermCfg(
             func=mdp.commands_gen,
             params={"command_name": "pose_command_right"},
+        ),
+        "ee_to_cube": ObservationTermCfg(
+            func=mdp.ee_to_object_distance,
+            params={
+                "object_name": "cube",
+                "asset_cfg": SceneEntityCfg(
+                    "robot",
+                    site_names=("ee_right",),  # e.g. right EE; change if needed
+                ),
+            },
+            noise=Unoise(n_min=-0.01, n_max=0.01),
+        ),
+        # NEW: cube position error to lifting target
+        "cube_to_goal": ObservationTermCfg(
+            func=mdp.object_position_error,
+            params={
+                "object_name": "cube",
+                "command_name": "lift_height",
+            },
+            noise=Unoise(n_min=-0.01, n_max=0.01),
         ),
     }
 
@@ -84,28 +107,18 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     ## --------------------------------------------------------
 
     commands: dict[str, CommandTermCfg] = {
-        "pose_command_left": mdp.UniformPoseCommandCfg(
-            asset_name="robot",
+        "lift_height": mdp.LiftingCommandCfg(
+            asset_name="cube",
+            resampling_time_range=(8.0, 12.0),
             debug_vis=True,
-            resampling_time_range=(5.0, 10.0),
-            site_name="ee_left",
-            ranges=mdp.PoseRanges(
-                pos_x=(0.0, 0.0),  # Set per-robot.
-                pos_y=(0.0, 0.0),  # Set per-robot.
-                pos_z=(0.0, 0.0),  # Set per-robot.
-            ),
-        ),
-        "pose_command_right": mdp.UniformPoseCommandCfg(
-            asset_name="robot",
-            debug_vis=True,
-            resampling_time_range=(5.0, 10.0),
-            site_name="ee_right",
-            ranges=mdp.PoseRanges(
-                pos_x=(0.0, 0.0),  # Set per-robot.
-                pos_y=(0.0, 0.0),  # Set per-robot.
-                pos_z=(0.0, 0.0),  # Set per-robot.
-            ),
-        )
+            difficulty="dynamic",
+            object_pose_range=mdp.LiftingCommandCfg.ObjectPoseRangeCfg(
+                x=(0.2, 0.4),
+                y=(-0.2, 0.2),
+                z=(0.02, 0.05),
+                yaw=(-3.14, 3.14),
+                ),
+            )
     }
 
     ## --------------------------------------------------------
@@ -227,7 +240,12 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
 
     terminations = {
         "time_out": TerminationTermCfg(func=mdp.time_out, time_out=True),
+        "ee_ground_collision": TerminationTermCfg(  # <<< NEW
+            func=mdp.illegal_contact,
+            params={"sensor_name": "ee_ground_collision"},
+        ),
     }
+
 
     ## --------------------------------------------------------
     # Curriculum

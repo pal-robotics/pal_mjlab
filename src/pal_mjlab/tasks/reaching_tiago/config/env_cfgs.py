@@ -9,6 +9,21 @@ from mjlab.managers.manager_term_config import RewardTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from pal_mjlab.tasks.reaching_tiago import mdp
 from pal_mjlab.tasks.reaching_tiago.reaching_env_cfg import make_reaching_env_cfg
+import mujoco
+
+# ADD cube 
+def get_cube_spec(cube_size: float = 0.02, mass: float = 0.05) -> mujoco.MjSpec:
+  spec = mujoco.MjSpec()
+  body = spec.worldbody.add_body(name="cube")
+  body.add_freejoint(name="cube_joint")
+  body.add_geom(
+    name="cube_geom",
+    type=mujoco.mjtGeom.mjGEOM_BOX,
+    size=(cube_size,) * 3,
+    mass=mass,
+    rgba=(0.8, 0.2, 0.2, 1.0),
+  )
+  return spec
 
 def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics TIAGo reaching configuration."""
@@ -42,7 +57,24 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         reduce="none",
         num_slots=1,
     )
-    cfg.scene.sensors = (self_collision_cfg,)
+
+    ee_ground_collision_cfg = ContactSensorCfg(  
+        name="ee_ground_collision",
+        primary=ContactMatch(
+            mode="subtree",
+            pattern="ee_.*",      
+            entity="robot",
+        ),
+        secondary=ContactMatch(
+            mode="body",
+            pattern="terrain",
+        ),
+        fields=("found",),
+        reduce="none",
+        num_slots=1,
+    )
+
+    cfg.scene.sensors = (self_collision_cfg,ee_ground_collision_cfg,)
 
     cfg.rewards["stand_still_joint_deviation_l1"].params["asset_cfg"].joint_names = (
         r"torso_lift_joint",
