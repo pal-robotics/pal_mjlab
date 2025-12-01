@@ -42,13 +42,9 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             noise=Unoise(n_min=-1.5, n_max=1.5),
         ),
         "actions": ObservationTermCfg(func=mdp.last_action),
-        "pose_command_left": ObservationTermCfg(
+        "lift_height": ObservationTermCfg(
             func=mdp.commands_gen,
-            params={"command_name": "pose_command_left"},
-        ),
-        "pose_command_right": ObservationTermCfg(
-            func=mdp.commands_gen,
-            params={"command_name": "pose_command_right"},
+            params={"command_name": "lift_height"},
         ),
         "ee_to_cube": ObservationTermCfg(
             func=mdp.ee_to_object_distance,
@@ -56,12 +52,11 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "object_name": "cube",
                 "asset_cfg": SceneEntityCfg(
                     "robot",
-                    site_names=("ee_right",),  # e.g. right EE; change if needed
+                    site_names=(), 
                 ),
             },
             noise=Unoise(n_min=-0.01, n_max=0.01),
         ),
-        # NEW: cube position error to lifting target
         "cube_to_goal": ObservationTermCfg(
             func=mdp.object_position_error,
             params={
@@ -113,9 +108,9 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             debug_vis=True,
             difficulty="dynamic",
             object_pose_range=mdp.LiftingCommandCfg.ObjectPoseRangeCfg(
-                x=(0.2, 0.4),
-                y=(-0.2, 0.2),
-                z=(0.02, 0.05),
+                x = (0.4, 0.8),
+                y = (-0.2, 0.5),
+                z = (0.2, 1.0),
                 yaw=(-3.14, 3.14),
                 ),
             )
@@ -153,54 +148,19 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     ## --------------------------------------------------------
 
     rewards = {
-        "pos_left": RewardTermCfg(
-            func=mdp.position_command_error,
-            weight=-2.0,
+        "lift_task": RewardTermCfg(
+            func=mdp.staged_position_reward,
+            weight=1.0,
             params={
-                "site_name": "ee_left",
-                "command_name": "pose_command_left",
-            },
-        ),
-        "pos_left_fine_grained": RewardTermCfg(
-            func=mdp.position_command_error_tanh,
-            weight=2.0,
-            params={
-                "site_name": "ee_left",
-                "command_name": "pose_command_left",
-                "std": 0.05,
-            },
-        ),
-        "ee_left_orientation": RewardTermCfg(
-            func=mdp.orientation_command_error,
-            weight=-0.2,
-            params={
-                "site_name": "ee_left",
-                "command_name": "pose_command_left",
-            },
-        ),
-        "pos_right": RewardTermCfg(
-            func=mdp.position_command_error,
-            weight=-2.0,
-            params={
-                "site_name": "ee_right",
-                "command_name": "pose_command_right",
-            },
-        ),
-        "pos_right_fine_grained": RewardTermCfg(
-            func=mdp.position_command_error_tanh,
-            weight=2.0,
-            params={
-                "site_name": "ee_right",
-                "command_name": "pose_command_right",
-                "std": 0.05,
-            },
-        ),
-        "ee_right_orientation": RewardTermCfg(
-            func=mdp.orientation_command_error,
-            weight=-0.2,
-            params={
-                "site_name": "ee_right",
-                "command_name": "pose_command_right",
+                "command_name": "lift_height",
+                "object_name": "cube",
+                "reaching_std": 0.2,
+                "bringing_std": 0.3,
+                # Which EE site to use for reaching term
+                "asset_cfg": SceneEntityCfg(
+                    "robot",
+                    site_names=(), 
+                ),
             },
         ),
         "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
@@ -259,16 +219,6 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                     {"step": 0, "weight": -0.0001},
                     {"step": 5_000 * 24, "weight": -0.005},
                     {"step": 15_000 * 24, "weight": -0.01},
-                ],
-            },
-        ),
-        "orientation_curr": CurriculumTermCfg(
-            func=mdp.reward_weight,
-            params={
-                "reward_name": "ee_right_orientation",
-                "weight_stages": [
-                    {"step": 0, "weight": -0.2},
-                    {"step": 10_000 * 24, "weight": -0.4},
                 ],
             },
         ),

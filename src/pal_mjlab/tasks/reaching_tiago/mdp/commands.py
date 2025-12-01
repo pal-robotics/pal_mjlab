@@ -159,9 +159,9 @@ class LiftingCommandCfg(CommandTermCfg):
   class TargetPositionRangeCfg:
     """Configuration for target position sampling in dynamic mode."""
 
-    x: tuple[float, float] = (0.3, 0.5)
-    y: tuple[float, float] = (-0.2, 0.2)
-    z: tuple[float, float] = (0.2, 0.4)
+    x: tuple[float, float] = (0.4, 0.8)
+    y: tuple[float, float] = (-0.2, 0.5)
+    z: tuple[float, float] = (0.2, 1.0)
 
   # Only used in dynamic mode.
   target_position_range: TargetPositionRangeCfg = field(
@@ -172,9 +172,9 @@ class LiftingCommandCfg(CommandTermCfg):
   class ObjectPoseRangeCfg:
     """Configuration for object pose sampling when resampling commands."""
 
-    x: tuple[float, float] = (0.3, 0.35)
-    y: tuple[float, float] = (-0.1, 0.1)
-    z: tuple[float, float] = (0.02, 0.05)
+    x: tuple[float, float] = (0.4, 0.8)
+    y: tuple[float, float] = (-0.2, 0.5)
+    z: tuple[float, float] = (0.2, 1.0)
     yaw: tuple[float, float] = (-math.pi, math.pi)
 
   object_pose_range: ObjectPoseRangeCfg | None = field(

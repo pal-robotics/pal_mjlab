@@ -4,6 +4,7 @@ from pal_mjlab.robots import (
 )
 
 from mjlab.envs import ManagerBasedRlEnvCfg
+from mjlab.entity import EntityCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.manager_term_config import RewardTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
@@ -29,25 +30,18 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics TIAGo reaching configuration."""
     cfg = make_reaching_env_cfg()
 
-    cfg.scene.entities = {"robot": get_tiago_robot_cfg()}
+    cfg.scene.entities = {
+       "robot": get_tiago_robot_cfg(),
+        "cube": EntityCfg(spec_fn=get_cube_spec),}
 
     joint_pos_action = cfg.actions["joint_pos"]
     assert isinstance(joint_pos_action, JointPositionActionCfg)
     joint_pos_action.scale = 0.5  # TIAGO_PRO_ACTION_SCALE
 
-    cfg.commands["pose_command_left"].ranges.pos_x = (0.1, 0.8)
-    cfg.commands["pose_command_left"].ranges.pos_y = (-0.2, 0.5)
-    cfg.commands["pose_command_left"].ranges.pos_z = (0.2, 1.0)
-    cfg.commands["pose_command_left"].ranges.roll = (-3.14, 3.14)
-    cfg.commands["pose_command_left"].ranges.pitch = (-3.14/2, 3.14/2)
-    cfg.commands["pose_command_left"].ranges.yaw = (-3.14, 3.14)
-    
-    cfg.commands["pose_command_right"].ranges.pos_x = (0.1, 0.8)
-    cfg.commands["pose_command_right"].ranges.pos_y = (-0.5, 0.2)
-    cfg.commands["pose_command_right"].ranges.pos_z = (0.2, 1.0)
-    cfg.commands["pose_command_right"].ranges.roll = (-3.14, 3.14)
-    cfg.commands["pose_command_right"].ranges.pitch = (-3.14/2, 3.14/2)
-    cfg.commands["pose_command_right"].ranges.yaw = (-3.14, 3.14)
+    cfg.observations["policy"].terms["ee_to_cube"].params["asset_cfg"].site_names = (
+    "ee_right"
+    )
+    cfg.rewards["lift_task"].params["asset_cfg"].site_names = ("ee_right")
 
     self_collision_cfg = ContactSensorCfg(
         name="self_collision",
@@ -62,7 +56,7 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         name="ee_ground_collision",
         primary=ContactMatch(
             mode="subtree",
-            pattern="ee_.*",      
+            pattern="arm_.*_7_link",      
             entity="robot",
         ),
         secondary=ContactMatch(
