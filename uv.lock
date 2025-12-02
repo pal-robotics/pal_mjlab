@@ -965,7 +965,7 @@ wheels = [
 [[package]]
 name = "mjlab"
 version = "0.1.0"
-source = { editable = "../mjlab" }
+source = { git = "https://github.com/mujocolab/mjlab?rev=cfe92fcb4cfefad168adcad7162c6dc24a4d9f96#cfe92fcb4cfefad168adcad7162c6dc24a4d9f96" }
 dependencies = [
     { name = "moviepy" },
     { name = "mujoco" },
@@ -983,40 +983,6 @@ dependencies = [
     { name = "viser" },
     { name = "wandb" },
     { name = "warp-lang" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "moviepy" },
-    { name = "mujoco", specifier = "<=3.3.8", index = "https://py.mujoco.org/" },
-    { name = "mujoco-warp", git = "https://github.com/google-deepmind/mujoco_warp?rev=e605c406363805d949b75d50dd5ffb3d79bc3f70" },
-    { name = "onnxscript", specifier = ">=0.5.4" },
-    { name = "prettytable" },
-    { name = "rsl-rl-lib" },
-    { name = "tensorboard", specifier = ">=2.20.0" },
-    { name = "tensordict" },
-    { name = "torch", specifier = ">=2.7.0" },
-    { name = "torch", marker = "sys_platform == 'darwin' and extra == 'cu128'", specifier = ">=2.7.0" },
-    { name = "torch", marker = "sys_platform != 'darwin' and extra == 'cu128'", specifier = ">=2.7.0", index = "https://download.pytorch.org/whl/cu128", conflict = { package = "mjlab", extra = "cu128" } },
-    { name = "torchrunx", specifier = ">=0.3.4" },
-    { name = "tqdm" },
-    { name = "trimesh", specifier = ">=4.8.3" },
-    { name = "tyro", specifier = ">=0.10.0a6" },
-    { name = "viser", specifier = ">=1.0.16" },
-    { name = "wandb", specifier = ">=0.22.3" },
-    { name = "warp-lang", marker = "sys_platform != 'darwin'", index = "https://pypi.nvidia.com/" },
-    { name = "warp-lang", marker = "sys_platform == 'darwin'" },
-]
-provides-extras = ["cu128"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "ipdb", specifier = ">=0.13.13" },
-    { name = "pre-commit", specifier = ">=4.3.0" },
-    { name = "pyright", specifier = ">=1.1.407" },
-    { name = "pytest", specifier = ">=8.4.2" },
-    { name = "ruff", specifier = ">=0.14.3" },
-    { name = "ty", specifier = ">=0.0.1a23" },
 ]
 
 [[package]]
@@ -1153,7 +1119,7 @@ wheels = [
 [[package]]
 name = "mujoco-warp"
 version = "0.0.1"
-source = { git = "https://github.com/google-deepmind/mujoco_warp?rev=e605c406363805d949b75d50dd5ffb3d79bc3f70#e605c406363805d949b75d50dd5ffb3d79bc3f70" }
+source = { git = "https://github.com/google-deepmind/mujoco_warp?rev=9fc294d86955a303619a254cefae809a41adb274#9fc294d86955a303619a254cefae809a41adb274" }
 dependencies = [
     { name = "absl-py" },
     { name = "etils", extra = ["epath"] },
@@ -1639,7 +1605,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mjlab", editable = "../mjlab" },
+    { name = "mjlab", git = "https://github.com/mujocolab/mjlab?rev=cfe92fcb4cfefad168adcad7162c6dc24a4d9f96" },
     { name = "ruff", specifier = ">=0.14.0" },
 ]
 
@@ -2172,7 +2138,7 @@ wheels = [
 
 [[package]]
 name = "rsl-rl-lib"
-version = "3.1.3"
+version = "3.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "gitpython" },
@@ -2184,9 +2150,9 @@ dependencies = [
     { name = "torch" },
     { name = "torchvision" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/41/51/b8920a9b2f3660153bcb3bb53d6dc33d67da8942d2f016344914e9330676/rsl_rl_lib-3.1.3.tar.gz", hash = "sha256:93faa0b42ec2004803a1bff301eeca0bb425d670dcc7213610a475f470b13da7", size = 35405, upload-time = "2025-11-10T17:45:53.193Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/90/4a06e879f888bdabc2d9e782e15350b20d35c7928cfdda9e45a2d0acfab8/rsl_rl_lib-3.2.0.tar.gz", hash = "sha256:d1f23097921e230274e02c837a6b6f8af2ee81e087762e8b77ffa3fbd32dd0de", size = 38869, upload-time = "2025-11-28T16:23:35.16Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/49/82/f92e99ac06b8af3e7057c740816832b4f1a43b3589072b55d012d0ceb4d7/rsl_rl_lib-3.1.3-py3-none-any.whl", hash = "sha256:aaaacf096c6b2e157640083c75e5cfe1efc0b73c8b3767eeeb1609cde28df49f", size = 50448, upload-time = "2025-11-10T17:45:51.965Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/fd/11d5b88be193493c53b4633732eb628e49b9f802efbaf3350c3265c61abf/rsl_rl_lib-3.2.0-py3-none-any.whl", hash = "sha256:5e822900d1cccf3f7fc02875bdb5612388785b8de5f9c2a5a0074f3d8363859a", size = 55196, upload-time = "2025-11-28T16:23:34.123Z" },
 ]
 
 [[package]]
