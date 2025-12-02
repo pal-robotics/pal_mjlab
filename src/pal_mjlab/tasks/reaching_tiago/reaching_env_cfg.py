@@ -22,6 +22,8 @@ from pal_mjlab.tasks.reaching_tiago import mdp
 from mjlab.terrains import TerrainImporterCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
+from mjlab.envs.mdp.terminations import nan_detection
+from mjlab.managers.manager_term_config import TerminationTermCfg
 
 
 
@@ -215,6 +217,10 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         "ee_ground_collision": TerminationTermCfg(  # <<< NEW
             func=mdp.illegal_contact,
             params={"sensor_name": "ee_ground_collision"},
+        ),
+        "nan_term": TerminationTermCfg(
+            func=nan_detection,
+            time_out=False,
         ),
     }
 
