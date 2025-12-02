@@ -1,6 +1,5 @@
 from pal_mjlab.robots import (
     get_tiago_robot_cfg,
-    KANGAROO_ACTION_SCALE,
 )
 
 from mjlab.envs import ManagerBasedRlEnvCfg
@@ -10,6 +9,7 @@ from mjlab.managers.manager_term_config import RewardTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from pal_mjlab.tasks.reaching_tiago import mdp
 from pal_mjlab.tasks.reaching_tiago.reaching_env_cfg import make_reaching_env_cfg
+from pal_mjlab.tasks.reaching_tiago.mdp import LiftingCommandCfg
 import mujoco
 
 # ADD cube 
@@ -37,6 +37,10 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     joint_pos_action = cfg.actions["joint_pos"]
     assert isinstance(joint_pos_action, JointPositionActionCfg)
     joint_pos_action.scale = 0.5  # TIAGO_PRO_ACTION_SCALE
+
+    assert cfg.commands is not None
+    lift_command = cfg.commands["lift_height"]
+    assert isinstance(lift_command, LiftingCommandCfg)
 
     cfg.observations["policy"].terms["ee_to_cube"].params["asset_cfg"].site_names = (
     "ee_right"

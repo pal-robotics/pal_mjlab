@@ -41,11 +41,10 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             func=mdp.joint_vel_rel,
             noise=Unoise(n_min=-1.5, n_max=1.5),
         ),
-        "actions": ObservationTermCfg(func=mdp.last_action),
-        "lift_height": ObservationTermCfg(
-            func=mdp.commands_gen,
-            params={"command_name": "lift_height"},
-        ),
+        # "lift_height": ObservationTermCfg(
+        #     func=mdp.commands_gen,
+        #     params={"command_name": "lift_height"},
+        # ),
         "ee_to_cube": ObservationTermCfg(
             func=mdp.ee_to_object_distance,
             params={
@@ -65,6 +64,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             },
             noise=Unoise(n_min=-0.01, n_max=0.01),
         ),
+        "actions": ObservationTermCfg(func=mdp.last_action),
     }
 
     critic_terms = {
@@ -110,7 +110,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             object_pose_range=mdp.LiftingCommandCfg.ObjectPoseRangeCfg(
                 x = (0.4, 0.8),
                 y = (-0.2, 0.5),
-                z = (0.2, 1.0),
+                z = (0.02, 0.02),
                 yaw=(-3.14, 3.14),
                 ),
             )
