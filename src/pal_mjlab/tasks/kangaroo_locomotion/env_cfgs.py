@@ -3,7 +3,7 @@
 from pal_mjlab.robots import (
     KANGAROO_ACTION_SCALE,
     get_kangaroo_robot_cfg,
-    KANGAROO_ACTION_NAMES
+    KANGAROO_ACTUATOR_NAMES,
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -15,16 +15,11 @@ from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.managers.manager_term_config import TerminationTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.manager_term_config import (
-  ActionTermCfg,
-  CommandTermCfg,
-  CurriculumTermCfg,
-  EventTermCfg,
-  ObservationGroupCfg,
-  ObservationTermCfg,
-  RewardTermCfg,
-  TerminationTermCfg,
+    CurriculumTermCfg,
+    ObservationTermCfg,
 )
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
+
 
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO rough terrain velocity configuration."""
@@ -96,7 +91,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     joint_pos_action = cfg.actions["joint_pos"]
     assert isinstance(joint_pos_action, JointPositionActionCfg)
     joint_pos_action.scale = KANGAROO_ACTION_SCALE
-    joint_pos_action.actuator_names = KANGAROO_ACTION_NAMES
+    joint_pos_action.actuator_names = KANGAROO_ACTUATOR_NAMES
 
     cfg.viewer.body_name = "pelvis_2_link"
 
@@ -207,21 +202,21 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     #   },
     # )
     cfg.curriculum["power"] = CurriculumTermCfg(
-      func=mdp.reward_weight,
-      params={
-        "reward_name": "power",
-        "weight_stages": [
-          {"step": 0, "weight": 0.0},
-          {"step": 5000 * 24, "weight": -0.01},
-          {"step": 10000 * 24, "weight": -0.1},
-        ],
-      },
+        func=mdp.reward_weight,
+        params={
+            "reward_name": "power",
+            "weight_stages": [
+                {"step": 0, "weight": 0.0},
+                {"step": 5000 * 24, "weight": -0.01},
+                {"step": 10000 * 24, "weight": -0.1},
+            ],
+        },
     )
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
         func=mdp.illegal_contact,
         params={"sensor_name": "body_ground_contact"},
     )
-    
+
     # Apply play mode overrides.
     if play:
         # Effectively infinite episode length.
