@@ -6,7 +6,7 @@ import torch
 from mjlab.entity import Entity
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from pal_mjlab.tasks.reaching_tiago.mdp.commands import LiftingCommand
-from mjlab.third_party.isaaclab.isaaclab.utils.math import (
+from mjlab.utils.lab_api.math import (
   quat_apply, quat_inv)
 
 if TYPE_CHECKING:

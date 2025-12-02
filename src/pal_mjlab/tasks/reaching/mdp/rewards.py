@@ -7,7 +7,7 @@ from mjlab.entity import Entity
 
 from mjlab.managers.manager_term_config import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
-from mjlab.third_party.isaaclab.isaaclab.utils.math import (
+from mjlab.utils.lab_api.math import (
     quat_conjugate,
     quat_mul,
 )

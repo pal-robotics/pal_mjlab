@@ -9,7 +9,7 @@ import torch
 from mjlab.entity import Entity
 from mjlab.managers.command_manager import CommandTerm
 from mjlab.managers.manager_term_config import CommandTermCfg
-from mjlab.third_party.isaaclab.isaaclab.utils.math import (
+from mjlab.utils.lab_api.math import (
   quat_from_euler_xyz,
   sample_uniform,
 )
