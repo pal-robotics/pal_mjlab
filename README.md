@@ -104,11 +104,13 @@ uv run play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/r
       </figure>
     </td>
   </tr>
-  <tr width="50%">
-    <figure>
-      <video src="https://github.com/user-attachments/assets/cce8f9d2-d5e1-4218-828e-88d0ae1e0cdb" controls muted loop playsinline style="width:100%; height:auto;"></video>
-      <figcaption align="center"><em>Velocity Tracking for Kangaroo</em></figcaption>
-    </figure>
+  <tr>
+    <td width="50%">
+      <figure>
+        <video src="https://github.com/user-attachments/assets/cce8f9d2-d5e1-4218-828e-88d0ae1e0cdb" controls muted loop playsinline style="width:100%; height:auto;"></video>
+        <figcaption align="center"><em>Velocity Tracking for Kangaroo</em></figcaption>
+      </figure>
+    </td>
   </tr>
 </table>
 
