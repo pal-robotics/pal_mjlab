@@ -93,7 +93,7 @@ uv run play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/r
   <tr>
     <td width="50%">
       <figure>
-        <video src="https://github.com/user-attachments/assets/7f1f57a1-68b0-4beb-9563-8dd4be2d7b23" controls muted loop playsinline style="width:100%; height:auto;"></video>
+        <video src="https://github.com/user-attachments/assets/a378a306-f65d-448b-a6c8-3d40c3f7b3ce" controls muted loop playsinline style="width:100%; height:auto;"></video>
         <figcaption align="center"><em>Velocity Tracking for Talos</em></figcaption>
       </figure>
     </td>
@@ -101,6 +101,14 @@ uv run play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/r
       <figure>
         <video src="https://github.com/user-attachments/assets/c0d6c444-a0a2-4c93-99a5-895ae7d31317" controls muted loop playsinline style="width:100%; height:auto;"></video>
         <figcaption align="center"><em>Motion Imitation for Talos</em></figcaption>
+      </figure>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <figure>
+        <video src="https://github.com/user-attachments/assets/cce8f9d2-d5e1-4218-828e-88d0ae1e0cdb" controls muted loop playsinline style="width:100%; height:auto;"></video>
+        <figcaption align="center"><em>Velocity Tracking for Kangaroo</em></figcaption>
       </figure>
     </td>
   </tr>

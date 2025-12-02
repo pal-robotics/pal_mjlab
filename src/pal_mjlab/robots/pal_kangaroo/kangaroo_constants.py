@@ -23,7 +23,7 @@ from mjlab.actuator import BuiltinPositionActuatorCfg
 KANGAROO_PATH: Path = PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo" / "xmls"
 assert KANGAROO_PATH.exists()
 
-KANGAROO_XML: Path = KANGAROO_PATH / "kangaroo_v1.xml"
+KANGAROO_XML: Path = KANGAROO_PATH / "kangaroo.xml"
 assert KANGAROO_XML.exists()
 
 KANGAROO_HANDS_XML: Path = KANGAROO_PATH / "kangaroo_hands.xml"
@@ -55,7 +55,7 @@ def get_kangaroo_hands_spec() -> mujoco.MjSpec:
 # params (BeyondMimic paper methodology)
 NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
 DAMPING_RATIO = 2.0  # over-damped
-louis_weird_factor = 0.05
+factor = 0.05
 # gear ratio
 S_PLUS_GEAR_RATIO = 121
 S_MINUS_GEAR_RATIO = 101
@@ -65,9 +65,9 @@ S_PLUS_MOTOR_INERTIA = 1.728e-5
 S_MINUS_MOTOR_INERTIA = 1.3e-5
 XS_MOTOR_INERTIA = 1.3e-5
 # joints armature (reflected inertia)
-S_PLUS_ARMATURE = louis_weird_factor * S_PLUS_MOTOR_INERTIA * S_PLUS_GEAR_RATIO**2
-S_MINUS_ARMATURE = louis_weird_factor * S_MINUS_MOTOR_INERTIA * S_MINUS_GEAR_RATIO**2
-XS_ARMATURE = louis_weird_factor * XS_MOTOR_INERTIA * XS_GEAR_RATIO**2
+S_PLUS_ARMATURE = factor * S_PLUS_MOTOR_INERTIA * S_PLUS_GEAR_RATIO**2
+S_MINUS_ARMATURE = factor * S_MINUS_MOTOR_INERTIA * S_MINUS_GEAR_RATIO**2
+XS_ARMATURE = factor * XS_MOTOR_INERTIA * XS_GEAR_RATIO**2
 # joints effort limit (mehhh...)
 S_PLUS_EFFORT_LIMIT = 50
 S_MINUS_EFFORT_LIMIT = 25
@@ -84,8 +84,8 @@ XS_DAMPING = round(2.0 * DAMPING_RATIO * XS_ARMATURE * NATURAL_FREQ, 3)
 
 # leg stiffness
 LEG_45_STIFFNESS = 30
-LEG_12_STIFFNESS = 100 # pitch, yaw
-LEG_3_STIFFNESS = 100 # roll
+LEG_12_STIFFNESS = 100  # pitch, yaw
+LEG_3_STIFFNESS = 100  # roll
 LEG_LENGTH_STIFFNESS = 1600
 # leg damping
 LEG_45_DAMPING = round(2.0 * DAMPING_RATIO * LEG_45_STIFFNESS / NATURAL_FREQ, 3)
@@ -282,9 +282,10 @@ def get_kangaroo_hands_robot_cfg() -> EntityCfg:
 
 KANGAROO_ACTION_SCALE: dict[str, float] = {}
 KANGAROO_HANDS_ACTION_SCALE: dict[str, float] = {}
-KANGAROO_ACTION_NAMES: tuple = ()
+KANGAROO_ACTUATOR_NAMES: tuple = ()
 
-def test_jn(name: str)-> bool:
+
+def test_jn(name: str) -> bool:
     if name == "leg_left_knee_joint":
         return False
     if name == "leg_right_knee_joint":
@@ -309,7 +310,7 @@ for a in KANGAROO_ARTICULATION.actuators:
     for n in names:
         if n in e and n in s and s[n] and test_jn(n):
             KANGAROO_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
-            KANGAROO_ACTION_NAMES += (n,)
+            KANGAROO_ACTUATOR_NAMES += (n,)
 
 for a in KANGAROO_HANDS_ARTICULATION.actuators:
     e = a.effort_limit
