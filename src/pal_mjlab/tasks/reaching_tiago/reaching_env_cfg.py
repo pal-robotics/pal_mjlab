@@ -126,9 +126,9 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             mode="reset",
             params={
                 "pose_range": {
-                    "x": (0.0, 0.0),
-                    "y": (0.0, 0.0),
-                    "yaw": (0.0, 0.0),
+                    "x": (-0.2, 0.2),
+                    "y": (-0.2, 0.2),
+                    "yaw": (3.14, 3.14),
                 },
                 "velocity_range": {},
             },
