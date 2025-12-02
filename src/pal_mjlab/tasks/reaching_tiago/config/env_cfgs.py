@@ -76,6 +76,7 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.rewards["stand_still_joint_deviation_l1"].params["asset_cfg"].joint_names = (
         r"torso_lift_joint",
+        r"arm_left_.*_joint",
     )
 
     cfg.rewards["self_collisions"] = RewardTermCfg(
