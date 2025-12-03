@@ -13,7 +13,7 @@ from pal_mjlab.tasks.reaching_tiago.mdp import LiftingCommandCfg
 import mujoco
 
 # ADD cube 
-def get_cube_spec(cube_size: float = 0.02, mass: float = 0.05) -> mujoco.MjSpec:
+def get_cube_spec(cube_size: float = 0.035, mass: float = 0.05) -> mujoco.MjSpec:
   spec = mujoco.MjSpec()
   body = spec.worldbody.add_body(name="cube")
   body.add_freejoint(name="cube_joint")

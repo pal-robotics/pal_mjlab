@@ -134,54 +134,54 @@ def stand_still_joint_deviation_l1(
     penalty = torch.sum(excess, dim=1)
     return penalty
 
-# def staged_position_reward(
-#   env: ManagerBasedRlEnv,
-#   command_name: str,
-#   object_name: str,
-#   reaching_std: float,
-#   bringing_std: float,
-#   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-# ) -> torch.Tensor:
-#   """Curriculum reward that gates lifting bonus on reaching progress.
-
-#   Returns reaching * (1 + bringing), where both terms are Gaussian kernels
-#   over position error. Ensures learning signal for approach before lift.
-#   """
-#   robot: Entity = env.scene[asset_cfg.name]
-#   obj: Entity = env.scene[object_name]
-#   command = cast(LiftingCommand, env.command_manager.get_term(command_name))
-#   ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
-#   obj_pos_w = obj.data.root_link_pos_w
-#   reach_error = torch.sum(torch.square(ee_pos_w - obj_pos_w), dim=-1)
-#   reaching = torch.exp(-reach_error / reaching_std**2)
-#   position_error = torch.sum(torch.square(command.target_pos - obj_pos_w), dim=-1)
-#   bringing = torch.exp(-position_error / bringing_std**2)
-#   return reaching  * (1.0 + bringing)
-
-
-def staged_position_reward(  # now returns geometric error, not a reward
-    env: ManagerBasedRlEnv,
-    command_name: str,        # unused (kept for compatibility)
-    object_name: str,
-    reaching_std: float,      # unused (kept for compatibility)
-    bringing_std: float,      # unused (kept for compatibility)
-    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+def staged_position_reward(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  object_name: str,
+  reaching_std: float,
+  bringing_std: float,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
-    """Return per-env geometric distance (meters) between EE site and object root.
+  """Curriculum reward that gates lifting bonus on reaching progress.
 
-    Note: Despite the name, this now returns an L2 distance, not a reward.
-    """
-    robot: Entity = env.scene[asset_cfg.name]
-    obj: Entity = env.scene[object_name]
+  Returns reaching * (1 + bringing), where both terms are Gaussian kernels
+  over position error. Ensures learning signal for approach before lift.
+  """
+  robot: Entity = env.scene[asset_cfg.name]
+  obj: Entity = env.scene[object_name]
+  command = cast(LiftingCommand, env.command_manager.get_term(command_name))
+  ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
+  obj_pos_w = obj.data.root_link_pos_w
+  reach_error = torch.sum(torch.square(ee_pos_w - obj_pos_w), dim=-1)
+  reaching = torch.exp(-reach_error / reaching_std**2)
+  position_error = torch.sum(torch.square(command.target_pos - obj_pos_w), dim=-1)
+  bringing = torch.exp(-position_error / bringing_std**2)
+  return reaching  * (1.0 + bringing)
 
-    # End-effector world position (assumes a single site id).
-    ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)  # [N, 3]
 
-    # Object world position (root link).
-    obj_pos_w = obj.data.root_link_pos_w  # [N, 3]
+# def staged_position_reward(  # now returns geometric error, not a reward
+#     env: ManagerBasedRlEnv,
+#     command_name: str,        # unused (kept for compatibility)
+#     object_name: str,
+#     reaching_std: float,      # unused (kept for compatibility)
+#     bringing_std: float,      # unused (kept for compatibility)
+#     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+# ) -> torch.Tensor:
+#     """Return per-env geometric distance (meters) between EE site and object root.
 
-    # Geometric (L2) distance.
-    return torch.norm(ee_pos_w - obj_pos_w, dim=-1)  # [N]
+#     Note: Despite the name, this now returns an L2 distance, not a reward.
+#     """
+#     robot: Entity = env.scene[asset_cfg.name]
+#     obj: Entity = env.scene[object_name]
+
+#     # End-effector world position (assumes a single site id).
+#     ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)  # [N, 3]
+
+#     # Object world position (root link).
+#     obj_pos_w = obj.data.root_link_pos_w  # [N, 3]
+
+#     # Geometric (L2) distance.
+#     return torch.norm(ee_pos_w - obj_pos_w, dim=-1)  # [N]
 
 
 

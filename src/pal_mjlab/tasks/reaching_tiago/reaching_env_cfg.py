@@ -112,7 +112,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             object_pose_range=mdp.LiftingCommandCfg.ObjectPoseRangeCfg(
                 x = (0.7, 0.7),
                 y = (0.0, 0.0),
-                z = (0.02, 0.02),
+                z = (0.035, 0.035),
                 yaw=(3.14, 3.14),
                 ),
             )
