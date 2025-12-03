@@ -185,7 +185,7 @@
 
                       <geom name="col_ee_left" type="cylinder"  size="0.04 0.07" pos="0 0 0" contype="1" conaffinity="1" group="3" rgba="0 1 0 0.3" />
 
-                                            <body name="gripper_left_inner_finger_left_link" pos="0 -0.013977 0.095832" quat="0.253401 0.660141 -0.253406 -0.660141">
+                      <body name="gripper_left_inner_finger_left_link" pos="0 -0.013977 0.095832" quat="0.253401 0.660141 -0.253406 -0.660141">
                         <inertial pos="0 0.024759 0" quat="0.5 0.5 -0.5 0.5" mass="0.018619" diaginertia="4.9573e-06 4.8806e-06 2.5471e-07" />
                         <joint name="gripper_left_inner_finger_left_joint" pos="0 0 0" axis="0 0 1" range="0 0.9" actuatorfrcrange="-8 8" damping="1.5" />
                         <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="inner_finger" />
@@ -316,6 +316,72 @@
       <site name="base_footprint_site" />
     </body>
   </worldbody>
+  <equality>
+    <!-- Left finger joints mimic outer left -->
+    <joint joint1="gripper_left_outer_finger_left_joint"
+           joint2="gripper_left_outer_finger_right_joint"
+           polycoef="0 1 0 0 0"
+           solimp="0.9 0.95 0.001"
+           solref="0.02 1" 
+           active="true"/>
+    <joint joint1="gripper_left_outer_finger_left_joint"
+           joint2="gripper_left_inner_finger_left_joint"
+           polycoef="0 1 0 0 0"
+           solimp="0.9 0.95 0.001"
+           solref="0.02 1" 
+           active="true"/>
+    <joint joint1="gripper_left_outer_finger_left_joint"
+           joint2="gripper_left_inner_finger_right_joint"
+           polycoef="0 1 0 0 0"
+           solimp="0.9 0.95 0.001"
+           solref="0.02 1" 
+           active="true"/>
+    <joint joint1="gripper_left_outer_finger_left_joint"
+           joint2="gripper_left_fingertip_left_joint"
+           polycoef="0 -1 0 0 0"
+           solimp="0.9 0.95 0.001"
+           solref="0.02 1" 
+           active="true"/>
+    <joint joint1="gripper_left_outer_finger_left_joint"
+           joint2="gripper_left_fingertip_right_joint"
+           polycoef="0 -1 0 0 0"
+           solimp="0.9 0.95 0.001"
+           solref="0.02 1" 
+           active="true"/>     
+
+           
+    <!-- Right finger joints mimic outer left -->
+    <joint joint1="gripper_right_outer_finger_left_joint"
+           joint2="gripper_right_outer_finger_right_joint"
+           polycoef="0 1 0 0 0"
+           solimp="0.9 0.95 0.001"
+           solref="0.02 1" 
+           active="true"/>
+    <joint joint1="gripper_right_outer_finger_left_joint"
+           joint2="gripper_right_inner_finger_left_joint"
+           polycoef="0 1 0 0 0"
+           solimp="0.9 0.95 0.001"
+           solref="0.02 1" 
+           active="true"/>
+    <joint joint1="gripper_right_outer_finger_left_joint"
+           joint2="gripper_right_inner_finger_right_joint"
+           polycoef="0 1 0 0 0"
+           solimp="0.9 0.95 0.001"
+           solref="0.02 1" 
+           active="true"/>
+    <joint joint1="gripper_right_outer_finger_left_joint"
+           joint2="gripper_right_fingertip_left_joint"
+           polycoef="0 -1 0 0 0"
+           solimp="0.9 0.95 0.001"
+           solref="0.02 1" 
+           active="true"/>
+    <joint joint1="gripper_right_outer_finger_right_joint"
+           joint2="gripper_right_fingertip_right_joint"
+           polycoef="0 -1 0 0 0"
+           solimp="0.9 0.95 0.001"
+           solref="0.02 1" 
+           active="true"/>  
+   </equality>
   <contact>
     <exclude body1="arm_right_3_link" body2="arm_right_5_link" />
     <exclude body1="arm_right_5_link" body2="arm_right_7_link" />
