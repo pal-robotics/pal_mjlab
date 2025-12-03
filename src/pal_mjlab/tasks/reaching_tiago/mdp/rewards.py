@@ -159,29 +159,44 @@ def stand_still_joint_deviation_l1(
 #   return reaching  * (1.0 + bringing)
 
 
-def staged_position_reward(  # now returns geometric error, not a reward
+# def staged_position_reward(  # now returns geometric error, not a reward
+#     env: ManagerBasedRlEnv,
+#     command_name: str,        # unused (kept for compatibility)
+#     object_name: str,
+#     reaching_std: float,      # unused (kept for compatibility)
+#     bringing_std: float,      # unused (kept for compatibility)
+#     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+# ) -> torch.Tensor:
+#     """Return per-env geometric distance (meters) between EE site and object root.
+
+#     Note: Despite the name, this now returns an L2 distance, not a reward.
+#     """
+#     robot: Entity = env.scene[asset_cfg.name]
+#     obj: Entity = env.scene[object_name]
+
+#     # End-effector world position (assumes a single site id).
+#     ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)  # [N, 3]
+
+#     # Object world position (root link).
+#     obj_pos_w = obj.data.root_link_pos_w  # [N, 3]
+
+#     # Geometric (L2) distance.
+#     return torch.norm(ee_pos_w - obj_pos_w, dim=-1)  # [N]
+
+def staged_position_reward(
     env: ManagerBasedRlEnv,
-    command_name: str,        # unused (kept for compatibility)
-    object_name: str,
-    reaching_std: float,      # unused (kept for compatibility)
-    bringing_std: float,      # unused (kept for compatibility)
+    command_name: str,        # interpreted as object_name now
+    site_name: str,
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
-    """Return per-env geometric distance (meters) between EE site and object root.
+    asset: Entity = env.scene[asset_cfg.name]
+    obj: Entity = env.scene[command_name]  # <- use as object name
 
-    Note: Despite the name, this now returns an L2 distance, not a reward.
-    """
-    robot: Entity = env.scene[asset_cfg.name]
-    obj: Entity = env.scene[object_name]
+    des_pos_w = obj.data.root_link_pos_w  # [N, 3]
+    current_site_pos_w = asset.data.site_pos_w[:, asset.site_names.index(site_name)]
 
-    # End-effector world position (assumes a single site id).
-    ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)  # [N, 3]
-
-    # Object world position (root link).
-    obj_pos_w = obj.data.root_link_pos_w  # [N, 3]
-
-    # Geometric (L2) distance.
-    return torch.norm(ee_pos_w - obj_pos_w, dim=-1)  # [N]
+    pos_error = current_site_pos_w - des_pos_w
+    return torch.norm(pos_error, dim=1)
 
 
 
