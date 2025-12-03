@@ -108,12 +108,12 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             asset_name="cube",
             resampling_time_range=(8.0, 12.0),
             debug_vis=True,
-            difficulty="dynamic",
+            difficulty="fixed",
             object_pose_range=mdp.LiftingCommandCfg.ObjectPoseRangeCfg(
-                x = (0.4, 0.8),
-                y = (-0.2, 0.5),
+                x = (0.7, 0.7),
+                y = (0.0, 0.0),
                 z = (0.02, 0.02),
-                yaw=(-3.14, 3.14),
+                yaw=(3.14, 3.14),
                 ),
             )
     }
@@ -128,8 +128,8 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             mode="reset",
             params={
                 "pose_range": {
-                    "x": (-0.1, 0.1),
-                    "y": (-0.1, 0.1),
+                    "x": (-0.0, 0.0),
+                    "y": (-0.0, 0.0),
                     "yaw": (0.0, 0.0),
                 },
                 "velocity_range": {},

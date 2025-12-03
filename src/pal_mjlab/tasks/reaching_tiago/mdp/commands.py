@@ -61,7 +61,7 @@ class LiftingCommand(CommandTerm):
 
     if self.cfg.difficulty == "fixed":
       target_pos = torch.tensor(
-        [0.4, 0.0, 0.3], device=self.device, dtype=torch.float32
+        [0.7, 0.0, 0.5], device=self.device, dtype=torch.float32
       ).expand(n, 3)
       # Add env_origins to make it absolute in world frame.
       self.target_pos[env_ids] = target_pos + self._env.scene.env_origins[env_ids]
