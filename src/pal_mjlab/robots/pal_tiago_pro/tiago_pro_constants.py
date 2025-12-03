@@ -359,7 +359,7 @@ TIAGO_ARTICULATION = EntityArticulationInfoCfg(
         TORSO_ACTUATOR_CFG,
         # HEAD_ACTUATOR_CFG,
         # WHEEL_ACTUATOR_CFG,
-        GRIPPER_ACTUATOR_CFG,
+        # GRIPPER_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.75,
 )
