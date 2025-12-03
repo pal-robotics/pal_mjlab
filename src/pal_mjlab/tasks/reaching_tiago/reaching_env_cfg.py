@@ -164,7 +164,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     rewards = {
         "lift_task": RewardTermCfg(
             func=mdp.staged_position_reward,
-            weight=1.0,
+            weight=-1.0,
             params={
                 "command_name": "lift_height",
                 "object_name": "cube",
