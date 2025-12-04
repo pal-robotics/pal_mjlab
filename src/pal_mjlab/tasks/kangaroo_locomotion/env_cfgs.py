@@ -126,7 +126,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
             "field": "qpos0",
-            "ranges": (-0.01, 0.01),
+            "ranges": (-0.003, 0.003),
             "operation": "add",
         },
     )
@@ -137,7 +137,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
             "field": "dof_frictionloss",
-            "ranges": (-0.01, 0.01),
+            "ranges": (-0.003, 0.003),
             "operation": "add",
         },
     )
@@ -148,7 +148,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
             "field": "dof_armature",
-            "ranges": (-0.01, 0.01),
+            "ranges": (-0.003, 0.003),
             "operation": "add",
         },
     )
@@ -171,21 +171,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis_2_link"]),
             "field": "body_mass",
-            "ranges": {0: (-0.02, 0.02), 1: (-0.02, 0.02)},
+            "ranges": (-0.2, 0.2),
             "operation": "add",
         },
     )
-    cfg.events["com"]= EventTermCfg(
-        mode="startup",
-        func=mdp.randomize_field,
-        domain_randomization=True,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis_2_link"]),
-            "field": "body_ipos",
-            "ranges": {0: (-0.02, 0.02), 1: (-0.02, 0.02)},
-            "operation": "add",
-        },
-    )
+
 
     cfg.rewards["pose"].params["asset_cfg"].joint_names = actuated_joints
     cfg.rewards["pose"].params["std_standing"] = {
