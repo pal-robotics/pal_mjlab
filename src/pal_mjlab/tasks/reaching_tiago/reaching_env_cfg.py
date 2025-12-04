@@ -170,6 +170,8 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "object_name": "cube",
                 "reaching_std": 0.6,
                 "bringing_std": 0.55,
+                "lift_height": 0.5,
+                "lift_std": 0.5,
                 # Which EE site to use for reaching term
                 "asset_cfg": SceneEntityCfg(
                     "robot",

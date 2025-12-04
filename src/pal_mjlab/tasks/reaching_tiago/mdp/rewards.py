@@ -134,29 +134,85 @@ def stand_still_joint_deviation_l1(
     penalty = torch.sum(excess, dim=1)
     return penalty
 
-def staged_position_reward(
-  env: ManagerBasedRlEnv,
-  command_name: str,
-  object_name: str,
-  reaching_std: float,
-  bringing_std: float,
-  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-) -> torch.Tensor:
-  """Curriculum reward that gates lifting bonus on reaching progress.
+# def staged_position_reward(
+#   env: ManagerBasedRlEnv,
+#   command_name: str,
+#   object_name: str,
+#   reaching_std: float,
+#   bringing_std: float,
+#   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+# ) -> torch.Tensor:
+#   """Curriculum reward that gates lifting bonus on reaching progress.
 
-  Returns reaching * (1 + bringing), where both terms are Gaussian kernels
-  over position error. Ensures learning signal for approach before lift.
-  """
-  robot: Entity = env.scene[asset_cfg.name]
-  obj: Entity = env.scene[object_name]
-  command = cast(LiftingCommand, env.command_manager.get_term(command_name))
-  ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
-  obj_pos_w = obj.data.root_link_pos_w
-  reach_error = torch.sum(torch.square(ee_pos_w - obj_pos_w), dim=-1)
-  reaching = torch.exp(-reach_error / reaching_std**2)
-  position_error = torch.sum(torch.square(command.target_pos - obj_pos_w), dim=-1)
-  bringing = torch.exp(-position_error / bringing_std**2)
-  return reaching  * (1.0 + bringing)
+#   Returns reaching * (1 + bringing), where both terms are Gaussian kernels
+#   over position error. Ensures learning signal for approach before lift.
+#   """
+#   robot: Entity = env.scene[asset_cfg.name]
+#   obj: Entity = env.scene[object_name]
+#   command = cast(LiftingCommand, env.command_manager.get_term(command_name))
+#   ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
+#   obj_pos_w = obj.data.root_link_pos_w
+#   reach_error = torch.sum(torch.square(ee_pos_w - obj_pos_w), dim=-1)
+#   reaching = torch.exp(-reach_error / reaching_std**2)
+#   position_error = torch.sum(torch.square(command.target_pos - obj_pos_w), dim=-1)
+#   bringing = torch.exp(-position_error / bringing_std**2)
+#   return reaching  * (1.0 + bringing)
+
+def staged_position_reward(
+    env: ManagerBasedRlEnv,
+    command_name: str,
+    object_name: str,
+    reaching_std: float,
+    bringing_std: float,
+    lift_height: float,
+    lift_std: float,
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+    """
+    Staged reward:
+      - reach the object (EE close to cube)
+      - lift the object above a height
+      - bring the lifted object to the goal
+
+    All stages use Gaussian-like shaping, and later stages are (softly) gated
+    by earlier ones.
+    """
+    robot: Entity = env.scene[asset_cfg.name]
+    obj: Entity = env.scene[object_name]
+    command = env.command_manager.get_term(command_name)
+
+    # Positions
+    ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)   # [N, 3]
+    obj_pos_w = obj.data.root_link_pos_w                                 # [N, 3]
+    target_pos_w = command.target_pos                                    # [N, 3] (world frame)
+
+    # --- Stage 1: reach object ---
+    reach_error = torch.sum((ee_pos_w - obj_pos_w) ** 2, dim=-1)
+    reaching = torch.exp(-reach_error / (reaching_std ** 2))             # in (0, 1]
+
+    # --- Stage 2: lift object ---
+    obj_height = obj_pos_w[:, 2]
+    lift_error = (obj_height - lift_height) ** 2
+    lifting = torch.exp(-lift_error / (lift_std ** 2))                   # ≈1 near desired height
+
+    # Soft gate: lifting term only really matters once we're close to the object
+    lifting_term = reaching * lifting
+
+    # --- Stage 3: bring object to goal ---
+    bring_error = torch.sum((target_pos_w - obj_pos_w) ** 2, dim=-1)
+    bringing = torch.exp(-bring_error / (bringing_std ** 2))
+
+    # Soft gate: goal tracking only matters once object is lifted
+    bringing_term = lifting_term * bringing
+
+    # Weights: tune these
+    w_reach = 1.0
+    w_lift = 2.0
+    w_bring = 3.0
+
+    reward = w_reach * reaching + w_lift * lifting_term + w_bring * bringing_term
+    return reward
+
 
 
 # def staged_position_reward(  # now returns geometric error, not a reward
