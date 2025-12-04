@@ -162,19 +162,41 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     ## --------------------------------------------------------
 
     rewards = {
-        "lift_task": RewardTermCfg(
-            func=mdp.staged_position_reward,
-            weight=1.0,
+        # 1) Reach: EE–cube distance (returns distance in meters → use NEGATIVE weight)
+        "ee_object_distance": RewardTermCfg(
+            func=mdp.ee_object_gaussian_distance,   # returns torch.norm(ee - obj)
+            weight=-1.0,                            # negative because it's a cost
             params={
-                "command_name": "lift_height",
                 "object_name": "cube",
-                "reaching_std": 0.6,
-                "bringing_std": 0.55,
-                "minimal_height": 0.08,
-                # Which EE site to use for reaching term
                 "asset_cfg": SceneEntityCfg(
                     "robot",
-                    site_names=(), 
+                    site_names=(),                  # same EE site config you used before
+                ),
+            },
+        ),
+
+        # 2) Lift: binary bonus when cube is above minimal height
+        "object_is_lifted": RewardTermCfg(
+            func=mdp.object_is_lifted_binary,
+            weight=10.0,                            # tune: this makes lifting clearly worthwhile
+            params={
+                "minimal_height": 0.08,
+                "object_name": "cube",
+            },
+        ),
+
+        # 3) Bring: object-to-goal Gaussian, only when lifted
+        "object_goal_distance": RewardTermCfg(
+            func=mdp.object_goal_gaussian_distance,
+            weight=15.0,                            # bigger than lift so full task is best
+            params={
+                "std": 0.3,                         # like IsaacLab's coarse goal shaping
+                "minimal_height": 0.08,
+                "command_name": "lift_height",      # same command as before
+                "object_name": "cube",
+                "asset_cfg": SceneEntityCfg(
+                    "robot",
+                    site_names=(),                  # robot base / frame used in the function
                 ),
             },
         ),
