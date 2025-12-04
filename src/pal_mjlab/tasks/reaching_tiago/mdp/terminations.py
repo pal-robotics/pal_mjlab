@@ -44,11 +44,6 @@ def object_out_of_bounds_box_local(
     out_y = (dy < y_min) | (dy > y_max)
     out = out_x | out_y  # [N] bool
 
-    print(
-        f"[DEBUG] cube pos (x,y): ({dx[0].item():.3f}, {dy[0].item():.3f}), "
-        f"out_x={out_x[0].item()}, out_y={out_y[0].item()}, out={out[0].item()}"
-    )
-
     return out_x | out_y  # [N] bool
 
 
