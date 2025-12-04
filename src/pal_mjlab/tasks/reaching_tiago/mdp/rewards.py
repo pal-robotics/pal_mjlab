@@ -164,18 +164,17 @@ def staged_position_reward(
     object_name: str,
     reaching_std: float,
     bringing_std: float,
-    lift_height: float,
-    lift_std: float,
+    minimal_height: float,            # now a height threshold, like in object_is_lifted
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
     """
     Staged reward:
       - reach the object (EE close to cube)
-      - lift the object above a height
+      - lift the object above a minimal height (binary)
       - bring the lifted object to the goal
 
-    All stages use Gaussian-like shaping, and later stages are (softly) gated
-    by earlier ones.
+    Reaching / goal use smooth kernels, lifting uses a simple threshold like
+    `object_is_lifted` and `object_goal_distance`.
     """
     robot: Entity = env.scene[asset_cfg.name]
     obj: Entity = env.scene[object_name]
@@ -186,32 +185,39 @@ def staged_position_reward(
     obj_pos_w = obj.data.root_link_pos_w                                 # [N, 3]
     target_pos_w = command.target_pos                                    # [N, 3] (world frame)
 
-    # --- Stage 1: reach object ---
-    reach_error = torch.sum((ee_pos_w - obj_pos_w) ** 2, dim=-1)
+    # --- Stage 1: reach object (Gaussian kernel on EE–object distance) ---
+    reach_error = torch.sum((ee_pos_w - obj_pos_w) ** 2, dim=-1)         # [N]
     reaching = torch.exp(-reach_error / (reaching_std ** 2))             # in (0, 1]
 
-    # --- Stage 2: lift object ---
-    obj_height = obj_pos_w[:, 2]
-    lift_error = (obj_height - lift_height) ** 2
-    lifting = torch.exp(-lift_error / (lift_std ** 2))                   # ≈1 near desired height
+    # --- Stage 2: lifted flag (binary, like object_is_lifted) ---
+    obj_height = obj_pos_w[:, 2]                                         # [N]
+    lifted = (obj_height > minimal_height).float()                       # 0 or 1
 
-    # Soft gate: lifting term only really matters once we're close to the object
-    lifting_term = reaching * lifting
+    # Soft stage-2 reward: only matters when we're near the object
+    # (you can also just use `lifted` alone if you prefer)
+    lifting_term = reaching * lifted                                     # [N]
 
-    # --- Stage 3: bring object to goal ---
-    bring_error = torch.sum((target_pos_w - obj_pos_w) ** 2, dim=-1)
-    bringing = torch.exp(-bring_error / (bringing_std ** 2))
+    # --- Stage 3: bring object to goal (Gaussian kernel on obj–goal distance) ---
+    bring_error = torch.sum((target_pos_w - obj_pos_w) ** 2, dim=-1)     # [N]
+    bringing = torch.exp(-bring_error / (bringing_std ** 2))             # in (0, 1]
 
-    # Soft gate: goal tracking only matters once object is lifted
-    bringing_term = lifting_term * bringing
+    # Only reward goal tracking when object is lifted (like object_goal_distance)
+    bringing_term = lifted * bringing                                    # [N]
+    # (Optionally: `bringing_term = lifted * reaching * bringing` if you want
+    #  it also to depend on staying near with the EE.)
 
     # Weights: tune these
     w_reach = 1.0
     w_lift = 2.0
     w_bring = 3.0
 
-    reward = w_reach * reaching + w_lift * lifting_term + w_bring * bringing_term
+    reward = (
+        w_reach * reaching        # always helps to be near the cube
+      + w_lift  * lifting_term    # bonus for actually lifting it
+      + w_bring * bringing_term   # extra bonus for moving lifted cube to goal
+    )
     return reward
+
 
 
 
