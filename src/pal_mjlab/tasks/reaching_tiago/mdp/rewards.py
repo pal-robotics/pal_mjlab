@@ -134,116 +134,65 @@ def stand_still_joint_deviation_l1(
     penalty = torch.sum(excess, dim=1)
     return penalty
 
-# def staged_position_reward(
-#   env: ManagerBasedRlEnv,
-#   command_name: str,
-#   object_name: str,
-#   reaching_std: float,
-#   bringing_std: float,
-#   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-# ) -> torch.Tensor:
-#   """Curriculum reward that gates lifting bonus on reaching progress.
-
-#   Returns reaching * (1 + bringing), where both terms are Gaussian kernels
-#   over position error. Ensures learning signal for approach before lift.
-#   """
-#   robot: Entity = env.scene[asset_cfg.name]
-#   obj: Entity = env.scene[object_name]
-#   command = cast(LiftingCommand, env.command_manager.get_term(command_name))
-#   ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
-#   obj_pos_w = obj.data.root_link_pos_w
-#   reach_error = torch.sum(torch.square(ee_pos_w - obj_pos_w), dim=-1)
-#   reaching = torch.exp(-reach_error / reaching_std**2)
-#   position_error = torch.sum(torch.square(command.target_pos - obj_pos_w), dim=-1)
-#   bringing = torch.exp(-position_error / bringing_std**2)
-#   return reaching  * (1.0 + bringing)
-
-def staged_position_reward(
+def ee_object_gaussian_distance(  # now returns geometric error, not a reward
     env: ManagerBasedRlEnv,
+    object_name: str,
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG, 
+) -> torch.Tensor:
+    robot: Entity = env.scene[asset_cfg.name]
+    obj: Entity = env.scene[object_name]
+
+    # End-effector world position (assumes a single site id).
+    ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)  # [N, 3]
+
+    # Object world position (root link).
+    obj_pos_w = obj.data.root_link_pos_w  # [N, 3]
+
+    # Geometric (L2) distance.
+    return torch.norm(ee_pos_w - obj_pos_w, dim=-1)  # [N]
+
+
+def object_is_lifted_binary(
+    env: ManagerBasedRlEnv,
+    minimal_height: float,
+    object_name: str,
+) -> torch.Tensor:
+    """Binary reward: object is above minimal height."""
+    obj: Entity = env.scene[object_name]
+    obj_height = obj.data.root_link_pos_w[:, 2]          # [N]
+    lifted = (obj_height > minimal_height).float()       # 0 or 1
+    return lifted
+
+def object_goal_gaussian_distance(
+    env: ManagerBasedRlEnv,
+    std: float,
+    minimal_height: float,
     command_name: str,
     object_name: str,
-    reaching_std: float,
-    bringing_std: float,
-    minimal_height: float,            # now a height threshold, like in object_is_lifted
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
     """
-    Staged reward:
-      - reach the object (EE close to cube)
-      - lift the object above a minimal height (binary)
-      - bring the lifted object to the goal
+    Stage-3 reward: object close to goal, only when lifted.
 
-    Reaching / goal use smooth kernels, lifting uses a simple threshold like
-    `object_is_lifted` and `object_goal_distance`.
+    Very similar idea to Isaac Lab's `object_goal_distance`, but with a Gaussian
+    kernel instead of tanh.
     """
     robot: Entity = env.scene[asset_cfg.name]
     obj: Entity = env.scene[object_name]
     command = env.command_manager.get_term(command_name)
 
-    # Positions
-    ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)   # [N, 3]
-    obj_pos_w = obj.data.root_link_pos_w                                 # [N, 3]
-    target_pos_w = command.target_pos                                    # [N, 3] (world frame)
+    obj_pos_w = obj.data.root_link_pos_w                 # [N, 3]
+    target_pos_w = command.target_pos                    # [N, 3] (world frame)
 
-    # --- Stage 1: reach object (Gaussian kernel on EE–object distance) ---
-    reach_error = torch.sum((ee_pos_w - obj_pos_w) ** 2, dim=-1)         # [N]
-    reaching = torch.exp(-reach_error / (reaching_std ** 2))             # in (0, 1]
+    # Distance object–target (squared)
+    bring_error = torch.sum((target_pos_w - obj_pos_w) ** 2, dim=-1)  # [N]
+    bringing = torch.exp(-bring_error / (std ** 2))                   # (0, 1]
 
-    # --- Stage 2: lifted flag (binary, like object_is_lifted) ---
-    obj_height = obj_pos_w[:, 2]                                         # [N]
-    lifted = (obj_height > minimal_height).float()                       # 0 or 1
+    # Lifted gate
+    obj_height = obj_pos_w[:, 2]
+    lifted = (obj_height > minimal_height).float()                    # [N]
 
-    # Soft stage-2 reward: only matters when we're near the object
-    # (you can also just use `lifted` alone if you prefer)
-    lifting_term = reaching * lifted                                     # [N]
-
-    # --- Stage 3: bring object to goal (Gaussian kernel on obj–goal distance) ---
-    bring_error = torch.sum((target_pos_w - obj_pos_w) ** 2, dim=-1)     # [N]
-    bringing = torch.exp(-bring_error / (bringing_std ** 2))             # in (0, 1]
-
-    # Only reward goal tracking when object is lifted (like object_goal_distance)
-    bringing_term = lifted * bringing                                    # [N]
-    # (Optionally: `bringing_term = lifted * reaching * bringing` if you want
-    #  it also to depend on staying near with the EE.)
-
-    # Weights: tune these
-    w_reach = 1.0
-    w_lift = 2.0
-    w_bring = 3.0
-
-    reward = (
-        w_reach * reaching        # always helps to be near the cube
-      + w_lift  * lifting_term    # bonus for actually lifting it
-      + w_bring * bringing_term   # extra bonus for moving lifted cube to goal
-    )
-    return reward
-
-
-
-
-# def staged_position_reward(  # now returns geometric error, not a reward
-#     env: ManagerBasedRlEnv,
-#     command_name: str,        # unused (kept for compatibility)
-#     object_name: str,
-#     reaching_std: float,      # unused (kept for compatibility)
-#     bringing_std: float,      # unused (kept for compatibility)
-#     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-# ) -> torch.Tensor:
-#     """Return per-env geometric distance (meters) between EE site and object root.
-
-#     Note: Despite the name, this now returns an L2 distance, not a reward.
-#     """
-#     robot: Entity = env.scene[asset_cfg.name]
-#     obj: Entity = env.scene[object_name]
-
-#     # End-effector world position (assumes a single site id).
-#     ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)  # [N, 3]
-
-#     # Object world position (root link).
-#     obj_pos_w = obj.data.root_link_pos_w  # [N, 3]
-
-#     # Geometric (L2) distance.
-#     return torch.norm(ee_pos_w - obj_pos_w, dim=-1)  # [N]
+    return lifted * bringing
 
 
 

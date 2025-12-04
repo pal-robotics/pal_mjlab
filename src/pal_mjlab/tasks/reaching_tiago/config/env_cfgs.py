@@ -45,7 +45,7 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.observations["policy"].terms["ee_to_cube"].params["asset_cfg"].site_names = (
     "ee_right"
     )
-    cfg.rewards["lift_task"].params["asset_cfg"].site_names = ("ee_right")
+    cfg.rewards["ee_object_distance"].params["asset_cfg"].site_names = ("ee_right")
 
     self_collision_cfg = ContactSensorCfg(
         name="self_collision",
