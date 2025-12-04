@@ -15,8 +15,22 @@ if TYPE_CHECKING:
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
-def object_out_of_reach(env, max_radius, object_name="cube") -> torch.Tensor:
-    obj = env.scene[object_name]
-    pos = obj.data.root_link_pos_w[:, :2]  # x, y in workspace
-    dist_xy = torch.norm(pos, dim=1)
-    return dist_xy > max_radius
+def object_out_of_bounds_box(
+    env: ManagerBasedRlEnv,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+    object_name: str = "cube",
+) -> torch.Tensor:
+    """Return True if object center leaves the [x_min, x_max] x [y_min, y_max] box."""
+    obj: Entity = env.scene[object_name]
+    pos = obj.data.root_link_pos_w[:, :2]   # [N, 2] -> x, y
+
+    x = pos[:, 0]
+    y = pos[:, 1]
+
+    out_x = (x < x_min) | (x > x_max)
+    out_y = (y < y_min) | (y > y_max)
+
+    return out_x | out_y   # [N] bool

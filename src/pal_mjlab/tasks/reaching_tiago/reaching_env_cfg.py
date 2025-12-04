@@ -246,10 +246,16 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             func=nan_detection,
             time_out=False,
         ),
-        "object_out_of_reach": TerminationTermCfg(
-            func=mdp.object_out_of_reach,
-            params={"max_radius": 1.0, "object_name": "cube"},
-        )
+        "cube_out_of_bounds": TerminationTermCfg(
+            func=mdp.object_out_of_bounds_box,
+            params={
+                "x_min": 0.3,
+                "x_max": 1.0,
+                "y_min": -0.4,
+                "y_max": 0.4,
+                "object_name": "cube",
+            },
+        ),
     }
 
 
