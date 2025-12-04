@@ -8,7 +8,7 @@ from pal_mjlab import PAL_MJLAB_SRC_PATH
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
-from mjlab.actuator import BuiltinPositionActuatorCfg
+from mjlab.actuator import DelayedActuatorCfg, BuiltinPositionActuatorCfg
 
 ##
 # MJCF and assets.
@@ -98,75 +98,127 @@ LEG_LENGTH_DAMPING = round(2.0 * DAMPING_RATIO * LEG_LENGTH_STIFFNESS / NATURAL_
 # Actuator config.
 ##
 
-# LEGS ACTUATORS
-KANGAROO_LEGS_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("leg_.*_1_joint",),
-    effort_limit=80.0,
-    armature=0.01,
-    stiffness=LEG_12_STIFFNESS,
-    damping=LEG_12_DAMPING,
-)
-KANGAROO_LEGS_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("leg_.*_2_joint",),
-    effort_limit=230.0,
-    armature=0.01,
-    stiffness=LEG_12_STIFFNESS,
-    damping=LEG_12_DAMPING,
-)
-KANGAROO_LEGS_3_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("leg_.*_3_joint",),
-    effort_limit=139.0,
-    armature=0.01,
-    stiffness=LEG_3_STIFFNESS,
-    damping=LEG_3_DAMPING,
-)
-KANGAROO_LEGS_4_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("leg_.*_4_joint",),
-    effort_limit=140.0,
-    armature=0.01,
-    stiffness=LEG_45_STIFFNESS,
-    damping=LEG_45_DAMPING,
-)
-KANGAROO_LEGS_5_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("leg_.*_5_joint",),
-    effort_limit=82.0,
-    armature=0.01,
-    stiffness=LEG_45_STIFFNESS,
-    damping=LEG_45_DAMPING,
-)
-KANGAROO_LEGS_LENGTH_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("leg_.*_length_joint",),
-    effort_limit=1100.0,
-    armature=0.01,
-    stiffness=LEG_LENGTH_STIFFNESS,
-    damping=LEG_LENGTH_DAMPING,
-)
-# ACTUATORS
-KANGAROO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(
-        "arm_.*_1_joint",
-        "arm_.*_2_joint",
-        "pelvis_1_joint",
-        "pelvis_2_joint",
+##
+# Simplified Actuators (After Transmission Application)
+##
+
+KANGAROO_LEGS_1_ACTUATOR_CFG = DelayedActuatorCfg(
+    base_cfg=BuiltinPositionActuatorCfg(
+        joint_names_expr=("leg_.*_1_joint",),
+        effort_limit=80.0,
+        armature=0.01,
+        stiffness=LEG_12_STIFFNESS,
+        damping=LEG_12_DAMPING,
     ),
-    armature=S_PLUS_ARMATURE,
-    effort_limit=S_PLUS_EFFORT_LIMIT,
-    stiffness=S_PLUS_STIFFNESS,
-    damping=S_PLUS_DAMPING,
+    delay_target="position",
+    delay_min_lag=2,  # Minimum 2 physics steps
+    delay_max_lag=5,  # Maximum 5 physics steps
 )
-KANGAROO_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
-    armature=S_MINUS_ARMATURE,
-    effort_limit=S_MINUS_EFFORT_LIMIT,
-    stiffness=S_MINUS_STIFFNESS,
-    damping=S_MINUS_DAMPING,
+KANGAROO_LEGS_2_ACTUATOR_CFG = DelayedActuatorCfg(
+    base_cfg=BuiltinPositionActuatorCfg(
+        joint_names_expr=("leg_.*_2_joint",),
+        effort_limit=230.0,
+        armature=0.01,
+        stiffness=LEG_12_STIFFNESS,
+        damping=LEG_12_DAMPING,
+    ),
+    delay_target="position",
+    delay_min_lag=2,  # Minimum 2 physics steps
+    delay_max_lag=5,  # Maximum 5 physics steps
 )
-KANGAROO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
-    armature=XS_ARMATURE,
-    effort_limit=XS_EFFORT_LIMIT,
-    stiffness=XS_STIFFNESS,
-    damping=XS_DAMPING,
+KANGAROO_LEGS_3_ACTUATOR_CFG = DelayedActuatorCfg(
+    base_cfg=BuiltinPositionActuatorCfg(
+        joint_names_expr=("leg_.*_3_joint",),
+        effort_limit=139.0,
+        armature=0.01,
+        stiffness=LEG_3_STIFFNESS,
+        damping=LEG_3_DAMPING,
+    ),
+    delay_target="position",
+    delay_min_lag=2,  # Minimum 2 physics steps
+    delay_max_lag=5,  # Maximum 5 physics steps
+)
+KANGAROO_LEGS_4_ACTUATOR_CFG = DelayedActuatorCfg(
+    base_cfg=BuiltinPositionActuatorCfg(
+        joint_names_expr=("leg_.*_4_joint",),
+        effort_limit=140.0,
+        armature=0.01,
+        stiffness=LEG_45_STIFFNESS,
+        damping=LEG_45_DAMPING,
+    ),
+    delay_target="position",
+    delay_min_lag=2,  # Minimum 2 physics steps
+    delay_max_lag=5,  # Maximum 5 physics steps
+)
+KANGAROO_LEGS_5_ACTUATOR_CFG = DelayedActuatorCfg(
+    base_cfg=BuiltinPositionActuatorCfg(
+        joint_names_expr=("leg_.*_5_joint",),
+        effort_limit=82.0,
+        armature=0.01,
+        stiffness=LEG_45_STIFFNESS,
+        damping=LEG_45_DAMPING,
+    ),
+    delay_target="position",
+    delay_min_lag=2,  # Minimum 2 physics steps
+    delay_max_lag=5,  # Maximum 5 physics steps
+)
+KANGAROO_LEGS_LENGTH_ACTUATOR_CFG = DelayedActuatorCfg(
+    base_cfg=BuiltinPositionActuatorCfg(
+        joint_names_expr=("leg_.*_length_joint",),
+        effort_limit=1100.0,
+        armature=0.01,
+        stiffness=LEG_LENGTH_STIFFNESS,
+        damping=LEG_LENGTH_DAMPING,
+    ),
+    delay_target="position",
+    delay_min_lag=2,  # Minimum 2 physics steps
+    delay_max_lag=5,  # Maximum 5 physics steps
+)
+
+##
+# Revolute Actuators
+##
+
+KANGAROO_S_PLUS_ACTUATOR_CFG = DelayedActuatorCfg(
+    base_cfg=BuiltinPositionActuatorCfg(
+        joint_names_expr=(
+            "arm_.*_1_joint",
+            "arm_.*_2_joint",
+            "pelvis_1_joint",
+            "pelvis_2_joint",
+        ),
+        armature=S_PLUS_ARMATURE,
+        effort_limit=S_PLUS_EFFORT_LIMIT,
+        stiffness=S_PLUS_STIFFNESS,
+        damping=S_PLUS_DAMPING,
+    ),
+    delay_target="position",
+    delay_min_lag=2,  # Minimum 2 physics steps
+    delay_max_lag=5,  # Maximum 5 physics steps
+)
+KANGAROO_S_MINUS_ACTUATOR_CFG = DelayedActuatorCfg(
+    base_cfg=BuiltinPositionActuatorCfg(
+        joint_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
+        armature=S_MINUS_ARMATURE,
+        effort_limit=S_MINUS_EFFORT_LIMIT,
+        stiffness=S_MINUS_STIFFNESS,
+        damping=S_MINUS_DAMPING,
+    ),
+    delay_target="position",
+    delay_min_lag=2,  # Minimum 2 physics steps
+    delay_max_lag=5,  # Maximum 5 physics steps
+)
+KANGAROO_XS_ACTUATOR_CFG = DelayedActuatorCfg(
+    base_cfg=BuiltinPositionActuatorCfg(
+        joint_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
+        armature=XS_ARMATURE,
+        effort_limit=XS_EFFORT_LIMIT,
+        stiffness=XS_STIFFNESS,
+        damping=XS_DAMPING,
+    ),
+    delay_target="position",
+    delay_min_lag=2,  # Minimum 2 physics steps
+    delay_max_lag=5,  # Maximum 5 physics steps
 )
 
 # TODO: hands and gripper actuators cfg
@@ -298,8 +350,8 @@ def test_jn(name: str) -> bool:
 
 
 for a in KANGAROO_ARTICULATION.actuators:
-    e = a.effort_limit
-    s = a.stiffness
+    e = a.base_cfg.effort_limit
+    s = a.base_cfg.stiffness
     names = a.joint_names_expr
 
     if not isinstance(e, dict):
@@ -313,8 +365,8 @@ for a in KANGAROO_ARTICULATION.actuators:
             KANGAROO_ACTUATOR_NAMES += (n,)
 
 for a in KANGAROO_HANDS_ARTICULATION.actuators:
-    e = a.effort_limit
-    s = a.stiffness
+    e = a.base_cfg.effort_limit
+    s = a.base_cfg.stiffness
     names = a.joint_names_expr
 
     if not isinstance(e, dict):

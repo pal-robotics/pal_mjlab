@@ -12,7 +12,7 @@ from mjlab.sensor import ContactMatch, ContactSensorCfg
 from pal_mjlab.tasks.kangaroo_locomotion import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
-from mjlab.managers.manager_term_config import TerminationTermCfg
+from mjlab.managers.manager_term_config import TerminationTermCfg, EventTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.manager_term_config import (
     CurriculumTermCfg,
@@ -31,7 +31,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     site_names = ("left_foot", "right_foot")
     geom_names = tuple(
-        f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(0, 10)
+        f"{side}_foot{i}_collision" for side in ("left", "right") for i in [0, 2, 4, 6, 8, 10]
     )
     actuated_joints = (
         # Lower body.
@@ -114,8 +114,78 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.observations["critic"].terms["foot_height"].params[
         "asset_cfg"
     ].site_names = site_names
+    cfg.observations["policy"].history_length = 5 # Keep last 5 frames
+    cfg.observations["critic"].history_length = 5 # Keep last 5 frames
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
+    # joint level domain randomization
+    cfg.events["joint_offset"]= EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
+            "field": "qpos0",
+            "ranges": (-0.01, 0.01),
+            "operation": "add",
+        },
+    )
+    cfg.events["joint_friction"]= EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
+            "field": "dof_frictionloss",
+            "ranges": (-0.01, 0.01),
+            "operation": "add",
+        },
+    )
+    cfg.events["joint_armature"]= EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
+            "field": "dof_armature",
+            "ranges": (-0.01, 0.01),
+            "operation": "add",
+        },
+    )
+    # link level domain randomization
+    cfg.events["com"]= EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis_2_link"]),
+            "field": "body_ipos",
+            "ranges": {0: (-0.02, 0.02), 1: (-0.02, 0.02)},
+            "operation": "add",
+        },
+    )
+    cfg.events["mass"]= EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis_2_link"]),
+            "field": "body_mass",
+            "ranges": {0: (-0.02, 0.02), 1: (-0.02, 0.02)},
+            "operation": "add",
+        },
+    )
+    cfg.events["com"]= EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis_2_link"]),
+            "field": "body_ipos",
+            "ranges": {0: (-0.02, 0.02), 1: (-0.02, 0.02)},
+            "operation": "add",
+        },
+    )
 
     cfg.rewards["pose"].params["asset_cfg"].joint_names = actuated_joints
     cfg.rewards["pose"].params["std_standing"] = {
