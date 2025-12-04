@@ -164,9 +164,10 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     rewards = {
         # 1) Reach: EE–cube distance (returns distance in meters → use NEGATIVE weight)
         "ee_object_distance": RewardTermCfg(
-            func=mdp.ee_object_gaussian_distance,   # returns torch.norm(ee - obj)
+            func=mdp.ee_object_distance,   # returns torch.norm(ee - obj)
             weight=-1.0,                            # negative because it's a cost
             params={
+                "std": 0.2,
                 "object_name": "cube",
                 "asset_cfg": SceneEntityCfg(
                     "robot",

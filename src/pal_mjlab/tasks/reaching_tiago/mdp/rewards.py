@@ -134,22 +134,32 @@ def stand_still_joint_deviation_l1(
     penalty = torch.sum(excess, dim=1)
     return penalty
 
-def ee_object_gaussian_distance(  # now returns geometric error, not a reward
+def ee_object_distance(
     env: ManagerBasedRlEnv,
+    std: float,
     object_name: str,
-    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG, 
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
+    """Reward the agent for reaching the object using a tanh kernel.
+
+    Returns values in (0, 1], with:
+      - ~1 when the EE is on the cube
+      - smoothly decaying towards 0 as distance increases
+    """
     robot: Entity = env.scene[asset_cfg.name]
     obj: Entity = env.scene[object_name]
 
-    # End-effector world position (assumes a single site id).
+    # End-effector world position (assumes a single EE site id).
     ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)  # [N, 3]
 
     # Object world position (root link).
     obj_pos_w = obj.data.root_link_pos_w  # [N, 3]
 
-    # Geometric (L2) distance.
-    return torch.norm(ee_pos_w - obj_pos_w, dim=-1)  # [N]
+    # Geometric distance EE–object.
+    dist = torch.norm(ee_pos_w - obj_pos_w, dim=-1)  # [N]
+
+    # IsaacLab-style tanh kernel: 1 when close, ~0 when far.
+    return 1.0 - torch.tanh(dist / std)
 
 
 def object_is_lifted_binary(
