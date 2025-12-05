@@ -114,6 +114,32 @@ uv run play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/r
   </tr>
 </table>
 
+
+## Changing the `mjlab` dependency (uv)
+
+Use one of the following:
+
+```bash
+# add mjlab (tracks the default branch HEAD at lock time)
+uv add "mjlab @ git+https://github.com/mujocolab/mjlab"
+
+# pin to a specific commit
+uv add "mjlab @ git+https://github.com/mujocolab/mjlab@<commit sha>"
+
+# use the latest PyPI release
+uv add mjlab
+
+# use a local editable checkout (best for local development)
+uv add "mjlab @ path/to/mjlab" --editable
+```
+
+After switching, make sure your lockfile is updated:
+
+```bash
+uv sync
+```
+
+
 ## Acknowledgements
 
 We're grateful to the people behind mjlab, PAL Robotics, MuJoCo Warp, Isaac Lab, and the [Inria HUCEBOT Team](https://team.inria.fr/hucebot/).
