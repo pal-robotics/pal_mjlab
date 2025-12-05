@@ -5,11 +5,13 @@ This repository showcase the implementation of [PAL](https://pal-robotics.com/)'
 > [!WARNING]
 > As mjlab is still in early development, this repository may be impacted by breaking changes. If an issue were to arise when running one of the scripts, feel free to open an issue or contribute to the project. Thank you for your understanding!
 
+
 ## What's mjlab?
 
 mjlab is a project to have the [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/index.html) API using [MjWarp](https://mujoco.readthedocs.io/en/latest/mjwarp/index.html) as the backend. If you’re wondering about the motivation behind it or how it differs from Newton, you can learn more about it [here](https://github.com/mujocolab/mjlab/blob/main/docs/motivation.md).
 
 It’s really easy to install, and sim-to-real has been tested successfully on the G1 and Go1 for RL locomotion and motion imitation, see the announcement [tweet](https://x.com/kevin_zakka/status/1972757435707424898?t=4Ho4ovrCAEOWTCxVG3BKrw&s=19) for videos.
+
 
 ## Quickstart
 
@@ -32,6 +34,7 @@ uv run play Mjlab-Velocity-Flat-Pal-Talos --agent zero # send zero actions to th
 uv run play Mjlab-Velocity-Flat-Pal-Talos --agent random # send random actions to the robot
 ```
 
+
 ### Velocity Tracking
 
 Train the policy.
@@ -45,6 +48,7 @@ Evaluate the policy.
 ```bash
 uv run play Mjlab-Velocity-Flat-Pal-Talos --wandb-run-path your-org/mjlab/run-id
 ```
+
 
 ### Motion Imitation
 
@@ -113,6 +117,32 @@ uv run play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/r
     </td>
   </tr>
 </table>
+
+
+## Changing the `mjlab` dependency (uv)
+
+Use one of the following:
+
+```bash
+# add mjlab (tracks the default branch HEAD at lock time)
+uv add "mjlab @ git+https://github.com/mujocolab/mjlab"
+
+# pin to a specific commit
+uv add "mjlab @ git+https://github.com/mujocolab/mjlab@<commit sha>"
+
+# use the latest PyPI release
+uv add mjlab
+
+# use a local editable checkout (best for local development)
+uv add "mjlab @ path/to/mjlab" --editable
+```
+
+After switching, make sure your lockfile is updated:
+
+```bash
+uv sync
+```
+
 
 ## Acknowledgements
 
