@@ -93,7 +93,7 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         name="right_fingertip_block_collision",
         primary=ContactMatch(
             mode="subtree",
-            pattern="gripper_right_fingertip_left_link",      
+            pattern="gripper_right_fingertip_right_link",      
             entity="robot",
         ),
         secondary=ContactMatch(

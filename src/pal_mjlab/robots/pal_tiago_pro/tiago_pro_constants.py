@@ -288,8 +288,8 @@ GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
         "gripper_left_outer_finger_left_joint",
         "gripper_right_outer_finger_left_joint",),
     effort_limit=GRIPPER_EFFORT_LIMIT,
-    armature=GRIPPER_ARMATURE,    
-    stiffness=60.0, #GRIPPER_STIFFNESS,
+    armature=2*GRIPPER_ARMATURE,    
+    stiffness=100.0, #GRIPPER_STIFFNESS,
     damping= 4.0, #GRIPPER_DAMPING,
 )
 
