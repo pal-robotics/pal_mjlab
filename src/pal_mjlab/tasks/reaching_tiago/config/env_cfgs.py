@@ -11,6 +11,7 @@ from pal_mjlab.tasks.reaching_tiago import mdp
 from pal_mjlab.tasks.reaching_tiago.reaching_env_cfg import make_reaching_env_cfg
 from pal_mjlab.tasks.reaching_tiago.mdp import LiftingCommandCfg
 import mujoco
+import random
 
 # ADD cube 
 def get_cube_spec(cube_size: float = 0.02, mass: float = 0.05) -> mujoco.MjSpec:
@@ -23,7 +24,7 @@ def get_cube_spec(cube_size: float = 0.02, mass: float = 0.05) -> mujoco.MjSpec:
     size=(cube_size,) * 3,
     mass=mass,
     rgba=(0.8, 0.2, 0.2, 1.0),
-    friction=(0.8, 0.005, 0.0001),
+    friction=(random.uniform(0.3, 1.2) , 0.005, 0.0001),
   )
   return spec
 
