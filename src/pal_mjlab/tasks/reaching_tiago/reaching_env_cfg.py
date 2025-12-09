@@ -242,14 +242,14 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                     joint_names=(".*",),),
             },
         ),
-        "joint_vel_hinge": RewardTermCfg(
-            func=mdp.joint_velocity_hinge_penalty,
-            weight=-0.0001,
-            params={
-                "max_vel": 0.8,
-                "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-            },
-        ),
+        # "joint_vel_hinge": RewardTermCfg(
+        #     func=mdp.joint_velocity_hinge_penalty,
+        #     weight=-0.0001,
+        #     params={
+        #         "max_vel": 0.8,
+        #         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+        #     },
+        # ),
     }
 
     ## --------------------------------------------------------
