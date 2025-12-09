@@ -34,7 +34,7 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
        "robot": get_tiago_robot_cfg(),
         "cube": EntityCfg(spec_fn=get_cube_spec),}
 
-    joint_pos_action = cfg.actions["joint_pos_arms"]
+    joint_pos_action = cfg.actions["joint_pos"]
     assert isinstance(joint_pos_action, JointPositionActionCfg)
     joint_pos_action.scale = 0.5  # TIAGO_PRO_ACTION_SCALE
 

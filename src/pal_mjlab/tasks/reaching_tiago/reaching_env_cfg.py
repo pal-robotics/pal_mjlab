@@ -91,24 +91,24 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     ## --------------------------------------------------------
 
     actions: dict[str, ActionTermCfg] = {
-        "joint_pos_arms": JointPositionActionCfg(
+        "joint_pos": JointPositionActionCfg(
             asset_name="robot",
-            actuator_names=("arm_.*_joint",),
+            actuator_names=(".*",),
             scale=0.5,  # Override per-robot.
             use_default_offset=True,
         ),
-        "joint_pos_torso": JointPositionActionCfg(
-            asset_name="robot",
-            actuator_names=("torso_lift_joint",),
-            scale=0.25,  # Override per-robot.
-            use_default_offset=True,
-        ),  
-        "joint_pos_grippers": JointPositionActionCfg(
-            asset_name="robot",
-            actuator_names=("gripper_.*_joint",),
-            scale=2.0,  # Override per-robot.
-            use_default_offset=True,
-        ),
+        # "joint_pos_torso": JointPositionActionCfg(
+        #     asset_name="robot",
+        #     actuator_names=("torso_lift_joint",),
+        #     scale=0.25,  # Override per-robot.
+        #     use_default_offset=True,
+        # ),  
+        # "joint_pos_grippers": JointPositionActionCfg(
+        #     asset_name="robot",
+        #     actuator_names=("gripper_.*_joint",),
+        #     scale=2.0,  # Override per-robot.
+        #     use_default_offset=True,
+        # ),
     }
 
     ## --------------------------------------------------------
