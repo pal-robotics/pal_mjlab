@@ -23,6 +23,7 @@ def get_cube_spec(cube_size: float = 0.02, mass: float = 0.05) -> mujoco.MjSpec:
     size=(cube_size,) * 3,
     mass=mass,
     rgba=(0.8, 0.2, 0.2, 1.0),
+    friction=(0.8, 0.005, 0.0001),
   )
   return spec
 
@@ -110,7 +111,7 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.scene.sensors = (self_collision_cfg,ee_ground_collision_cfg,right_fingertip_collision_cfg,left_fingertip_collision_cfg)
 
     cfg.rewards["stand_still_joint_deviation_l1"].params["asset_cfg"].joint_names = (
-        r"torso_lift_joint",
+        # r"torso_lift_joint",
         r"arm_left_.*_joint",
     )
 
