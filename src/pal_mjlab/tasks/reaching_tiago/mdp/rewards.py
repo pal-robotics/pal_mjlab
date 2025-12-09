@@ -204,6 +204,37 @@ def object_goal_gaussian_distance(
 
     return lifted * bringing
 
+def fingertips_grasp_binary(
+    env: ManagerBasedRlEnv,
+    left_sensor_name: str,
+    right_sensor_name: str,
+) -> torch.Tensor:
+    """
+    Binary reward: 1 if BOTH fingertip–cube contact sensors report contact,
+    otherwise 0.
+
+    Assumes each ContactSensor produces a `.data.found` field of shape:
+      [num_envs] or [num_envs, num_slots]
+    """
+    # Look up the two contact sensors from the scene
+    left_sensor = env.scene.sensors[left_sensor_name]
+    right_sensor = env.scene.sensors[right_sensor_name]
+
+    # Extract "found" flags
+    left_found = left_sensor.data.found         
+    right_found = right_sensor.data.found      
+
+    if left_found.ndim > 1:
+        left_found = left_found.any(dim=-1)   
+    if right_found.ndim > 1:
+        right_found = right_found.any(dim=-1) 
+
+    # Both fingertips must be in contact with the cube
+    both = torch.logical_and(left_found, right_found)  # [N] boolean
+
+    return both.float()  
+
+
 
 
 class action_rate_l2_louis:

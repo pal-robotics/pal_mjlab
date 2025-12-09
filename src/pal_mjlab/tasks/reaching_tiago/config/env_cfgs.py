@@ -72,7 +72,42 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         num_slots=1,
     )
 
-    cfg.scene.sensors = (self_collision_cfg,ee_ground_collision_cfg,)
+    left_fingertip_collision_cfg = ContactSensorCfg(  
+        name="left_fingertip_cube_collision",
+        primary=ContactMatch(
+            mode="subtree",
+            pattern="gripper_right_fingertip_left_link",      
+            entity="robot",
+        ),
+        secondary=ContactMatch(
+            mode="body",
+            pattern="cube",
+            entity="cube",
+        ),
+        fields=("found",),
+        reduce="none",
+        num_slots=1,
+    )
+
+    right_fingertip_collision_cfg = ContactSensorCfg(  
+        name="right_fingertip_block_collision",
+        primary=ContactMatch(
+            mode="subtree",
+            pattern="gripper_right_fingertip_left_link",      
+            entity="robot",
+        ),
+        secondary=ContactMatch(
+            mode="body",
+            pattern="cube",
+            entity="cube",
+        ),
+        fields=("found",),
+        reduce="none",
+        num_slots=1,
+    )
+
+
+    cfg.scene.sensors = (self_collision_cfg,ee_ground_collision_cfg,right_fingertip_collision_cfg,left_fingertip_collision_cfg)
 
     cfg.rewards["stand_still_joint_deviation_l1"].params["asset_cfg"].joint_names = (
         r"torso_lift_joint",
@@ -84,4 +119,14 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
     )
+
+    cfg.rewards["fingertips_grasp_cube"] = RewardTermCfg(
+    func=mdp.fingertips_grasp_binary,
+    weight=2.0,
+    params={
+        "left_sensor_name": left_fingertip_collision_cfg.name,
+        "right_sensor_name": right_fingertip_collision_cfg.name,
+    },
+)
+
     return cfg
