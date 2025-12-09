@@ -142,7 +142,7 @@ WHEEL_DAMPING = 2.0 * DAMPING_RATIO * NATURAL_FREQ * WHEEL_ARMATURE
 # GRIPPER JOINTS
 # inertia
 GRIPPER_MOTOR_INERTIA = 0.000019
-GRIPPER_REDUCTION_RATIO = 0.0013
+GRIPPER_REDUCTION_RATIO = 100.0 # 0.0013
 
 # armature
 GRIPPER_ARMATURE = factor * GRIPPER_MOTOR_INERTIA * GRIPPER_REDUCTION_RATIO**2
@@ -285,8 +285,8 @@ WHEEL_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=(
-        "gripper_left_.*_joint",
-        "gripper_right_.*_joint",),
+        "gripper_left_outer_finger_left_joint",
+        "gripper_right_outer_finger_left_joint",),
     effort_limit=GRIPPER_EFFORT_LIMIT,
     armature=GRIPPER_ARMATURE,    
     stiffness=GRIPPER_STIFFNESS,
