@@ -181,7 +181,8 @@
                       <!-- <geom size="0.0375 0.0183" type="cylinder" rgba="0.29804 0.29804 0.29804 1" group="3" /> -->
                       <geom pos="0 0 0.017" type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.29804 0.29804 0.29804 1" mesh="base_link_tc" />
                       <!-- <geom pos="0 0 0.017" type="mesh" rgba="0.29804 0.29804 0.29804 1" mesh="base_link_tc" group="3" /> -->
-                      <site name="ee_left" pos="0 0 0.10" size="0.01" type="sphere" group="3" rgba="1 0 0 1" />
+                      <site name="ee_left" pos="0 0 0.15" size="0.01" type="sphere" group="3" rgba="1 0 0 1" />
+                      <geom name="viz_ee_left" type="sphere" pos="0 0 0.14" size="0.01" contype="0" conaffinity="0" density="0" group="1" rgba="1 1 0 1" />
 
                       <geom name="col_ee_left" type="cylinder"  size="0.04 0.07" pos="0 0 0" contype="1" conaffinity="1" group="3" rgba="0 1 0 0.3" />
                       <geom name="col_left_palm" type="box" pos="0 0 0.1025" size="0.01 0.035 0.025" contype="1" conaffinity="1" group="3" rgba="0 1 0 0.3" />
@@ -273,7 +274,7 @@
                       <!-- <geom size="0.0375 0.0183" type="cylinder" rgba="0.29804 0.29804 0.29804 1" group="3" /> -->
                       <geom pos="0 0 0.017" type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.29804 0.29804 0.29804 1" mesh="base_link_tc" />
                       <!-- <geom pos="0 0 0.017" type="mesh" rgba="0.29804 0.29804 0.29804 1" mesh="base_link_tc" group="3" /> -->
-                      <site name="ee_right" pos="0 0 0.10" size="0.01" type="sphere" group="3" rgba="1 0 0 1" />
+                      <site name="ee_right" pos="0 0 0.15" size="0.01" type="sphere" group="3" rgba="1 0 0 1" />
 
                       <geom name="col_ee_right" type="cylinder"  size="0.04 0.07" pos="0 0 0" contype="1" conaffinity="1" group="3" rgba="0 1 0 0.3" />
                       <geom name="col_right_palm" type="box" pos="0 0 0.1025" size="0.01 0.035 0.025" contype="1" conaffinity="1" group="3" rgba="0 1 0 0.3" />

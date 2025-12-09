@@ -261,10 +261,10 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         "cube_out_of_bounds": TerminationTermCfg(
             func=mdp.object_out_of_bounds_box_local,
             params={
-                "x_min": 0.3,
-                "x_max": 0.9,
-                "y_min": -0.4,
-                "y_max": 0.4,
+                "x_min": 0.4,
+                "x_max": 0.8,
+                "y_min": -0.3,
+                "y_max": 0.3,
                 "object_name": "cube",
                 "robot_name": "robot",
             },
