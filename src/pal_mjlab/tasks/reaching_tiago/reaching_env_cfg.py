@@ -191,7 +191,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         # 2) Lift: binary bonus when cube is above minimal height
         "object_is_lifted": RewardTermCfg(
             func=mdp.object_is_lifted_binary,
-            weight=10.0,                            # tune: this makes lifting clearly worthwhile
+            weight=10.0,                            
             params={
                 "minimal_height": 0.08,
                 "object_name": "cube",
@@ -201,15 +201,15 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         # 3) Bring: object-to-goal Gaussian, only when lifted
         "object_goal_distance": RewardTermCfg(
             func=mdp.object_goal_gaussian_distance,
-            weight=15.0,                            # bigger than lift so full task is best
+            weight=15.0,                           
             params={
-                "std": 0.3,                         # like IsaacLab's coarse goal shaping
+                "std": 0.3,                         
                 "minimal_height": 0.08,
-                "command_name": "lift_height",      # same command as before
+                "command_name": "lift_height",      
                 "object_name": "cube",
                 "asset_cfg": SceneEntityCfg(
                     "robot",
-                    site_names=(),                  # robot base / frame used in the function
+                    site_names=(),                
                 ),
             },
         ),
