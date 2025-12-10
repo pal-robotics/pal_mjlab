@@ -1,6 +1,6 @@
 <mujoco model="tiago pro motor scene">   
     
-  <include file="tiago_pro_motor.xml"/>
+  <include file="tiago_pro_geoms.xml"/>
 
   <visual>
     <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
@@ -10,7 +10,6 @@
 
   <worldbody>
     <light mode="targetbody" name="spotlight" pos="1 0 10" target="base_footprint" />
-    <!-- <geom conaffinity="1" contype="1" friction="0.001 0.0 0.0" group="0" material="groundplane" name="floor" size="0 0 0.05" type="plane" /> -->
   </worldbody>
 
   <asset>

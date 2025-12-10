@@ -102,43 +102,6 @@ TORSO_STIFFNESS = 1500 # (NATURAL_FREQ**2) * ARM_1_ARMATURE
 TORSO_DAMPING = 300 # 2.0 * DAMPING_RATIO * NATURAL_FREQ * ARM_1_ARMATURE
 
 # --------------------------------------------------------
-# HEAD JOINTS
-# inertia
-HEAD_MOTOR_INERTIA = 0.000207288
-HEAD_REDUCTION_RATIO = 100
-
-# armature
-HEAD_ARMATURE = factor * HEAD_MOTOR_INERTIA * HEAD_REDUCTION_RATIO**2
-
-# effort limit 
-HEAD_1_EFFORT_LIMIT = 8.0
-HEAD_2_EFFORT_LIMIT = 4.0
-
-# joint stiffness 
-HEAD_STIFFNESS = (NATURAL_FREQ**2) * HEAD_ARMATURE
-
-# joint damping
-HEAD_DAMPING = 2.0 * DAMPING_RATIO * NATURAL_FREQ * HEAD_ARMATURE
-
-# --------------------------------------------------------
-# WHEEL JOINTS
-# inertia
-WHEEL_MOTOR_INERTIA = 0.000207288
-WHEEL_REDUCTION_RATIO = 100
-
-# armature
-WHEEL_ARMATURE = factor * WHEEL_MOTOR_INERTIA * WHEEL_REDUCTION_RATIO**2
-
-# effort limit 
-WHEEL_EFFORT_LIMIT = 40.0
-
-# joint stiffness 
-WHEEL_STIFFNESS = (NATURAL_FREQ**2) * WHEEL_ARMATURE
-
-# joint damping
-WHEEL_DAMPING = 2.0 * DAMPING_RATIO * NATURAL_FREQ * WHEEL_ARMATURE
-
-# --------------------------------------------------------
 # GRIPPER JOINTS
 # inertia
 GRIPPER_MOTOR_INERTIA = 0.000207288
@@ -265,24 +228,6 @@ TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     stiffness=TORSO_STIFFNESS,
     damping=TORSO_DAMPING,
 )       
-HEAD_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("head_.*_joint",),
-    effort_limit=(HEAD_1_EFFORT_LIMIT, HEAD_2_EFFORT_LIMIT),
-    armature=HEAD_ARMATURE,
-    stiffness=HEAD_STIFFNESS,
-    damping=HEAD_DAMPING,
-)
-WHEEL_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(        
-        "wheel_front_right_joint",
-        "wheel_front_left_joint",
-        "wheel_rear_right_joint",
-        "wheel_rear_left_joint",),
-    effort_limit=WHEEL_EFFORT_LIMIT,
-    armature=WHEEL_ARMATURE,    
-    stiffness=WHEEL_STIFFNESS,
-    damping=WHEEL_DAMPING,
-)
 GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=(
         "gripper_left_.*_joint",
@@ -297,13 +242,8 @@ GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 INIT_STATE = EntityCfg.InitialStateCfg(
     pos=(0.0, 0.0, 0.0),
     joint_pos={
-        # wheels
-        "wheel_.*_joint": 0.0,
         # torso
         "torso_lift_joint": 0.1 ,  
-        # head
-        "head_1_joint": 0.0,
-        "head_2_joint": 0.0,
         # arms
         "arm_left_1_joint": 0.3578,
         "arm_left_2_joint": -1.8266,
@@ -357,8 +297,6 @@ TIAGO_ARTICULATION = EntityArticulationInfoCfg(
         ARM_6_L_ACTUATOR_CFG,
         ARM_7_L_ACTUATOR_CFG,
         TORSO_ACTUATOR_CFG,
-        # HEAD_ACTUATOR_CFG,
-        # WHEEL_ACTUATOR_CFG,
         # GRIPPER_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.75,
