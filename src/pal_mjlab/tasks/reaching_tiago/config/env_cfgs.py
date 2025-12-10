@@ -74,42 +74,42 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         num_slots=1,
     )
 
-    left_fingertip_collision_cfg = ContactSensorCfg(  
-        name="left_fingertip_cube_collision",
-        primary=ContactMatch(
-            mode="subtree",
-            pattern="gripper_right_fingertip_left_link",      
-            entity="robot",
-        ),
-        secondary=ContactMatch(
-            mode="body",
-            pattern="cube",
-            entity="cube",
-        ),
-        fields=("found",),
-        reduce="none",
-        num_slots=1,
-    )
+    # left_fingertip_collision_cfg = ContactSensorCfg(  
+    #     name="left_fingertip_cube_collision",
+    #     primary=ContactMatch(
+    #         mode="subtree",
+    #         pattern="gripper_right_fingertip_left_link",      
+    #         entity="robot",
+    #     ),
+    #     secondary=ContactMatch(
+    #         mode="body",
+    #         pattern="cube",
+    #         entity="cube",
+    #     ),
+    #     fields=("found",),
+    #     reduce="none",
+    #     num_slots=1,
+    # )
 
-    right_fingertip_collision_cfg = ContactSensorCfg(  
-        name="right_fingertip_block_collision",
-        primary=ContactMatch(
-            mode="subtree",
-            pattern="gripper_right_fingertip_right_link",      
-            entity="robot",
-        ),
-        secondary=ContactMatch(
-            mode="body",
-            pattern="cube",
-            entity="cube",
-        ),
-        fields=("found",),
-        reduce="none",
-        num_slots=1,
-    )
+    # right_fingertip_collision_cfg = ContactSensorCfg(  
+    #     name="right_fingertip_block_collision",
+    #     primary=ContactMatch(
+    #         mode="subtree",
+    #         pattern="gripper_right_fingertip_right_link",      
+    #         entity="robot",
+    #     ),
+    #     secondary=ContactMatch(
+    #         mode="body",
+    #         pattern="cube",
+    #         entity="cube",
+    #     ),
+    #     fields=("found",),
+    #     reduce="none",
+    #     num_slots=1,
+    # )
 
 
-    cfg.scene.sensors = (self_collision_cfg,ee_ground_collision_cfg,right_fingertip_collision_cfg,left_fingertip_collision_cfg)
+    cfg.scene.sensors = (self_collision_cfg,ee_ground_collision_cfg,)
 
     cfg.rewards["stand_still_joint_deviation_l1"].params["asset_cfg"].joint_names = (
         # r"torso_lift_joint",
