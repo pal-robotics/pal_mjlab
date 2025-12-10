@@ -24,7 +24,7 @@ def get_cube_spec(cube_size: float = 0.02, mass: float = 0.05) -> mujoco.MjSpec:
     size=(cube_size,) * 3,
     mass=mass,
     rgba=(0.8, 0.2, 0.2, 1.0),
-    # friction=(random.uniform(0.3, 1.2) , 0.005, 0.0001),
+    friction=(random.uniform(0.3, 1.2) , 0.005, 0.0001),
   )
   return spec
 
