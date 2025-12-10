@@ -177,7 +177,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         # 1) Reach: EE–cube distance (returns distance in meters → use NEGATIVE weight)
         "ee_object_distance": RewardTermCfg(
             func=mdp.ee_object_distance,   # returns torch.norm(ee - obj)
-            weight=1.0,                            # negative because it's a cost
+            weight=3.0,                            # negative because it's a cost
             params={
                 "std": 0.4,
                 "object_name": "cube",
