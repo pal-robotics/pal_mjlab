@@ -289,7 +289,7 @@ GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
         "gripper_right_outer_finger_left_joint",),
     effort_limit=GRIPPER_EFFORT_LIMIT,
     armature=2*GRIPPER_ARMATURE,    
-    stiffness=2000.0, #GRIPPER_STIFFNESS,
+    stiffness=400.0, #GRIPPER_STIFFNESS,
     damping= 30.0, #GRIPPER_DAMPING,
 )
 
@@ -300,7 +300,7 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         # wheels
         "wheel_.*_joint": 0.0,
         # torso
-        # "torso_lift_joint": 0.0001 ,  
+        "torso_lift_joint": 0.0001 ,  
         # head
         "head_1_joint": 0.0,
         "head_2_joint": 0.0,

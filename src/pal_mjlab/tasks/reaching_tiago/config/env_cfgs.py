@@ -14,19 +14,26 @@ import mujoco
 import random
 
 # ADD cube 
-def get_cube_spec(cube_size: float = 0.02, mass: float = 0.05) -> mujoco.MjSpec:
-  spec = mujoco.MjSpec()
-  body = spec.worldbody.add_body(name="cube")
-  body.add_freejoint(name="cube_joint")
-  body.add_geom(
-    name="cube_geom",
-    type=mujoco.mjtGeom.mjGEOM_BOX,
-    size=(cube_size,) * 3,
-    mass=mass,
-    rgba=(0.8, 0.2, 0.2, 1.0),
-    friction=(random.uniform(0.3, 1.2) , 0.005, 0.0001),
-  )
-  return spec
+def get_cube_spec(
+    cube_size: float = 0.03,
+    height_scale: float = 2.0,
+    mass: float = 0.05,
+) -> mujoco.MjSpec:
+    spec = mujoco.MjSpec()
+    body = spec.worldbody.add_body(name="cube_tall")
+    body.add_freejoint(name="cube_tall_joint")
+
+    size = (cube_size, cube_size, cube_size * height_scale)
+
+    body.add_geom(
+        name="cube_tall_geom",
+        type=mujoco.mjtGeom.mjGEOM_BOX,
+        size=size,
+        mass=mass,
+        rgba=(0.8, 0.2, 0.2, 1.0),
+        friction=(0.8, 0.005, 0.0001),
+    )
+    return spec
 
 def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics TIAGo reaching configuration."""
@@ -112,7 +119,7 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.scene.sensors = (self_collision_cfg,ee_ground_collision_cfg,)
 
     cfg.rewards["stand_still_joint_deviation_l1"].params["asset_cfg"].joint_names = (
-        # r"torso_lift_joint",
+        r"torso_lift_joint",
         r"arm_left_.*_joint",
     )
 

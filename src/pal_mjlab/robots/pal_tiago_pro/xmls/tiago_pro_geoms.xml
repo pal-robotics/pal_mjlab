@@ -107,7 +107,7 @@
 
       <body name="torso_lift_link" pos="-0.0245 0 0.8457">
         <inertial pos="0.0129455 0 -0.0117188" quat="0.658139 0.658391 -0.258276 0.258201" mass="4.0175" diaginertia="0.0534327 0.0451869 0.0265871" />
-        <!-- <joint name="torso_lift_joint" pos="0 0 0" axis="0 0 1" type="slide" range="0 0.35" actuatorfrcrange="-2000 2000" damping="0.5" /> -->
+        <joint name="torso_lift_joint" pos="0 0 0" axis="0 0 1" type="slide" range="0 0.35" actuatorfrcrange="-2000 2000" damping="0.5" />
 
         <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.894118 0.913725 0.929412 1" mesh="torso_lift_link" />
         <!-- <geom type="mesh" rgba="0.894118 0.913725 0.929412 1" mesh="torso_lift_link_collision" group="3" /> -->
