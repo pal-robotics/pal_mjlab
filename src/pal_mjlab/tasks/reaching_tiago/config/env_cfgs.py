@@ -122,13 +122,13 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={"sensor_name": self_collision_cfg.name},
     )
 
-    cfg.rewards["fingertips_grasp_cube"] = RewardTermCfg(
-        func=mdp.fingertips_grasp_binary,
-        weight=2.0,
-        params={
-            "left_sensor_name": left_fingertip_collision_cfg.name,
-            "right_sensor_name": right_fingertip_collision_cfg.name,
-        },
-    )
+    # cfg.rewards["fingertips_grasp_cube"] = RewardTermCfg(
+    #     func=mdp.fingertips_grasp_binary,
+    #     weight=2.0,
+    #     params={
+    #         "left_sensor_name": left_fingertip_collision_cfg.name,
+    #         "right_sensor_name": right_fingertip_collision_cfg.name,
+    #     },
+    # )
 
     return cfg
