@@ -300,7 +300,7 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         # wheels
         "wheel_.*_joint": 0.0,
         # torso
-        "torso_lift_joint": 0.08 ,  
+        "torso_lift_joint": 0.04 ,  
         # head
         "head_1_joint": 0.0,
         "head_2_joint": 0.0,
@@ -356,7 +356,7 @@ TIAGO_ARTICULATION = EntityArticulationInfoCfg(
         ARM_5_L_ACTUATOR_CFG,
         ARM_6_L_ACTUATOR_CFG,
         ARM_7_L_ACTUATOR_CFG,
-        TORSO_ACTUATOR_CFG,
+        # TORSO_ACTUATOR_CFG,
         # HEAD_ACTUATOR_CFG,
         # WHEEL_ACTUATOR_CFG,
         GRIPPER_ACTUATOR_CFG,
