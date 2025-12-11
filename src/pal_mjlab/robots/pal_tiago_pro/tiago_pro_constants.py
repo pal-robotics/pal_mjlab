@@ -286,24 +286,24 @@ WHEEL_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=(
         "gripper_left_outer_finger_left_joint",
-        "gripper_right_outer_finger_left_joint",),
+        "gripper_right_outer_finger_left_joint",
+        "gripper_left_outer_finger_right_joint",
+        "gripper_right_outer_finger_right_joint",
+        ),
     effort_limit=GRIPPER_EFFORT_LIMIT,
     armature=GRIPPER_ARMATURE,    
-    stiffness=100.0, #GRIPPER_STIFFNESS,
-    damping= 2.0, #GRIPPER_DAMPING,
+    stiffness=10.0, #GRIPPER_STIFFNESS,
+    damping= 10.0, #GRIPPER_DAMPING,
 )
 
 
 INIT_STATE = EntityCfg.InitialStateCfg(
     pos=(0.0, 0.0, 0.0),
     joint_pos={
-        # wheels
-        "wheel_.*_joint": 0.0,
+        # grippers 
+        "gripper_.*_joint": 0.22,
         # torso
         "torso_lift_joint": 0.0001 ,  
-        # head
-        "head_1_joint": 0.0,
-        "head_2_joint": 0.0,
         # arms
         "arm_left_1_joint": 0.3578,
         "arm_left_2_joint": -1.8266,
@@ -319,8 +319,6 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         "arm_right_5_joint": 0.0,
         "arm_right_6_joint": -1.2006,
         "arm_right_7_joint": 0.0,
-        # grippers 
-        "gripper_.*_joint": 0.40,
     },
     joint_vel={".*": 0.0},
 )
@@ -342,6 +340,8 @@ FULL_COLLISION = CollisionCfg(
 
 TIAGO_ARTICULATION = EntityArticulationInfoCfg(
     actuators=(
+        GRIPPER_ACTUATOR_CFG,
+        TORSO_ACTUATOR_CFG,
         ARM_1_R_ACTUATOR_CFG,
         ARM_2_R_ACTUATOR_CFG,
         ARM_3_R_ACTUATOR_CFG,
@@ -356,10 +356,6 @@ TIAGO_ARTICULATION = EntityArticulationInfoCfg(
         ARM_5_L_ACTUATOR_CFG,
         ARM_6_L_ACTUATOR_CFG,
         ARM_7_L_ACTUATOR_CFG,
-        # TORSO_ACTUATOR_CFG,
-        # HEAD_ACTUATOR_CFG,
-        # WHEEL_ACTUATOR_CFG,
-        GRIPPER_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.75,
 )

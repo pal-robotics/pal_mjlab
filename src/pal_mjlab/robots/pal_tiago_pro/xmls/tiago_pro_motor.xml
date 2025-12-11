@@ -33,9 +33,11 @@
     <motor name="arm_right_7_joint_torque" joint="arm_right_7_joint" ctrlrange="-46 46" /> -->
 
    <!-- Gripper actuators -->
-    <!-- <position name="gripper_left_position" joint="gripper_left_inner_finger_left_joint" kp="100" ctrlrange=" 0 0.802851 " />
-    <position name="gripper_right_position" joint="gripper_right_inner_finger_left_joint" kp="100" ctrlrange="0 0.802851" /> -->
-  <!-- </actuator> -->
+    <!-- <position name="gripper_left_position1" joint="gripper_left_outer_finger_left_joint" kp="100" ctrlrange=" 0 0.802851 " />
+    <position name="gripper_left_position2" joint="gripper_left_outer_finger_right_joint" kp="100" ctrlrange=" 0 0.802851 " />
+    <position name="gripper_right_position1" joint="gripper_right_outer_finger_left_joint" kp="100" ctrlrange="0 0.802851" />
+    <position name="gripper_right_position2" joint="gripper_right_outer_finger_right_joint" kp="100" ctrlrange="0 0.802851" />
+  </actuator> -->
 
   <!-- <keyframe> -->
     <!-- <key name="home" qpos="0.0825 0.3578 -1.8266 0.4698 -2.3409 0.0001 -1.2006 0.0 -0.3576 -1.8266 -0.4698 -2.3409 0.0002 -1.2006 0.0"/> -->

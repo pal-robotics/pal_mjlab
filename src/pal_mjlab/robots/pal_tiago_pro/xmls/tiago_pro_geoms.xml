@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <mujoco model="tiago_pro">
   <compiler angle="radian" balanceinertia="true" discardvisual="false" strippath="false" />
-  <option integrator="implicitfast" />
+  <!-- <option integrator="implicitfast" /> -->
+  <option iterations="1" ls_iterations="5" timestep="0.001"/>
 
   <asset>
     <mesh name="sick_tim551" content_type="model/stl" file="./assets/laser/sick_tim551.stl" />
@@ -328,71 +329,11 @@
     </body>
   </worldbody>
   <equality>
-    <!-- Left finger joints mimic outer left -->
-    <joint joint1="gripper_left_outer_finger_left_joint"
-           joint2="gripper_left_outer_finger_right_joint"
-           polycoef="0 1 0 0 0"
-           solimp="0.9 0.95 0.001"
-           solref="0.02 1" 
-           active="true"/>
-    <joint joint1="gripper_left_outer_finger_left_joint"
-           joint2="gripper_left_inner_finger_left_joint"
-           polycoef="0 1 0 0 0"
-           solimp="0.9 0.95 0.001"
-           solref="0.02 1" 
-           active="true"/>
-    <joint joint1="gripper_left_outer_finger_left_joint"
-           joint2="gripper_left_inner_finger_right_joint"
-           polycoef="0 1 0 0 0"
-           solimp="0.9 0.95 0.001"
-           solref="0.02 1" 
-           active="true"/>
-    <joint joint1="gripper_left_outer_finger_left_joint"
-           joint2="gripper_left_fingertip_left_joint"
-           polycoef="0 -1 0 0 0"
-           solimp="0.9 0.95 0.001"
-           solref="0.02 1" 
-           active="true"/>
-    <joint joint1="gripper_left_outer_finger_left_joint"
-           joint2="gripper_left_fingertip_right_joint"
-           polycoef="0 -1 0 0 0"
-           solimp="0.9 0.95 0.001"
-           solref="0.02 1" 
-           active="true"/>     
-
-           
-    <!-- Right finger joints mimic outer left -->
-    <joint joint1="gripper_right_outer_finger_left_joint"
-           joint2="gripper_right_outer_finger_right_joint"
-           polycoef="0 1 0 0 0"
-           solimp="0.9 0.95 0.001"
-           solref="0.02 1" 
-           active="true"/>
-    <joint joint1="gripper_right_outer_finger_left_joint"
-           joint2="gripper_right_inner_finger_left_joint"
-           polycoef="0 1 0 0 0"
-           solimp="0.9 0.95 0.001"
-           solref="0.02 1" 
-           active="true"/>
-    <joint joint1="gripper_right_outer_finger_left_joint"
-           joint2="gripper_right_inner_finger_right_joint"
-           polycoef="0 1 0 0 0"
-           solimp="0.9 0.95 0.001"
-           solref="0.02 1" 
-           active="true"/>
-    <joint joint1="gripper_right_outer_finger_left_joint"
-           joint2="gripper_right_fingertip_left_joint"
-           polycoef="0 -1 0 0 0"
-           solimp="0.9 0.95 0.001"
-           solref="0.02 1" 
-           active="true"/>
-    <joint joint1="gripper_right_outer_finger_right_joint"
-           joint2="gripper_right_fingertip_right_joint"
-           polycoef="0 -1 0 0 0"
-           solimp="0.9 0.95 0.001"
-           solref="0.02 1" 
-           active="true"/>  
-   </equality>
+    <connect anchor="0.0 0.05 0.0" body1="gripper_right_outer_finger_left_link" body2="gripper_right_fingertip_left_link" name="gripper_right_finger_left_eq" solref="0.002 1" />
+    <connect anchor="0.0 0.05 0.0" body1="gripper_right_outer_finger_right_link" body2="gripper_right_fingertip_right_link" name="gripper_right_finger_right_eq" solref="0.002 1" />
+    <connect anchor="0.0 0.05 0.0" body1="gripper_left_outer_finger_left_link" body2="gripper_left_fingertip_left_link" name="gripper_left_finger_left_eq" solref="0.002 1" />
+    <connect anchor="0.0 0.05 0.0" body1="gripper_left_outer_finger_right_link" body2="gripper_left_fingertip_right_link" name="gripper_left_finger_right_eq" solref="0.002 1" />
+  </equality>
   <contact>
     <exclude body1="arm_right_3_link" body2="arm_right_5_link" />
     <exclude body1="arm_right_5_link" body2="arm_right_7_link" />
