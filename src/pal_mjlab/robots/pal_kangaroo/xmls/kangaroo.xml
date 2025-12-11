@@ -245,6 +245,7 @@
     <exclude body1="leg_left_5_link" body2="leg_left_knee_link"/>
     <exclude body1="leg_left_femur_link" body2="leg_left_knee_link"/>
     <exclude body1="leg_right_1_link" body2="leg_right_femur_link"/>
+    <exclude body1="leg_right_1_link" body2="leg_left_1_link"/>
     <exclude body1="leg_right_5_link" body2="leg_right_femur_link"/>
     <exclude body1="leg_right_5_link" body2="leg_right_knee_link"/>
     <exclude body1="leg_right_femur_link" body2="leg_right_knee_link"/>
