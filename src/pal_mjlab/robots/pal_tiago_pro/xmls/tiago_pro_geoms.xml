@@ -257,10 +257,10 @@
           </body>
         </body>
       </body>
-
       <site name="base_footprint_site" />
     </body>
   </worldbody>
+  
   <contact>
     <exclude body1="arm_right_3_link" body2="arm_right_5_link" />
     <exclude body1="arm_right_5_link" body2="arm_right_7_link" />
