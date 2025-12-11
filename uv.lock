@@ -958,7 +958,7 @@ wheels = [
 [[package]]
 name = "mjlab"
 version = "0.1.0"
-source = { editable = "../mjlab" }
+source = { git = "https://github.com/mujocolab/mjlab#64996638092c4b51d80f247e0e09862b06ff1061" }
 dependencies = [
     { name = "moviepy" },
     { name = "mujoco" },
@@ -976,40 +976,6 @@ dependencies = [
     { name = "viser" },
     { name = "wandb" },
     { name = "warp-lang" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "moviepy" },
-    { name = "mujoco", specifier = "<=3.3.8", index = "https://py.mujoco.org/" },
-    { name = "mujoco-warp", git = "https://github.com/google-deepmind/mujoco_warp?rev=46b4421c19a9d72eeeb7ed8c083d275746513d38" },
-    { name = "onnxscript", specifier = ">=0.5.4" },
-    { name = "prettytable" },
-    { name = "rsl-rl-lib", specifier = ">=3.2.0" },
-    { name = "tensorboard", specifier = ">=2.20.0" },
-    { name = "tensordict" },
-    { name = "torch", specifier = ">=2.7.0" },
-    { name = "torch", marker = "sys_platform == 'darwin' and extra == 'cu128'", specifier = ">=2.7.0" },
-    { name = "torch", marker = "sys_platform != 'darwin' and extra == 'cu128'", specifier = ">=2.7.0", index = "https://download.pytorch.org/whl/cu128", conflict = { package = "mjlab", extra = "cu128" } },
-    { name = "torchrunx", specifier = ">=0.3.4" },
-    { name = "tqdm" },
-    { name = "trimesh", specifier = ">=4.8.3" },
-    { name = "tyro", specifier = ">=0.10.0a6" },
-    { name = "viser", specifier = ">=1.0.16" },
-    { name = "wandb", specifier = ">=0.22.3" },
-    { name = "warp-lang", marker = "sys_platform != 'darwin'", index = "https://pypi.nvidia.com/" },
-    { name = "warp-lang", marker = "sys_platform == 'darwin'" },
-]
-provides-extras = ["cu128"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "ipdb", specifier = ">=0.13.13" },
-    { name = "pre-commit", specifier = ">=4.3.0" },
-    { name = "pyright", specifier = ">=1.1.407" },
-    { name = "pytest", specifier = ">=8.4.2" },
-    { name = "ruff", specifier = ">=0.14.3" },
-    { name = "ty", specifier = ">=0.0.1a23" },
 ]
 
 [[package]]
@@ -1144,7 +1110,7 @@ wheels = [
 [[package]]
 name = "mujoco-warp"
 version = "0.0.1"
-source = { git = "https://github.com/google-deepmind/mujoco_warp?rev=46b4421c19a9d72eeeb7ed8c083d275746513d38#46b4421c19a9d72eeeb7ed8c083d275746513d38" }
+source = { git = "https://github.com/google-deepmind/mujoco_warp?rev=9fc294d86955a303619a254cefae809a41adb274#9fc294d86955a303619a254cefae809a41adb274" }
 dependencies = [
     { name = "absl-py" },
     { name = "etils", extra = ["epath"] },
@@ -1630,7 +1596,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mjlab", editable = "../mjlab" },
+    { name = "mjlab", git = "https://github.com/mujocolab/mjlab" },
     { name = "ruff", specifier = ">=0.14.0" },
 ]
 
