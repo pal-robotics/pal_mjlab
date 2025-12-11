@@ -91,26 +91,26 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     ## --------------------------------------------------------
 
     actions: dict[str, ActionTermCfg] = {
-        "gripper_action": mdp.BinaryJointPositionActionCfg(
-            asset_name="robot",
-            actuator_names=("gripper_.*_joint",),
-            open_command_expr={
-                "gripper_left_outer_finger_left_joint": 0.22,
-                "gripper_right_outer_finger_left_joint": 0.22,
-                "gripper_left_outer_finger_right_joint": 0.22,
-                "gripper_right_outer_finger_right_joint": 0.22,
-            },
-            close_command_expr={
-                "gripper_left_outer_finger_left_joint": 0.64,
-                "gripper_right_outer_finger_left_joint": 0.64,
-                "gripper_left_outer_finger_right_joint": 0.64,
-                "gripper_right_outer_finger_right_joint": 0.64,
-            },
-            use_default_offset=True,
-        ),
+        # "gripper_action": mdp.BinaryJointPositionActionCfg(
+        #     asset_name="robot",
+        #     actuator_names=("gripper_.*_joint",),
+        #     open_command_expr={
+        #         "gripper_left_outer_finger_left_joint": 0.22,
+        #         "gripper_right_outer_finger_left_joint": 0.22,
+        #         "gripper_left_outer_finger_right_joint": 0.22,
+        #         "gripper_right_outer_finger_right_joint": 0.22,
+        #     },
+        #     close_command_expr={
+        #         "gripper_left_outer_finger_left_joint": 0.64,
+        #         "gripper_right_outer_finger_left_joint": 0.64,
+        #         "gripper_left_outer_finger_right_joint": 0.64,
+        #         "gripper_right_outer_finger_right_joint": 0.64,
+        #     },
+        #     use_default_offset=True,
+        # ),
         "joint_pos": JointPositionActionCfg(
             asset_name="robot",
-            actuator_names=("torso_lift_joint","arm_.*_joint",),
+            actuator_names=(".*",),
             scale=0.5,  # Override per-robot.
             use_default_offset=True,
         ),
