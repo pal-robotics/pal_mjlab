@@ -114,8 +114,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.observations["critic"].terms["foot_height"].params[
         "asset_cfg"
     ].site_names = site_names
-    # cfg.observations["policy"].history_length = 5 # Keep last 5 frames
-    # cfg.observations["critic"].history_length = 5 # Keep last 5 frames
+    cfg.observations["policy"].history_length = 5 # Keep last 5 frames
+    cfg.observations["critic"].history_length = 5 # Keep last 5 frames
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
     # joint level domain randomization
