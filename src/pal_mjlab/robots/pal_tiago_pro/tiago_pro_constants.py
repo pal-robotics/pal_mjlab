@@ -148,7 +148,7 @@ GRIPPER_REDUCTION_RATIO = 80.0 # 0.0013
 GRIPPER_ARMATURE = factor * GRIPPER_MOTOR_INERTIA * GRIPPER_REDUCTION_RATIO**2
 
 # effort limit 
-GRIPPER_EFFORT_LIMIT = 40.0
+GRIPPER_EFFORT_LIMIT = 8.0
 
 # joint stiffness 
 GRIPPER_STIFFNESS = (NATURAL_FREQ**2) * GRIPPER_ARMATURE
@@ -289,8 +289,8 @@ GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
         "gripper_right_outer_finger_left_joint",),
     effort_limit=GRIPPER_EFFORT_LIMIT,
     armature=GRIPPER_ARMATURE,    
-    stiffness=400.0, #GRIPPER_STIFFNESS,
-    damping= 30.0, #GRIPPER_DAMPING,
+    stiffness=100.0, #GRIPPER_STIFFNESS,
+    damping= 2.0, #GRIPPER_DAMPING,
 )
 
 
