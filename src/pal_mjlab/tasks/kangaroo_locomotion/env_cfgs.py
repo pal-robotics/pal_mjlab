@@ -119,62 +119,62 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
     # joint level domain randomization
-    # cfg.events["joint_offset"]= EventTermCfg(
-    #     mode="startup",
-    #     func=mdp.randomize_field,
-    #     domain_randomization=True,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-    #         "field": "qpos0",
-    #         "ranges": (-0.003, 0.003),
-    #         "operation": "add",
-    #     },
-    # )
-    # cfg.events["joint_friction"]= EventTermCfg(
-    #     mode="startup",
-    #     func=mdp.randomize_field,
-    #     domain_randomization=True,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-    #         "field": "dof_frictionloss",
-    #         "ranges": (-0.003, 0.003),
-    #         "operation": "add",
-    #     },
-    # )
-    # cfg.events["joint_armature"]= EventTermCfg(
-    #     mode="startup",
-    #     func=mdp.randomize_field,
-    #     domain_randomization=True,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-    #         "field": "dof_armature",
-    #         "ranges": (-0.003, 0.003),
-    #         "operation": "add",
-    #     },
-    # )
-    # # link level domain randomization
-    # cfg.events["com"]= EventTermCfg(
-    #     mode="startup",
-    #     func=mdp.randomize_field,
-    #     domain_randomization=True,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis_2_link"]),
-    #         "field": "body_ipos",
-    #         "ranges": {0: (-0.02, 0.02), 1: (-0.02, 0.02)},
-    #         "operation": "add",
-    #     },
-    # )
-    # cfg.events["mass"]= EventTermCfg(
-    #     mode="startup",
-    #     func=mdp.randomize_field,
-    #     domain_randomization=True,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis_2_link"]),
-    #         "field": "body_mass",
-    #         "ranges": (-0.2, 0.2),
-    #         "operation": "add",
-    #     },
-    # )
+    cfg.events["joint_offset"]= EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
+            "field": "qpos0",
+            "ranges": (-0.003, 0.003),
+            "operation": "add",
+        },
+    )
+    cfg.events["joint_friction"]= EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
+            "field": "dof_frictionloss",
+            "ranges": (-0.003, 0.003),
+            "operation": "add",
+        },
+    )
+    cfg.events["joint_armature"]= EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
+            "field": "dof_armature",
+            "ranges": (-0.003, 0.003),
+            "operation": "add",
+        },
+    )
+    # link level domain randomization
+    cfg.events["com"]= EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis_2_link"]),
+            "field": "body_ipos",
+            "ranges": {0: (-0.02, 0.02), 1: (-0.02, 0.02)},
+            "operation": "add",
+        },
+    )
+    cfg.events["mass"]= EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis_2_link"]),
+            "field": "body_mass",
+            "ranges": (-0.2, 0.2),
+            "operation": "add",
+        },
+    )
 
 
     cfg.rewards["pose"].params["asset_cfg"].joint_names = actuated_joints
