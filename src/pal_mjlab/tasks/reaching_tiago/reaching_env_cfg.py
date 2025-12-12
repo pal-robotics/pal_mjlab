@@ -197,26 +197,26 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 ),
             },
         ),
-        "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
-            weight=-1.0
-            ),
-        "action_rate_l2": RewardTermCfg(
-            func=mdp.action_rate_l2_louis,
-            weight=-0.0001,
-            params={
-                "asset_cfg": SceneEntityCfg(
-                    "robot", joint_names=(".*",)),  # Set per-robot.
-            },
-        ),
-        "joint_acc_l2": RewardTermCfg(
-        func=mdp.joint_acc_l2,
-        weight=-0.1e-4,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=(".*",),),
-            },
-        ),
+        # "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
+        #     weight=-1.0
+        #     ),
+        # "action_rate_l2": RewardTermCfg(
+        #     func=mdp.action_rate_l2_louis,
+        #     weight=-0.0001,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg(
+        #             "robot", joint_names=(".*",)),  # Set per-robot.
+        #     },
+        # ),
+        # "joint_acc_l2": RewardTermCfg(
+        # func=mdp.joint_acc_l2,
+        # weight=-0.1e-4,
+        # params={
+        #     "asset_cfg": SceneEntityCfg(
+        #         "robot",
+        #         joint_names=(".*",),),
+        #     },
+        # ),
         "stand_still_joint_deviation_l1": RewardTermCfg(
             func=mdp.stand_still_joint_deviation_l1,
             weight=-5.0,
