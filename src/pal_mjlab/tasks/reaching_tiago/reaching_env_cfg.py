@@ -197,9 +197,9 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 ),
             },
         ),
-        # "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
-        #     weight=-1.0
-        #     ),
+        "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
+            weight=-1.0
+            ),
         # "action_rate_l2": RewardTermCfg(
         #     func=mdp.action_rate_l2_louis,
         #     weight=-0.0001,

@@ -198,7 +198,30 @@
                           <joint name="gripper_left_fingertip_left_joint" pos="0 0 0" axis="0 0 1" range="-0.9 0" actuatorfrcrange="-8 8" damping="1.5" />
                           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" />
                           <!-- <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" group="3" /> -->
-                          <geom name="col_left_fingertip_left" type="box" pos="-0.004 0.025 0" size="0.0075 0.022 0.01" group="3" rgba="0 1 0 0.3" />
+                          <geom name="col_left_fingertip_left_c1"
+                                type="cylinder"
+                                fromto= "-0.007 0.003 -0.0075   -0.007 0.047 -0.0075"
+                                size="0.005"
+                                group="3" rgba="0 1 0 0.3" />
+
+                          <geom name="col_left_fingertip_left_c2"
+                                type="cylinder"
+                                fromto="-0.007 0.003 -0.0025   -0.007 0.047 -0.0025"
+                                size="0.005"
+                                group="3" rgba="0 1 0 0.3" />
+
+                          <geom name="col_left_fingertip_left_c3"
+                                type="cylinder"
+                                fromto="-0.007 0.003  0.0025   -0.007 0.047  0.0025"
+                                size="0.005"
+                                group="3" rgba="0 1 0 0.3" />
+
+                          <geom name="col_left_fingertip_left_c4"
+                                type="cylinder"
+                                fromto="-0.007 0.003  0.0075   -0.007 0.047  0.0075"
+                                size="0.005"
+                                group="3" rgba="0 1 0 0.3" />
+
                         </body>
                       </body>
                       <body name="gripper_left_outer_finger_left_link" pos="0 -0.0288 0.0913" quat="0.253401 0.660141 -0.253406 -0.660141">
@@ -217,7 +240,26 @@
                           <joint name="gripper_left_fingertip_right_joint" pos="0 0 0" axis="0 0 1" range="-0.9 0" actuatorfrcrange="-8 8" damping="1.5" />
                           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" />
                           <!-- <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" group="3" /> -->
-                          <geom name="col_left_fingertip_right" type="box" pos="-0.004 0.025 0" size="0.0075 0.022 0.01" group="3" rgba="0 1 0 0.3" /></body>
+                          <!-- <geom name="col_left_fingertip_right" type="box" pos="-0.004 0.025 0" size="0.0075 0.022 0.01" group="3" rgba="0 1 0 0.3" /></body> -->
+                          <geom name="col_left_fingertip_right_c1"
+                                type="cylinder"
+                                fromto="-0.007 0.003 -0.0075   -0.007 0.047 -0.0075"
+                                size="0.005" group="3" rgba="0 1 0 0.3"/>
+
+                          <geom name="col_left_fingertip_right_c2"
+                                type="cylinder"
+                                fromto="-0.007 0.003 -0.0025   -0.007 0.047 -0.0025"
+                                size="0.005" group="3" rgba="0 1 0 0.3"/>
+
+                          <geom name="col_left_fingertip_right_c3"
+                                type="cylinder"
+                                fromto="-0.007 0.003  0.0025   -0.007 0.047  0.0025"
+                                size="0.005" group="3" rgba="0 1 0 0.3"/>
+
+                          <geom name="col_left_fingertip_right_c4"
+                                type="cylinder"
+                                fromto="-0.007 0.003  0.0075   -0.007 0.047  0.0075"
+                                size="0.005" group="3" rgba="0 1 0 0.3"/> </body>
                       </body>
                       <body name="gripper_left_outer_finger_right_link" pos="0 0.0288 0.0913" quat="0.66014 0.253404 0.660142 0.253404">
                         <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
@@ -290,7 +332,25 @@
                           <joint name="gripper_right_fingertip_left_joint" pos="0 0 0" axis="0 0 1" range="-0.95 0" actuatorfrcrange="-8 8" damping="1.5"/>
                           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" />
                           <!-- <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" group="3" /> -->
-                          <geom name="col_right_fingertip_left" type="box" pos="-0.004 0.025 0" size="0.0075 0.022 0.01" group="3" rgba="0 1 0 0.3" />
+                          <geom name="col_right_fingertip_left_c1"
+                                type="cylinder"
+                                fromto="-0.007 0.003 -0.0075   -0.007 0.047 -0.0075"
+                                size="0.005" group="3" rgba="0 1 0 0.3"/>
+
+                          <geom name="col_right_fingertip_left_c2"
+                                type="cylinder"
+                                fromto="-0.007 0.003 -0.0025   -0.007 0.047 -0.0025"
+                                size="0.005" group="3" rgba="0 1 0 0.3"/>
+
+                          <geom name="col_right_fingertip_left_c3"
+                                type="cylinder"
+                                fromto="-0.007 0.003  0.0025   -0.007 0.047  0.0025"
+                                size="0.005" group="3" rgba="0 1 0 0.3"/>
+
+                          <geom name="col_right_fingertip_left_c4"
+                                type="cylinder"
+                                fromto="-0.007 0.003  0.0075   -0.007 0.047  0.0075"
+                                size="0.005" group="3" rgba="0 1 0 0.3"/>
                         </body>
                       </body>
                       <body name="gripper_right_outer_finger_left_link" pos="0 -0.0288 0.0913" quat="0.253401 0.660141 -0.253406 -0.660141">
@@ -309,7 +369,25 @@
                           <joint name="gripper_right_fingertip_right_joint" pos="0 0 0" axis="0 0 1" range="-0.95 0" actuatorfrcrange="-8 8" damping="1.5"/>
                           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" />
                           <!-- <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" group="3" /> -->
-                          <geom name="col_right_fingertip_right" type="box" pos="-0.004 0.025 0" size="0.0075 0.022 0.01" group="3" rgba="0 1 0 0.3" /> </body>
+                          <geom name="col_right_fingertip_right_c1"
+                                type="cylinder"
+                                fromto="-0.007 0.003 -0.0075   -0.007 0.047 -0.0075"
+                                size="0.005" group="3" rgba="0 1 0 0.3"/>
+
+                          <geom name="col_right_fingertip_right_c2"
+                                type="cylinder"
+                                fromto="-0.007 0.003 -0.0025   -0.007 0.047 -0.0025"
+                                size="0.005" group="3" rgba="0 1 0 0.3"/>
+
+                          <geom name="col_right_fingertip_right_c3"
+                                type="cylinder"
+                                fromto="-0.007 0.003  0.0025   -0.007 0.047  0.0025"
+                                size="0.005" group="3" rgba="0 1 0 0.3"/>
+
+                          <geom name="col_right_fingertip_right_c4"
+                                type="cylinder"
+                                fromto="-0.007 0.003  0.0075   -0.007 0.047  0.0075"
+                                size="0.005" group="3" rgba="0 1 0 0.3"/> </body>
                       </body>
                       <body name="gripper_right_outer_finger_right_link" pos="0 0.0288 0.0913" quat="0.66014 0.253404 0.660142 0.253404">
                         <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
