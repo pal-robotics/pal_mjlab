@@ -198,7 +198,12 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             },
         ),
         "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
-            weight=-1.0
+            weight=-1.0,
+            params={
+                "asset_cfg": SceneEntityCfg(
+                    "robot", 
+                    joint_names=("arm_.*_joint","torso_lift_joint",)),  # Set per-robot.
+            },
             ),
         # "action_rate_l2": RewardTermCfg(
         #     func=mdp.action_rate_l2_louis,
