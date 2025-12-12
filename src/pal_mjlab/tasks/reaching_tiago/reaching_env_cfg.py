@@ -291,7 +291,10 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "reward_name": "dof_pos_limits",
                 "weight_stages": [
                     {"step": 0, "weight": -0.0},
-                    {"step": 1_000 * 24, "weight": -1.0},},),
+                    {"step": 1_000 * 24, "weight": -1.0},
+                    ],
+                    },
+                    ),
     }
 
     ## --------------------------------------------------------
