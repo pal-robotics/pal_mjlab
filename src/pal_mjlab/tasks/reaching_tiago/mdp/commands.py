@@ -160,7 +160,7 @@ class LiftingCommandCfg(CommandTermCfg):
     """Configuration for target position sampling in dynamic mode."""
 
     x: tuple[float, float] = (0.4, 0.8)
-    y: tuple[float, float] = (-0.2, 0.5)
+    y: tuple[float, float] = (-0.5, 0.2)
     z: tuple[float, float] = (0.2, 1.0)
 
   # Only used in dynamic mode.

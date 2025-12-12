@@ -91,23 +91,6 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     ## --------------------------------------------------------
 
     actions: dict[str, ActionTermCfg] = {
-        # "gripper_action": mdp.BinaryJointPositionActionCfg(
-        #     asset_name="robot",
-        #     actuator_names=("gripper_.*_joint",),
-        #     open_command_expr={
-        #         "gripper_left_outer_finger_left_joint": 0.22,
-        #         "gripper_right_outer_finger_left_joint": 0.22,
-        #         "gripper_left_outer_finger_right_joint": 0.22,
-        #         "gripper_right_outer_finger_right_joint": 0.22,
-        #     },
-        #     close_command_expr={
-        #         "gripper_left_outer_finger_left_joint": 0.64,
-        #         "gripper_right_outer_finger_left_joint": 0.64,
-        #         "gripper_left_outer_finger_right_joint": 0.64,
-        #         "gripper_right_outer_finger_right_joint": 0.64,
-        #     },
-        #     use_default_offset=True,
-        # ),
         "joint_pos": JointPositionActionCfg(
             asset_name="robot",
             actuator_names=(".*",),
@@ -125,10 +108,10 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             asset_name="cube",
             resampling_time_range=(8.0, 12.0),
             debug_vis=True,
-            difficulty="fixed",
+            difficulty="dynamic",
             object_pose_range=mdp.LiftingCommandCfg.ObjectPoseRangeCfg(
-                x = (0.7, 0.7),
-                y = (0.0, 0.0),
+                x = (0.65, 0.8),
+                y = (-0.3, 0.2),
                 z = (0.035, 0.035),
                 yaw=(3.14, 3.14),
                 ),
@@ -181,14 +164,14 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     rewards = {
         # 1) Reach: EE–cube distance (returns distance in meters → use NEGATIVE weight)
         "ee_object_distance": RewardTermCfg(
-            func=mdp.ee_object_distance,   # returns torch.norm(ee - obj)
-            weight=3.0,                            # negative because it's a cost
+            func=mdp.ee_object_distance,  
+            weight=3.0,                           
             params={
                 "std": 0.4,
                 "object_name": "cube",
                 "asset_cfg": SceneEntityCfg(
                     "robot",
-                    site_names=(),                  # same EE site config you used before
+                    site_names=(),                  #
                 ),
             },
         ),
@@ -218,26 +201,26 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 ),
             },
         ),
-        # "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
-        #     weight=-1.0
-        #     ),
-        # "action_rate_l2": RewardTermCfg(
-        #     func=mdp.action_rate_l2_louis,
-        #     weight=-0.0001,
-        #     params={
-        #         "asset_cfg": SceneEntityCfg(
-        #             "robot", joint_names=(".*",)),  # Set per-robot.
-        #     },
-        # ),
-        # "joint_acc_l2": RewardTermCfg(
-        # func=mdp.joint_acc_l2,
-        # weight=-0.1e-4,
-        # params={
-        #     "asset_cfg": SceneEntityCfg(
-        #         "robot",
-        #         joint_names=(".*",),),
-        #     },
-        # ),
+        "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
+            weight=-1.0
+            ),
+        "action_rate_l2": RewardTermCfg(
+            func=mdp.action_rate_l2_louis,
+            weight=-0.0001,
+            params={
+                "asset_cfg": SceneEntityCfg(
+                    "robot", joint_names=(".*",)),  # Set per-robot.
+            },
+        ),
+        "joint_acc_l2": RewardTermCfg(
+        func=mdp.joint_acc_l2,
+        weight=-0.1e-4,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot",
+                joint_names=(".*",),),
+            },
+        ),
         "stand_still_joint_deviation_l1": RewardTermCfg(
             func=mdp.stand_still_joint_deviation_l1,
             weight=-5.0,
