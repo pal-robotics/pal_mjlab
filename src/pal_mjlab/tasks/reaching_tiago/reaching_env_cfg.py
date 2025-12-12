@@ -43,10 +43,6 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             func=mdp.joint_vel_rel,
             noise=Unoise(n_min=-1.5, n_max=1.5),
         ),
-        # "lift_height": ObservationTermCfg(
-        #     func=mdp.commands_gen,
-        #     params={"command_name": "lift_height"},
-        # ),
         "ee_to_cube": ObservationTermCfg(
             func=mdp.ee_to_object_distance,
             params={
@@ -234,7 +230,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         #     func=mdp.joint_velocity_hinge_penalty,
         #     weight=-0.0001,
         #     params={
-        #         "max_vel": 0.8,
+        #         "max_vel": 0.5,
         #         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
         #     },
         # ),
