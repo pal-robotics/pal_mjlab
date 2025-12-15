@@ -304,16 +304,16 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         #         ],
         #     },
         # ),
-        "dof_pos_limits_curr": CurriculumTermCfg(
-            func=mdp.reward_weight,
-            params={
-                "reward_name": "dof_pos_limits",
-                "weight_stages": [
-                    {"step": 0, "weight": -0.0},
-                    {"step": 1_000 * 24, "weight": -1.0},
-                    ],
-                    },
-                    ),
+        # "dof_pos_limits_curr": CurriculumTermCfg(
+        #     func=mdp.reward_weight,
+        #     params={
+        #         "reward_name": "dof_pos_limits",
+        #         "weight_stages": [
+        #             {"step": 0, "weight": -0.0},
+        #             {"step": 1_000 * 24, "weight": -1.0},
+        #             ],
+        #             },
+        #             ),
     }
 
     ## --------------------------------------------------------
