@@ -3,7 +3,7 @@
 from pal_mjlab.robots import (
     KANGAROO_ACTION_SCALE,
     get_kangaroo_robot_cfg,
-    KANGAROO_ACTION_NAMES
+    KANGAROO_ACTUATOR_NAMES,
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -15,16 +15,11 @@ from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.managers.manager_term_config import TerminationTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.manager_term_config import (
-  ActionTermCfg,
-  CommandTermCfg,
-  CurriculumTermCfg,
-  EventTermCfg,
-  ObservationGroupCfg,
-  ObservationTermCfg,
-  RewardTermCfg,
-  TerminationTermCfg,
+    CurriculumTermCfg,
+    ObservationTermCfg,
 )
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
+
 
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO rough terrain velocity configuration."""
@@ -32,12 +27,26 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
 
-    cfg.sim.nconmax = 40
+    cfg.sim.nconmax = 45
 
     site_names = ("left_foot", "right_foot")
     geom_names = tuple(
-        f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(0, 9)
+        f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(0, 10)
     )
+    actuated_joints = (
+        # Lower body.
+        r"leg_.*_1_.*",
+        r"leg_.*_2_.*",
+        r"leg_.*_3_.*",
+        r"leg_.*_length_.*",
+        r"leg_.*_4_.*",
+        r"leg_.*_5_.*",
+        # Waist.
+        r"pelvis_.*",
+        # Arms.
+        r"arm_.*",
+    )
+
     feet_ground_cfg = ContactSensorCfg(
         name="feet_ground_contact",
         primary=ContactMatch(
@@ -82,7 +91,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     joint_pos_action = cfg.actions["joint_pos"]
     assert isinstance(joint_pos_action, JointPositionActionCfg)
     joint_pos_action.scale = KANGAROO_ACTION_SCALE
-    joint_pos_action.actuator_names = KANGAROO_ACTION_NAMES
+    joint_pos_action.actuator_names = KANGAROO_ACTUATOR_NAMES
 
     cfg.viewer.body_name = "pelvis_2_link"
 
@@ -108,25 +117,13 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
 
-    cfg.rewards["pose"].params["asset_cfg"].joint_names = (
-        # Lower body.
-        r"leg_.*_1_.*",
-        r"leg_.*_2_.*",
-        r"leg_.*_3_.*",
-        r"leg_.*_length_.*",
-        r"leg_.*_4_.*",
-        r"leg_.*_5_.*",
-        # Waist.
-        r"pelvis_.*",
-        # Arms.
-        r"arm_.*",
-    )
+    cfg.rewards["pose"].params["asset_cfg"].joint_names = actuated_joints
     cfg.rewards["pose"].params["std_standing"] = {
         # Lower body.
         r"leg_.*_1_.*": 0.05,
         r"leg_.*_2_.*": 0.05,
         r"leg_.*_3_.*": 0.05,
-        r"leg_.*_length_.*": 0.15,
+        r"leg_.*_length_.*": 0.05,
         r"leg_.*_4_.*": 0.05,
         r"leg_.*_5_.*": 0.05,
         # Waist.
@@ -139,7 +136,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"leg_.*_1_.*": 0.15,
         r"leg_.*_2_.*": 0.3,  # pitch
         r"leg_.*_3_.*": 0.15,
-        r"leg_.*_length_.*": 0.25,  # length
+        r"leg_.*_length_.*": 0.15,  # length
         r"leg_.*_4_.*": 0.25,
         r"leg_.*_5_.*": 0.1,
         # Waist.
@@ -156,7 +153,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"leg_.*_1_.*": 0.2,
         r"leg_.*_2_.*": 0.5,
         r"leg_.*_3_.*": 0.2,
-        r"leg_.*_length_.*": 0.1,
+        r"leg_.*_length_.*": 0.25,
         r"leg_.*_4_.*": 0.35,
         r"leg_.*_5_.*": 0.15,
         # Waist.
@@ -176,25 +173,50 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
 
     cfg.rewards["body_ang_vel"].weight = -0.05
-    # cfg.rewards["angular_momentum"].weight = -0.02
-    cfg.rewards["air_time"].weight = 0.1
+    cfg.rewards["angular_momentum"].weight = -0.02
+    cfg.rewards["air_time"].weight = 0.25
 
     cfg.rewards["self_collisions"] = RewardTermCfg(
         func=mdp.self_collision_cost,
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
     )
+    cfg.rewards["power"] = RewardTermCfg(
+        func=mdp.electrical_power_cost,
+        weight=0.0,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=actuated_joints)},
+    )
 
     # cfg.rewards["self_collisions"] = None
     # cfg.rewards["air_time"] = None
     # cfg.rewards["angular_momentum"] = None
-    # cfg.curriculum["command_vel"] = None
-
+    # cfg.curriculum["air_time"] = CurriculumTermCfg(
+    #   func=mdp.reward_weight,
+    #   params={
+    #     "reward_name": "air_time",
+    #     "weight_stages": [
+    #       {"step": 0, "weight": 0.25},
+    #       {"step": 5000 * 24, "weight": 1.0},
+    #     #   {"step": 10_000 * 24, "weight": 2.0},
+    #     ],
+    #   },
+    # )
+    cfg.curriculum["power"] = CurriculumTermCfg(
+        func=mdp.reward_weight,
+        params={
+            "reward_name": "power",
+            "weight_stages": [
+                {"step": 0, "weight": 0.0},
+                {"step": 5000 * 24, "weight": -0.01},
+                {"step": 10000 * 24, "weight": -0.1},
+            ],
+        },
+    )
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
         func=mdp.illegal_contact,
         params={"sensor_name": "body_ground_contact"},
     )
-    
+
     # Apply play mode overrides.
     if play:
         # Effectively infinite episode length.
