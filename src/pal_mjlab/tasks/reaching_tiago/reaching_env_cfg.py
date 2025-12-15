@@ -89,8 +89,27 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     actions: dict[str, ActionTermCfg] = {
         "joint_pos": JointPositionActionCfg(
             asset_name="robot",
-            actuator_names=(".*",),
+            actuator_names=("arm_.*_joint","torso_lift_joint"), 
             scale=0.5,  # Override per-robot.
+            use_default_offset=True,
+        ),
+        "gripper_pos": mdp.MirroredJointPositionActionCfg(
+            asset_name="robot",
+            actuator_names=[
+                "gripper_left_outer_finger_left_joint",
+                "gripper_right_outer_finger_left_joint",
+            ],
+            mirror_actuator_names=[
+                "gripper_left_outer_finger_right_joint",
+                "gripper_right_outer_finger_right_joint",
+            ],
+            mirror_pairs={
+                ("gripper_left_outer_finger_right_joint",  "gripper_left_outer_finger_left_joint"),
+                ("gripper_right_outer_finger_right_joint", "gripper_right_outer_finger_left_joint"),
+            },
+            # If one axis is flipped, set mirror_sign=[-1.0, 1.0] etc.
+            mirror_sign=None,
+            scale=2.0,
             use_default_offset=True,
         ),
     }
@@ -197,14 +216,14 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 ),
             },
         ),
-        "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
-            weight=-1.0,
-            params={
-                "asset_cfg": SceneEntityCfg(
-                    "robot", 
-                    joint_names=("arm_.*_joint","torso_lift_joint",)),  # Set per-robot.
-            },
-            ),
+        # "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
+        #     weight=-1.0,
+        #     params={
+        #         "asset_cfg": SceneEntityCfg(
+        #             "robot", 
+        #             joint_names=("arm_.*_joint","torso_lift_joint",)),  # Set per-robot.
+        #     },
+        #     ),
         # "action_rate_l2": RewardTermCfg(
         #     func=mdp.action_rate_l2_louis,
         #     weight=-0.0001,
