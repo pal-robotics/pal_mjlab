@@ -18,12 +18,12 @@
     <mesh name="base_dock_link" content_type="model/stl" file="./assets/base/base_dock_link.stl" />
     <mesh name="base_antena_link" content_type="model/stl" file="./assets/base/base_antena_link.stl" />
     <mesh name="base_antena_link1" content_type="model/stl" file="./assets/base/base_antena_link.stl" scale="1 -1 1" />
-    <mesh name="suspension_front_link" content_type="model/stl" file="./assets/wheels/suspension_front_link.stl" />
-    <mesh name="wheel_link" content_type="model/stl" file="./assets/wheels/wheel_link.stl" />
-    <mesh name="suspension_front_link1" content_type="model/stl" file="./assets/wheels/suspension_front_link.stl" scale="1 -1 1" />
-    <mesh name="wheel_link1" content_type="model/stl" file="./assets/wheels/wheel_link.stl" scale="1 1 -1" />
-    <mesh name="suspension_rear_link" content_type="model/stl" file="./assets/wheels/suspension_rear_link.stl" />
-    <mesh name="suspension_rear_link1" content_type="model/stl" file="./assets/wheels/suspension_rear_link.stl" scale="1 -1 1" />
+    <mesh name="suspension_front_link" content_type="model/stl" file="./assets/wheel/suspension_front_link.stl" />
+    <mesh name="wheel_link" content_type="model/stl" file="./assets/wheel/wheel_link.stl" />
+    <mesh name="suspension_front_link1" content_type="model/stl" file="./assets/wheel/suspension_front_link.stl" scale="1 -1 1" />
+    <mesh name="wheel_link1" content_type="model/stl" file="./assets/wheel/wheel_link.stl" scale="1 1 -1" />
+    <mesh name="suspension_rear_link" content_type="model/stl" file="./assets/wheel/suspension_rear_link.stl" />
+    <mesh name="suspension_rear_link1" content_type="model/stl" file="./assets/wheel/suspension_rear_link.stl" scale="1 -1 1" />
     <mesh name="torso_fixed" content_type="model/stl" file="./assets/torso/torso_fixed.stl" />
     <mesh name="torso_lift_link" content_type="model/stl" file="./assets/torso/torso_lift_link.stl" />
     <mesh name="head_1_link" content_type="model/stl" file="./assets/head/head_1_link.stl" />
