@@ -965,7 +965,7 @@ wheels = [
 [[package]]
 name = "mjlab"
 version = "0.1.0"
-source = { git = "https://github.com/mujocolab/mjlab#64996638092c4b51d80f247e0e09862b06ff1061" }
+source = { git = "https://github.com/mujocolab/mjlab#58886d2f3a4d033e0a972fd32db365c4ebc42c2b" }
 dependencies = [
     { name = "moviepy" },
     { name = "mujoco" },

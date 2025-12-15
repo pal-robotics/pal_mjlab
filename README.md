@@ -1,23 +1,31 @@
 # PAL Robotics in mjlab
 
-This repository showcase the implementation of [PAL](https://pal-robotics.com/)'s robots into [mjlab](https://github.com/mujocolab/mjlab). 
+This repository showcases the implementation of [PAL Robotics](https://pal-robotics.com/)' robots in [mjlab](https://github.com/mujocolab/mjlab).
 
-> [!WARNING]
-> As mjlab is still in early development, this repository may be impacted by breaking changes. If an issue were to arise when running one of the scripts, feel free to open an issue or contribute to the project. Thank you for your understanding!
+![Project banner](static/pal_mjlab_viser.png)
 
-## What's mjlab?
+## What is mjlab?
 
-mjlab is a project to have the [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/index.html) API using [MjWarp](https://mujoco.readthedocs.io/en/latest/mjwarp/index.html) as the backend. If you’re wondering about the motivation behind it or how it differs from Newton, you can learn more about it [here](https://github.com/mujocolab/mjlab/blob/main/docs/motivation.md).
+mjlab brings the [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/index.html) API to [MuJoCo Warp](https://mujoco.readthedocs.io/en/latest/mjwarp/index.html). 
+It's lightweight, easy to install, and has been validated for sim-to-real transfer on the G1 and Go1 robots for RL locomotion and motion imitation. 
+See the [announcement thread](https://x.com/kevin_zakka/status/1972757435707424898) for videos, or read about the [motivation behind mjlab](https://github.com/mujocolab/mjlab/blob/main/docs/motivation.md).
 
-It’s really easy to install, and sim-to-real has been tested successfully on the G1 and Go1 for RL locomotion and motion imitation, see the announcement [tweet](https://x.com/kevin_zakka/status/1972757435707424898?t=4Ho4ovrCAEOWTCxVG3BKrw&s=19) for videos.
+## Installation
 
-## Quickstart
+Install uv.
+```bash
+curl -LsSf https://astral.sh/uv/install.sh \| sh
+```
 
 Clone the repository.
 
 ```bash
-git clone https://github.com/pal-robotics/pal_mjlab.git && cd pal_mjlab
+git clone https://github.com/pal-robotics/pal_mjlab.git 
+cd pal_mjlab
+uv sync
 ```
+
+## Quick Start
 
 List available environments.
 
@@ -25,46 +33,60 @@ List available environments.
 uv run list_envs --keyword pal
 ```
 
-Use the dummy agents.
+Test with dummy agents.
 
 ```bash
-uv run play Mjlab-Velocity-Flat-Pal-Talos --agent zero # send zero actions to the robot
-uv run play Mjlab-Velocity-Flat-Pal-Talos --agent random # send random actions to the robot
+uv run play Mjlab-Velocity-Flat-Pal-Talos --agent zero    # send zero actions
+uv run play Mjlab-Velocity-Flat-Pal-Talos --agent random  # send random actions
 ```
 
-### Velocity Tracking
 
-Train the policy.
+## Velocity Tracking
+
+Train a locomotion policy.
 
 ```bash
 uv run train Mjlab-Velocity-Flat-Pal-Talos --env.scene.num-envs 4096
 ```
 
-Evaluate the policy.
+Evaluate a trained policy.
 
 ```bash
 uv run play Mjlab-Velocity-Flat-Pal-Talos --wandb-run-path your-org/mjlab/run-id
 ```
 
-### Motion Imitation
 
-Using [GMR](https://github.com/YanjieZe/GMR), create a `.csv` file using one of the motion provided by the [LaFAN1 dataset](https://github.com/ubisoft/ubisoft-laforge-animation-dataset).
+## Motion Imitation
+
+Motion imitation uses [GMR](https://github.com/YanjieZe/GMR) to retarget animations from the [LaFAN1 dataset](https://github.com/ubisoft/ubisoft-laforge-animation-dataset) to PAL robots.
 
 > [!NOTE]
-> For ease of use, we provide `talos_walking.csv`.
+> We provide `talos_walking.csv` as a ready-to-use example.
+
+### Retargeting a new motion
+
+First, use GMR to retarget and convert a motion file.
 
 ```bash
-cd path/to/GMR
-# retarget the wanted motion to Talos
-python scripts/bvh_to_robot.py --bvh_file path/to/motion.bvh --save_path path/to/motion.pkl --robot pal_talos --rate_limit --format lafan1
-# convert the file to be mjlab-compatible
+git clone https://github.com/YanjieZe/GMR.git
+cd GMR
+
+# Retarget BVH motion to Talos
+python scripts/bvh_to_robot.py \
+    --bvh_file path/to/motion.bvh \
+    --save_path path/to/motion.pkl \
+    --robot pal_talos \
+    --rate_limit \
+    --format lafan1
+
+# Convert to mjlab-compatible CSV
 python scripts/batch_gmr_pkl_to_csv.py --folder path/to/folder
 ```
 
-Convert from csv to npz.
+Then convert the CSV to NPZ format.
 
 ```bash
-MUJOCO_GL=egl uv run -m pal_mjlab.scripts.csv_to_npz \
+uv run -m pal_mjlab.scripts.csv_to_npz \
     --input-file path/to/motion.csv \
     --output-name motion_name \
     --input-fps 30 \
@@ -72,48 +94,75 @@ MUJOCO_GL=egl uv run -m pal_mjlab.scripts.csv_to_npz \
     --render
 ```
 
-Train the policy.
+### Training and evaluation
+
+Train.
 
 ```bash
-MUJOCO_GL=egl uv run train Mjlab-Tracking-Flat-Pal-Talos --registry-name your-org/csv_to_npz/motion_name
+uv run train Mjlab-Tracking-Flat-Pal-Talos \
+    --registry-name your-org/csv_to_npz/motion_name
 ```
 
-Evaluate the policy.
+Evaluate.
 
 ```bash
 uv run play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
 ```
 
-## A few of our results
-
-> [!NOTE]
-> We only display a few and they're not necessarly up-to-date.
+## Results
 
 <table>
   <tr>
     <td width="50%">
-      <figure>
-        <video src="https://github.com/user-attachments/assets/a378a306-f65d-448b-a6c8-3d40c3f7b3ce" controls muted loop playsinline style="width:100%; height:auto;"></video>
-        <figcaption align="center"><em>Velocity Tracking for Talos</em></figcaption>
-      </figure>
+      <video src="https://github.com/user-attachments/assets/a378a306-f65d-448b-a6c8-3d40c3f7b3ce" controls muted loop playsinline style="width:100%;"></video>
+      <p align="center"><em>Velocity Tracking for Talos</em></p>
     </td>
     <td width="50%">
-      <figure>
-        <video src="https://github.com/user-attachments/assets/c0d6c444-a0a2-4c93-99a5-895ae7d31317" controls muted loop playsinline style="width:100%; height:auto;"></video>
-        <figcaption align="center"><em>Motion Imitation for Talos</em></figcaption>
-      </figure>
+      <video src="https://github.com/user-attachments/assets/c0d6c444-a0a2-4c93-99a5-895ae7d31317" controls muted loop playsinline style="width:100%;"></video>
+      <p align="center"><em>Motion Imitation for Talos</em></p>
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <figure>
-        <video src="https://github.com/user-attachments/assets/cce8f9d2-d5e1-4218-828e-88d0ae1e0cdb" controls muted loop playsinline style="width:100%; height:auto;"></video>
-        <figcaption align="center"><em>Velocity Tracking for Kangaroo</em></figcaption>
-      </figure>
+      <video src="https://github.com/user-attachments/assets/cce8f9d2-d5e1-4218-828e-88d0ae1e0cdb" controls muted loop playsinline style="width:100%;"></video>
+      <p align="center"><em>Velocity Tracking for Kangaroo</em></p>
     </td>
+    <td width="50%"></td>
   </tr>
 </table>
 
+## Configuring the mjlab Dependency
+
+```bash
+# Track default branch (pinned at lock time)
+uv add "mjlab @ git+https://github.com/mujocolab/mjlab"
+
+# Pin to a specific commit
+uv add "mjlab @ git+https://github.com/mujocolab/mjlab@<commit-sha>"
+
+# Use the latest PyPI release
+uv add mjlab
+
+# Use a local editable checkout (recommended for development)
+uv add "mjlab @ path/to/mjlab" --editable
+```
+
+After changing the dependency:
+
+```bash
+uv sync
+```
+
+## Contributing
+
+Contributions are welcome! 
+Please open an issue to discuss proposed changes or report bugs. 
+As mjlab is in early development, breaking changes may occur—thank you for your patience.
+
 ## Acknowledgements
 
-We're grateful to the people behind mjlab, PAL Robotics, MuJoCo Warp, Isaac Lab, and the [Inria HUCEBOT Team](https://team.inria.fr/hucebot/).
+Thanks to the teams behind [mjlab](https://github.com/mujocolab/mjlab), [PAL Robotics](https://pal-robotics.com/), [MuJoCo Warp](https://mujoco.readthedocs.io/en/latest/mjwarp/index.html), [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/index.html), and the [Inria HUCEBOT Team](https://team.inria.fr/hucebot/).
+
+## License
+
+See [LICENSE](LICENSE) for details.
