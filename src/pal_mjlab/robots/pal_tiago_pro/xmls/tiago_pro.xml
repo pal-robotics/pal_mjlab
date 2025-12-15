@@ -1,6 +1,5 @@
 <mujoco model="tiago_pro">   
-    
-<compiler angle="radian" balanceinertia="true" discardvisual="false" strippath="false" />
+<compiler angle="radian" balanceinertia="true" discardvisual="false" strippath="false" meshdir="assets" />
   <option iterations="1" ls_iterations="5" timestep="0.001"/>
 
   <default>
@@ -13,35 +12,35 @@
   </default>
 
   <asset>
-    <mesh name="sick_tim551" content_type="model/stl" file="./assets/laser/sick_tim551.stl" />
-    <mesh name="base_link" content_type="model/stl" file="./assets/base/base_link.stl" />
-    <mesh name="base_dock_link" content_type="model/stl" file="./assets/base/base_dock_link.stl" />
-    <mesh name="base_antena_link" content_type="model/stl" file="./assets/base/base_antena_link.stl" />
-    <mesh name="base_antena_link1" content_type="model/stl" file="./assets/base/base_antena_link.stl" scale="1 -1 1" />
-    <mesh name="suspension_front_link" content_type="model/stl" file="./assets/wheel/suspension_front_link.stl" />
-    <mesh name="wheel_link" content_type="model/stl" file="./assets/wheel/wheel_link.stl" />
-    <mesh name="suspension_front_link1" content_type="model/stl" file="./assets/wheel/suspension_front_link.stl" scale="1 -1 1" />
-    <mesh name="wheel_link1" content_type="model/stl" file="./assets/wheel/wheel_link.stl" scale="1 1 -1" />
-    <mesh name="suspension_rear_link" content_type="model/stl" file="./assets/wheel/suspension_rear_link.stl" />
-    <mesh name="suspension_rear_link1" content_type="model/stl" file="./assets/wheel/suspension_rear_link.stl" scale="1 -1 1" />
-    <mesh name="torso_fixed" content_type="model/stl" file="./assets/torso/torso_fixed.stl" />
-    <mesh name="torso_lift_link" content_type="model/stl" file="./assets/torso/torso_lift_link.stl" />
-    <mesh name="head_1_link" content_type="model/stl" file="./assets/head/head_1_link.stl" />
-    <mesh name="realsense-d435_cover_link" content_type="model/stl" file="./assets/head/realsense-d435_cover_link.stl" />
-    <mesh name="head_2_link" content_type="model/stl" file="./assets/head/head_2_link.stl" />
-    <mesh name="d435_simplified" content_type="model/stl" file="./assets/real_sense/d435_simplified.stl" />
-    <mesh name="arm_base_link" content_type="model/stl" file="./assets/arm_tiago_pro/arm_base_link.stl" />
-    <mesh name="arm_1_link" content_type="model/stl" file="./assets/arm_tiago_pro/arm_1_link.stl" />
-    <mesh name="arm_2_link" content_type="model/stl" file="./assets/arm_tiago_pro/arm_2_link.stl" />
-    <mesh name="arm_3_link" content_type="model/stl" file="./assets/arm_tiago_pro/arm_3_link.stl" />
-    <mesh name="arm_4_link" content_type="model/stl" file="./assets/arm_tiago_pro/arm_4_link.stl" />
-    <mesh name="arm_5_link" content_type="model/stl" file="./assets/arm_tiago_pro/spherical-wrist/arm_5_link.stl" />
-    <mesh name="arm_6_link" content_type="model/stl" file="./assets/arm_tiago_pro/spherical-wrist/arm_6_link.stl" />
-    <mesh name="arm_7_link" content_type="model/stl" file="./assets/arm_tiago_pro/spherical-wrist/arm_7_link.stl" />
-    <mesh name="base_link_tc" content_type="model/stl" file="./assets/pal_pro_gripper/base_link_tc.stl" />
-    <mesh name="inner_finger" content_type="model/stl" file="./assets/pal_pro_gripper/inner_finger.stl" />
-    <mesh name="outer_finger" content_type="model/stl" file="./assets/pal_pro_gripper/outer_finger.stl" />
-    <mesh name="fingertip" content_type="model/stl" file="./assets/pal_pro_gripper/fingertip.stl" />
+    <mesh name="sick_tim551" content_type="model/stl" file="laser/sick_tim551.stl" />
+    <mesh name="base_link" content_type="model/stl" file="base/base_link.stl" />
+    <mesh name="base_dock_link" content_type="model/stl" file="base/base_dock_link.stl" />
+    <mesh name="base_antena_link" content_type="model/stl" file="base/base_antena_link.stl" />
+    <mesh name="base_antena_link1" content_type="model/stl" file="base/base_antena_link.stl" scale="1 -1 1" />
+    <mesh name="suspension_front_link" content_type="model/stl" file="wheel/suspension_front_link.stl" />
+    <mesh name="wheel_link" content_type="model/stl" file="wheel/wheel_link.stl" />
+    <mesh name="suspension_front_link1" content_type="model/stl" file="wheel/suspension_front_link.stl" scale="1 -1 1" />
+    <mesh name="wheel_link1" content_type="model/stl" file="wheel/wheel_link.stl" scale="1 1 -1" />
+    <mesh name="suspension_rear_link" content_type="model/stl" file="wheel/suspension_rear_link.stl" />
+    <mesh name="suspension_rear_link1" content_type="model/stl" file="wheel/suspension_rear_link.stl" scale="1 -1 1" />
+    <mesh name="torso_fixed" content_type="model/stl" file="torso/torso_fixed.stl" />
+    <mesh name="torso_lift_link" content_type="model/stl" file="torso/torso_lift_link.stl" />
+    <mesh name="head_1_link" content_type="model/stl" file="head/head_1_link.stl" />
+    <mesh name="realsense-d435_cover_link" content_type="model/stl" file="head/realsense-d435_cover_link.stl" />
+    <mesh name="head_2_link" content_type="model/stl" file="head/head_2_link.stl" />
+    <mesh name="d435_simplified" content_type="model/stl" file="real_sense/d435_simplified.stl" />
+    <mesh name="arm_base_link" content_type="model/stl" file="arm_tiago_pro/arm_base_link.stl" />
+    <mesh name="arm_1_link" content_type="model/stl" file="arm_tiago_pro/arm_1_link.stl" />
+    <mesh name="arm_2_link" content_type="model/stl" file="arm_tiago_pro/arm_2_link.stl" />
+    <mesh name="arm_3_link" content_type="model/stl" file="arm_tiago_pro/arm_3_link.stl" />
+    <mesh name="arm_4_link" content_type="model/stl" file="arm_tiago_pro/arm_4_link.stl" />
+    <mesh name="arm_5_link" content_type="model/stl" file="arm_tiago_pro/spherical-wrist/arm_5_link.stl" />
+    <mesh name="arm_6_link" content_type="model/stl" file="arm_tiago_pro/spherical-wrist/arm_6_link.stl" />
+    <mesh name="arm_7_link" content_type="model/stl" file="arm_tiago_pro/spherical-wrist/arm_7_link.stl" />
+    <mesh name="base_link_tc" content_type="model/stl" file="pal_pro_gripper/base_link_tc.stl" />
+    <mesh name="inner_finger" content_type="model/stl" file="pal_pro_gripper/inner_finger.stl" />
+    <mesh name="outer_finger" content_type="model/stl" file="pal_pro_gripper/outer_finger.stl" />
+    <mesh name="fingertip" content_type="model/stl" file="pal_pro_gripper/fingertip.stl" />
   </asset>
 
   <worldbody>
