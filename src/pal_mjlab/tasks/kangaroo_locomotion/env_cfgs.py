@@ -51,7 +51,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         name="feet_ground_contact",
         primary=ContactMatch(
             mode="subtree",
-            pattern=r"^(leg_left_5_link|leg_right_5_link)$",
+            pattern=r"^(leg_left_5_link|leg_right_5_link)$", # subtree so foot link is included
             entity="robot",
         ),
         secondary=ContactMatch(mode="body", pattern="terrain"),
@@ -241,11 +241,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
     )
-    cfg.rewards["power"] = RewardTermCfg(
-        func=mdp.electrical_power_cost,
-        weight=0.0,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=actuated_joints)},
-    )
+    # cfg.rewards["power"] = RewardTermCfg(
+    #     func=mdp.electrical_power_cost,
+    #     weight=0.0,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=actuated_joints)},
+    # )
 
     # cfg.rewards["self_collisions"] = None
     # cfg.rewards["air_time"] = None
@@ -261,17 +261,17 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     #     ],
     #   },
     # )
-    cfg.curriculum["power"] = CurriculumTermCfg(
-        func=mdp.reward_weight,
-        params={
-            "reward_name": "power",
-            "weight_stages": [
-                {"step": 0, "weight": 0.0},
-                {"step": 5000 * 24, "weight": -0.01},
-                {"step": 10000 * 24, "weight": -0.1},
-            ],
-        },
-    )
+    # cfg.curriculum["power"] = CurriculumTermCfg(
+    #     func=mdp.reward_weight,
+    #     params={
+    #         "reward_name": "power",
+    #         "weight_stages": [
+    #             {"step": 0, "weight": 0.0},
+    #             {"step": 5000 * 24, "weight": -0.01},
+    #             {"step": 10000 * 24, "weight": -0.1},
+    #         ],
+    #     },
+    # )
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
         func=mdp.illegal_contact,
         params={"sensor_name": "body_ground_contact"},
