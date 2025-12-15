@@ -144,7 +144,7 @@
                   <joint name="leg_left_5_joint" axis="-1 0 0" range="-0.471239 0.471239" actuatorfrcrange="-82 82" />
                   <geom type="mesh" class="visual" mesh="leg_7_link" />
                   <site name="left_foot" pos="0.0575 0 -0.0243" size="0.015"/>
-                  <body pos="0 0 -0.034" quat="0.9848078 0 -0.1736482 0">
+                  <body name="leg_left_foot_link" pos="0 0 -0.034" quat="0.9848078 0 -0.1736482 0">
                     <geom name="left_foot0_collision" class="foot_capsule" fromto="-0.08 -0.04 0 0.1 -0.04 0"/>
                     <!-- <geom name="left_foot1_collision" class="foot_capsule" fromto="-0.08 -0.034 0 0.1 -0.034 0"/> -->
                     <geom name="left_foot2_collision" class="foot_capsule" fromto="-0.1 -0.026 0 0.1 -0.026 0"/>
@@ -156,6 +156,7 @@
                     <geom name="left_foot8_collision" class="foot_capsule" fromto="-0.1 0.026 0 0.1 0.026 0"/>
                     <!-- <geom name="left_foot9_collision" class="foot_capsule" fromto="-0.08 0.034 0 0.1 0.034 0"/> -->
                     <geom name="left_foot10_collision" class="foot_capsule" fromto="-0.08 0.04 0 0.1 0.04 0"/>
+                    <geom name="leg_left_ankle_collision" class="collision" size="0.03" fromto="-0.04 0.0 0.03 0.02 0.0 0.03"/>
                   </body>
                 </body>
               </body>
@@ -169,7 +170,7 @@
                 <inertial pos="-0.0569665 -5.4131e-05 -0.148821" quat="0.698616 0.0970713 0.0960701 0.702341" mass="1.02238" diaginertia="0.00215347 0.00207236 0.000258578" />
                 <joint name="leg_left_knee_joint" axis="0 -1 0" range="0.349066 2.44346" actuatorfrcrange="-100 100" />
                 <geom type="mesh" class="visual" mesh="leg_tibia_link" />
-                <geom name="leg_left_knee_collision" size="0.04 0.12" pos="-0.0455604 -7.35027e-05 -0.174883" quat="0.963852 -0.000204 0.266438 1.8e-05" class="collision"/>
+                <geom name="leg_left_knee_collision" size="0.04 0.2" pos="-0.0455604 -7.35027e-05 -0.174883" quat="0.963852 -0.000204 0.266438 1.8e-05" class="collision"/>
               </body>
             </body>
           </body>
@@ -203,18 +204,19 @@
                   <joint name="leg_right_5_joint" axis="-1 0 0" range="-0.471239 0.471239" actuatorfrcrange="-82 82" />
                   <geom type="mesh" class="visual" mesh="leg_7_link" />
                   <site name="right_foot" pos="0.0575 0 -0.0243" size="0.015"/>
-                  <body pos="0 0 -0.034" quat="0.9848078 0 -0.1736482 0">
+                  <body name="leg_right_foot_link" pos="0 0 -0.034" quat="0.9848078 0 -0.1736482 0">
                     <geom name="right_foot0_collision" class="foot_capsule" fromto="-0.08 -0.04 0 0.1 -0.04 0"/>
-                    <geom name="right_foot1_collision" class="foot_capsule" fromto="-0.08 -0.034 0 0.1 -0.034 0"/>
+                    <!-- <geom name="right_foot1_collision" class="foot_capsule" fromto="-0.08 -0.034 0 0.1 -0.034 0"/> -->
                     <geom name="right_foot2_collision" class="foot_capsule" fromto="-0.1 -0.026 0 0.1 -0.026 0"/>
-                    <geom name="right_foot3_collision" class="foot_capsule" fromto="-0.1 -0.018 0 0.12 -0.018 0"/>
+                    <!-- <geom name="right_foot3_collision" class="foot_capsule" fromto="-0.1 -0.018 0 0.12 -0.018 0"/> -->
                     <geom name="right_foot4_collision" class="foot_capsule" fromto="-0.1 -0.01 0 0.12 -0.01 0"/>
-                    <geom name="right_foot5_collision" class="foot_capsule" fromto="-0.1 0 0 0.12 0 0"/>
+                    <!-- <geom name="right_foot5_collision" class="foot_capsule" fromto="-0.1 0 0 0.12 0 0"/> -->
                     <geom name="right_foot6_collision" class="foot_capsule" fromto="-0.1 0.01 0 0.12 0.01 0"/>
-                    <geom name="right_foot7_collision" class="foot_capsule" fromto="-0.1 0.018 0 0.12 0.018 0"/>
+                    <!-- <geom name="right_foot7_collision" class="foot_capsule" fromto="-0.1 0.018 0 0.12 0.018 0"/> -->
                     <geom name="right_foot8_collision" class="foot_capsule" fromto="-0.1 0.026 0 0.1 0.026 0"/>
-                    <geom name="right_foot9_collision" class="foot_capsule" fromto="-0.08 0.034 0 0.1 0.034 0"/>
+                    <!-- <geom name="right_foot9_collision" class="foot_capsule" fromto="-0.08 0.034 0 0.1 0.034 0"/> -->
                     <geom name="right_foot10_collision" class="foot_capsule" fromto="-0.08 0.04 0 0.1 0.04 0"/>
+                    <geom name="leg_right_ankle_collision" class="collision" size="0.03" fromto="-0.04 0.0 0.03 0.02 0.0 0.03"/>
                   </body>                
                 </body>
               </body>
@@ -228,7 +230,7 @@
                 <inertial pos="-0.0569665 -5.4131e-05 -0.148821" quat="0.698616 0.0970713 0.0960701 0.702341" mass="1.02238" diaginertia="0.00215347 0.00207236 0.000258578" />
                 <joint name="leg_right_knee_joint" axis="0 -1 0" range="0.349066 2.44346" actuatorfrcrange="-100 100" />
                 <geom type="mesh" class="visual" mesh="leg_tibia_link" />
-                <geom name="leg_right_knee_collision" size="0.04 0.12" pos="-0.0455604 -7.35027e-05 -0.174883" quat="0.963852 -0.000204 0.266438 1.8e-05" class="collision"/>
+                <geom name="leg_right_knee_collision" size="0.04 0.2" pos="-0.0455604 -7.35027e-05 -0.174883" quat="0.963852 -0.000204 0.266438 1.8e-05" class="collision"/>
               </body>
             </body>
           </body>
@@ -242,16 +244,16 @@
       <connect anchor="0.0 0.0 0.0" body1="leg_right_4_link" body2="leg_right_knee_link" name="leg_right_closed_kin_joint" solref="0.002 1" />
   </equality>
   <contact>
-    <exclude body1="pelvis_2_link" body2="leg_left_1_link"/>
-    <exclude body1="pelvis_2_link" body2="leg_right_1_link"/>
+    <!-- <exclude body1="pelvis_2_link" body2="leg_left_1_link"/> -->
+    <!--<exclude body1="pelvis_2_link" body2="leg_right_1_link"/> -->
+    <!-- <exclude body1="leg_right_1_link" body2="leg_left_1_link"/> -->
     <exclude body1="leg_left_1_link" body2="leg_left_femur_link"/>
-    <exclude body1="leg_left_5_link" body2="leg_left_femur_link"/>
-    <exclude body1="leg_left_5_link" body2="leg_left_knee_link"/>
+    <!--<exclude body1="leg_left_5_link" body2="leg_left_femur_link"/> -->
+    <exclude body1="leg_left_foot_link" body2="leg_left_knee_link"/>
     <exclude body1="leg_left_femur_link" body2="leg_left_knee_link"/>
     <exclude body1="leg_right_1_link" body2="leg_right_femur_link"/>
-    <!-- <exclude body1="leg_right_1_link" body2="leg_left_1_link"/> -->
-    <exclude body1="leg_right_5_link" body2="leg_right_femur_link"/>
-    <exclude body1="leg_right_5_link" body2="leg_right_knee_link"/>
+    <!-- <exclude body1="leg_right_5_link" body2="leg_right_femur_link"/> -->
+    <exclude body1="leg_right_foot_link" body2="leg_right_knee_link"/>
     <exclude body1="leg_right_femur_link" body2="leg_right_knee_link"/>
   </contact>
  
