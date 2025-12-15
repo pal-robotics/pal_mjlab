@@ -14,8 +14,8 @@
 
   <asset>
     <!-- materials -->
-    <material name="dark_gray" rgba="0.1 0.1 0.1 1"/>
-    <material name="dark_gray2" rgba="0.25098 0.25098 0.25098 1"/>
+    <material name="very_dark_gray" rgba="0.1 0.1 0.1 1"/>
+    <material name="dark_gray" rgba="0.25098 0.25098 0.25098 1"/>
     <material name="light_gray" rgba="0.75294 0.75294 0.75294 1"/>
     <material name="light_blue_gray" rgba="0.79216 0.81961 0.93333 1"/>
     <material name="transparent_orange" rgba="1 0.65 0 0.2"/>
@@ -61,9 +61,9 @@
       <site name="base_footprint_site" />
       <inertial mass="20" diaginertia="1 1 1" pos="0 0 0.2" quat="1 0 0 0"/>
       <geom class="visual" pos="0 0 0.0762" quat="1 0 0 0" material="light_gray" mesh="base_link" />
-      <geom class="visual" pos="-0.27512 0.18297 0.20864" quat="0 -0.382683 -0.92388 0" material="dark_gray" mesh="sick_tim551" />
-      <geom class="visual" pos="0.27512 -0.18297 0.20864" quat="0 -0.92388 0.382683 0" material="dark_gray" mesh="sick_tim551" />
-      <geom class="visual" pos="0.3535 0 0.1358" material="dark_gray2" mesh="base_dock_link" />
+      <geom class="visual" pos="-0.27512 0.18297 0.20864" quat="0 -0.382683 -0.92388 0" material="very_dark_gray" mesh="sick_tim551" />
+      <geom class="visual" pos="0.27512 -0.18297 0.20864" quat="0 -0.92388 0.382683 0" material="very_dark_gray" mesh="sick_tim551" />
+      <geom class="visual" pos="0.3535 0 0.1358" material="dark_gray" mesh="base_dock_link" />
       <geom class="visual" pos="-0.2015 -0.13 0.2927" quat="1 0 0 0" material="light_gray" mesh="base_antena_link" />
       <geom class="visual" pos="-0.2015 0.13 0.2927" quat="1 0 0 0" material="light_gray" mesh="base_antena_link1" />
       <geom class="visual" pos="0.244 -0.1725 0.0762" quat="0.707107 0 0 -0.707107" material="light_blue_gray" mesh="suspension_front_link" />
@@ -74,19 +74,19 @@
       <geom class="collision" name="col_torso_head" size="0.17 0.6" pos="-0.04 0 0.9" />
       <body name="wheel_front_right_link" pos="0.244 -0.223175 0.0762" quat="0.707107 -0.707107 0 0">
         <inertial pos="5.4922e-09 6.9775e-05 0.011144" quat="-0.0015583 0.707105 -0.0015583 0.707105" mass="0.70767" diaginertia="0.000401311 0.000355289 0.00035492" />
-        <geom class="visual" material="dark_gray" mesh="wheel_link" />
+        <geom class="visual" material="very_dark_gray" mesh="wheel_link" />
       </body>
       <body name="wheel_front_left_link" pos="0.244 0.223175 0.0762" quat="0.707107 -0.707107 0 0">
         <inertial pos="5.4922e-09 -6.9775e-05 -0.011144" quat="-0.0015583 0.707105 -0.0015583 0.707105" mass="0.70767" diaginertia="0.000401311 0.000355289 0.00035492" />
-        <geom class="visual" material="dark_gray" mesh="wheel_link1" />
+        <geom class="visual" material="very_dark_gray" mesh="wheel_link1" />
       </body>
       <body name="wheel_rear_right_link" pos="-0.244 -0.223175 0.0762" quat="0.707107 -0.707107 0 0">
         <inertial pos="-5.4922e-09 -6.9775e-05 0.011144" quat="0.0015583 0.707105 0.0015583 0.707105" mass="0.70767" diaginertia="0.000401311 0.000355289 0.00035492" />
-        <geom class="visual" material="dark_gray" mesh="wheel_link" />
+        <geom class="visual" material="very_dark_gray" mesh="wheel_link" />
       </body>
       <body name="wheel_rear_left_link" pos="-0.244 0.223175 0.0762" quat="0.707107 -0.707107 0 0">
         <inertial pos="-5.4922e-09 6.9775e-05 -0.011144" quat="0.0015583 0.707105 0.0015583 0.707105" mass="0.70767" diaginertia="0.000401311 0.000355289 0.00035492" />
-        <geom class="visual" material="dark_gray" mesh="wheel_link" />
+        <geom class="visual" material="very_dark_gray" mesh="wheel_link" />
       </body>
       <geom class="visual" pos="-0.0245 0 0.2912" quat="1 0 0 0" material="dark_medium_gray" mesh="torso_fixed" />
       <geom class="visual" size="0.09 0.1 0.275" pos="-0.028 0 0.5562" type="box" material="dark_medium_gray" />
