@@ -39,7 +39,7 @@
     <mesh name="torso_fixed" content_type="model/stl" file="torso/torso_fixed.stl" />
     <mesh name="torso_lift_link" content_type="model/stl" file="torso/torso_lift_link.stl" />
     <mesh name="head_1_link" content_type="model/stl" file="head/head_1_link.stl" />
-    <mesh name="realsense-d435_cover_link" content_type="model/stl" file="head/realsense-d435_cover_link.stl" />
+    <mesh name="realsense_d435_cover_link" content_type="model/stl" file="head/realsense_d435_cover_link.stl" />
     <mesh name="head_2_link" content_type="model/stl" file="head/head_2_link.stl" />
     <mesh name="d435_simplified" content_type="model/stl" file="real_sense/d435_simplified.stl" />
     <mesh name="arm_base_link" content_type="model/stl" file="arm_tiago_pro/arm_base_link.stl" />
@@ -47,9 +47,9 @@
     <mesh name="arm_2_link" content_type="model/stl" file="arm_tiago_pro/arm_2_link.stl" />
     <mesh name="arm_3_link" content_type="model/stl" file="arm_tiago_pro/arm_3_link.stl" />
     <mesh name="arm_4_link" content_type="model/stl" file="arm_tiago_pro/arm_4_link.stl" />
-    <mesh name="arm_5_link" content_type="model/stl" file="arm_tiago_pro/spherical-wrist/arm_5_link.stl" />
-    <mesh name="arm_6_link" content_type="model/stl" file="arm_tiago_pro/spherical-wrist/arm_6_link.stl" />
-    <mesh name="arm_7_link" content_type="model/stl" file="arm_tiago_pro/spherical-wrist/arm_7_link.stl" />
+    <mesh name="arm_5_link" content_type="model/stl" file="arm_tiago_pro/spherical_wrist/arm_5_link.stl" />
+    <mesh name="arm_6_link" content_type="model/stl" file="arm_tiago_pro/spherical_wrist/arm_6_link.stl" />
+    <mesh name="arm_7_link" content_type="model/stl" file="arm_tiago_pro/spherical_wrist/arm_7_link.stl" />
     <mesh name="base_link_tc" content_type="model/stl" file="pal_pro_gripper/base_link_tc.stl" />
     <mesh name="inner_finger" content_type="model/stl" file="pal_pro_gripper/inner_finger.stl" />
     <mesh name="outer_finger" content_type="model/stl" file="pal_pro_gripper/outer_finger.stl" />
@@ -102,7 +102,7 @@
           <geom class="visual" material="dark_medium_gray" mesh="head_1_link" />
           <body name="head_2_link" pos="0.0425 0 0.10585" quat="0.707105 -0.707108 0 0">
             <inertial pos="0.0137012 -0.109856 -0.000696298" quat="0.98031 -0.00584723 -0.000641184 -0.197378" mass="1.39653" diaginertia="0.0114093 0.00845887 0.00661747" />
-            <geom class="visual" material="white" mesh="realsense-d435_cover_link" />
+            <geom class="visual" material="white" mesh="realsense_d435_cover_link" />
             <geom class="visual" material="white" mesh="head_2_link" />
             <geom class="visual" size="0.08641 0.05412 0.0025" pos="0.05584 -0.083935 0" quat="-1.29867e-06 0.707107 -1.29867e-06 0.707107" type="box" material="black" />
             <geom class="visual" pos="0.0565 -0.168 -4.59151e-08" quat="-1.29867e-06 0.707107 -1.29867e-06 0.707107" mesh="d435_simplified" />
