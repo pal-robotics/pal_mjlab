@@ -176,7 +176,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         },
     )
 
-
     cfg.rewards["pose"].params["asset_cfg"].joint_names = actuated_joints
     cfg.rewards["pose"].params["std_standing"] = {
         # Lower body.
