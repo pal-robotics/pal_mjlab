@@ -1,20 +1,23 @@
 from pal_mjlab.robots import (
-    get_tiago_robot_cfg,
-    KANGAROO_ACTION_SCALE,
+    get_tiago_pro_robot_cfg,
+    TIAGO_PRO_ACTION_SCALE,
 )
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.manager_term_config import RewardTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
-from pal_mjlab.tasks.reaching_tiago import mdp
-from pal_mjlab.tasks.reaching_tiago.reaching_env_cfg import make_reaching_env_cfg
+from pal_mjlab.tasks.reaching import mdp
+from pal_mjlab.tasks.reaching.reaching_env_cfg import make_reaching_env_cfg
+from mjlab.managers.scene_entity_config import SceneEntityCfg
 
-def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-    """Create PAL Robotics TIAGo reaching configuration."""
+
+def pal_tiago_pro_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Create PAL Robotics TIAGo Pro reaching configuration."""
     cfg = make_reaching_env_cfg()
+    cfg.viewer.body_name = "base_footprint"
 
-    cfg.scene.entities = {"robot": get_tiago_robot_cfg()}
+    cfg.scene.entities = {"robot": get_tiago_pro_robot_cfg()}
 
     joint_pos_action = cfg.actions["joint_pos"]
     assert isinstance(joint_pos_action, JointPositionActionCfg)
@@ -44,10 +47,13 @@ def pal_tiago_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
     cfg.scene.sensors = (self_collision_cfg,)
 
-    cfg.rewards["stand_still_joint_deviation_l1"].params["asset_cfg"].joint_names = (
-        r"torso_lift_joint",
-    )
-
+    cfg.rewards["stand_still_joint_deviation_l1"] = RewardTermCfg(
+        func=mdp.stand_still_joint_deviation_l1,
+        weight=-5.0,
+        params={
+            "asset_cfg": SceneEntityCfg( "robot", joint_names=("torso_lift_joint",),)
+        },
+    ),
     cfg.rewards["self_collisions"] = RewardTermCfg(
         func=mdp.self_collision_cost,
         weight=-1.0,
