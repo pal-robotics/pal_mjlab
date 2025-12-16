@@ -34,64 +34,33 @@ NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
 DAMPING_RATIO = 2.0  # over-damped
 factor = 0.05
 
-# ARM JOINTS parameters
-# inertia
-ARM_1_MOTOR_INERTIA = 1.728e-5
-ARM_2_MOTOR_INERTIA = 1.728e-5
-ARM_3_MOTOR_INERTIA = 1.3e-5
-ARM_4_MOTOR_INERTIA = 1.3e-5
-ARM_5_MOTOR_INERTIA = 1.3e-5
-ARM_6_MOTOR_INERTIA = 1.3e-5
-ARM_7_MOTOR_INERTIA = 1.3e-5
-
-ARM_12_REDUCTION_RATIO = 121
-ARM_REDUCTION_RATIO = 101
-
-# armature
-ARM_1_ARMATURE = factor * ARM_1_MOTOR_INERTIA * ARM_12_REDUCTION_RATIO**2
-ARM_2_ARMATURE = factor * ARM_2_MOTOR_INERTIA * ARM_12_REDUCTION_RATIO**2
-ARM_3_ARMATURE = factor * ARM_3_MOTOR_INERTIA * ARM_REDUCTION_RATIO**2
-ARM_4_ARMATURE = factor * ARM_4_MOTOR_INERTIA * ARM_REDUCTION_RATIO**2
-ARM_5_ARMATURE = factor * ARM_5_MOTOR_INERTIA * ARM_REDUCTION_RATIO**2
-ARM_6_ARMATURE = factor * ARM_6_MOTOR_INERTIA * ARM_REDUCTION_RATIO**2
-ARM_7_ARMATURE = factor * ARM_7_MOTOR_INERTIA * ARM_REDUCTION_RATIO**2
-
-# effort limit 
-ARM_1_EFFORT_LIMIT = 46.0
-ARM_2_EFFORT_LIMIT = 46.0
-ARM_3_EFFORT_LIMIT = 46.0      
-ARM_4_EFFORT_LIMIT = 46.0
-ARM_5_EFFORT_LIMIT = 46.0
-ARM_6_EFFORT_LIMIT = 46.0
-ARM_7_EFFORT_LIMIT = 46.0
-
-# joint stiffness 
-ARM_1_JOINT_STIFFNESS = (NATURAL_FREQ**2) * ARM_1_ARMATURE
-ARM_2_JOINT_STIFFNESS = (NATURAL_FREQ**2) * ARM_2_ARMATURE
-ARM_3_JOINT_STIFFNESS = (NATURAL_FREQ**2) * ARM_3_ARMATURE
-ARM_4_JOINT_STIFFNESS = (NATURAL_FREQ**2) * ARM_4_ARMATURE
-ARM_5_JOINT_STIFFNESS = (NATURAL_FREQ**2) * ARM_5_ARMATURE
-ARM_6_JOINT_STIFFNESS = (NATURAL_FREQ**2) * ARM_6_ARMATURE
-ARM_7_JOINT_STIFFNESS = (NATURAL_FREQ**2) * ARM_7_ARMATURE  
-
-# joint damping
-ARM_1_JOINT_DAMPING = 2.0 * DAMPING_RATIO * NATURAL_FREQ * ARM_1_ARMATURE
-ARM_2_JOINT_DAMPING = 2.0 * DAMPING_RATIO * NATURAL_FREQ * ARM_2_ARMATURE
-ARM_3_JOINT_DAMPING = 2.0 * DAMPING_RATIO * NATURAL_FREQ * ARM_3_ARMATURE
-ARM_4_JOINT_DAMPING = 2.0 * DAMPING_RATIO * NATURAL_FREQ * ARM_4_ARMATURE
-ARM_5_JOINT_DAMPING = 2.0 * DAMPING_RATIO * NATURAL_FREQ * ARM_5_ARMATURE
-ARM_6_JOINT_DAMPING = 2.0 * DAMPING_RATIO * NATURAL_FREQ * ARM_6_ARMATURE
-ARM_7_JOINT_DAMPING = 2.0 * DAMPING_RATIO * NATURAL_FREQ * ARM_7_ARMATURE
+# gear ratio
+S_PLUS_GEAR_RATIO = 121
+S_MINUS_GEAR_RATIO = 101
+XS_GEAR_RATIO = 101
+# joints inertia
+S_PLUS_MOTOR_INERTIA = 1.728e-5
+S_MINUS_MOTOR_INERTIA = 1.3e-5
+XS_MOTOR_INERTIA = 1.3e-5
+# joints armature (reflected inertia)
+S_PLUS_ARMATURE = factor * S_PLUS_MOTOR_INERTIA * S_PLUS_GEAR_RATIO**2
+S_MINUS_ARMATURE =factor * S_MINUS_MOTOR_INERTIA * S_MINUS_GEAR_RATIO**2
+XS_ARMATURE = factor * XS_MOTOR_INERTIA * XS_GEAR_RATIO**2
+# joints effort limit (mehhh...)
+S_PLUS_EFFORT_LIMIT = 50
+S_MINUS_EFFORT_LIMIT = 25
+XS_EFFORT_LIMIT = 25
+# joints stiffness
+S_PLUS_STIFFNESS = round(S_PLUS_ARMATURE * NATURAL_FREQ**2, 3)
+S_MINUS_STIFFNESS = round(S_MINUS_ARMATURE * NATURAL_FREQ**2, 3)
+XS_STIFFNESS = round(XS_ARMATURE * NATURAL_FREQ**2, 3)
+# joints damping
+S_PLUS_DAMPING = round(2.0 * DAMPING_RATIO * S_PLUS_ARMATURE * NATURAL_FREQ, 3)
+S_MINUS_DAMPING = round(2.0 * DAMPING_RATIO * S_MINUS_ARMATURE * NATURAL_FREQ, 3)
+XS_DAMPING = round(2.0 * DAMPING_RATIO * XS_ARMATURE * NATURAL_FREQ, 3)
 
 # --------------------------------------------------------
 # TORSO JOINTS
-# inertia
-TORSO_MOTOR_INERTIA = 0.01 # 0.000207288
-TORSO_REDUCTION_RATIO = 100
-
-# armature
-TORSO_ARMATURE = factor * ARM_1_MOTOR_INERTIA * TORSO_REDUCTION_RATIO**2
-
 # effort limit 
 TORSO_EFFORT_LIMIT = 2200 # 40.0
 
@@ -123,108 +92,41 @@ GRIPPER_DAMPING = 2.0 * DAMPING_RATIO * NATURAL_FREQ * GRIPPER_ARMATURE
 # Actuator configurations.
 ## --------------------------------------------------------
 
-ARM_1_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_left_1_joint",),
-    effort_limit=ARM_1_EFFORT_LIMIT,
-    armature=ARM_1_ARMATURE,
-    stiffness=50,
-    damping=1.0,
+TIAGO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+    joint_names_expr=(
+        "arm_.*_1_joint",
+        "arm_.*_2_joint",
+    ),
+    armature=S_PLUS_ARMATURE,
+    effort_limit=S_PLUS_EFFORT_LIMIT,
+    stiffness=S_PLUS_STIFFNESS,
+    damping=S_PLUS_DAMPING,
 )
-ARM_1_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_right_1_joint",),
-    effort_limit=ARM_1_EFFORT_LIMIT,
-    armature=ARM_1_ARMATURE,
-    stiffness=50,
-    damping=1.0,
+TIAGO_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+        joint_names_expr=(
+        "arm_.*_3_joint",
+        "arm_.*_4_joint",
+        "arm_.*_5_joint",
+    ),
+    armature=S_MINUS_ARMATURE,
+    effort_limit=S_MINUS_EFFORT_LIMIT,
+    stiffness=S_MINUS_STIFFNESS,
+    damping=S_MINUS_DAMPING,
 )
-ARM_2_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_left_2_joint",),
-    effort_limit=ARM_2_EFFORT_LIMIT,
-    armature=ARM_2_ARMATURE,
-    stiffness=45,
-    damping=0.5,
-)
-ARM_2_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_right_2_joint",),
-    effort_limit=ARM_2_EFFORT_LIMIT,
-    armature=ARM_2_ARMATURE,
-    stiffness=45,
-    damping=0.5,
-)
-ARM_3_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_left_3_joint",),
-    effort_limit=ARM_3_EFFORT_LIMIT,
-    armature=ARM_3_ARMATURE,
-    stiffness=70,
-    damping=1.0,
-)
-ARM_3_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_right_3_joint",),
-    effort_limit=ARM_3_EFFORT_LIMIT,
-    armature=ARM_3_ARMATURE,
-    stiffness=70,
-    damping=1.0,
-)
-ARM_4_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_right_4_joint",),
-    effort_limit=ARM_4_EFFORT_LIMIT,
-    armature=ARM_4_ARMATURE,
-    stiffness=35,
-    damping=0.0,
-)
-ARM_4_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_left_4_joint",),
-    effort_limit=ARM_4_EFFORT_LIMIT,
-    armature=ARM_4_ARMATURE,
-    stiffness=35,
-    damping=0.0,
-)
-ARM_5_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_left_5_joint",),
-    effort_limit=ARM_5_EFFORT_LIMIT,
-    armature=ARM_5_ARMATURE,
-    stiffness=15,
-    damping=0,
-)
-ARM_5_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_right_5_joint",),
-    effort_limit=ARM_5_EFFORT_LIMIT,
-    armature=ARM_5_ARMATURE,
-    stiffness=15,
-    damping=0,
-)
-ARM_6_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_left_6_joint",),
-    effort_limit=ARM_6_EFFORT_LIMIT,
-    armature=ARM_6_ARMATURE,
-    stiffness=15,
-    damping=0.0,
-)
-ARM_6_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_right_6_joint",),
-    effort_limit=ARM_6_EFFORT_LIMIT,
-    armature=ARM_6_ARMATURE,
-    stiffness=15,
-    damping=0.0,
-)
-ARM_7_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_right_7_joint",),
-    effort_limit=ARM_7_EFFORT_LIMIT,
-    armature=ARM_7_ARMATURE,
-    stiffness=10,
-    damping=0.0,
-)
-ARM_7_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("arm_left_7_joint",),
-    effort_limit=ARM_7_EFFORT_LIMIT,
-    armature=ARM_7_ARMATURE,
-    stiffness=10,
-    damping=0.0,
+TIAGO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+    joint_names_expr=(
+        "arm_.*_6_joint",
+        "arm_.*_7_joint",
+    ),
+    armature=XS_ARMATURE,
+    effort_limit=XS_EFFORT_LIMIT,
+    stiffness=XS_STIFFNESS,
+    damping=XS_DAMPING,
 )
 TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("torso_lift_joint",),
     effort_limit=TORSO_EFFORT_LIMIT,
-    armature=TORSO_ARMATURE,
+    armature=S_MINUS_ARMATURE,
     stiffness=TORSO_STIFFNESS,
     damping=TORSO_DAMPING,
 )       
@@ -282,24 +184,13 @@ FULL_COLLISION = CollisionCfg(
 
 TIAGO_ARTICULATION = EntityArticulationInfoCfg(
     actuators=(
-        ARM_1_R_ACTUATOR_CFG,
-        ARM_2_R_ACTUATOR_CFG,
-        ARM_3_R_ACTUATOR_CFG,
-        ARM_4_R_ACTUATOR_CFG,
-        ARM_5_R_ACTUATOR_CFG,
-        ARM_6_R_ACTUATOR_CFG,
-        ARM_7_R_ACTUATOR_CFG,
-        ARM_1_L_ACTUATOR_CFG,
-        ARM_2_L_ACTUATOR_CFG,
-        ARM_3_L_ACTUATOR_CFG,
-        ARM_4_L_ACTUATOR_CFG,
-        ARM_5_L_ACTUATOR_CFG,
-        ARM_6_L_ACTUATOR_CFG,
-        ARM_7_L_ACTUATOR_CFG,
+        TIAGO_S_PLUS_ACTUATOR_CFG,
+        TIAGO_S_MINUS_ACTUATOR_CFG,
+        TIAGO_XS_ACTUATOR_CFG,
         TORSO_ACTUATOR_CFG,
         # GRIPPER_ACTUATOR_CFG,
     ),
-    soft_joint_pos_limit_factor=0.75,
+    soft_joint_pos_limit_factor=0.9,
 )
 
 TIAGO_ACTION_SCALE: dict[str, float] = {}
