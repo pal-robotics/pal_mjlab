@@ -260,7 +260,7 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         "arm_right_6_joint": -1.2006,
         "arm_right_7_joint": 0.0,
         # grippers 
-        "gripper_.*_joint": 0.0,
+        # "gripper_.*_joint": 0.0,
     },
     joint_vel={".*": 0.0},
 )
