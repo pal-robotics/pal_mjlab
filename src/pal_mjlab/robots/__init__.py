@@ -9,3 +9,6 @@ from pal_mjlab.robots.pal_talos.talos_constants import (  # noqa: F401
     get_talos_robot_cfg,
     TALOS_ACTION_SCALE,
 )
+from pal_mjlab.robots.pal_tiago_pro.tiago_pro_constants import (  # noqa: F401
+    get_tiago_robot_cfg,
+)       
