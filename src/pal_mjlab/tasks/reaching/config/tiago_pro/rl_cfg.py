@@ -1,4 +1,4 @@
-"""RL configuration for PAL Robotics' TIAGo reaching task."""
+"""RL configuration for PAL Robotics' TIAGo Pro reaching task."""
 
 from mjlab.rl import (
     RslRlOnPolicyRunnerCfg,
@@ -7,8 +7,8 @@ from mjlab.rl import (
 )
 
 
-def pal_tiago_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
-    """Create RL runner configuration for PAL TIAGo reaching task."""
+def pal_tiago_pro_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+    """Create RL runner configuration for PAL TIAGo Pro reaching task."""
     return RslRlOnPolicyRunnerCfg(
         policy=RslRlPpoActorCriticCfg(
             init_noise_std=1.0,
@@ -32,7 +32,7 @@ def pal_tiago_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
             desired_kl=0.01,
             max_grad_norm=1.0,
         ),
-        experiment_name="tiago_reaching",
+        experiment_name="tiago_pro_reaching",
         save_interval=50,
         num_steps_per_env=24,
         max_iterations=30_000,
