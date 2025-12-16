@@ -34,7 +34,9 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     site_names = ("left_foot", "right_foot")
     geom_names = tuple(
-        f"{side}_foot{i}_collision" for side in ("left", "right") for i in [0, 2, 4, 6, 8, 10]
+        f"{side}_foot{i}_collision"
+        for side in ("left", "right")
+        for i in [0, 2, 4, 6, 8, 10]
     )
     actuated_joints = (
         # Lower body.
@@ -54,7 +56,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         name="feet_ground_contact",
         primary=ContactMatch(
             mode="subtree",
-            pattern=r"^(leg_left_5_link|leg_right_5_link)$", # subtree so foot link is included
+            pattern=r"^(leg_left_5_link|leg_right_5_link)$",  # subtree so foot link is included
             entity="robot",
         ),
         secondary=ContactMatch(mode="body", pattern="terrain"),
@@ -117,12 +119,12 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.observations["critic"].terms["foot_height"].params[
         "asset_cfg"
     ].site_names = site_names
-    cfg.observations["policy"].history_length = 5 # Keep last 5 frames
-    cfg.observations["critic"].history_length = 5 # Keep last 5 frames
+    cfg.observations["policy"].history_length = 5  # Keep last 5 frames
+    cfg.observations["critic"].history_length = 5  # Keep last 5 frames
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
     # joint level domain randomization
-    cfg.events["joint_offset"]= EventTermCfg(
+    cfg.events["joint_offset"] = EventTermCfg(
         mode="startup",
         func=mdp.randomize_field,
         domain_randomization=True,
@@ -133,7 +135,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "operation": "add",
         },
     )
-    cfg.events["joint_friction"]= EventTermCfg(
+    cfg.events["joint_friction"] = EventTermCfg(
         mode="startup",
         func=mdp.randomize_field,
         domain_randomization=True,
@@ -144,7 +146,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "operation": "add",
         },
     )
-    cfg.events["joint_armature"]= EventTermCfg(
+    cfg.events["joint_armature"] = EventTermCfg(
         mode="startup",
         func=mdp.randomize_field,
         domain_randomization=True,
@@ -156,7 +158,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         },
     )
     # link level domain randomization
-    cfg.events["com"]= EventTermCfg(
+    cfg.events["com"] = EventTermCfg(
         mode="startup",
         func=mdp.randomize_field,
         domain_randomization=True,
@@ -167,7 +169,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "operation": "add",
         },
     )
-    cfg.events["mass"]= EventTermCfg(
+    cfg.events["mass"] = EventTermCfg(
         mode="startup",
         func=mdp.randomize_field,
         domain_randomization=True,

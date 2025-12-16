@@ -39,7 +39,7 @@ from mjlab.tasks.velocity import mdp as loco_mdp
 
 def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO flat terrain locomotion + dual-arm reaching."""
-    
+
     # Start from reaching base
     cfg = make_reaching_env_cfg()
     cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
@@ -51,9 +51,11 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     # -----------------------------------------------------------------
     site_names = ("left_foot", "right_foot")
     geom_names = tuple(
-        f"{side}_foot{i}_collision" for side in ("left", "right") for i in [0, 2, 4, 6, 8, 10]
+        f"{side}_foot{i}_collision"
+        for side in ("left", "right")
+        for i in [0, 2, 4, 6, 8, 10]
     )
-    
+
     locomotion_joints = (
         r"leg_.*_1_.*",
         r"leg_.*_2_.*",
@@ -116,19 +118,19 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     # Commands: add velocity tracking to existing pose commands
     # -----------------------------------------------------------------
     cfg.commands["twist"] = loco_mdp.UniformVelocityCommandCfg(
-      asset_name="robot",
-      resampling_time_range=(3.0, 8.0),
-      rel_standing_envs=0.1,
-      rel_heading_envs=0.3,
-      heading_command=True,
-      heading_control_stiffness=0.5,
-      debug_vis=True,
-      ranges=loco_mdp.UniformVelocityCommandCfg.Ranges(
-        lin_vel_x=(-1.0, 1.0),
-        lin_vel_y=(-1.0, 1.0),
-        ang_vel_z=(-0.5, 0.5),
-        heading=(-math.pi, math.pi),
-      ),
+        asset_name="robot",
+        resampling_time_range=(3.0, 8.0),
+        rel_standing_envs=0.1,
+        rel_heading_envs=0.3,
+        heading_command=True,
+        heading_control_stiffness=0.5,
+        debug_vis=True,
+        ranges=loco_mdp.UniformVelocityCommandCfg.Ranges(
+            lin_vel_x=(-1.0, 1.0),
+            lin_vel_y=(-1.0, 1.0),
+            ang_vel_z=(-0.5, 0.5),
+            heading=(-math.pi, math.pi),
+        ),
     )
 
     # Configure pose command ranges for Kangaroo workspace
@@ -234,7 +236,7 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
         weight=2.0,
         params={"command_name": "twist", "std": math.sqrt(0.5)},
     )
-    
+
     # Stability
     cfg.rewards["upright"] = RewardTermCfg(
         func=loco_mdp.flat_orientation,
@@ -254,7 +256,7 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
         weight=-0.02,
         params={"sensor_name": "robot/root_angmom"},
     )
-    
+
     # Posture for locomotion joints only
     cfg.rewards["pose_loco"] = RewardTermCfg(
         func=loco_mdp.variable_posture,
@@ -295,7 +297,7 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
             "running_threshold": 1.5,
         },
     )
-    
+
     # Feet rewards
     cfg.rewards["air_time"] = RewardTermCfg(
         func=loco_mdp.feet_air_time,
@@ -353,7 +355,7 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
     )
-    
+
     # Separate action rates for body vs arms
     cfg.rewards["action_rate_l2"].params = {
         "asset_cfg": SceneEntityCfg("robot", joint_names=locomotion_joints),
@@ -363,7 +365,9 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
         func=reach_mdp.action_rate_l2_louis,
         weight=-0.0001,
         params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=left_arm_joints + right_arm_joints),
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=left_arm_joints + right_arm_joints
+            ),
         },
     )
 
@@ -404,7 +408,9 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     return cfg
 
 
-def pal_kangaroo_hands_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+def pal_kangaroo_hands_flat_loco_reaching_env_cfg(
+    play: bool = False,
+) -> ManagerBasedRlEnvCfg:
     """Kangaroo with hands (5 DoF arms) flat terrain locomotion + reaching."""
     cfg = pal_kangaroo_flat_loco_reaching_env_cfg(play=play)
 
@@ -418,7 +424,9 @@ def pal_kangaroo_hands_flat_loco_reaching_env_cfg(play: bool = False) -> Manager
     return cfg
 
 
-def pal_kangaroo_grippers_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+def pal_kangaroo_grippers_flat_loco_reaching_env_cfg(
+    play: bool = False,
+) -> ManagerBasedRlEnvCfg:
     """Kangaroo with grippers (7 DoF arms) flat terrain locomotion + reaching."""
     cfg = pal_kangaroo_flat_loco_reaching_env_cfg(play=play)
 

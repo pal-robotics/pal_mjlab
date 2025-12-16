@@ -13,5 +13,3 @@ register_mjlab_task(
     rl_cfg=pal_tiago_pro_ppo_runner_cfg(),
     runner_cls=VelocityOnPolicyRunner,
 )
-
-

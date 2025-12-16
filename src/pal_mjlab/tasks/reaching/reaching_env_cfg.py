@@ -1,7 +1,5 @@
 """Reaching task configuration."""
 
-import math
-
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.manager_term_config import (
@@ -21,6 +19,7 @@ from pal_mjlab.tasks.reaching import mdp
 from mjlab.terrains import TerrainImporterCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
+
 
 def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     """Create base reaching task configuration."""
@@ -105,7 +104,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 pos_y=(0.0, 0.0),  # Set per-robot.
                 pos_z=(0.0, 0.0),  # Set per-robot.
             ),
-        )
+        ),
     }
 
     ## --------------------------------------------------------
@@ -132,7 +131,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "ranges": (0.5, 2.0),
                 "operation": "abs",
             },
-        )
+        ),
     }
 
     ## --------------------------------------------------------
@@ -190,18 +189,16 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "command_name": "pose_command_right",
             },
         ),
-        "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
-            weight=-1.0
-            ),
+        "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
         "action_rate_l2": RewardTermCfg(
             func=mdp.action_rate_l2_louis,
             weight=-0.0001,
             params={
                 "asset_cfg": SceneEntityCfg(
-                    "robot", joint_names=(".*",)),  # Set per-robot.
+                    "robot", joint_names=(".*",)
+                ),  # Set per-robot.
             },
         ),
-
         "joint_vel_hinge": RewardTermCfg(
             func=mdp.joint_velocity_hinge_penalty,
             weight=-0.01,
@@ -209,7 +206,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "max_vel": 0.5,
                 "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
             },
-            ),
+        ),
     }
 
     ## --------------------------------------------------------
@@ -297,4 +294,3 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         decimation=4,
         episode_length_s=20.0,
     )
-

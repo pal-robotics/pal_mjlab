@@ -10,7 +10,9 @@ from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
 from mjlab.actuator import BuiltinPositionActuatorCfg
 
-TIAGO_PRO_XML: Path = PAL_MJLAB_SRC_PATH / "robots" / "pal_tiago_pro" / "xmls" / "tiago_pro.xml"
+TIAGO_PRO_XML: Path = (
+    PAL_MJLAB_SRC_PATH / "robots" / "pal_tiago_pro" / "xmls" / "tiago_pro.xml"
+)
 
 assert TIAGO_PRO_XML.exists()
 
@@ -23,12 +25,19 @@ DAMPING_RATIO = 2.0
 FACTOR = 0.05
 
 
-def _calc_actuator_params(gear_ratio: float, motor_inertia: float, effort: float) -> dict:
+def _calc_actuator_params(
+    gear_ratio: float, motor_inertia: float, effort: float
+) -> dict:
     """Calculate armature, stiffness, and damping for an actuator."""
     armature = FACTOR * motor_inertia * gear_ratio**2
     stiffness = round(armature * NATURAL_FREQ**2, 3)
     damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
-    return {"armature": armature, "stiffness": stiffness, "damping": damping, "effort_limit": effort}
+    return {
+        "armature": armature,
+        "stiffness": stiffness,
+        "damping": damping,
+        "effort_limit": effort,
+    }
 
 
 # Motor parameters: (gear_ratio, motor_inertia, effort_limit)
@@ -42,6 +51,7 @@ TORSO = {"armature": 0.1, "stiffness": 1500, "damping": 300, "effort_limit": 220
 # MJCF & Assets
 ##
 
+
 def get_assets(meshdir: str) -> dict[str, bytes]:
     assets: dict[str, bytes] = {}
     update_assets(assets, TIAGO_PRO_XML.parent / "assets", meshdir)
@@ -52,6 +62,7 @@ def get_spec() -> mujoco.MjSpec:
     spec = mujoco.MjSpec.from_file(str(TIAGO_PRO_XML))
     spec.assets = get_assets(spec.meshdir)
     return spec
+
 
 ## --------------------------------------------------------
 # Actuator configurations.
@@ -75,7 +86,7 @@ TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("torso_lift_joint",),
     **TORSO,
 )
-# Grippers     
+# Grippers
 GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=(r"gripper_(left|right)_.*_joint",),
     **GRIPPER,
@@ -88,7 +99,7 @@ GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 INIT_STATE = EntityCfg.InitialStateCfg(
     pos=(0.0, 0.0, 0.0),
     joint_pos={
-        "torso_lift_joint": 0.1 ,
+        "torso_lift_joint": 0.1,
         "arm_left_1_joint": 0.3578,
         "arm_right_1_joint": -0.3578,
         "arm_.*_2_joint": -1.8266,
@@ -129,6 +140,7 @@ TIAGO_PRO_ARTICULATION = EntityArticulationInfoCfg(
 TIAGO_PRO_ACTION_SCALE: dict[str, float] = {}
 TIAGO_PRO_ACTUATOR_NAMES: tuple = ()
 
+
 def get_tiago_pro_robot_cfg() -> EntityCfg:
     """Get a fresh TIAGo Pro robot configuration instance."""
     return EntityCfg(
@@ -137,6 +149,7 @@ def get_tiago_pro_robot_cfg() -> EntityCfg:
         spec_fn=get_spec,
         articulation=TIAGO_PRO_ARTICULATION,
     )
+
 
 for a in TIAGO_PRO_ARTICULATION.actuators:
     e = a.effort_limit
