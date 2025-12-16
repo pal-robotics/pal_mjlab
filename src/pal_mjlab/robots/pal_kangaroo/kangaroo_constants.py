@@ -80,9 +80,17 @@ def _load_spec(xml_path: Path) -> mujoco.MjSpec:
     return spec
 
 
-get_kangaroo_spec = lambda: _load_spec(KANGAROO_XML)
-get_kangaroo_hands_spec = lambda: _load_spec(KANGAROO_HANDS_XML)
-get_kangaroo_grippers_spec = lambda: _load_spec(KANGAROO_GRIPPERS_XML)
+def get_kangaroo_spec() -> mujoco.MjSpec:
+    return _load_spec(KANGAROO_XML)
+
+
+def get_kangaroo_hands_spec() -> mujoco.MjSpec:
+    return _load_spec(KANGAROO_HANDS_XML)
+
+
+def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
+    return _load_spec(KANGAROO_GRIPPERS_XML)
+
 
 ##
 # Actuator Configs
@@ -225,9 +233,16 @@ def _make_robot_cfg(variant: str) -> EntityCfg:
     )
 
 
-get_kangaroo_robot_cfg = lambda: _make_robot_cfg("kangaroo")
-get_kangaroo_hands_robot_cfg = lambda: _make_robot_cfg("hands")
-get_kangaroo_grippers_robot_cfg = lambda: _make_robot_cfg("grippers")
+def get_kangaroo_robot_cfg() -> EntityCfg:
+    return _make_robot_cfg("kangaroo")
+
+
+def get_kangaroo_hands_robot_cfg() -> EntityCfg:
+    return _make_robot_cfg("hands")
+
+
+def get_kangaroo_grippers_robot_cfg() -> EntityCfg:
+    return _make_robot_cfg("grippers")
 
 
 _EXCLUDED_JOINTS = {
