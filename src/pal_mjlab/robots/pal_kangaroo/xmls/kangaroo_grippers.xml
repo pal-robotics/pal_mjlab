@@ -94,7 +94,7 @@
                   <inertial pos="-0.0666639 0.0102985 -0.0351108" quat="0.0552758 0.727273 -0.0700841 0.68052" mass="1.80676" diaginertia="0.00263554 0.00245424 0.00145523" />
                   <joint name="arm_left_4_joint" range="-1.13446 2.44346"/>
                   <geom class="visual" mesh="arm4_link" />
-                  <geom name="arm_left_4_collision" size="0.054849 0.219217" pos="0.210246 -0.0167497 -0.0171982" quat="0.733112 0.0532001 0.678025 -2.2842e-07" class="collision"/>
+                  <geom name="arm_left_4_collision" size="0.07" fromto="-0.3 0 -0.05  0 0 -0.05" class="collision"/>
                   <body name="arm_left_5_link" pos="-0.17011 0.02 -0.03711" quat="0.707105 0 -0.707108 0">
                     <inertial pos="0.0266059 -9.73534e-06 0.0673257" quat="0.989898 -7.96043e-05 0.141782 -0.000384017" mass="0.348015" diaginertia="0.0015535 0.0014601 0.000311872" />
                     <joint name="arm_left_5_joint" pos="0 0 0" axis="0 0 -1" range="-3.66519 1.5708" actuatorfrcrange="-43 43" />
