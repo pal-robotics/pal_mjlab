@@ -1,9 +1,15 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
 from pal_mjlab.robots import (
-    KANGAROO_ACTION_SCALE,
     get_kangaroo_robot_cfg,
+    get_kangaroo_hands_robot_cfg,
+    get_kangaroo_grippers_robot_cfg,
+    KANGAROO_ACTION_SCALE,
+    KANGAROO_HANDS_ACTION_SCALE,
+    KANGAROO_GRIPPERS_ACTION_SCALE,
     KANGAROO_ACTUATOR_NAMES,
+    KANGAROO_HANDS_ACTUATOR_NAMES,
+    KANGAROO_GRIPPERS_ACTUATOR_NAMES,
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -15,7 +21,6 @@ from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.managers.manager_term_config import TerminationTermCfg, EventTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.manager_term_config import (
-    CurriculumTermCfg,
     ObservationTermCfg,
 )
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
@@ -24,9 +29,7 @@ from mjlab.utils.noise import UniformNoiseCfg as Unoise
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO rough terrain velocity configuration."""
     cfg = make_velocity_env_cfg()
-
     cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
-
     cfg.sim.nconmax = 45
 
     site_names = ("left_foot", "right_foot")
@@ -203,9 +206,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"pelvis_2.*": 0.2,
         # Arms.
         r"arm_.*_1_.*": 0.2,  # pitch
-        r"arm_.*_2_.*": 0.1,  # roll
-        r"arm_.*_3_.*": 0.1,
         r"arm_.*_4_.*": 0.2,
+        r"arm_.*_(?![14]_joint)\d+_joint": 0.1,
     }
     cfg.rewards["pose"].params["std_running"] = {
         # Lower body.
@@ -220,57 +222,22 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"pelvis_2.*": 0.3,
         # Arms.
         r"arm_.*_1_.*": 0.4,
-        r"arm_.*_2_.*": 0.15,
-        r"arm_.*_3_.*": 0.15,
         r"arm_.*_4_.*": 0.35,
+        r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
     }
-
     cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
     cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-
     for reward_name in ["foot_clearance", "foot_swing_height", "foot_slip"]:
         cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
-
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
     cfg.rewards["air_time"].weight = 0.25
-
     cfg.rewards["self_collisions"] = RewardTermCfg(
         func=mdp.self_collision_cost,
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
     )
-    # cfg.rewards["power"] = RewardTermCfg(
-    #     func=mdp.electrical_power_cost,
-    #     weight=0.0,
-    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=actuated_joints)},
-    # )
 
-    # cfg.rewards["self_collisions"] = None
-    # cfg.rewards["air_time"] = None
-    # cfg.rewards["angular_momentum"] = None
-    # cfg.curriculum["air_time"] = CurriculumTermCfg(
-    #   func=mdp.reward_weight,
-    #   params={
-    #     "reward_name": "air_time",
-    #     "weight_stages": [
-    #       {"step": 0, "weight": 0.25},
-    #       {"step": 5000 * 24, "weight": 1.0},
-    #     #   {"step": 10_000 * 24, "weight": 2.0},
-    #     ],
-    #   },
-    # )
-    # cfg.curriculum["power"] = CurriculumTermCfg(
-    #     func=mdp.reward_weight,
-    #     params={
-    #         "reward_name": "power",
-    #         "weight_stages": [
-    #             {"step": 0, "weight": 0.0},
-    #             {"step": 5000 * 24, "weight": -0.01},
-    #             {"step": 10000 * 24, "weight": -0.1},
-    #         ],
-    #     },
-    # )
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
         func=mdp.illegal_contact,
         params={"sensor_name": "body_ground_contact"},
@@ -290,6 +257,34 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
                 cfg.scene.terrain.terrain_generator.num_cols = 5
                 cfg.scene.terrain.terrain_generator.num_rows = 5
                 cfg.scene.terrain.terrain_generator.border_width = 10.0
+
+    return cfg
+
+
+def pal_kangaroo_hands_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Create PAL Robotics KANGAROO with hands (5 DoF per arms) rough terrain velocity configuration."""
+    cfg = pal_kangaroo_rough_env_cfg(play=play)
+
+    cfg.scene.entities = {"robot": get_kangaroo_hands_robot_cfg()}
+
+    joint_pos_action = cfg.actions["joint_pos"]
+    assert isinstance(joint_pos_action, JointPositionActionCfg)
+    joint_pos_action.scale = KANGAROO_HANDS_ACTION_SCALE
+    joint_pos_action.actuator_names = KANGAROO_HANDS_ACTUATOR_NAMES
+
+    return cfg
+
+
+def pal_kangaroo_grippers_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) rough terrain velocity configuration."""
+    cfg = pal_kangaroo_rough_env_cfg(play=play)
+
+    cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
+
+    joint_pos_action = cfg.actions["joint_pos"]
+    assert isinstance(joint_pos_action, JointPositionActionCfg)
+    joint_pos_action.scale = KANGAROO_GRIPPERS_ACTION_SCALE
+    joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
 
     return cfg
 
@@ -315,5 +310,33 @@ def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         assert isinstance(twist_cmd, UniformVelocityCommandCfg)
         twist_cmd.ranges.lin_vel_x = (-1.5, 2.0)
         twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
+
+    return cfg
+
+
+def pal_kangaroo_hands_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Create PAL Robotics KANGAROO with hands (5 DoF per arms) flat terrain velocity configuration."""
+    cfg = pal_kangaroo_flat_env_cfg(play=play)
+
+    cfg.scene.entities = {"robot": get_kangaroo_hands_robot_cfg()}
+
+    joint_pos_action = cfg.actions["joint_pos"]
+    assert isinstance(joint_pos_action, JointPositionActionCfg)
+    joint_pos_action.scale = KANGAROO_HANDS_ACTION_SCALE
+    joint_pos_action.actuator_names = KANGAROO_HANDS_ACTUATOR_NAMES
+
+    return cfg
+
+
+def pal_kangaroo_grippers_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+    """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) flat terrain velocity configuration."""
+    cfg = pal_kangaroo_flat_env_cfg(play=play)
+
+    cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
+
+    joint_pos_action = cfg.actions["joint_pos"]
+    assert isinstance(joint_pos_action, JointPositionActionCfg)
+    joint_pos_action.scale = KANGAROO_GRIPPERS_ACTION_SCALE
+    joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
 
     return cfg
