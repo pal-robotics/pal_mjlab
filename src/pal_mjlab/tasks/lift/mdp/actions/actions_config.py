@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from pal_mjlab.tasks.reaching_tiago.mdp.actions import joint_actions
-from pal_mjlab.tasks.reaching_tiago.mdp.actions import mirrored_joint_position_action
+from pal_mjlab.tasks.lift.mdp.actions import joint_actions
+from pal_mjlab.tasks.lift.mdp.actions import mirrored_joint_position_action
 from mjlab.managers.action_manager import ActionTerm
 from mjlab.managers.manager_term_config import ActionTermCfg
 

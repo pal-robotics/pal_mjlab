@@ -1,5 +1,5 @@
 from pal_mjlab.robots import (
-    get_tiago_robot_cfg,
+    get_tiago_pro_robot_cfg,
 )
 
 from mjlab.envs import ManagerBasedRlEnvCfg
@@ -33,7 +33,7 @@ def pal_tiago_lift_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg = make_lift_env_cfg()
 
     cfg.scene.entities = {
-       "robot": get_tiago_robot_cfg(),
+       "robot": get_tiago_pro_robot_cfg(),
         "cube": EntityCfg(spec_fn=get_cube_spec),}
 
     joint_pos_action = cfg.actions["joint_pos"]

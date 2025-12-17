@@ -44,7 +44,8 @@ def _calc_actuator_params(
 S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
 S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
 XS = _calc_actuator_params(101, 1.3e-5, 25)
-GRIPPER = _calc_actuator_params(100, 207e-4, 40)
+# GRIPPER = _calc_actuator_params(100, 207e-4, 40)
+GRIPPER = {"armature": 0.006, "stiffness": 10, "damping": 10, "effort_limit": 8}
 TORSO = {"armature": 0.1, "stiffness": 1500, "damping": 300, "effort_limit": 2200}
 
 ##
@@ -88,7 +89,10 @@ TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 # Grippers
 GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"gripper_(left|right)_.*_joint",),
+    joint_names_expr=("gripper_left_outer_finger_left_joint",
+                      "gripper_left_outer_finger_right_joint",
+                      "gripper_right_outer_finger_left_joint",
+                      "gripper_right_outer_finger_right_joint"),
     **GRIPPER,
 )
 
@@ -107,6 +111,7 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         "arm_right_3_joint": -0.4698,
         "arm_.*_4_joint": -2.3409,
         "arm_.*_6_joint": -1.2006,
+        "gripper_.*_joint": 0.4,
     },
     joint_vel={".*": 0.0},
 )
@@ -132,7 +137,7 @@ TIAGO_PRO_ARTICULATION = EntityArticulationInfoCfg(
         TIAGO_PRO_S_MINUS_ACTUATOR_CFG,
         TIAGO_PRO_XS_ACTUATOR_CFG,
         TORSO_ACTUATOR_CFG,
-        # GRIPPER_ACTUATOR_CFG,
+        GRIPPER_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.9,
 )
