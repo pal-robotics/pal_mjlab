@@ -103,10 +103,10 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
                 "gripper_left_outer_finger_right_joint",
                 "gripper_right_outer_finger_right_joint",
             ],
-            mirror_pairs=(
-                ("gripper_left_outer_finger_right_joint",  "gripper_left_outer_finger_left_joint"),
-                ("gripper_right_outer_finger_right_joint", "gripper_right_outer_finger_left_joint"),
-            ),
+            mirror_pairs={
+                "gripper_left_outer_finger_right_joint": "gripper_left_outer_finger_left_joint",
+                "gripper_right_outer_finger_right_joint": "gripper_right_outer_finger_left_joint",
+            },
             # If one axis is flipped, set mirror_sign=[-1.0, 1.0] etc.
             mirror_sign=None,
             scale=2.0,
