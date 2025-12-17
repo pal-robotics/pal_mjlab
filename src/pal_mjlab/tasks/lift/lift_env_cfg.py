@@ -180,9 +180,9 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         # 1) Reach: EE–cube distance (returns distance in meters → use NEGATIVE weight)
         "ee_object_distance": RewardTermCfg(
             func=mdp.ee_object_distance,  
-            weight=3.0,                           
+            weight=5.0,                           
             params={
-                "std": 0.4,
+                "std": 0.3,
                 "object_name": "cube",
                 "asset_cfg": SceneEntityCfg(
                     "robot",
@@ -194,7 +194,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         # 2) Lift: binary bonus when cube is above minimal height
         "object_is_lifted": RewardTermCfg(
             func=mdp.object_is_lifted_binary,
-            weight=10.0,                            
+            weight=8.0,                            
             params={
                 "minimal_height": 0.08,
                 "object_name": "cube",
@@ -204,7 +204,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         # 3) Bring: object-to-goal Gaussian, only when lifted
         "object_goal_distance": RewardTermCfg(
             func=mdp.object_goal_gaussian_distance,
-            weight=15.0,                           
+            weight=20.0,                           
             params={
                 "std": 0.3,                         
                 "minimal_height": 0.08,
