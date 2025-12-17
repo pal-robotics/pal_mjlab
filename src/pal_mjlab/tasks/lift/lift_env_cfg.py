@@ -194,7 +194,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         # 2) Lift: binary bonus when cube is above minimal height
         "object_is_lifted": RewardTermCfg(
             func=mdp.object_is_lifted_binary,
-            weight=8.0,                            
+            weight=10.0,                            
             params={
                 "minimal_height": 0.08,
                 "object_name": "cube",
