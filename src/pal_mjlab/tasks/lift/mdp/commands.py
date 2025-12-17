@@ -51,9 +51,7 @@ class LiftingCommand(CommandTerm):
     self.metrics["height_error"] = height_error
     self.metrics["position_error"] = position_error
     self.metrics["success_rate"] = (position_error < self.cfg.success_threshold).float()
-    self.metrics["gripper_open"] = self._env.scene["robot"].data.pos[
-      self._env.scene["robot"].actuation.actuator_name_to_index["gripper_right_outer_finger_right_joint"]
-    ]
+  
 
   def compute_success(self) -> torch.Tensor:
     position_error = self.metrics["position_error"]
