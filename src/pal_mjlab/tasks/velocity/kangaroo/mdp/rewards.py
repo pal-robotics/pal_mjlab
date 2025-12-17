@@ -35,8 +35,6 @@ def torso_height(
     env.extras["log"]["Metrics/mean_height"] = torch.mean(z)
     env.extras["log"]["Metrics/mean_height_penalty"] = torch.mean(penalty)
 
-    print(f"proj{asset.data.projected_gravity_b}")
-
     return penalty
 
 

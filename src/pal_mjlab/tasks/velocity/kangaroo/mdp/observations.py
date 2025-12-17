@@ -33,8 +33,8 @@ def imu_projected_gravity(
     
     # Gravity in world frame
     gravity_w = torch.tensor([[0.0, 0.0, -1.0]], device=imu_quat.device).expand(imu_quat.shape[0], -1)
-    print(f"imu proj{quat_apply_inverse(imu_quat, gravity_w)}")
-    asset: Entity = env.scene[_DEFAULT_ASSET_CFG.name]
-    print(f"proj{asset.data.projected_gravity_b}")
+    # print(f"imu proj{quat_apply_inverse(imu_quat, gravity_w)}")
+    # asset: Entity = env.scene[_DEFAULT_ASSET_CFG.name]
+    # print(f"proj{asset.data.projected_gravity_b}")
     # Project to IMU frame (same as your C++ code)
     return quat_apply_inverse(imu_quat, gravity_w)
