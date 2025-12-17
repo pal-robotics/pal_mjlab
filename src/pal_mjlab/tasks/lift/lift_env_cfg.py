@@ -93,25 +93,31 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
             scale=0.5,  # Override per-robot.
             use_default_offset=True,
         ),
-        "gripper_pos": mdp.MirroredJointPositionActionCfg(
+        "gripper_pos": JointPositionActionCfg(
             asset_name="robot",
-            actuator_names=[
-                "gripper_left_outer_finger_left_joint",
-                "gripper_right_outer_finger_left_joint",
-            ],
-            mirror_actuator_names=[
-                "gripper_left_outer_finger_right_joint",
-                "gripper_right_outer_finger_right_joint",
-            ],
-            mirror_pairs={
-                "gripper_left_outer_finger_right_joint": "gripper_left_outer_finger_left_joint",
-                "gripper_right_outer_finger_right_joint": "gripper_right_outer_finger_left_joint",
-            },
-            # If one axis is flipped, set mirror_sign=[-1.0, 1.0] etc.
-            mirror_sign=None,
-            scale=2.0,
+            actuator_names=("gripper_.*_joint"), 
+            scale=0.5,  # Override per-robot.
             use_default_offset=True,
         ),
+        # "gripper_pos": mdp.MirroredJointPositionActionCfg(
+        #     asset_name="robot",
+        #     actuator_names=[
+        #         "gripper_left_outer_finger_left_joint",
+        #         "gripper_right_outer_finger_left_joint",
+        #     ],
+        #     mirror_actuator_names=[
+        #         "gripper_left_outer_finger_right_joint",
+        #         "gripper_right_outer_finger_right_joint",
+        #     ],
+        #     mirror_pairs={
+        #         "gripper_left_outer_finger_right_joint": "gripper_left_outer_finger_left_joint",
+        #         "gripper_right_outer_finger_right_joint": "gripper_right_outer_finger_left_joint",
+        #     },
+        #     # If one axis is flipped, set mirror_sign=[-1.0, 1.0] etc.
+        #     mirror_sign=None,
+        #     scale=2.0,
+        #     use_default_offset=True,
+        # ),
     }
 
     ## --------------------------------------------------------
@@ -180,7 +186,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         # 1) Reach: EE–cube distance (returns distance in meters → use NEGATIVE weight)
         "ee_object_distance": RewardTermCfg(
             func=mdp.ee_object_distance,  
-            weight=5.0,                           
+            weight=3.0,                           
             params={
                 "std": 0.3,
                 "object_name": "cube",
@@ -204,7 +210,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         # 3) Bring: object-to-goal Gaussian, only when lifted
         "object_goal_distance": RewardTermCfg(
             func=mdp.object_goal_gaussian_distance,
-            weight=20.0,                           
+            weight=15.0,                           
             params={
                 "std": 0.3,                         
                 "minimal_height": 0.08,
