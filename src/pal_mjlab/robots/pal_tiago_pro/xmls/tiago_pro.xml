@@ -150,10 +150,10 @@
                           <inertial pos="-0.000864586 0.011929 -2.73244e-11" quat="0.704565 0.704565 0.0599056 0.0599056" mass="0.033503" diaginertia="3.69751e-06 2.84428e-06 1.65117e-06" />
                           <joint name="gripper_left_fingertip_left_joint" pos="0 0 0" axis="0 0 1" range="-0.9 0" actuatorfrcrange="-8 8" damping="0" />
                           <geom class="visual" material="light_gray" mesh="fingertip" />
-                          <geom class="collision" name="col_left_fingertip_left_c1" fromto="-0.007 0.003 -0.0075   -0.007 0.047 -0.0075" size="0.005" />
-                          <geom class="collision" name="col_left_fingertip_left_c2" fromto="-0.007 0.003 -0.0025   -0.007 0.047 -0.0025" size="0.005" />
-                          <geom class="collision" name="col_left_fingertip_left_c3" fromto="-0.007 0.003  0.0025   -0.007 0.047  0.0025" size="0.005" />
-                          <geom class="collision" name="col_left_fingertip_left_c4" fromto="-0.007 0.003  0.0075   -0.007 0.047  0.0075" size="0.005" />
+                          <geom class="collision" name="col_left_fingertip_left_c1" fromto="-0.007 0.003 -0.0075   -0.007 0.047 -0.0075" size="0.005" friction="1.2 0.2 0.001"/>
+                          <geom class="collision" name="col_left_fingertip_left_c2" fromto="-0.007 0.003 -0.0025   -0.007 0.047 -0.0025" size="0.005" friction="1.2 0.2 0.001"/>
+                          <geom class="collision" name="col_left_fingertip_left_c3" fromto="-0.007 0.003  0.0025   -0.007 0.047  0.0025" size="0.005" friction="1.2 0.2 0.001"/>
+                          <geom class="collision" name="col_left_fingertip_left_c4" fromto="-0.007 0.003  0.0075   -0.007 0.047  0.0075" size="0.005" friction="1.2 0.2 0.001"/>
                         </body>
                       </body>
                       <body name="gripper_left_outer_finger_left_link" pos="0 -0.0288 0.0913" quat="0.253401 0.660141 -0.253406 -0.660141">
@@ -169,10 +169,10 @@
                           <joint name="gripper_left_fingertip_right_joint" pos="0 0 0" axis="0 0 1" range="-0.9 0" actuatorfrcrange="-8 8" damping="0" />
                           <geom class="visual" material="light_gray" mesh="fingertip" />
                           <geom class="visual" material="light_gray" mesh="fingertip" />
-                          <geom class="collision" name="col_left_fingertip_right_c1" fromto="-0.007 0.003 -0.0075   -0.007 0.047 -0.0075" size="0.005" />
-                          <geom class="collision" name="col_left_fingertip_right_c2" fromto="-0.007 0.003 -0.0025   -0.007 0.047 -0.0025" size="0.005" />
-                          <geom class="collision" name="col_left_fingertip_right_c3" fromto="-0.007 0.003  0.0025   -0.007 0.047  0.0025" size="0.005" />
-                          <geom class="collision" name="col_left_fingertip_right_c4" fromto="-0.007 0.003  0.0075   -0.007 0.047  0.0075" size="0.005" />
+                          <geom class="collision" name="col_left_fingertip_right_c1" fromto="-0.007 0.003 -0.0075   -0.007 0.047 -0.0075" size="0.005" friction="1.2 0.2 0.001"/>
+                          <geom class="collision" name="col_left_fingertip_right_c2" fromto="-0.007 0.003 -0.0025   -0.007 0.047 -0.0025" size="0.005" friction="1.2 0.2 0.001"/>
+                          <geom class="collision" name="col_left_fingertip_right_c3" fromto="-0.007 0.003  0.0025   -0.007 0.047  0.0025" size="0.005" friction="1.2 0.2 0.001"/>
+                          <geom class="collision" name="col_left_fingertip_right_c4" fromto="-0.007 0.003  0.0075   -0.007 0.047  0.0075" size="0.005" friction="1.2 0.2 0.001"/>
                         </body>
                       </body>
                       <body name="gripper_left_outer_finger_right_link" pos="0 0.0288 0.0913" quat="0.66014 0.253404 0.660142 0.253404">
