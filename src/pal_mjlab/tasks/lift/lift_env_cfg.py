@@ -210,7 +210,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         # 3) Bring: object-to-goal Gaussian, only when lifted
         "object_goal_distance": RewardTermCfg(
             func=mdp.object_goal_gaussian_distance,
-            weight=15.0,                           
+            weight=30.0,                           
             params={
                 "std": 0.3,                         
                 "minimal_height": 0.08,
