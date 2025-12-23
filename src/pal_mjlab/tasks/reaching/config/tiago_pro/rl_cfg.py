@@ -35,5 +35,5 @@ def pal_tiago_pro_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
         experiment_name="tiago_pro_reaching",
         save_interval=50,
         num_steps_per_env=24,
-        max_iterations=30_000,
+        max_iterations=15_000,
     )

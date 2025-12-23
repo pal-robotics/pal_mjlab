@@ -115,7 +115,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
             },
             # If one axis is flipped, set mirror_sign=[-1.0, 1.0] etc.
             mirror_sign=None,
-            scale=2.0,
+            scale=3.0,
             use_default_offset=True,
         ),
     }
@@ -186,7 +186,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         # 1) Reach: EE–cube distance (returns distance in meters → use NEGATIVE weight)
         "ee_object_distance": RewardTermCfg(
             func=mdp.ee_object_distance,  
-            weight=0.5,                           
+            weight=0.1,                           
             params={
                 "std": 0.3,
                 "object_name": "cube",
