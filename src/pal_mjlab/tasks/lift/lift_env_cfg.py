@@ -96,7 +96,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         "gripper_pos": JointPositionActionCfg(
             asset_name="robot",
             actuator_names=("yam_.*_joint"), 
-            scale=0.5,  # Override per-robot.
+            scale=1.0,  # Override per-robot.
             use_default_offset=True,
         ),
         # "gripper_pos": mdp.MirroredJointPositionActionCfg(
@@ -185,7 +185,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
     rewards = {
         "lift": RewardTermCfg(
             func=mdp.staged_position_reward,
-            weight=1.0,
+            weight=10.0,
             params={
                 "command_name": "lift_height",
                 "object_name": "cube",
