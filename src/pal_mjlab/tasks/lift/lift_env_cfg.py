@@ -183,45 +183,56 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
     ## --------------------------------------------------------
 
     rewards = {
-        # 1) Reach: EE–cube distance 
-        "ee_object_distance": RewardTermCfg(
-            func=mdp.ee_object_distance,  
-            weight=3.0,                           
+        "lift": RewardTermCfg(
+            func=mdp.staged_position_reward,
+            weight=1.0,
             params={
-                "std": 0.3,
+                "command_name": "lift_height",
                 "object_name": "cube",
-                "asset_cfg": SceneEntityCfg(
-                    "robot",
-                    site_names=(),                  #
-                ),
+                "reaching_std": 0.2,
+                "bringing_std": 0.3,
+                "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot.
             },
         ),
+        # # 1) Reach: EE–cube distance 
+        # "ee_object_distance": RewardTermCfg(
+        #     func=mdp.ee_object_distance,  
+        #     weight=3.0,                           
+        #     params={
+        #         "std": 0.3,
+        #         "object_name": "cube",
+        #         "asset_cfg": SceneEntityCfg(
+        #             "robot",
+        #             site_names=(),                  #
+        #         ),
+        #     },
+        # ),
 
-        # 2) Lift: binary bonus when cube is above minimal height
-        "object_is_lifted": RewardTermCfg(
-            func=mdp.object_is_lifted_binary,
-            weight=10.0,                            
-            params={
-                "minimal_height": 0.08,
-                "object_name": "cube",
-            },
-        ),
+        # # 2) Lift: binary bonus when cube is above minimal height
+        # "object_is_lifted": RewardTermCfg(
+        #     func=mdp.object_is_lifted_binary,
+        #     weight=10.0,                            
+        #     params={
+        #         "minimal_height": 0.08,
+        #         "object_name": "cube",
+        #     },
+        # ),
 
-        # 3) Bring: object-to-goal Gaussian, only when lifted
-        "object_goal_distance": RewardTermCfg(
-            func=mdp.object_goal_gaussian_distance,
-            weight=20.0,                           
-            params={
-                "std": 0.3,                         
-                "minimal_height": 0.08,
-                "command_name": "lift_height",      
-                "object_name": "cube",
-                "asset_cfg": SceneEntityCfg(
-                    "robot",
-                    site_names=(),                
-                ),
-            },
-        ),
+        # # 3) Bring: object-to-goal Gaussian, only when lifted
+        # "object_goal_distance": RewardTermCfg(
+        #     func=mdp.object_goal_gaussian_distance,
+        #     weight=20.0,                           
+        #     params={
+        #         "std": 0.3,                         
+        #         "minimal_height": 0.08,
+        #         "command_name": "lift_height",      
+        #         "object_name": "cube",
+        #         "asset_cfg": SceneEntityCfg(
+        #             "robot",
+        #             site_names=(),                
+        #         ),
+        #     },
+        # ),
         # "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, 
         #     weight=-1.0,
         #     params={

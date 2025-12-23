@@ -47,7 +47,7 @@ def pal_tiago_lift_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.observations["policy"].terms["ee_to_cube"].params["asset_cfg"].site_names = (
     "grasp_site_right"
     )
-    cfg.rewards["ee_object_distance"].params["asset_cfg"].site_names = ("grasp_site_right")
+    cfg.rewards["lift"].params["asset_cfg"].site_names = ("grasp_site_right")
 
     self_collision_cfg = ContactSensorCfg(
         name="self_collision",
