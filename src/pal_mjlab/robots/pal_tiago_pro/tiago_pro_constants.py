@@ -172,10 +172,22 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 
 FULL_COLLISION = CollisionCfg(
     geom_names_expr=(".*",),  # all geoms
-    condim=3,
     priority=1,
-    friction=(0.7,),
+
+    # Default: 3D contact for everything; override to 6D for YAM tip spheres
+    condim={
+        r"yam_r[lr]f_tip\d+": 6,
+        r".*": 3,
+    },
+
+    # Default friction everywhere; override for YAM tip spheres
+    friction={
+        r"yam_r[lr]f_tip\d+": (1, 5e-3, 5e-4),
+        r".*": (0.7,),
+    },
 )
+
+
 
 ##
 # Articulation Config

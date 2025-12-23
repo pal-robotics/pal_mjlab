@@ -186,7 +186,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         # 1) Reach: EE–cube distance (returns distance in meters → use NEGATIVE weight)
         "ee_object_distance": RewardTermCfg(
             func=mdp.ee_object_distance,  
-            weight=0.1,                           
+            weight=3.0,                           
             params={
                 "std": 0.3,
                 "object_name": "cube",
@@ -210,7 +210,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         # 3) Bring: object-to-goal Gaussian, only when lifted
         "object_goal_distance": RewardTermCfg(
             func=mdp.object_goal_gaussian_distance,
-            weight=30.0,                           
+            weight=20.0,                           
             params={
                 "std": 0.3,                         
                 "minimal_height": 0.08,
@@ -353,7 +353,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         sim=SimulationCfg(
             nconmax=35,
-            njmax=300,
+            njmax=600,
             mujoco=MujocoCfg(
                 timestep=0.005,
                 iterations=10,
