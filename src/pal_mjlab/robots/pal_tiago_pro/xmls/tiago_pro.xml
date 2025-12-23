@@ -1,14 +1,38 @@
-<mujoco model="tiago_pro">   
-  <compiler angle="radian" balanceinertia="true" discardvisual="false" strippath="false" meshdir="assets" />
+<mujoco model="tiago_pro">
+  <compiler angle="radian" balanceinertia="true" discardvisual="false" strippath="false" meshdir="assets"/>
   <option iterations="1" ls_iterations="5" timestep="0.0001"/>
 
+  <!-- Defaults -->
   <default>
     <site size="0.01" group="5" rgba="1 0 0 1"/>
+
     <default class="visual">
       <geom type="mesh" contype="0" conaffinity="0" group="2" density="0"/>
     </default>
+
     <default class="collision">
       <geom type="capsule" material="transparent_orange" contype="1" conaffinity="1" group="3"/>
+    </default>
+
+    <!-- YAM gripper defaults -->
+    <default class="yam">
+      <site group="5" size="0.005" rgba="0 1 0 1"/>
+      <joint axis="0 0 1"/>
+
+      <default class="yam_visual">
+        <geom type="mesh" contype="0" conaffinity="0" density="0" group="2" material="black"/>
+      </default>
+
+      <default class="yam_collision">
+        <geom group="3" type="capsule"/>
+        <default class="yam_sphere_collision">
+          <geom size="0.0006 0 0" type="sphere" rgba="1 0 0 1"/>
+        </default>
+      </default>
+
+      <default class="yam_finger">
+        <joint type="slide"/>
+      </default>
     </default>
   </default>
 
@@ -24,162 +48,155 @@
     <material name="white" rgba="1 1 1 1"/>
     <material name="red" rgba="1 0 0 1"/>
     <material name="black" rgba="0 0 0 1"/>
+
     <!-- meshes -->
-    <mesh name="sick_tim551" content_type="model/stl" file="laser/sick_tim551.stl" />
-    <mesh name="base_link" content_type="model/stl" file="base/base_link.stl" />
-    <mesh name="base_dock_link" content_type="model/stl" file="base/base_dock_link.stl" />
-    <mesh name="base_antena_link" content_type="model/stl" file="base/base_antena_link.stl" />
-    <mesh name="base_antena_link1" content_type="model/stl" file="base/base_antena_link.stl" scale="1 -1 1" />
-    <mesh name="suspension_front_link" content_type="model/stl" file="wheel/suspension_front_link.stl" />
-    <mesh name="wheel_link" content_type="model/stl" file="wheel/wheel_link.stl" />
-    <mesh name="suspension_front_link1" content_type="model/stl" file="wheel/suspension_front_link.stl" scale="1 -1 1" />
-    <mesh name="wheel_link1" content_type="model/stl" file="wheel/wheel_link.stl" scale="1 1 -1" />
-    <mesh name="suspension_rear_link" content_type="model/stl" file="wheel/suspension_rear_link.stl" />
-    <mesh name="suspension_rear_link1" content_type="model/stl" file="wheel/suspension_rear_link.stl" scale="1 -1 1" />
-    <mesh name="torso_fixed" content_type="model/stl" file="torso/torso_fixed.stl" />
-    <mesh name="torso_lift_link" content_type="model/stl" file="torso/torso_lift_link.stl" />
-    <mesh name="head_1_link" content_type="model/stl" file="head/head_1_link.stl" />
-    <mesh name="realsense_d435_cover_link" content_type="model/stl" file="head/realsense_d435_cover_link.stl" />
-    <mesh name="head_2_link" content_type="model/stl" file="head/head_2_link.stl" />
-    <mesh name="d435_simplified" content_type="model/stl" file="real_sense/d435_simplified.stl" />
-    <mesh name="arm_base_link" content_type="model/stl" file="arm_tiago_pro/arm_base_link.stl" />
-    <mesh name="arm_1_link" content_type="model/stl" file="arm_tiago_pro/arm_1_link.stl" />
-    <mesh name="arm_2_link" content_type="model/stl" file="arm_tiago_pro/arm_2_link.stl" />
-    <mesh name="arm_3_link" content_type="model/stl" file="arm_tiago_pro/arm_3_link.stl" />
-    <mesh name="arm_4_link" content_type="model/stl" file="arm_tiago_pro/arm_4_link.stl" />
-    <mesh name="arm_5_link" content_type="model/stl" file="arm_tiago_pro/spherical_wrist/arm_5_link.stl" />
-    <mesh name="arm_6_link" content_type="model/stl" file="arm_tiago_pro/spherical_wrist/arm_6_link.stl" />
-    <mesh name="arm_7_link" content_type="model/stl" file="arm_tiago_pro/spherical_wrist/arm_7_link.stl" />
-    <mesh name="base_link_tc" content_type="model/stl" file="pal_pro_gripper/base_link_tc.stl" />
-    <mesh name="inner_finger" content_type="model/stl" file="pal_pro_gripper/inner_finger.stl" />
-    <mesh name="outer_finger" content_type="model/stl" file="pal_pro_gripper/outer_finger.stl" />
-    <mesh name="fingertip" content_type="model/stl" file="pal_pro_gripper/fingertip.stl" />
+    <mesh name="sick_tim551" content_type="model/stl" file="laser/sick_tim551.stl"/>
+    <mesh name="base_link" content_type="model/stl" file="base/base_link.stl"/>
+    <mesh name="base_dock_link" content_type="model/stl" file="base/base_dock_link.stl"/>
+    <mesh name="base_antena_link" content_type="model/stl" file="base/base_antena_link.stl"/>
+    <mesh name="base_antena_link1" content_type="model/stl" file="base/base_antena_link.stl" scale="1 -1 1"/>
+    <mesh name="suspension_front_link" content_type="model/stl" file="wheel/suspension_front_link.stl"/>
+    <mesh name="wheel_link" content_type="model/stl" file="wheel/wheel_link.stl"/>
+    <mesh name="suspension_front_link1" content_type="model/stl" file="wheel/suspension_front_link.stl" scale="1 -1 1"/>
+    <mesh name="wheel_link1" content_type="model/stl" file="wheel/wheel_link.stl" scale="1 1 -1"/>
+    <mesh name="suspension_rear_link" content_type="model/stl" file="wheel/suspension_rear_link.stl"/>
+    <mesh name="suspension_rear_link1" content_type="model/stl" file="wheel/suspension_rear_link.stl" scale="1 -1 1"/>
+    <mesh name="torso_fixed" content_type="model/stl" file="torso/torso_fixed.stl"/>
+    <mesh name="torso_lift_link" content_type="model/stl" file="torso/torso_lift_link.stl"/>
+    <mesh name="head_1_link" content_type="model/stl" file="head/head_1_link.stl"/>
+    <mesh name="realsense_d435_cover_link" content_type="model/stl" file="head/realsense_d435_cover_link.stl"/>
+    <mesh name="head_2_link" content_type="model/stl" file="head/head_2_link.stl"/>
+    <mesh name="d435_simplified" content_type="model/stl" file="real_sense/d435_simplified.stl"/>
+    <mesh name="arm_base_link" content_type="model/stl" file="arm_tiago_pro/arm_base_link.stl"/>
+    <mesh name="arm_1_link" content_type="model/stl" file="arm_tiago_pro/arm_1_link.stl"/>
+    <mesh name="arm_2_link" content_type="model/stl" file="arm_tiago_pro/arm_2_link.stl"/>
+    <mesh name="arm_3_link" content_type="model/stl" file="arm_tiago_pro/arm_3_link.stl"/>
+    <mesh name="arm_4_link" content_type="model/stl" file="arm_tiago_pro/arm_4_link.stl"/>
+    <mesh name="arm_5_link" content_type="model/stl" file="arm_tiago_pro/spherical_wrist/arm_5_link.stl"/>
+    <mesh name="arm_6_link" content_type="model/stl" file="arm_tiago_pro/spherical_wrist/arm_6_link.stl"/>
+    <mesh name="arm_7_link" content_type="model/stl" file="arm_tiago_pro/spherical_wrist/arm_7_link.stl"/>
+
+    <!-- left gripper meshes kept as-is in your file (unused on right after replacement) -->
+    <mesh name="base_link_tc" content_type="model/stl" file="pal_pro_gripper/base_link_tc.stl"/>
+    <mesh name="inner_finger" content_type="model/stl" file="pal_pro_gripper/inner_finger.stl"/>
+    <mesh name="outer_finger" content_type="model/stl" file="pal_pro_gripper/outer_finger.stl"/>
+    <mesh name="fingertip" content_type="model/stl" file="pal_pro_gripper/fingertip.stl"/>
+
+    <!-- YAM gripper -->
+    <material name="yam_black" rgba="0.25 0.25 0.25 1"/>
+    <mesh name="yam_model2__12" file="yam/model2__12.stl"/>
+    <mesh name="yam_model2__13" file="yam/model2__13.stl"/>
+    <mesh name="yam_model2__14" file="yam/model2__14.stl"/>
+    <mesh name="yam_model2__15" file="yam/model2__15.stl"/>
+    <mesh name="yam_model2__16" file="yam/model2__16.stl"/>
+    <mesh name="yam_model2__17" file="yam/model2__17.stl"/>
   </asset>
 
   <worldbody>
     <body name="base_footprint">
       <site name="base_footprint_site"/>
       <inertial mass="20" diaginertia="1 1 1" pos="0 0 0.2" quat="1 0 0 0"/>
-      <geom class="visual" pos="0 0 0.0762" quat="1 0 0 0" material="light_gray" mesh="base_link" />
-      <geom class="visual" pos="-0.27512 0.18297 0.20864" quat="0 -0.382683 -0.92388 0" material="very_dark_gray" mesh="sick_tim551" />
-      <geom class="visual" pos="0.27512 -0.18297 0.20864" quat="0 -0.92388 0.382683 0" material="very_dark_gray" mesh="sick_tim551" />
-      <geom class="visual" pos="0.3535 0 0.1358" material="dark_gray" mesh="base_dock_link" />
-      <geom class="visual" pos="-0.2015 -0.13 0.2927" quat="1 0 0 0" material="light_gray" mesh="base_antena_link" />
-      <geom class="visual" pos="-0.2015 0.13 0.2927" quat="1 0 0 0" material="light_gray" mesh="base_antena_link1" />
-      <geom class="visual" pos="0.244 -0.1725 0.0762" quat="0.707107 0 0 -0.707107" material="light_blue_gray" mesh="suspension_front_link" />
-      <geom class="visual" pos="0.244 0.1725 0.0762" quat="0.707107 0 0 0.707107" material="light_blue_gray" mesh="suspension_front_link1" />
-      <geom class="visual" pos="-0.244 -0.1725 0.0762" quat="0.707107 0 0 -0.707107" material="light_blue_gray" mesh="suspension_rear_link" />
-      <geom class="visual" pos="-0.244 0.1725 0.0762" quat="0.707107 0 0 0.707107" material="light_blue_gray" mesh="suspension_rear_link1" />
-      <geom class="collision" name="col_base" type="box" size="0.35 0.24 0.125" pos="0 0 0.17" />
-      <geom class="collision" name="col_torso_head" size="0.17 0.6" pos="-0.04 0 0.9" />
+
+      <geom class="visual" pos="0 0 0.0762" quat="1 0 0 0" material="light_gray" mesh="base_link"/>
+      <geom class="visual" pos="-0.27512 0.18297 0.20864" quat="0 -0.382683 -0.92388 0" material="very_dark_gray" mesh="sick_tim551"/>
+      <geom class="visual" pos="0.27512 -0.18297 0.20864" quat="0 -0.92388 0.382683 0" material="very_dark_gray" mesh="sick_tim551"/>
+      <geom class="visual" pos="0.3535 0 0.1358" material="dark_gray" mesh="base_dock_link"/>
+      <geom class="visual" pos="-0.2015 -0.13 0.2927" quat="1 0 0 0" material="light_gray" mesh="base_antena_link"/>
+      <geom class="visual" pos="-0.2015 0.13 0.2927" quat="1 0 0 0" material="light_gray" mesh="base_antena_link1"/>
+      <geom class="visual" pos="0.244 -0.1725 0.0762" quat="0.707107 0 0 -0.707107" material="light_blue_gray" mesh="suspension_front_link"/>
+      <geom class="visual" pos="0.244 0.1725 0.0762" quat="0.707107 0 0 0.707107" material="light_blue_gray" mesh="suspension_front_link1"/>
+      <geom class="visual" pos="-0.244 -0.1725 0.0762" quat="0.707107 0 0 -0.707107" material="light_blue_gray" mesh="suspension_rear_link"/>
+      <geom class="visual" pos="-0.244 0.1725 0.0762" quat="0.707107 0 0 0.707107" material="light_blue_gray" mesh="suspension_rear_link1"/>
+
+      <geom class="collision" name="col_base" type="box" size="0.35 0.24 0.125" pos="0 0 0.17"/>
+      <geom class="collision" name="col_torso_head" size="0.17 0.6" pos="-0.04 0 0.9"/>
+
       <body name="wheel_front_right_link" pos="0.244 -0.223175 0.0762" quat="0.707107 -0.707107 0 0">
-        <inertial pos="5.4922e-09 6.9775e-05 0.011144" quat="-0.0015583 0.707105 -0.0015583 0.707105" mass="0.70767" diaginertia="0.000401311 0.000355289 0.00035492" />
-        <geom class="visual" material="very_dark_gray" mesh="wheel_link" />
+        <inertial pos="5.4922e-09 6.9775e-05 0.011144" quat="-0.0015583 0.707105 -0.0015583 0.707105" mass="0.70767" diaginertia="0.000401311 0.000355289 0.00035492"/>
+        <geom class="visual" material="very_dark_gray" mesh="wheel_link"/>
       </body>
+
       <body name="wheel_front_left_link" pos="0.244 0.223175 0.0762" quat="0.707107 -0.707107 0 0">
-        <inertial pos="5.4922e-09 -6.9775e-05 -0.011144" quat="-0.0015583 0.707105 -0.0015583 0.707105" mass="0.70767" diaginertia="0.000401311 0.000355289 0.00035492" />
-        <geom class="visual" material="very_dark_gray" mesh="wheel_link1" />
+        <inertial pos="5.4922e-09 -6.9775e-05 -0.011144" quat="-0.0015583 0.707105 -0.0015583 0.707105" mass="0.70767" diaginertia="0.000401311 0.000355289 0.00035492"/>
+        <geom class="visual" material="very_dark_gray" mesh="wheel_link1"/>
       </body>
+
       <body name="wheel_rear_right_link" pos="-0.244 -0.223175 0.0762" quat="0.707107 -0.707107 0 0">
-        <inertial pos="-5.4922e-09 -6.9775e-05 0.011144" quat="0.0015583 0.707105 0.0015583 0.707105" mass="0.70767" diaginertia="0.000401311 0.000355289 0.00035492" />
-        <geom class="visual" material="very_dark_gray" mesh="wheel_link" />
+        <inertial pos="-5.4922e-09 -6.9775e-05 0.011144" quat="0.0015583 0.707105 0.0015583 0.707105" mass="0.70767" diaginertia="0.000401311 0.000355289 0.00035492"/>
+        <geom class="visual" material="very_dark_gray" mesh="wheel_link"/>
       </body>
+
       <body name="wheel_rear_left_link" pos="-0.244 0.223175 0.0762" quat="0.707107 -0.707107 0 0">
-        <inertial pos="-5.4922e-09 6.9775e-05 -0.011144" quat="0.0015583 0.707105 0.0015583 0.707105" mass="0.70767" diaginertia="0.000401311 0.000355289 0.00035492" />
-        <geom class="visual" material="very_dark_gray" mesh="wheel_link" />
+        <inertial pos="-5.4922e-09 6.9775e-05 -0.011144" quat="0.0015583 0.707105 0.0015583 0.707105" mass="0.70767" diaginertia="0.000401311 0.000355289 0.00035492"/>
+        <geom class="visual" material="very_dark_gray" mesh="wheel_link"/>
       </body>
-      <geom class="visual" pos="-0.0245 0 0.2912" quat="1 0 0 0" material="dark_medium_gray" mesh="torso_fixed" />
-      <geom class="visual" size="0.09 0.1 0.275" pos="-0.028 0 0.5562" type="box" material="dark_medium_gray" />
+
+      <geom class="visual" pos="-0.0245 0 0.2912" quat="1 0 0 0" material="dark_medium_gray" mesh="torso_fixed"/>
+      <geom class="visual" size="0.09 0.1 0.275" pos="-0.028 0 0.5562" type="box" material="dark_medium_gray"/>
+
       <body name="torso_lift_link" pos="-0.0245 0 0.8457">
-        <inertial pos="0.0129455 0 -0.0117188" quat="0.658139 0.658391 -0.258276 0.258201" mass="4.0175" diaginertia="0.0534327 0.0451869 0.0265871" />
-        <joint name="torso_lift_joint" type="slide" range="0 0.35" actuatorfrcrange="-2000 2000" damping="0" />
-        <geom class="visual" material="very_light_blue_gray" mesh="torso_lift_link" />
-        <geom class="visual" size="0.055 0.046 0.01085" pos="0 0 0.05085" type="box" material="dark_medium_gray" />
-        <geom class="visual" pos="0.08976 0.15918 -0.092008" quat="0.418942 -0.703926 0.492878 -0.293337" material="dark_medium_gray" mesh="arm_base_link" />
-        <geom class="visual" pos="0.08976 -0.15918 -0.092008" quat="0.293338 -0.492879 0.703925 -0.418942" material="dark_medium_gray" mesh="arm_base_link" />
+        <inertial pos="0.0129455 0 -0.0117188" quat="0.658139 0.658391 -0.258276 0.258201" mass="4.0175" diaginertia="0.0534327 0.0451869 0.0265871"/>
+        <joint name="torso_lift_joint" type="slide" range="0 0.35" actuatorfrcrange="-2000 2000" damping="0"/>
+        <geom class="visual" material="very_light_blue_gray" mesh="torso_lift_link"/>
+        <geom class="visual" size="0.055 0.046 0.01085" pos="0 0 0.05085" type="box" material="dark_medium_gray"/>
+        <geom class="visual" pos="0.08976 0.15918 -0.092008" quat="0.418942 -0.703926 0.492878 -0.293337" material="dark_medium_gray" mesh="arm_base_link"/>
+        <geom class="visual" pos="0.08976 -0.15918 -0.092008" quat="0.293338 -0.492879 0.703925 -0.418942" material="dark_medium_gray" mesh="arm_base_link"/>
+
+        <!-- Head -->
         <body name="head_1_link" pos="0 0 0.04">
-          <inertial pos="-0.0037459 -4.6685e-05 0.1055" quat="0.989566 0.00923768 0.143783 -0.00100727" mass="0.15566" diaginertia="0.00053891 0.000350222 0.000315288" />
-          <geom class="visual" material="dark_medium_gray" mesh="head_1_link" />
+          <inertial pos="-0.0037459 -4.6685e-05 0.1055" quat="0.989566 0.00923768 0.143783 -0.00100727" mass="0.15566" diaginertia="0.00053891 0.000350222 0.000315288"/>
+          <geom class="visual" material="dark_medium_gray" mesh="head_1_link"/>
+
           <body name="head_2_link" pos="0.0425 0 0.10585" quat="0.707105 -0.707108 0 0">
-            <inertial pos="0.0137012 -0.109856 -0.000696298" quat="0.98031 -0.00584723 -0.000641184 -0.197378" mass="1.39653" diaginertia="0.0114093 0.00845887 0.00661747" />
-            <geom class="visual" material="white" mesh="realsense_d435_cover_link" />
-            <geom class="visual" material="white" mesh="head_2_link" />
-            <geom class="visual" size="0.08641 0.05412 0.0025" pos="0.05584 -0.083935 0" quat="-1.29867e-06 0.707107 -1.29867e-06 0.707107" type="box" material="black" />
-            <geom class="visual" pos="0.0565 -0.168 -4.59151e-08" quat="-1.29867e-06 0.707107 -1.29867e-06 0.707107" mesh="d435_simplified" />
+            <inertial pos="0.0137012 -0.109856 -0.000696298" quat="0.98031 -0.00584723 -0.000641184 -0.197378" mass="1.39653" diaginertia="0.0114093 0.00845887 0.00661747"/>
+            <geom class="visual" material="white" mesh="realsense_d435_cover_link"/>
+            <geom class="visual" material="white" mesh="head_2_link"/>
+            <geom class="visual" size="0.08641 0.05412 0.0025" pos="0.05584 -0.083935 0" quat="-1.29867e-06 0.707107 -1.29867e-06 0.707107" type="box" material="black"/>
+            <geom class="visual" pos="0.0565 -0.168 -4.59151e-08" quat="-1.29867e-06 0.707107 -1.29867e-06 0.707107" mesh="d435_simplified"/>
           </body>
         </body>
+
+        <!-- Left arm (unchanged, no gripper subtree here in your file) -->
         <body name="arm_left_1_link" pos="0.08976 0.15918 -0.092008" quat="0.418942 -0.703926 0.492878 -0.293337">
-          <inertial pos="0.0043916 0.016184 0.15576" quat="0.995877 -0.0736287 -0.0165883 0.0503316" mass="1.1325" diaginertia="0.00255401 0.00238017 0.000938535" />
-          <joint name="arm_left_1_joint" range="-0.523599 4.71239" actuatorfrcrange="-43 43" damping="0" frictionloss="1" />
-          <geom class="visual" material="dark_medium_gray" mesh="arm_1_link" />
+          <inertial pos="0.0043916 0.016184 0.15576" quat="0.995877 -0.0736287 -0.0165883 0.0503316" mass="1.1325" diaginertia="0.00255401 0.00238017 0.000938535"/>
+          <joint name="arm_left_1_joint" range="-0.523599 4.71239" actuatorfrcrange="-43 43" damping="0" frictionloss="1"/>
+          <geom class="visual" material="dark_medium_gray" mesh="arm_1_link"/>
+
           <body name="arm_left_2_link" pos="0.03711 0.02 0.18" quat="0.5 -0.5 0.5 -0.5">
-            <inertial pos="0.01786 -0.11956 -0.032097" quat="0.372627 0.555033 -0.540311 0.51103" mass="1.0436" diaginertia="0.00163669 0.00151951 0.000828169" />
-            <joint name="arm_left_2_joint" range="-2.44346 1.13446" actuatorfrcrange="-43 43" damping="0" frictionloss="1" />
-            <geom class="visual" material="dark_medium_gray" mesh="arm_2_link" />
+            <inertial pos="0.01786 -0.11956 -0.032097" quat="0.372627 0.555033 -0.540311 0.51103" mass="1.0436" diaginertia="0.00163669 0.00151951 0.000828169"/>
+            <joint name="arm_left_2_joint" range="-2.44346 1.13446" actuatorfrcrange="-43 43" damping="0" frictionloss="1"/>
+            <geom class="visual" material="dark_medium_gray" mesh="arm_2_link"/>
+
             <body name="arm_left_3_link" pos="0.02 -0.17011 -0.03711" quat="0.707107 0.707107 0 0">
-              <inertial pos="0.016184 -0.0043916 0.13565" quat="0.668601 0.0403336 0.0637931 0.739781" mass="1.1325" diaginertia="0.00255401 0.00238017 0.000938535" />
-              <joint name="arm_left_3_joint" range="-2.61799 2.61799" actuatorfrcrange="-26 26" damping="0" frictionloss="1" />
-              <geom class="visual" material="dark_medium_gray" mesh="arm_3_link" />
-              <geom class="collision" name="col_upper_left_arm" size="0.04 0.2" />
+              <inertial pos="0.016184 -0.0043916 0.13565" quat="0.668601 0.0403336 0.0637931 0.739781" mass="1.1325" diaginertia="0.00255401 0.00238017 0.000938535"/>
+              <joint name="arm_left_3_joint" range="-2.61799 2.61799" actuatorfrcrange="-26 26" damping="0" frictionloss="1"/>
+              <geom class="visual" material="dark_medium_gray" mesh="arm_3_link"/>
+              <geom class="collision" name="col_upper_left_arm" size="0.04 0.2"/>
+
               <body name="arm_left_4_link" pos="0.02 -0.03711 0.15989" quat="0.707107 0.707107 0 0">
-                <inertial pos="-0.01786 0.11956 -0.032097" quat="0.540311 0.51103 -0.372627 0.555033" mass="1.0436" diaginertia="0.00163669 0.00151951 0.000828169" />
-                <joint name="arm_left_4_joint" range="-2.44346 1.13446" actuatorfrcrange="-26 26" damping="0" frictionloss="1" />
-                <geom class="visual" material="dark_medium_gray" mesh="arm_4_link" />
+                <inertial pos="-0.01786 0.11956 -0.032097" quat="0.540311 0.51103 -0.372627 0.555033" mass="1.0436" diaginertia="0.00163669 0.00151951 0.000828169"/>
+                <joint name="arm_left_4_joint" range="-2.44346 1.13446" actuatorfrcrange="-26 26" damping="0" frictionloss="1"/>
+                <geom class="visual" material="dark_medium_gray" mesh="arm_4_link"/>
+
                 <body name="arm_left_5_link" pos="-0.02 0.17011 -0.03711" quat="0.000563088 -0.000563088 0.707107 0.707107">
-                  <inertial pos="-0.00017 -0.02738 0.06749" quat="0.699157 -0.105734 0.105734 0.699157" mass="0.31298" diaginertia="0.00165763 0.00157 0.000312375" />
-                  <joint name="arm_left_5_joint" range="-3.66519 1.5708" actuatorfrcrange="-26 26" damping="0" frictionloss="1" />
-                  <geom class="visual" material="dark_medium_gray" mesh="arm_5_link" />
-                  <geom class="collision" name="col_lower_left_arm" size="0.04 0.2" pos="0.005 -0.0026 0.0" />
+                  <inertial pos="-0.00017 -0.02738 0.06749" quat="0.699157 -0.105734 0.105734 0.699157" mass="0.31298" diaginertia="0.00165763 0.00157 0.000312375"/>
+                  <joint name="arm_left_5_joint" range="-3.66519 1.5708" actuatorfrcrange="-26 26" damping="0" frictionloss="1"/>
+                  <geom class="visual" material="dark_medium_gray" mesh="arm_5_link"/>
+                  <geom class="collision" name="col_lower_left_arm" size="0.04 0.2" pos="0.005 -0.0026 0.0"/>
+
                   <body name="arm_left_6_link" pos="0 -0.0422 0.1654" quat="0.000563087 -0.000563089 -0.707108 0.707105">
-                    <inertial pos="0.0317652 -0.00651511 -0.0408045" quat="0.649802 0.62025 0.320219 0.300842" mass="1.34587" diaginertia="0.00126618 0.00118982 0.000997639" />
-                    <joint name="arm_left_6_joint" axis="0 0 -1" range="-1.88496 3.00197" actuatorfrcrange="-26 26" damping="0" frictionloss="1" />
-                    <geom class="visual" material="dark_medium_gray" mesh="arm_6_link" />
+                    <inertial pos="0.0317652 -0.00651511 -0.0408045" quat="0.649802 0.62025 0.320219 0.300842" mass="1.34587" diaginertia="0.00126618 0.00118982 0.000997639"/>
+                    <joint name="arm_left_6_joint" axis="0 0 -1" range="-1.88496 3.00197" actuatorfrcrange="-26 26" damping="0" frictionloss="1"/>
+                    <geom class="visual" material="dark_medium_gray" mesh="arm_6_link"/>
+
                     <body name="arm_left_7_link" pos="0.07 -0.0534 -0.0422" quat="0.707105 0.707108 0 0">
-                      <inertial pos="0.00174 -0.00223 0.0083" quat="0.5 0.5 -0.5 0.5" mass="0.12399" diaginertia="0.00012 8e-05 6e-05" />
-                      <joint name="arm_left_7_joint" range="-2.61799 2.61799" actuatorfrcrange="-26 26" damping="0" frictionloss="1" />
-                      <geom class="visual" material="dark_medium_gray" mesh="arm_7_link" />
-                      <geom class="visual" pos="0 0 0.017" material="dark_medium_gray" mesh="base_link_tc" />
+                      <inertial pos="0.00174 -0.00223 0.0083" quat="0.5 0.5 -0.5 0.5" mass="0.12399" diaginertia="0.00012 8e-05 6e-05"/>
+                      <joint name="arm_left_7_joint" range="-2.61799 2.61799" actuatorfrcrange="-26 26" damping="0" frictionloss="1"/>
+                      <geom class="visual" material="dark_medium_gray" mesh="arm_7_link"/>
+                      <geom class="visual" pos="0 0 0.017" material="dark_medium_gray" mesh="base_link_tc"/>
                       <site name="ee_left" pos="0 0 0.15"/>
-                      <geom class="collision" name="col_ee_left" size="0.04 0.07" />
-                      <geom class="collision" name="col_left_palm" type="box" pos="0 0 0.1025" size="0.01 0.035 0.025" />
-                      <body name="gripper_left_inner_finger_left_link" pos="0 -0.013977 0.095832" quat="0.253401 0.660141 -0.253406 -0.660141">
-                        <inertial pos="0 0.024759 0" quat="0.5 0.5 -0.5 0.5" mass="0.018619" diaginertia="4.9573e-06 4.8806e-06 2.5471e-07" />
-                        <joint name="gripper_left_inner_finger_left_joint" pos="0 0 0" axis="0 0 1" range="0 0.9" actuatorfrcrange="-8 8" damping="0" />
-                        <geom class="visual" material="light_gray" mesh="inner_finger" />
-                        <body name="gripper_left_fingertip_left_link" pos="0 0.05 0" quat="0.913545 0 0 0.406738">
-                          <inertial pos="-0.000864586 0.011929 -2.73244e-11" quat="0.704565 0.704565 0.0599056 0.0599056" mass="0.033503" diaginertia="3.69751e-06 2.84428e-06 1.65117e-06" />
-                          <joint name="gripper_left_fingertip_left_joint" pos="0 0 0" axis="0 0 1" range="-0.9 0" actuatorfrcrange="-8 8" damping="0" />
-                          <geom class="visual" material="light_gray" mesh="fingertip" />
-                          <geom class="collision" name="col_left_fingertip_left_c1" fromto="-0.007 0.003 -0.0075   -0.007 0.047 -0.0075" size="0.005" friction="1.2 0.2 0.001"/>
-                          <geom class="collision" name="col_left_fingertip_left_c2" fromto="-0.007 0.003 -0.0025   -0.007 0.047 -0.0025" size="0.005" friction="1.2 0.2 0.001"/>
-                          <geom class="collision" name="col_left_fingertip_left_c3" fromto="-0.007 0.003  0.0025   -0.007 0.047  0.0025" size="0.005" friction="1.2 0.2 0.001"/>
-                          <geom class="collision" name="col_left_fingertip_left_c4" fromto="-0.007 0.003  0.0075   -0.007 0.047  0.0075" size="0.005" friction="1.2 0.2 0.001"/>
-                        </body>
-                      </body>
-                      <body name="gripper_left_outer_finger_left_link" pos="0 -0.0288 0.0913" quat="0.253401 0.660141 -0.253406 -0.660141">
-                        <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                        <joint name="gripper_left_outer_finger_left_joint" range="0 0.9" actuatorfrcrange="-8 8" damping="0" />
-                        <geom class="visual" material="light_gray" mesh="outer_finger" />
-                      </body>
-                      <body name="gripper_left_inner_finger_right_link" pos="0 0.013977 0.095832" quat="0.66014 0.253404 0.660142 0.253404">
-                        <inertial pos="0 0.024759 0" quat="0.5 0.5 -0.5 0.5" mass="0.018619" diaginertia="4.9573e-06 4.8806e-06 2.5471e-07" />
-                        <joint name="gripper_left_inner_finger_right_joint" pos="0 0 0" axis="0 0 1" range="0 0.9" actuatorfrcrange="-8 8" damping="0" />
-                        <body name="gripper_left_fingertip_right_link" pos="0 0.05 0" quat="0.913545 0 0 0.406738">
-                          <inertial pos="-0.000864586 0.011929 -2.73244e-11" quat="0.704565 0.704565 0.0599056 0.0599056" mass="0.033503" diaginertia="3.69751e-06 2.84428e-06 1.65117e-06" />
-                          <joint name="gripper_left_fingertip_right_joint" pos="0 0 0" axis="0 0 1" range="-0.9 0" actuatorfrcrange="-8 8" damping="0" />
-                          <geom class="visual" material="light_gray" mesh="fingertip" />
-                          <geom class="visual" material="light_gray" mesh="fingertip" />
-                          <geom class="collision" name="col_left_fingertip_right_c1" fromto="-0.007 0.003 -0.0075   -0.007 0.047 -0.0075" size="0.005" friction="1.2 0.2 0.001"/>
-                          <geom class="collision" name="col_left_fingertip_right_c2" fromto="-0.007 0.003 -0.0025   -0.007 0.047 -0.0025" size="0.005" friction="1.2 0.2 0.001"/>
-                          <geom class="collision" name="col_left_fingertip_right_c3" fromto="-0.007 0.003  0.0025   -0.007 0.047  0.0025" size="0.005" friction="1.2 0.2 0.001"/>
-                          <geom class="collision" name="col_left_fingertip_right_c4" fromto="-0.007 0.003  0.0075   -0.007 0.047  0.0075" size="0.005" friction="1.2 0.2 0.001"/>
-                        </body>
-                      </body>
-                      <body name="gripper_left_outer_finger_right_link" pos="0 0.0288 0.0913" quat="0.66014 0.253404 0.660142 0.253404">
-                        <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                        <joint name="gripper_left_outer_finger_right_joint" range="0 0.9" actuatorfrcrange="-8 8" damping="0" />
-                        <geom class="visual" material="light_gray" mesh="outer_finger" />
-                      </body>
+                      <geom class="collision" name="col_ee_left" size="0.04 0.07"/>
+                      <geom class="collision" name="col_left_palm" type="box" pos="0 0 0.1025" size="0.01 0.035 0.025"/>
                     </body>
                   </body>
                 </body>
@@ -187,78 +204,116 @@
             </body>
           </body>
         </body>
+
+        <!-- Right arm with YAM gripper under arm_right_7_link -->
         <body name="arm_right_1_link" pos="0.08976 -0.15918 -0.092008" quat="0.293338 -0.492879 0.703925 -0.418942">
-          <inertial pos="0.0043916 0.016184 0.15576" quat="0.995877 -0.0736287 -0.0165883 0.0503316" mass="1.1325" diaginertia="0.00255401 0.00238017 0.000938535" />
-          <joint name="arm_right_1_joint" range="-4.71239 0.523599" actuatorfrcrange="-43 43" damping="0" frictionloss="1" />
-          <geom class="visual" material="dark_medium_gray" mesh="arm_1_link" />
+          <inertial pos="0.0043916 0.016184 0.15576" quat="0.995877 -0.0736287 -0.0165883 0.0503316" mass="1.1325" diaginertia="0.00255401 0.00238017 0.000938535"/>
+          <joint name="arm_right_1_joint" range="-4.71239 0.523599" actuatorfrcrange="-43 43" damping="0" frictionloss="1"/>
+          <geom class="visual" material="dark_medium_gray" mesh="arm_1_link"/>
+
           <body name="arm_right_2_link" pos="0.03711 0.02 0.18" quat="0.5 -0.5 0.5 -0.5">
-            <inertial pos="0.01786 -0.11956 -0.032097" quat="0.372627 0.555033 -0.540311 0.51103" mass="1.0436" diaginertia="0.00163669 0.00151951 0.000828169" />
-            <joint name="arm_right_2_joint" range="-2.44346 1.13446" actuatorfrcrange="-43 43" damping="0" frictionloss="1" />
-            <geom class="visual" material="dark_medium_gray" mesh="arm_2_link" />
+            <inertial pos="0.01786 -0.11956 -0.032097" quat="0.372627 0.555033 -0.540311 0.51103" mass="1.0436" diaginertia="0.00163669 0.00151951 0.000828169"/>
+            <joint name="arm_right_2_joint" range="-2.44346 1.13446" actuatorfrcrange="-43 43" damping="0" frictionloss="1"/>
+            <geom class="visual" material="dark_medium_gray" mesh="arm_2_link"/>
+
             <body name="arm_right_3_link" pos="0.02 -0.17011 -0.03711" quat="0.707107 0.707107 0 0">
-              <inertial pos="0.016184 -0.0043916 0.13565" quat="0.668601 0.0403336 0.0637931 0.739781" mass="1.1325" diaginertia="0.00255401 0.00238017 0.000938535" />
-              <joint name="arm_right_3_joint" range="-2.61799 2.61799" actuatorfrcrange="-26 26" damping="0" frictionloss="1" />
-              <geom class="visual" material="dark_medium_gray" mesh="arm_3_link" />
-              <geom class="collision" name="col_upper_right_arm" size="0.04 0.2" />
+              <inertial pos="0.016184 -0.0043916 0.13565" quat="0.668601 0.0403336 0.0637931 0.739781" mass="1.1325" diaginertia="0.00255401 0.00238017 0.000938535"/>
+              <joint name="arm_right_3_joint" range="-2.61799 2.61799" actuatorfrcrange="-26 26" damping="0" frictionloss="1"/>
+              <geom class="visual" material="dark_medium_gray" mesh="arm_3_link"/>
+              <geom class="collision" name="col_upper_right_arm" size="0.04 0.2"/>
+
               <body name="arm_right_4_link" pos="0.02 -0.03711 0.15989" quat="0.707107 0.707107 0 0">
-                <inertial pos="-0.01786 0.11956 -0.032097" quat="0.540311 0.51103 -0.372627 0.555033" mass="1.0436" diaginertia="0.00163669 0.00151951 0.000828169" />
-                <joint name="arm_right_4_joint" range="-2.44346 1.13446" actuatorfrcrange="-26 26" damping="0" frictionloss="1" />
-                <geom class="visual" material="dark_medium_gray" mesh="arm_4_link" />
+                <inertial pos="-0.01786 0.11956 -0.032097" quat="0.540311 0.51103 -0.372627 0.555033" mass="1.0436" diaginertia="0.00163669 0.00151951 0.000828169"/>
+                <joint name="arm_right_4_joint" range="-2.44346 1.13446" actuatorfrcrange="-26 26" damping="0" frictionloss="1"/>
+                <geom class="visual" material="dark_medium_gray" mesh="arm_4_link"/>
+
                 <body name="arm_right_5_link" pos="-0.02 0.17011 -0.03711" quat="0.000563088 -0.000563088 0.707107 0.707107">
-                  <inertial pos="-0.00017 -0.02738 0.06749" quat="0.699157 -0.105734 0.105734 0.699157" mass="0.31298" diaginertia="0.00165763 0.00157 0.000312375" />
-                  <joint name="arm_right_5_joint" range="-1.5708 3.66519" actuatorfrcrange="-26 26" damping="0" frictionloss="1" />
-                  <geom class="visual" material="dark_medium_gray" mesh="arm_5_link" />
-                  <geom class="collision" name="col_lower_right_arm" size="0.04 0.20" pos="0.005 -0.0026 0.0" />
+                  <inertial pos="-0.00017 -0.02738 0.06749" quat="0.699157 -0.105734 0.105734 0.699157" mass="0.31298" diaginertia="0.00165763 0.00157 0.000312375"/>
+                  <joint name="arm_right_5_joint" range="-1.5708 3.66519" actuatorfrcrange="-26 26" damping="0" frictionloss="1"/>
+                  <geom class="visual" material="dark_medium_gray" mesh="arm_5_link"/>
+                  <geom class="collision" name="col_lower_right_arm" size="0.04 0.20" pos="0.005 -0.0026 0.0"/>
+
                   <body name="arm_right_6_link" pos="0 -0.0422 0.1654" quat="0.000563087 -0.000563089 -0.707108 0.707105">
-                    <inertial pos="0.0317652 -0.00651511 -0.0408045" quat="0.649802 0.62025 0.320219 0.300842" mass="1.34587" diaginertia="0.00126618 0.00118982 0.000997639" />
-                    <joint name="arm_right_6_joint" axis="0 0 -1" range="-1.88496 3.00197" actuatorfrcrange="-26 26" damping="0" frictionloss="1" />
-                    <geom class="visual" material="dark_medium_gray" mesh="arm_6_link" />
+                    <inertial pos="0.0317652 -0.00651511 -0.0408045" quat="0.649802 0.62025 0.320219 0.300842" mass="1.34587" diaginertia="0.00126618 0.00118982 0.000997639"/>
+                    <joint name="arm_right_6_joint" axis="0 0 -1" range="-1.88496 3.00197" actuatorfrcrange="-26 26" damping="0" frictionloss="1"/>
+                    <geom class="visual" material="dark_medium_gray" mesh="arm_6_link"/>
+
                     <body name="arm_right_7_link" pos="0.07 -0.0534 -0.0422" quat="0.707105 0.707108 0 0">
-                      <inertial pos="0.00174 -0.00223 0.0083" quat="0.5 0.5 -0.5 0.5" mass="0.12399" diaginertia="0.00012 8e-05 6e-05" />
-                      <joint name="arm_right_7_joint" range="-2.61799 2.61799" actuatorfrcrange="-26 26" damping="0" frictionloss="1" />
-                      <geom class="visual" material="dark_medium_gray" mesh="arm_7_link" />
-                      <geom class="visual" pos="0 0 0.017" material="dark_medium_gray" mesh="base_link_tc" />
+                      <inertial pos="0.00174 -0.00223 0.0083" quat="0.5 0.5 -0.5 0.5" mass="0.12399" diaginertia="0.00012 8e-05 6e-05"/>
+                      <joint name="arm_right_7_joint" range="-2.61799 2.61799" actuatorfrcrange="-26 26" damping="0" frictionloss="1"/>
+                      <geom class="visual" material="dark_medium_gray" mesh="arm_7_link"/>
+                      <geom class="visual" pos="0 0 0.017" material="dark_medium_gray" mesh="base_link_tc"/>
                       <site name="ee_right" pos="0 0 0.15"/>
-                      <geom class="collision" name="col_ee_right" size="0.04 0.07" />
-                      <geom class="collision" name="col_right_palm" type="box" pos="0 0 0.1025" size="0.01 0.035 0.025" />
-                      <body name="gripper_right_inner_finger_left_link" pos="0 -0.013977 0.095832" quat="0.253401 0.660141 -0.253406 -0.660141">
-                        <inertial pos="0 0.024759 0" quat="0.5 0.5 -0.5 0.5" mass="0.018619" diaginertia="4.9573e-06 4.8806e-06 2.5471e-07" />
-                        <joint name="gripper_right_inner_finger_left_joint" pos="0 0 0" axis="0 0 1" range="0 0.95" actuatorfrcrange="-8 8" damping="0"/>
-                        <geom class="visual" material="light_gray" mesh="inner_finger" />
-                        <body name="gripper_right_fingertip_left_link" pos="0 0.05 0" quat="0.913545 0 0 0.406738">
-                          <inertial pos="-0.000864586 0.011929 -2.73244e-11" quat="0.704565 0.704565 0.0599056 0.0599056" mass="0.033503" diaginertia="3.69751e-06 2.84428e-06 1.65117e-06" />
-                          <joint name="gripper_right_fingertip_left_joint" pos="0 0 0" axis="0 0 1" range="-0.95 0" actuatorfrcrange="-8 8" damping="0"/>
-                          <geom class="visual" material="light_gray" mesh="fingertip" />
-                          <geom class="collision" name="col_right_fingertip_left_c1" fromto="-0.007 0.003 -0.0075   -0.007 0.047 -0.0075" size="0.005" />
-                          <geom class="collision" name="col_right_fingertip_left_c2" fromto="-0.007 0.003 -0.0025   -0.007 0.047 -0.0025" size="0.005" />
-                          <geom class="collision" name="col_right_fingertip_left_c3" fromto="-0.007 0.003  0.0025   -0.007 0.047  0.0025" size="0.005" />
-                          <geom class="collision" name="col_right_fingertip_left_c4" fromto="-0.007 0.003  0.0075   -0.007 0.047  0.0075" size="0.005" />
+                      <geom class="collision" name="col_ee_right" size="0.04 0.07"/>
+                      <geom class="collision" name="col_right_palm" type="box" pos="0 0 0.1025" size="0.01 0.035 0.025"/>
+
+                      <!-- YAM gripper is a CHILD of arm_right_7_link -->
+                      <body name="yam_gripper_right" childclass="yam" pos="0 0 0.15">
+                        <!-- Base visuals -->
+                        <geom class="yam_visual" pos="0 -0.164101 -0.110597" quat="1 -1 0 0" mesh="yam_model2__12" material="yam_black"/>
+                        <geom class="yam_visual" pos="0 -0.164101 -0.110597" quat="1 -1 0 0" mesh="yam_model2__13" material="yam_black"/>
+
+                        <!-- Base collisions -->
+                        <geom name="yam_link6_1_collision" class="yam_collision" size="0.01 0.035" pos="0 0.039 0.052" quat="1 0 1 0"/>
+                        <geom name="yam_link6_2_collision" class="yam_collision" size="0.030 0.005" pos="0 0.0 0.03" quat="1 0 0 1"/>
+                        <geom name="yam_link6_3_collision" class="yam_collision" size="0.01 0.035" pos="0 -0.039 0.052" quat="1 0 1 0"/>
+
+                        <site name="tcp_site_right" quat="1 0 0 -1"/>
+                        <site name="grasp_site_right" pos="0 -0.03 0.1247" quat="1 0 0 -1"/>
+
+                        <!-- Left finger -->
+                        <body name="yam_right_left_finger" pos="-0.037 0.0392 0.0605" quat="1 0 1 0">
+                          <joint class="yam_finger" name="yam_right_left_finger_joint" range="-0.00205 0.037524"/>
+                          <geom class="yam_visual" pos="0.171097 -0.203301 0.037" quat="1 -1 -1 -1" mesh="yam_model2__14" material="yam_black"/>
+                          <geom class="yam_visual" pos="0.171097 -0.203301 0.037" quat="1 -1 -1 -1" mesh="yam_model2__15" material="yam_black"/>
+
+                          <body name="yam_rlf_rot" quat="1 -1 -1 1" pos="0.0 -0.0392 0.037">
+                            <geom name="yam_rlf_rot1_collision" class="yam_collision" size="0.01 0.03" pos="0.0 -0.02 0.012" quat="1 0 1 0"/>
+                            <geom name="yam_rlf_rot2_collision" class="yam_collision" size="0.01 0.02" pos="-0.02 -0.01 0.032" quat="1 0 2.5 0"/>
+                            <body name="yam_rlf_down" quat="1 0 0 0" pos="-0.044 0.0 0.0">
+                              <geom name="yam_rlf_down1_collision" class="yam_collision" size="0.01 0.01" pos="0.0 -0.020 0.012" quat="1 -0.1 0 0"/>
+                              <geom name="yam_rlf_down2_collision" class="yam_collision" size="0.003 0.022" pos="0.005 -0.014 0.04" quat="1 -0.2 0 0"/>
+                              <geom name="yam_rlf_down3_collision" class="yam_collision" size="0.003 0.022" pos="-0.005 -0.014 0.04" quat="1 -0.2 0 0"/>
+                              <geom name="yam_rlf_down4_collision" class="yam_collision" type="box" size="0.006 0.002 0.04" pos="0 -0.0024 0.046" quat="1 0 0 0"/>
+                              <geom name="yam_rlf_down5_collision" class="yam_collision" type="box" size="0.006 0.002 0.039" pos="0.027 -0.0024 0.053" quat="1 0 2.5 0"/>
+
+                              <geom name="yam_rlf_tip1" class="yam_sphere_collision" pos="0.003  -0.0004 0.078"/>
+                              <geom name="yam_rlf_tip2" class="yam_sphere_collision" pos="-0.003 -0.0004 0.078"/>
+                              <geom name="yam_rlf_tip3" class="yam_sphere_collision" pos="0.003  -0.0004 0.07"/>
+                              <geom name="yam_rlf_tip4" class="yam_sphere_collision" pos="-0.003 -0.0004 0.07"/>
+                              <geom name="yam_rlf_tip5" class="yam_sphere_collision" pos="0.003  -0.0004 0.06"/>
+                              <geom name="yam_rlf_tip6" class="yam_sphere_collision" pos="-0.003 -0.0004 0.06"/>
+                            </body>
+                          </body>
+                        </body>
+
+                        <!-- Right finger -->
+                        <body name="yam_right_right_finger" pos="0.037 -0.0392 0.0605" quat="1 0 1 0">
+                          <joint class="yam_finger" name="yam_right_right_finger_joint" range="-0.037524 0.00205"/>
+                          <geom class="yam_visual" pos="0.171097 -0.124901 -0.037" quat="1 -1 -1 -1" mesh="yam_model2__16" material="yam_black"/>
+                          <geom class="yam_visual" pos="0.171097 -0.124901 -0.037" quat="1 -1 -1 -1" mesh="yam_model2__17" material="yam_black"/>
+
+                          <body name="yam_rrf_rot" quat="1 1 -1 -1" pos="0.0 0.0392 -0.037">
+                            <geom name="yam_rrf_rot1_collision" class="yam_collision" size="0.01 0.03" pos="0.0 -0.02 0.012" quat="1 0 1 0"/>
+                            <geom name="yam_rrf_rot2_collision" class="yam_collision" size="0.01 0.02" pos="0.02 -0.01 0.032" quat="1 0 -2.5 0"/>
+                            <body name="yam_rrf_down" quat="1 0 0 0" pos="0.044 0.0 0.0">
+                              <geom name="yam_rrf_down1_collision" class="yam_collision" size="0.01 0.01" pos="0.0 -0.020 0.012" quat="1 -0.1 0 0"/>
+                              <geom name="yam_rrf_down2_collision" class="yam_collision" size="0.003 0.022" pos="0.005 -0.014 0.04" quat="1 -0.2 0 0"/>
+                              <geom name="yam_rrf_down3_collision" class="yam_collision" size="0.003 0.022" pos="-0.005 -0.014 0.04" quat="1 -0.2 0 0"/>
+                              <geom name="yam_rrf_down4_collision" class="yam_collision" type="box" size="0.006 0.002 0.04" pos="0 -0.0024 0.046" quat="1 0 0 0"/>
+                              <geom name="yam_rrf_down5_collision" class="yam_collision" type="box" size="0.006 0.002 0.039" pos="-0.027 -0.0024 0.053" quat="1 0 -2.5 0"/>
+
+                              <geom name="yam_rrf_tip1" class="yam_sphere_collision" pos="0.003 -0.0004 0.078"/>
+                              <geom name="yam_rrf_tip2" class="yam_sphere_collision" pos="-0.003 -0.0004 0.078"/>
+                              <geom name="yam_rrf_tip3" class="yam_sphere_collision" pos="0.003  -0.0004 0.07"/>
+                              <geom name="yam_rrf_tip4" class="yam_sphere_collision" pos="-0.003 -0.0004 0.07"/>
+                              <geom name="yam_rrf_tip5" class="yam_sphere_collision" pos="0.003 -0.0004 0.06"/>
+                              <geom name="yam_rrf_tip6" class="yam_sphere_collision" pos="-0.003 -0.0004 0.06"/>
+                            </body>
+                          </body>
                         </body>
                       </body>
-                      <body name="gripper_right_outer_finger_left_link" pos="0 -0.0288 0.0913" quat="0.253401 0.660141 -0.253406 -0.660141">
-                        <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                        <joint name="gripper_right_outer_finger_left_joint" range="0 0.95" actuatorfrcrange="-8 8" damping="0" />
-                        <geom class="visual" material="light_gray" mesh="outer_finger" />
-                      </body>
-                      <body name="gripper_right_inner_finger_right_link" pos="0 0.013977 0.095832" quat="0.66014 0.253404 0.660142 0.253404">
-                        <inertial pos="0 0.024759 0" quat="0.5 0.5 -0.5 0.5" mass="0.018619" diaginertia="4.9573e-06 4.8806e-06 2.5471e-07" />
-                        <joint name="gripper_right_inner_finger_right_joint" pos="0 0 0" axis="0 0 1" range="0 0.95" actuatorfrcrange="-8 8" damping="0"/>
-                        <geom class="visual" material="light_gray" mesh="inner_finger" />
-                        <body name="gripper_right_fingertip_right_link" pos="0 0.05 0" quat="0.913545 0 0 0.406738">
-                          <inertial pos="-0.000864586 0.011929 -2.73244e-11" quat="0.704565 0.704565 0.0599056 0.0599056" mass="0.033503" diaginertia="3.69751e-06 2.84428e-06 1.65117e-06" />
-                          <joint name="gripper_right_fingertip_right_joint" pos="0 0 0" axis="0 0 1" range="-0.95 0" actuatorfrcrange="-8 8" damping="0"/>
-                          <geom class="visual" material="light_gray" mesh="fingertip" />
-                          <geom class="collision" name="col_right_fingertip_right_c1" fromto="-0.007 0.003 -0.0075   -0.007 0.047 -0.0075" size="0.005" />
-                          <geom class="collision" name="col_right_fingertip_right_c2" fromto="-0.007 0.003 -0.0025   -0.007 0.047 -0.0025" size="0.005" />
-                          <geom class="collision" name="col_right_fingertip_right_c3" fromto="-0.007 0.003  0.0025   -0.007 0.047  0.0025" size="0.005" />
-                          <geom class="collision" name="col_right_fingertip_right_c4" fromto="-0.007 0.003  0.0075   -0.007 0.047  0.0075" size="0.005" />
-                        </body>
-                      </body>
-                      <body name="gripper_right_outer_finger_right_link" pos="0 0.0288 0.0913" quat="0.66014 0.253404 0.660142 0.253404">
-                        <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                        <joint name="gripper_right_outer_finger_right_joint" range="0 0.95" actuatorfrcrange="-8 8" damping="0"/>
-                        <geom class="visual" material="light_gray" mesh="outer_finger" />
-                      </body>
+                      <!-- end yam_gripper_right -->
                     </body>
                   </body>
                 </body>
@@ -266,21 +321,20 @@
             </body>
           </body>
         </body>
+        <!-- end right arm -->
       </body>
     </body>
   </worldbody>
 
+  <!-- Coupling for YAM parallel jaw (right gripper) -->
   <equality>
-    <connect anchor="0.0 0.05 0.0" body1="gripper_right_outer_finger_left_link" body2="gripper_right_fingertip_left_link" name="gripper_right_finger_left_eq" solref="0.002 1" />
-    <connect anchor="0.0 0.05 0.0" body1="gripper_right_outer_finger_right_link" body2="gripper_right_fingertip_right_link" name="gripper_right_finger_right_eq" solref="0.002 1" />
-    <connect anchor="0.0 0.05 0.0" body1="gripper_left_outer_finger_left_link" body2="gripper_left_fingertip_left_link" name="gripper_left_finger_left_eq" solref="0.002 1" />
-    <connect anchor="0.0 0.05 0.0" body1="gripper_left_outer_finger_right_link" body2="gripper_left_fingertip_right_link" name="gripper_left_finger_right_eq" solref="0.002 1" />
+    <joint joint1="yam_right_left_finger_joint" joint2="yam_right_right_finger_joint" polycoef="0 -1 0 0 0"/>
   </equality>
 
   <contact>
-    <exclude body1="arm_right_3_link" body2="arm_right_5_link" />
-    <exclude body1="arm_right_5_link" body2="arm_right_7_link" />
-    <exclude body1="arm_left_3_link" body2="arm_left_5_link" />
-    <exclude body1="arm_left_5_link" body2="arm_left_7_link" />
+    <exclude body1="arm_right_3_link" body2="arm_right_5_link"/>
+    <exclude body1="arm_right_5_link" body2="arm_right_7_link"/>
+    <exclude body1="arm_left_3_link" body2="arm_left_5_link"/>
+    <exclude body1="arm_left_5_link" body2="arm_left_7_link"/>
   </contact>
 </mujoco>

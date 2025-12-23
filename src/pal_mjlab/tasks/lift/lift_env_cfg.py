@@ -93,31 +93,31 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
             scale=0.5,  # Override per-robot.
             use_default_offset=True,
         ),
-        # "gripper_pos": JointPositionActionCfg(
-        #     asset_name="robot",
-        #     actuator_names=("gripper_.*_joint"), 
-        #     scale=0.5,  # Override per-robot.
-        #     use_default_offset=True,
-        # ),
-        "gripper_pos": mdp.MirroredJointPositionActionCfg(
+        "gripper_pos": JointPositionActionCfg(
             asset_name="robot",
-            actuator_names=[
-                "gripper_left_outer_finger_left_joint",
-                "gripper_right_outer_finger_left_joint",
-            ],
-            mirror_actuator_names=[
-                "gripper_left_outer_finger_right_joint",
-                "gripper_right_outer_finger_right_joint",
-            ],
-            mirror_pairs={
-                "gripper_left_outer_finger_right_joint": "gripper_left_outer_finger_left_joint",
-                "gripper_right_outer_finger_right_joint": "gripper_right_outer_finger_left_joint",
-            },
-            # If one axis is flipped, set mirror_sign=[-1.0, 1.0] etc.
-            mirror_sign=None,
-            scale=3.0,
+            actuator_names=("yam_.*_joint"), 
+            scale=0.5,  # Override per-robot.
             use_default_offset=True,
         ),
+        # "gripper_pos": mdp.MirroredJointPositionActionCfg(
+        #     asset_name="robot",
+        #     actuator_names=[
+        #         "gripper_left_outer_finger_left_joint",
+        #         "gripper_right_outer_finger_left_joint",
+        #     ],
+        #     mirror_actuator_names=[
+        #         "gripper_left_outer_finger_right_joint",
+        #         "gripper_right_outer_finger_right_joint",
+        #     ],
+        #     mirror_pairs={
+        #         "gripper_left_outer_finger_right_joint": "gripper_left_outer_finger_left_joint",
+        #         "gripper_right_outer_finger_right_joint": "gripper_right_outer_finger_left_joint",
+        #     },
+        #     # If one axis is flipped, set mirror_sign=[-1.0, 1.0] etc.
+        #     mirror_sign=None,
+        #     scale=3.0,
+        #     use_default_offset=True,
+        # ),
     }
 
     ## --------------------------------------------------------

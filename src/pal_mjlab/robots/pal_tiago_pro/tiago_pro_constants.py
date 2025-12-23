@@ -10,10 +10,12 @@ from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
 from mjlab.actuator import BuiltinPositionActuatorCfg
 
+# Reuse same utilities as YAM for rotary->linear reflection
+from mjlab.utils.actuator import ElectricActuator, reflect_rotary_to_linear
+
 TIAGO_PRO_XML: Path = (
     PAL_MJLAB_SRC_PATH / "robots" / "pal_tiago_pro" / "xmls" / "tiago_pro.xml"
 )
-
 assert TIAGO_PRO_XML.exists()
 
 ##
@@ -44,9 +46,55 @@ def _calc_actuator_params(
 S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
 S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
 XS = _calc_actuator_params(101, 1.3e-5, 25)
-# GRIPPER = _calc_actuator_params(100, 207e-4, 40)
-GRIPPER = {"armature": 0.006, "stiffness": 100, "damping": 10, "effort_limit": 8}
+
 TORSO = {"armature": 0.1, "stiffness": 1500, "damping": 300, "effort_limit": 2200}
+
+# -------------------------------------------------------------------
+# YAM gripper constants (ported from your YAM constants)
+# -------------------------------------------------------------------
+
+# YAM DM4310 motor parameters used for gripper crank
+ARMATURE_DM_4310 = 0.0018
+DM_4310 = ElectricActuator(
+    reflected_inertia=ARMATURE_DM_4310,
+    velocity_limit=30.0,
+    effort_limit=10.0,
+)
+
+# Crank transmission: 2.7 rad motor range -> 0.071 m linear stroke
+GRIPPER_MOTOR_STROKE_CRANK = 2.7        # [rad]
+GRIPPER_LINEAR_STROKE_CRANK = 0.071     # [m]
+GRIPPER_TRANSMISSION_RATIO_CRANK = (
+    GRIPPER_LINEAR_STROKE_CRANK / GRIPPER_MOTOR_STROKE_CRANK
+)
+
+(
+    ARMATURE_DM_4310_LINEAR_CRANK,
+    VELOCITY_LIMIT_DM_4310_LINEAR_CRANK,
+    EFFORT_LIMIT_DM_4310_LINEAR_CRANK,
+) = reflect_rotary_to_linear(
+    armature_rotary=ARMATURE_DM_4310,
+    velocity_limit_rotary=DM_4310.velocity_limit,
+    effort_limit_rotary=DM_4310.effort_limit,
+    transmission_ratio=GRIPPER_TRANSMISSION_RATIO_CRANK,
+)
+
+# PD gains for gripper (same as YAM)
+NATURAL_FREQ_GRIPPER = 2 * 2.0 * 3.1415926535  # 2Hz
+STIFFNESS_DM_4310_LINEAR_CRANK = ARMATURE_DM_4310_LINEAR_CRANK * NATURAL_FREQ_GRIPPER**2
+DAMPING_DM_4310_LINEAR_CRANK = (
+    2.0 * DAMPING_RATIO * ARMATURE_DM_4310_LINEAR_CRANK * NATURAL_FREQ_GRIPPER
+)
+
+# Sim-safe force limit (same as YAM)
+EFFORT_LIMIT_DM_4310_LINEAR_CRANK_SAFE = EFFORT_LIMIT_DM_4310_LINEAR_CRANK * 0.1
+
+YAM_RIGHT_GRIPPER = {
+    "armature": ARMATURE_DM_4310_LINEAR_CRANK,
+    "stiffness": STIFFNESS_DM_4310_LINEAR_CRANK,
+    "damping": DAMPING_DM_4310_LINEAR_CRANK,
+    "effort_limit": EFFORT_LIMIT_DM_4310_LINEAR_CRANK_SAFE,
+}
 
 ##
 # MJCF & Assets
@@ -82,18 +130,17 @@ TIAGO_PRO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
     **XS,
 )
+
 # Torso
 TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     joint_names_expr=("torso_lift_joint",),
     **TORSO,
 )
-# Grippers
-GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("gripper_left_outer_finger_left_joint",
-                      "gripper_left_outer_finger_right_joint",
-                      "gripper_right_outer_finger_left_joint",
-                      "gripper_right_outer_finger_right_joint"),
-    **GRIPPER,
+
+# Right YAM gripper: actuate only left finger; right finger is coupled via equality
+YAM_RIGHT_GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+    joint_names_expr=("yam_right_left_finger_joint",),
+    **YAM_RIGHT_GRIPPER,
 )
 
 ##
@@ -111,7 +158,10 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         "arm_right_3_joint": -0.4698,
         "arm_.*_4_joint": -2.3409,
         "arm_.*_6_joint": -1.2006,
-        "gripper_.*_joint": 0.4,
+
+        # YAM right gripper (set both for a clean starting pose)
+        "yam_right_left_finger_joint": 0.0375 / 2,
+        "yam_right_right_finger_joint": -0.0375 / 2,
     },
     joint_vel={".*": 0.0},
 )
@@ -137,7 +187,7 @@ TIAGO_PRO_ARTICULATION = EntityArticulationInfoCfg(
         TIAGO_PRO_S_MINUS_ACTUATOR_CFG,
         TIAGO_PRO_XS_ACTUATOR_CFG,
         TORSO_ACTUATOR_CFG,
-        GRIPPER_ACTUATOR_CFG,
+        YAM_RIGHT_GRIPPER_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.9,
 )
