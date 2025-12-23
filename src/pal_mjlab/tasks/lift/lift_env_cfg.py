@@ -186,7 +186,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         # 1) Reach: EE–cube distance (returns distance in meters → use NEGATIVE weight)
         "ee_object_distance": RewardTermCfg(
             func=mdp.ee_object_distance,  
-            weight=3.0,                           
+            weight=0.5,                           
             params={
                 "std": 0.3,
                 "object_name": "cube",
