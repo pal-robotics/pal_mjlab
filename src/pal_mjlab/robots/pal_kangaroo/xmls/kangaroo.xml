@@ -1,17 +1,10 @@
 <mujoco model="kangaroo">
   <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
-  <option timestep="0.001" iterations="1" ls_iterations="5">
-    <flag eulerdamp="disable"/>
-  </option>
-
-  <statistic meansize="0.04" extent="1.8" center="0 0 1"/>
-
   <default>
-    <joint armature="0.01" frictionloss="1" limited="true" />
     <site group="5" rgba="1 0 0 1" size="0.01" />
     <default class="visual">
-        <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" material="dark_gray"/>
+        <geom type="mesh" contype="0" conaffinity="0" group="2" density="0" material="dark_gray"/>
     </default>
     <default class="collision">
         <geom type="capsule" group="3" material="bright_orange" contype="1" conaffinity="1"/>
