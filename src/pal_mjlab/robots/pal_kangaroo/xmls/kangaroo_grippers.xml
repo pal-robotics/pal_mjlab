@@ -353,5 +353,6 @@
     <velocimeter    name="imu_lin_vel" site="imu"/>
     <accelerometer  name="imu_lin_acc" site="imu"/>
     <subtreeangmom  name="root_angmom" body="base_link"/>
+    <framequat      name="imu_quat" objtype="site" objname="imu"/>
   </sensor>
 </mujoco>

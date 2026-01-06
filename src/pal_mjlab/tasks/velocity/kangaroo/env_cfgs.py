@@ -120,6 +120,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={"sensor_name": "robot/imu_lin_acc"},
         noise=Unoise(n_min=-0.5, n_max=0.5),
     )
+    cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
+        func=mdp.imu_projected_gravity,
+        params={"sensor_name": "robot/imu_quat"},
+    )
     cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
         func=mdp.builtin_sensor,
         params={"sensor_name": "robot/imu_lin_acc"},
