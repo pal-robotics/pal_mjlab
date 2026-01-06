@@ -131,3 +131,19 @@ class joint_vel_limits:
         over = (vel - soft_limits).clamp(min=0.0, max=self.clip_max)
 
         return over.sum(dim=1)
+    
+
+def joint_velocity_hinge_penalty(
+  env: ManagerBasedRlEnv,
+  max_vel: float,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Quadratic hinge penalty on joint velocities exceeding a symmetric limit.
+
+  Penalizes only the amount by which |v| exceeds max_vel. Returns a negative
+  penalty, shaped as the negative squared L2 norm of the excess velocities.
+  """
+  robot: Entity = env.scene[asset_cfg.name]
+  joint_vel = robot.data.joint_vel[:, asset_cfg.joint_ids]
+  excess = (joint_vel.abs() - max_vel).clamp_min(0.0)
+  return (excess**2).sum(dim=-1)

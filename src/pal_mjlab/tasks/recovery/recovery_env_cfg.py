@@ -197,6 +197,14 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     #     "soft_ratio": 0.9,
     #   },
     # ),
+    "joint_vel_hinge": RewardTermCfg(
+      func=mdp.joint_velocity_hinge_penalty,
+      weight=-0.01,
+      params={
+        "max_vel": 0.5,
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+      },
+    ),
     "action_rate_l2": RewardTermCfg(
         func=mdp.action_rate_l2, weight=-0.01,
     ),
@@ -248,6 +256,17 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
               {"step": 5000 * 24, "weight": -0.01},
               {"step": 7500 * 24, "weight": -0.1},
           ],
+      },
+    ),
+    "joint_vel_hinge_weight": CurriculumTermCfg(
+      func=mdp.reward_weight,
+      params={
+        "reward_name": "joint_vel_hinge",
+        "weight_stages": [
+          {"step": 0, "weight": -0.01},
+          {"step": 3000 * 24, "weight": -0.1},
+          {"step": 6000 * 24, "weight": -1.0},
+        ],
       },
     ),
   }
