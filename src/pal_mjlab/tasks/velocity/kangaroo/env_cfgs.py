@@ -252,6 +252,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
         cfg.observations["policy"].enable_corruption = False
         cfg.events.pop("push_robot", None)
+        cfg.events["randomize_terrain"] = EventTermCfg(
+            func=mdp.randomize_terrain,
+            mode="reset",
+            params={},
+        )
 
         if cfg.scene.terrain is not None:
             if cfg.scene.terrain.terrain_generator is not None:

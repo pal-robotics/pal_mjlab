@@ -118,7 +118,7 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     # Commands: add velocity tracking to existing pose commands
     # -----------------------------------------------------------------
     cfg.commands["twist"] = loco_mdp.UniformVelocityCommandCfg(
-        asset_name="robot",
+        entity_name="robot",
         resampling_time_range=(3.0, 8.0),
         rel_standing_envs=0.1,
         rel_heading_envs=0.3,
