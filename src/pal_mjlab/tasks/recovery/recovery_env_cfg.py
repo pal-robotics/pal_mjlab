@@ -264,8 +264,8 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
         "reward_name": "joint_vel_hinge",
         "weight_stages": [
           {"step": 0, "weight": -0.01},
-          {"step": 3000 * 24, "weight": -0.1},
-          {"step": 6000 * 24, "weight": -1.0},
+          {"step": 5_000 * 24, "weight": -0.1},
+          {"step": 15_000 * 24, "weight": -1.0},
         ],
       },
     ),
