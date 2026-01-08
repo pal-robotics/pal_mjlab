@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-
 from mjlab.managers import CommandTerm, CommandTermCfg
 from mjlab.utils.lab_api.math import (
     matrix_from_quat,
@@ -247,5 +246,6 @@ class UniformPoseCommandCfg(CommandTermCfg):
 
     viz: VizCfg = field(default_factory=VizCfg)
     """Visualization configuration."""
+
     def build(self, env: ManagerBasedRlEnv) -> UniformPoseCommand:
         return UniformPoseCommand(self, env)

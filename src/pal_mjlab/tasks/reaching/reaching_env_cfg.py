@@ -15,10 +15,11 @@ from mjlab.managers.manager_term_config import (
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.scene import SceneCfg
 from mjlab.sim import MujocoCfg, SimulationCfg
-from pal_mjlab.tasks.reaching import mdp
 from mjlab.terrains import TerrainImporterCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
+
+from pal_mjlab.tasks.reaching import mdp
 
 
 def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:

@@ -1,14 +1,14 @@
-from pal_mjlab.robots import (
-    get_tiago_pro_robot_cfg,
-)
-
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.manager_term_config import RewardTermCfg
+from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
+
+from pal_mjlab.robots import (
+    get_tiago_pro_robot_cfg,
+)
 from pal_mjlab.tasks.reaching import mdp
 from pal_mjlab.tasks.reaching.reaching_env_cfg import make_reaching_env_cfg
-from mjlab.managers.scene_entity_config import SceneEntityCfg
 
 
 def pal_tiago_pro_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:

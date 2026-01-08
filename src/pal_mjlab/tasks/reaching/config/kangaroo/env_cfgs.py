@@ -5,36 +5,36 @@ Uses reaching task as base and adds velocity tracking for locomotion.
 
 import math
 
-from pal_mjlab.robots import (
-    get_kangaroo_robot_cfg,
-    get_kangaroo_hands_robot_cfg,
-    get_kangaroo_grippers_robot_cfg,
-    KANGAROO_ACTION_SCALE,
-    KANGAROO_HANDS_ACTION_SCALE,
-    KANGAROO_GRIPPERS_ACTION_SCALE,
-    KANGAROO_ACTUATOR_NAMES,
-    KANGAROO_HANDS_ACTUATOR_NAMES,
-    KANGAROO_GRIPPERS_ACTUATOR_NAMES,
-)
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.manager_term_config import (
-    RewardTermCfg,
-    TerminationTermCfg,
+    CurriculumTermCfg,
     EventTermCfg,
     ObservationTermCfg,
-    CurriculumTermCfg,
+    RewardTermCfg,
+    TerminationTermCfg,
 )
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.tasks.velocity import mdp as loco_mdp
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
-# Base reaching task
-from pal_mjlab.tasks.reaching.reaching_env_cfg import make_reaching_env_cfg
+from pal_mjlab.robots import (
+    KANGAROO_ACTION_SCALE,
+    KANGAROO_ACTUATOR_NAMES,
+    KANGAROO_GRIPPERS_ACTION_SCALE,
+    KANGAROO_GRIPPERS_ACTUATOR_NAMES,
+    KANGAROO_HANDS_ACTION_SCALE,
+    KANGAROO_HANDS_ACTUATOR_NAMES,
+    get_kangaroo_grippers_robot_cfg,
+    get_kangaroo_hands_robot_cfg,
+    get_kangaroo_robot_cfg,
+)
 from pal_mjlab.tasks.reaching import mdp as reach_mdp
+from pal_mjlab.tasks.reaching.reaching_env_cfg import make_reaching_env_cfg
 
+# Base reaching task
 # Locomotion mdp functions
-from mjlab.tasks.velocity import mdp as loco_mdp
 
 
 def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:

@@ -4,10 +4,9 @@ from typing import TYPE_CHECKING
 
 import torch
 from mjlab.entity import Entity
-
 from mjlab.managers.manager_term_config import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
-from mjlab.utils.lab_api.math import quat_conjugate, quat_mul, quat_error_magnitude
+from mjlab.utils.lab_api.math import quat_conjugate, quat_error_magnitude, quat_mul
 
 if TYPE_CHECKING:
     from mjlab.envs import ManagerBasedRlEnv
