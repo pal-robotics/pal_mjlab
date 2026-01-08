@@ -9,12 +9,19 @@ from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
 from mjlab.actuator import BuiltinPositionActuatorCfg
+from pal_mjlab.robots.model_manager import ModelManager
 
 ##
 # MJCF and assets.
 ##
+model_manager = ModelManager()
+try:
+    model_manager.download_model("pal_talos", force_overwrite=False)
+except Exception as e:
+    raise RuntimeError(f"Error downloading TALOS model: {e}")
 
-TALOS_XML: Path = PAL_MJLAB_SRC_PATH / "robots" / "pal_talos" / "xmls" / "talos.xml"
+TALOS_PATH = Path(model_manager.get_model_path("pal_talos"))
+TALOS_XML: Path = Path(model_manager.load_scene("pal_talos", "talos.xml")) 
 assert TALOS_XML.exists()
 
 

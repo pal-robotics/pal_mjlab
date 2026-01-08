@@ -16,6 +16,11 @@ models:
     owner: pal-robotics-forks
     repo: mujoco_menagerie
     ref: sma/pal/kangaroo
+  
+  pal_talos:
+    owner: pal-robotics-forks
+    repo: mujoco_menagerie
+    ref: sma/talos_update
 
   pal_tiago_pro:
     owner: pal-robotics-forks
