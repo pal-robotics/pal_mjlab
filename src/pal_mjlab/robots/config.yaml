@@ -1,0 +1,23 @@
+defaults:
+  owner: google-deepmind
+  repo: mujoco_menagerie
+  ref: main  # Branch, tag, or commit hash
+
+# Specific overrides per model
+models:
+  # If not defined here, uses defaults above
+  # Use a forked repository
+  pal_kangaroo:
+    owner: pal-robotics-forks
+    repo: mujoco_menagerie
+    ref: sma/pal/kangaroo
+  
+  pal_kangaroo_simple:
+    owner: pal-robotics-forks
+    repo: mujoco_menagerie
+    ref: sma/pal/kangaroo
+
+  pal_tiago_pro:
+    owner: pal-robotics-forks
+    repo: mujoco_menagerie
+    ref: pal/tiago_pro
