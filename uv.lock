@@ -964,8 +964,8 @@ wheels = [
 
 [[package]]
 name = "mjlab"
-version = "0.1.0"
-source = { git = "https://github.com/mujocolab/mjlab#58886d2f3a4d033e0a972fd32db365c4ebc42c2b" }
+version = "1.0.0"
+source = { git = "https://github.com/mujocolab/mjlab?rev=main#a386f669c5bdaf9678fb7c9f10b3959673589844" }
 dependencies = [
     { name = "moviepy" },
     { name = "mujoco" },
@@ -1087,7 +1087,7 @@ wheels = [
 
 [[package]]
 name = "mujoco"
-version = "3.3.8.dev834865905"
+version = "3.4.1.dev852634373"
 source = { registry = "https://py.mujoco.org/" }
 dependencies = [
     { name = "absl-py" },
@@ -1098,28 +1098,24 @@ dependencies = [
     { name = "pyopengl" },
 ]
 wheels = [
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp310-cp310-macosx_11_0_universal2.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp310-cp310-win_amd64.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp311-cp311-macosx_11_0_universal2.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp311-cp311-win_amd64.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp312-cp312-macosx_11_0_universal2.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp312-cp312-win_amd64.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp313-cp313-macosx_11_0_universal2.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
-    { url = "https://py.mujoco.org/mujoco/mujoco-3.3.8.dev834865905-cp313-cp313-win_amd64.whl" },
+    { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
+    { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
+    { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp310-cp310-win_amd64.whl" },
+    { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
+    { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
+    { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp311-cp311-win_amd64.whl" },
+    { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
+    { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
+    { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp312-cp312-win_amd64.whl" },
+    { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp313-cp313-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
+    { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
+    { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp313-cp313-win_amd64.whl" },
 ]
 
 [[package]]
 name = "mujoco-warp"
 version = "0.0.1"
-source = { git = "https://github.com/google-deepmind/mujoco_warp?rev=9fc294d86955a303619a254cefae809a41adb274#9fc294d86955a303619a254cefae809a41adb274" }
+source = { git = "https://github.com/google-deepmind/mujoco_warp?rev=9491175b7cbea87e28d3e3e67733095317c33398#9491175b7cbea87e28d3e3e67733095317c33398" }
 dependencies = [
     { name = "absl-py" },
     { name = "etils", extra = ["epath"] },
@@ -1605,7 +1601,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mjlab", git = "https://github.com/mujocolab/mjlab" },
+    { name = "mjlab", git = "https://github.com/mujocolab/mjlab?rev=main" },
     { name = "ruff", specifier = ">=0.14.0" },
 ]
 
@@ -2138,21 +2134,20 @@ wheels = [
 
 [[package]]
 name = "rsl-rl-lib"
-version = "3.2.0"
+version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "gitpython" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "onnx" },
-    { name = "onnxscript" },
     { name = "tensordict" },
     { name = "torch" },
     { name = "torchvision" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e7/90/4a06e879f888bdabc2d9e782e15350b20d35c7928cfdda9e45a2d0acfab8/rsl_rl_lib-3.2.0.tar.gz", hash = "sha256:d1f23097921e230274e02c837a6b6f8af2ee81e087762e8b77ffa3fbd32dd0de", size = 38869, upload-time = "2025-11-28T16:23:35.16Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bc/7b/8a888898fa3dd79ffc16a80498b592430597fe85152b0a7567c05d576fa1/rsl_rl_lib-3.1.0.tar.gz", hash = "sha256:864d9e548bc27593e4fccbce9ad90678dee11866d980d150038afa8e8bf87f55", size = 35375, upload-time = "2025-09-18T08:21:50.376Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d8/fd/11d5b88be193493c53b4633732eb628e49b9f802efbaf3350c3265c61abf/rsl_rl_lib-3.2.0-py3-none-any.whl", hash = "sha256:5e822900d1cccf3f7fc02875bdb5612388785b8de5f9c2a5a0074f3d8363859a", size = 55196, upload-time = "2025-11-28T16:23:34.123Z" },
+    { url = "https://files.pythonhosted.org/packages/1b/37/46f6122fd8efa71d59497cfd3e078a373875535ab0b4f550f7aa47945224/rsl_rl_lib-3.1.0-py3-none-any.whl", hash = "sha256:142ae1c7fc9920d0c209223a4d7ab12ed974944dc0db642161fe01dba64ab4c9", size = 49362, upload-time = "2025-09-18T08:21:48.409Z" },
 ]
 
 [[package]]
@@ -2708,16 +2703,16 @@ wheels = [
 
 [[package]]
 name = "tyro"
-version = "0.10.0a6"
+version = "1.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docstring-parser" },
     { name = "typeguard" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/96/bd/c58407e6122ef8c8786f87525d7de79d9f133852c939c10a1a617ae95b44/tyro-0.10.0a6.tar.gz", hash = "sha256:dcf54d1f81d733991f7ae834059292b0e1d3336f34c800345078aa2f8db3611b", size = 411424, upload-time = "2025-11-17T08:13:30.636Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c8/c5/2513339a36f300f477e4742706b977d3a8784485c8df037b64712ccd0c5e/tyro-1.0.3.tar.gz", hash = "sha256:6b3d73af2a5bb87247cc98b3e0d0bd5443010617e38250e6780b9f8998e1541e", size = 450742, upload-time = "2025-12-21T09:11:37.184Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/78/67ab458dc61a8d29ad233a74c3dcf9f8124d3a3f660414371310e70a1bdf/tyro-0.10.0a6-py3-none-any.whl", hash = "sha256:e3285bf58443f2ba89b7391da05043e0e530764cbcbbc02ecc0451bb457fb545", size = 172474, upload-time = "2025-11-17T08:13:29.172Z" },
+    { url = "https://files.pythonhosted.org/packages/34/ac/8719fcb891c690394751114952e65f6f9f31259b6f62a10d7825b81f887e/tyro-1.0.3-py3-none-any.whl", hash = "sha256:d16758525b4c6ddd06fabb15ef821702b47aa829e0181be80ce71aa99acf99d9", size = 180664, upload-time = "2025-12-21T09:11:38.454Z" },
 ]
 
 [[package]]
@@ -2815,17 +2810,17 @@ wheels = [
 
 [[package]]
 name = "warp-lang"
-version = "1.11.0.dev20251121"
+version = "1.12.0.dev20260106"
 source = { registry = "https://pypi.nvidia.com/" }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
 wheels = [
-    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.11.0.dev20251121-py3-none-macosx_11_0_arm64.whl", hash = "sha256:d7663ac8909b1c5ef9813d26fecb62dbbf9a5d48c4b69df2c4d99d92807c4779" },
-    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.11.0.dev20251121-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:572ef50d47e183399ae8f62e238fd14849178ef84178bc6c5f84f41bd1b361e8" },
-    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.11.0.dev20251121-py3-none-manylinux_2_34_aarch64.whl", hash = "sha256:c8d127bcca7e6f5207a331e5a861836b61fb28ea9271eb727ee304c79c3a9c10" },
-    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.11.0.dev20251121-py3-none-win_amd64.whl", hash = "sha256:e5117fe029cef773779d0821a20edddbd501362e32e95f79be82cc38f5137612" },
+    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.12.0.dev20260106-py3-none-macosx_11_0_arm64.whl", hash = "sha256:52b0395a8e0796ea2313ebe5a3e6cd4fcce843a8c03449020617c07967b6e464" },
+    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.12.0.dev20260106-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:615c32c4cbda117b6822f804ba426a355ee9a90601bc458c41ce0e4d5e3fb692" },
+    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.12.0.dev20260106-py3-none-manylinux_2_34_aarch64.whl", hash = "sha256:197d07fd5600ef9d2fe48dc3a0ace4ab691752edac0feafc17b88f7373f50199" },
+    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.12.0.dev20260106-py3-none-win_amd64.whl", hash = "sha256:dcc74d74ff2b0ab5b888c50fd23984b492a52a12af13ee5c057b3fd42a7e9f2c" },
 ]
 
 [[package]]

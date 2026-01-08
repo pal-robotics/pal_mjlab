@@ -70,25 +70,25 @@ def get_spec() -> mujoco.MjSpec:
 
 # Arms
 TIAGO_PRO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"arm_.*_(1|2)_joint",),
+    target_names_expr=(r"arm_.*_(1|2)_joint",),
     **S_PLUS,
 )
 TIAGO_PRO_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
+    target_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
     **S_MINUS,
 )
 TIAGO_PRO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
+    target_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
     **XS,
 )
 # Torso
 TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("torso_lift_joint",),
+    target_names_expr=("torso_lift_joint",),
     **TORSO,
 )
 # Grippers
 GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"gripper_(left|right)_.*_joint",),
+    target_names_expr=(r"gripper_(left|right)_.*_joint",),
     **GRIPPER,
 )
 
@@ -154,7 +154,7 @@ def get_tiago_pro_robot_cfg() -> EntityCfg:
 for a in TIAGO_PRO_ARTICULATION.actuators:
     e = a.effort_limit
     s = a.stiffness
-    names = a.joint_names_expr
+    names = a.target_names_expr
 
     if not isinstance(e, dict):
         e = {n: e for n in names}
