@@ -7,6 +7,9 @@ wheels/
 *.egg-info
 *.pch
 
+# MuJoCo-generated files
+mj_models/
+
 # Virtual environments
 .venv
 

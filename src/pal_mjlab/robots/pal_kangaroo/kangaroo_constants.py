@@ -8,17 +8,23 @@ from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
 from mjlab.actuator import BuiltinPositionActuatorCfg
+from pal_mjlab.robots.model_manager import ModelManager
 
 # There are multiple variants of the KANGAROO robot. For simplicity, we only implemented the following:
 # - kangaroo: simplified model with 4 DoF per arm and a fake forearm
 # - kangaroo_hands: simplified model with 5 DoF per arm and a Seed Robotics hand
 # - kangaroo_gripper: simplified model with 7 DoF per arm and a gripper
 # - kangaroo_full: full model with 4 DoF per arm and a fake forearm
+model_manager = ModelManager()
+try:
+    model_manager.download_model("pal_kangaroo_simple", force_overwrite=False)
+except Exception as e:
+    raise RuntimeError(f"Error downloading KANGAROO model: {e}")
 
-KANGAROO_PATH = PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo" / "xmls"
-KANGAROO_XML = KANGAROO_PATH / "kangaroo.xml"
-KANGAROO_HANDS_XML = KANGAROO_PATH / "kangaroo_hands.xml"
-KANGAROO_GRIPPERS_XML = KANGAROO_PATH / "kangaroo_grippers.xml"
+KANGAROO_PATH = Path(model_manager.get_model_path("pal_kangaroo_simple")) # PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo" / "xmls"
+KANGAROO_XML = Path(model_manager.load_scene("pal_kangaroo_simple", "kangaroo.xml")) # KANGAROO_PATH / "kangaroo.xml"
+KANGAROO_HANDS_XML = Path(model_manager.load_scene("pal_kangaroo_simple", "kangaroo_hands.xml")) # KANGAROO_PATH / "kangaroo_hands.xml"
+KANGAROO_GRIPPERS_XML = Path(model_manager.load_scene("pal_kangaroo_simple", "kangaroo_grippers.xml")) # KANGAROO_PATH / "kangaroo_grippers.xml"
 
 for p in [KANGAROO_PATH, KANGAROO_XML, KANGAROO_HANDS_XML, KANGAROO_GRIPPERS_XML]:
     assert p.exists(), f"Missing: {p}"
