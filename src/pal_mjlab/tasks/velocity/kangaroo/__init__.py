@@ -2,12 +2,12 @@ from mjlab.tasks.registry import register_mjlab_task
 from mjlab.tasks.velocity.rl import VelocityOnPolicyRunner
 
 from .env_cfgs import (
-    pal_kangaroo_rough_env_cfg,
     pal_kangaroo_flat_env_cfg,
-    pal_kangaroo_hands_rough_env_cfg,
-    pal_kangaroo_hands_flat_env_cfg,
-    pal_kangaroo_grippers_rough_env_cfg,
     pal_kangaroo_grippers_flat_env_cfg,
+    pal_kangaroo_grippers_rough_env_cfg,
+    pal_kangaroo_hands_flat_env_cfg,
+    pal_kangaroo_hands_rough_env_cfg,
+    pal_kangaroo_rough_env_cfg,
 )
 from .rl_cfg import pal_kangaroo_ppo_runner_cfg
 

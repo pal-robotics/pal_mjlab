@@ -3,12 +3,12 @@
 from pathlib import Path
 
 import mujoco
-
-from pal_mjlab import PAL_MJLAB_SRC_PATH
+from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
-from mjlab.actuator import BuiltinPositionActuatorCfg
+
+from pal_mjlab import PAL_MJLAB_SRC_PATH
 
 ##
 # MJCF and assets.
@@ -348,7 +348,6 @@ for a in TALOS_ARTICULATION.actuators:
 
 if __name__ == "__main__":
     import mujoco.viewer as viewer
-
     from mjlab.entity.entity import Entity
 
     robot = Entity(get_talos_robot_cfg())

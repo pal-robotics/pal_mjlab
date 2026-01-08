@@ -1,13 +1,14 @@
 """Pal Robotics KANGAROO constants."""
 
 from pathlib import Path
-import mujoco
 
-from pal_mjlab import PAL_MJLAB_SRC_PATH
+import mujoco
+from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
-from mjlab.actuator import BuiltinPositionActuatorCfg
+
+from pal_mjlab import PAL_MJLAB_SRC_PATH
 
 # There are multiple variants of the KANGAROO robot. For simplicity, we only implemented the following:
 # - kangaroo: simplified model with 4 DoF per arm and a fake forearm

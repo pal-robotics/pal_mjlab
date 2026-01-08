@@ -3,8 +3,8 @@ from mjlab.tasks.velocity.rl import VelocityOnPolicyRunner
 
 from .env_cfgs import (
     pal_kangaroo_flat_loco_reaching_env_cfg,
-    pal_kangaroo_hands_flat_loco_reaching_env_cfg,
     pal_kangaroo_grippers_flat_loco_reaching_env_cfg,
+    pal_kangaroo_hands_flat_loco_reaching_env_cfg,
 )
 from .rl_cfg import pal_kangaroo_ppo_runner_cfg
 

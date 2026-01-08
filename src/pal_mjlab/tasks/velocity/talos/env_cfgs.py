@@ -1,17 +1,14 @@
 """PAL Robotics Talos velocity tracking environment configurations."""
 
-from pal_mjlab.robots import (
-    TALOS_ACTION_SCALE,
-    get_talos_robot_cfg,
-)
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
-from mjlab.managers.manager_term_config import RewardTermCfg
+from mjlab.managers.manager_term_config import RewardTermCfg, TerminationTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
-from mjlab.managers.manager_term_config import TerminationTermCfg
+
+from pal_mjlab.robots import TALOS_ACTION_SCALE, get_talos_robot_cfg
 
 
 def pal_talos_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:

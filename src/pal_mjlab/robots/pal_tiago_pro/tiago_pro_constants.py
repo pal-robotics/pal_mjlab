@@ -3,12 +3,12 @@
 from pathlib import Path
 
 import mujoco
-
-from pal_mjlab import PAL_MJLAB_SRC_PATH
+from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
-from mjlab.actuator import BuiltinPositionActuatorCfg
+
+from pal_mjlab import PAL_MJLAB_SRC_PATH
 
 TIAGO_PRO_XML: Path = (
     PAL_MJLAB_SRC_PATH / "robots" / "pal_tiago_pro" / "xmls" / "tiago_pro.xml"

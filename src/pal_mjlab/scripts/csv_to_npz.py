@@ -3,12 +3,9 @@ from typing import Any
 import numpy as np
 import torch
 import tyro
-from tqdm import tqdm
-
 from mjlab.entity import Entity
 from mjlab.scene import Scene
 from mjlab.sim.sim import Simulation, SimulationCfg
-from pal_mjlab.tasks.talos_tracking.env_cfgs import TalosFlatEnvCfg
 from mjlab.utils.lab_api.math import (
     axis_angle_from_quat,
     quat_apply_inverse,
@@ -18,6 +15,9 @@ from mjlab.utils.lab_api.math import (
 )
 from mjlab.viewer.offscreen_renderer import OffscreenRenderer
 from mjlab.viewer.viewer_config import ViewerConfig
+from tqdm import tqdm
+
+from pal_mjlab.tasks.talos_tracking.env_cfgs import TalosFlatEnvCfg
 
 
 class MotionLoader:
