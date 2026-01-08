@@ -25,3 +25,6 @@ mjlab = { git = "https://github.com/mujocolab/mjlab" }
 
 [project.entry-points."mjlab.tasks"]
 pal_mjlab = "pal_mjlab.tasks"
+
+[tool.uv]
+override-dependencies = ["mujoco>=3.2.0"]
