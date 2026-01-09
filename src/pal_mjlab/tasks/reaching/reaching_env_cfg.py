@@ -2,17 +2,14 @@
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
-from mjlab.managers.manager_term_config import (
-    ActionTermCfg,
-    CommandTermCfg,
-    CurriculumTermCfg,
-    EventTermCfg,
-    ObservationGroupCfg,
-    ObservationTermCfg,
-    RewardTermCfg,
-    TerminationTermCfg,
-)
+from mjlab.managers.action_manager import ActionTermCfg
+from mjlab.managers.command_manager import CommandTermCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
+from mjlab.managers.event_manager import EventTermCfg
+from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
+from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.scene import SceneCfg
 from mjlab.sim import MujocoCfg, SimulationCfg
 from mjlab.terrains import TerrainImporterCfg
