@@ -36,7 +36,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     geom_names = tuple(
         f"{side}_foot{i}_collision"
         for side in ("left", "right")
-        for i in [0, 2, 4, 6, 8, 10]
+        for i in [2, 8]
     )
     actuated_joints = (
         # Lower body.
