@@ -265,7 +265,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
         "weight_stages": [
           {"step": 0, "weight": -0.01},
           {"step": 5_000 * 24, "weight": -0.1},
-          {"step": 15_000 * 24, "weight": -1.0},
+          # {"step": 15_000 * 24, "weight": -1.0},
         ],
       },
     ),
