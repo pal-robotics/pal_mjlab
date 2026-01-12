@@ -58,7 +58,7 @@ def pal_tiago_pro_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
                     joint_names=("torso_lift_joint",),
                 )
             },
-        ),
+        )
     )
     cfg.rewards["self_collisions"] = RewardTermCfg(
         func=mdp.self_collision_cost,

@@ -15,11 +15,10 @@ from mjlab.managers.manager_term_config import (
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.scene import SceneCfg
 from mjlab.sim import MujocoCfg, SimulationCfg
+from pal_mjlab.tasks.reaching import mdp
 from mjlab.terrains import TerrainImporterCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
-
-from pal_mjlab.tasks.reaching import mdp
 
 
 def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
@@ -72,7 +71,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
 
     actions: dict[str, ActionTermCfg] = {
         "joint_pos": JointPositionActionCfg(
-            entity_name="robot",
+            asset_name="robot",
             actuator_names=(".*",),
             scale=0.5,  # Override per-robot.
             use_default_offset=True,
@@ -85,7 +84,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
 
     commands: dict[str, CommandTermCfg] = {
         "pose_command_left": mdp.UniformPoseCommandCfg(
-            entity_name="robot",
+            asset_name="robot",
             debug_vis=True,
             resampling_time_range=(5.0, 10.0),
             site_name="ee_left",
@@ -96,7 +95,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             ),
         ),
         "pose_command_right": mdp.UniformPoseCommandCfg(
-            entity_name="robot",
+            asset_name="robot",
             debug_vis=True,
             resampling_time_range=(5.0, 10.0),
             site_name="ee_right",
@@ -131,6 +130,28 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "field": "dof_frictionloss",
                 "ranges": (0.5, 2.0),
                 "operation": "abs",
+            },
+        ),
+        "reset_ineratia": EventTermCfg(
+            mode="reset",
+            func=mdp.randomize_field,
+            domain_randomization=True,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+                "field": "body_inertia",
+                "ranges": (0.95, 1.05),
+                "operation": "scale",
+            },
+        ),
+        "reset_masses": EventTermCfg(
+            mode="reset",
+            func=mdp.randomize_field,
+            domain_randomization=True,
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=(".*",)),
+                "field": "body_mass",
+                "ranges": (0.95, 1.05),
+                "operation": "scale",
             },
         ),
     }
@@ -175,7 +196,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "pos_right_fine_grained": RewardTermCfg(
             func=mdp.position_command_error_tanh,
-            weight=2.0,
+            weight=3.0,
             params={
                 "site_name": "ee_right",
                 "command_name": "pose_command_right",
@@ -193,7 +214,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
         "action_rate_l2": RewardTermCfg(
             func=mdp.action_rate_l2_louis,
-            weight=-0.0001,
+            weight=-0.003,
             params={
                 "asset_cfg": SceneEntityCfg(
                     "robot", joint_names=(".*",)
@@ -202,7 +223,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "joint_vel_hinge": RewardTermCfg(
             func=mdp.joint_velocity_hinge_penalty,
-            weight=-0.01,
+            weight=-0.05,
             params={
                 "max_vel": 0.5,
                 "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
@@ -227,8 +248,8 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             params={
                 "reward_name": "action_rate_l2",
                 "weight_stages": [
-                    {"step": 0, "weight": -0.0003},
-                    {"step": 5_000 * 24, "weight": -0.005},
+                    {"step": 0, "weight": -0.003},
+                    {"step": 5_000 * 24, "weight": -0.01},
                 ],
             },
         ),
@@ -238,7 +259,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "reward_name": "ee_right_orientation",
                 "weight_stages": [
                     {"step": 0, "weight": -0.3},
-                    {"step": 10_000 * 24, "weight": -0.6},
+                    {"step": 7_500 * 24, "weight": -0.6},
                 ],
             },
         ),
@@ -248,7 +269,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "reward_name": "ee_left_orientation",
                 "weight_stages": [
                     {"step": 0, "weight": -0.3},
-                    {"step": 10_000 * 24, "weight": -0.6},
+                    {"step": 7_500 * 24, "weight": -0.6},
                 ],
             },
         ),
@@ -277,7 +298,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         curriculum=curriculum,
         viewer=ViewerConfig(
             origin_type=ViewerConfig.OriginType.ASSET_BODY,
-            entity_name="robot",
+            asset_name="robot",
             body_name="",  # Set per-robot.
             distance=3.0,
             elevation=-5.0,

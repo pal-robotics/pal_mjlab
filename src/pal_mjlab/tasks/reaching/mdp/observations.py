@@ -17,6 +17,6 @@ def commands_gen(
 ) -> torch.Tensor:
     command = env.command_manager.get_term(command_name)
 
-    des_pos_b = command.command[:, :3]
+    des_pos_b = command.command
 
     return des_pos_b
