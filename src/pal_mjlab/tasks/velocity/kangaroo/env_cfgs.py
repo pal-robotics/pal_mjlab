@@ -31,6 +31,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg = make_velocity_env_cfg()
     cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
     cfg.sim.nconmax = 45
+    cfg.sim.mujoco.ccd_iterations = 500
+    cfg.sim.contact_sensor_maxmatch = 500
 
     site_names = ("left_foot", "right_foot")
     geom_names = tuple(
@@ -300,6 +302,11 @@ def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO flat terrain velocity configuration."""
     cfg = pal_kangaroo_rough_env_cfg(play=play)
 
+    cfg.sim.njmax = 300
+    cfg.sim.mujoco.ccd_iterations = 50
+    cfg.sim.contact_sensor_maxmatch = 64
+    cfg.sim.nconmax = None
+    
     # Switch to flat terrain.
     assert cfg.scene.terrain is not None
     cfg.scene.terrain.terrain_type = "plane"
