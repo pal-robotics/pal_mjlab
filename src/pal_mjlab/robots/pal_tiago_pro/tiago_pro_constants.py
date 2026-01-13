@@ -107,6 +107,8 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         "arm_right_3_joint": -0.4698,
         "arm_.*_4_joint": -2.3409,
         "arm_.*_6_joint": -1.2006,
+        "arm_.*_7_joint": 0.0,
+        "gripper_.*_joint": 0.0,
     },
     joint_vel={".*": 0.0},
 )
@@ -132,7 +134,7 @@ TIAGO_PRO_ARTICULATION = EntityArticulationInfoCfg(
         TIAGO_PRO_S_MINUS_ACTUATOR_CFG,
         TIAGO_PRO_XS_ACTUATOR_CFG,
         TORSO_ACTUATOR_CFG,
-        # GRIPPER_ACTUATOR_CFG,
+        GRIPPER_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.9,
 )
