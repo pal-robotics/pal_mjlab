@@ -45,8 +45,8 @@ S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
 S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
 XS = _calc_actuator_params(101, 1.3e-5, 25)
 # GRIPPER = _calc_actuator_params(100, 207e-4, 40)
-GRIPPER = {"armature": 0.006, "stiffness": 100, "damping": 10, "effort_limit": 8}
-TORSO = {"armature": 0.1, "stiffness": 1500, "damping": 300, "effort_limit": 2200}
+GRIPPER = {"armature": 0.006, "stiffness": 100.0, "damping": 10.0, "effort_limit": 8.0}
+TORSO = {"armature": 0.1, "stiffness": 1500.0, "damping": 300.0, "effort_limit": 2200.0}
 
 ##
 # MJCF & Assets
