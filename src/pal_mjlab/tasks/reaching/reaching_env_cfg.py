@@ -132,7 +132,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "operation": "abs",
             },
         ),
-        "reset_ineratia": EventTermCfg(
+        "reset_inertia": EventTermCfg(
             mode="reset",
             func=mdp.randomize_field,
             domain_randomization=True,
