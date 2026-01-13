@@ -143,7 +143,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "operation": "scale",
             },
         ),
-        "reset_masses": EventTermCfg(
+        "reset_mass": EventTermCfg(
             mode="reset",
             func=mdp.randomize_field,
             domain_randomization=True,
