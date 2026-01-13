@@ -96,7 +96,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
         "gripper_pos": JointPositionActionCfg(
             entity_name="robot",
             actuator_names=("gripper_.*_joint"), 
-            scale=0.5,  # Override per-robot.
+            scale=5.0,  # Override per-robot.
             use_default_offset=True,
         ),
         # "gripper_pos": mdp.MirroredJointPositionActionCfg(
@@ -352,7 +352,7 @@ def make_lift_env_cfg() -> ManagerBasedRlEnvCfg:
             azimuth=90.0,
         ),
         sim=SimulationCfg(
-            nconmax=35,
+            nconmax=300,
             njmax=300,
             mujoco=MujocoCfg(
                 timestep=0.005,
