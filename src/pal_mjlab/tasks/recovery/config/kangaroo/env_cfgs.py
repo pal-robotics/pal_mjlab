@@ -70,8 +70,8 @@ def pal_kangaroo_flat_recovery_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
     )
-    cfg.rewards["power"].params["asset_cfg"].joint_names = ("leg_.*(1|2|3|4|5|length)_joint", "arm.*", "pelvis_.*")
-    cfg.rewards["joint_vel_hinge"].params["asset_cfg"].joint_names = ("leg_.*(1|2|3|4|5|knee|femur)_joint", "arm.*", "pelvis_.*")
+    # cfg.rewards["power"].params["asset_cfg"].joint_names = ("leg_.*(1|2|3|4|5|length)_joint", "arm.*", "pelvis_.*")
+    # cfg.rewards["joint_vel_hinge"].params["asset_cfg"].joint_names = ("leg_.*(1|2|3|4|5|knee|femur)_joint", "arm.*", "pelvis_.*")
 
     cfg.viewer.body_name = "pelvis_2_link"
 

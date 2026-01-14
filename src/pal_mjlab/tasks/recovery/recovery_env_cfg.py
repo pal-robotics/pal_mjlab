@@ -42,7 +42,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"sensor_name": "robot/imu_ang_vel"},
       noise=Unoise(n_min=-0.2, n_max=0.2),
     ),
-    # imu proj grav instead
+    # TODO Louis: Use IMU projected gravity instead
     "projected_gravity": ObservationTermCfg(
       func=mdp.projected_gravity,
       noise=Unoise(n_min=-0.05, n_max=0.05),
@@ -55,21 +55,23 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.joint_vel_rel,
       noise=Unoise(n_min=-1.5, n_max=1.5),
     ),
+    "head_to_foot_diff": ObservationTermCfg(
+      func=mdp.head_to_foot_delta_xyz,
+      params={
+        "head_name": "head",  # either link or site
+        "left_foot_name": "leg_left_5_link",
+        "right_foot_name": "leg_right_5_link",
+      },
+      noise=Unoise(n_min=-0.02, n_max=0.02),
+    ),
     "actions": ObservationTermCfg(func=mdp.last_action),
   }
 
   critic_terms = {
     **policy_terms,
-    "base_lin_acc": ObservationTermCfg(
-      func=mdp.builtin_sensor,
-      params={"sensor_name": "robot/imu_lin_acc"},
-    ),
-    "base_lin_vel": ObservationTermCfg(
-      func=mdp.builtin_sensor,
-      params={"sensor_name": "robot/imu_lin_vel"},
-    ),
-    "torso_height": ObservationTermCfg(
-      func=mdp.torso_height_obs,
+    "head_pos": ObservationTermCfg(
+      func=mdp.head_pos,
+      params={"head_name": "head"},
     ),
   }
 
@@ -168,24 +170,34 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
 
   rewards = {
+
+    "head_height": RewardTermCfg(
+      func=mdp.head_height,
+      weight=1.0,
+      params={
+        "z_des": 1.365,
+        "std": math.sqrt(2 / 3),
+        "head_name": "head",
+      },
+    ),
     # -- getup rewards --
     "orientation": RewardTermCfg(
       func=mdp.orientation,
       weight=1.0,
       params={"std": math.sqrt(0.5)},
     ),
-    "torso_height": RewardTermCfg(
-      func=mdp.torso_height,
-      weight=4.0,
-      params={
-        "std": math.sqrt(2 / 3),
-        "z_des": 1.0,
-      },
-    ),
-    "posture": RewardTermCfg(
-      func=mdp.getup_posture,
-      weight=0.5,
-    ),
+    # "torso_height": RewardTermCfg(
+    #   func=mdp.torso_height,
+    #   weight=4.0,
+    #   params={
+    #     "std": math.sqrt(2 / 3),
+    #     "z_des": 1.0,
+    #   },
+    # ),
+    # "posture": RewardTermCfg(
+    #   func=mdp.getup_posture,
+    #   weight=0.5,
+    # ),
     # -- regularization --
     "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-0.1),
     # "dof_vel_limits": RewardTermCfg(
@@ -197,28 +209,28 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     #     "soft_ratio": 0.9,
     #   },
     # ),
-    "joint_vel_hinge": RewardTermCfg(
-      func=mdp.joint_velocity_hinge_penalty,
-      weight=-0.01,
-      params={
-        "max_vel": 0.5,
-        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-      },
-    ),
+    # "joint_vel_hinge": RewardTermCfg(
+    #   func=mdp.joint_velocity_hinge_penalty,
+    #   weight=-0.01,
+    #   params={
+    #     "max_vel": 0.5,
+    #     "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+    #   },
+    # ),
     "action_rate_l2": RewardTermCfg(
         func=mdp.action_rate_l2, weight=-0.01,
     ),
-    "power": RewardTermCfg(
-        func=mdp.power_limit, weight=-0.0,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-        },
-    ),
-    "self_collisions": RewardTermCfg(
-      func=mdp.self_collision_cost,
-      weight=-1.0,
-      params={"sensor_name": ""}, # Set per-robot.
-    )
+    # "power": RewardTermCfg(
+    #     func=mdp.power_limit, weight=-0.0,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+    #     },
+    # ),
+    # "self_collisions": RewardTermCfg(
+    #   func=mdp.self_collision_cost,
+    #   weight=-1.0,
+    #   params={"sensor_name": ""}, # Set per-robot.
+    # )
   }
 
   ##
@@ -237,38 +249,38 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
 
   curriculum = {
-    "action_rate": CurriculumTermCfg(
-      func=mdp.reward_weight,
-      params={
-        "reward_name": "action_rate_l2",
-        "weight_stages": [
-            {"step": 0, "weight": -0.01},
-            {"step": 2500 * 24, "weight": -0.1},
-        ],
-      },
-    ),
-    "power": CurriculumTermCfg(
-      func=mdp.reward_weight,
-      params={
-          "reward_name": "power",
-          "weight_stages": [
-              {"step": 0, "weight": 0.0},
-              {"step": 5000 * 24, "weight": -0.01},
-              {"step": 7500 * 24, "weight": -0.1},
-          ],
-      },
-    ),
-    "joint_vel_hinge_weight": CurriculumTermCfg(
-      func=mdp.reward_weight,
-      params={
-        "reward_name": "joint_vel_hinge",
-        "weight_stages": [
-          {"step": 0, "weight": -0.01},
-          {"step": 5_000 * 24, "weight": -0.1},
-          # {"step": 15_000 * 24, "weight": -1.0},
-        ],
-      },
-    ),
+    # "action_rate": CurriculumTermCfg(
+    #   func=mdp.reward_weight,
+    #   params={
+    #     "reward_name": "action_rate_l2",
+    #     "weight_stages": [
+    #         {"step": 0, "weight": -0.01},
+    #         {"step": 2500 * 24, "weight": -0.1},
+    #     ],
+    #   },
+    # ),
+    # "power": CurriculumTermCfg(
+    #   func=mdp.reward_weight,
+    #   params={
+    #       "reward_name": "power",
+    #       "weight_stages": [
+    #           {"step": 0, "weight": 0.0},
+    #           {"step": 5000 * 24, "weight": -0.01},
+    #           {"step": 7500 * 24, "weight": -0.1},
+    #       ],
+    #   },
+    # ),
+    # "joint_vel_hinge_weight": CurriculumTermCfg(
+    #   func=mdp.reward_weight,
+    #   params={
+    #     "reward_name": "joint_vel_hinge",
+    #     "weight_stages": [
+    #       {"step": 0, "weight": -0.01},
+    #       {"step": 5_000 * 24, "weight": -0.1},
+    #       # {"step": 15_000 * 24, "weight": -1.0},
+    #     ],
+    #   },
+    # ),
   }
 
   ##

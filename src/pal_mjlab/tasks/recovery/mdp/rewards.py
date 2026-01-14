@@ -47,6 +47,34 @@ def torso_height(
     return torch.exp(-z_err_squared / std**2)
 
 
+def head_height(
+    env: ManagerBasedRlEnv,
+    z_des: float,
+    std: float,
+    head_name: str = "head",  # either link or site,
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+    asset: Entity = env.scene[asset_cfg.name]
+
+    # Determine if head_name is a site or a body
+    if head_name in asset.site_names:
+        head_ids, _ = asset.find_sites(head_name)
+        z = asset.data.site_pos_w[:, head_ids[0], 2]
+    elif head_name in asset.body_names:
+        head_ids, _ = asset.find_bodies(head_name)
+        z = asset.data.body_link_pos_w[:, head_ids[0], 2]
+    else:
+        raise ValueError(f"'{head_name}' not found in sites or bodies")
+    
+    z_err = z - z_des
+    z_err_scaled = torch.where(z_err < 0, z_err, z_err * 0.25)
+    z_err_squared = torch.square(z_err_scaled)
+
+    env.extras["log"]["Metrics/mean_head_height"] = torch.mean(z)
+
+    return torch.exp(-z_err_squared / std**2)
+
+
 def getup_posture(
     env: ManagerBasedRlEnv,
     z_min: float = 0.0,

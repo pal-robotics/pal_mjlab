@@ -65,6 +65,7 @@
           <geom pos="0 -0.105954 0.390496" quat="1.01637e-06 8.52866e-07 0.766033 -0.642802" type="mesh" class="visual" mesh="arm_base_link" />
           <geom name="pelvis_2_collision" size="0.163724 0.162985" pos="4.77798e-07 -1.67441e-06 0.234507" quat="1 -3.97075e-06 -1.19191e-05 0" class="collision"/>
           <site name="imu" pos="0.071 -0.0014 0.0261" quat="0 -0.707107 0.707107 0"/>
+          <site name="head" pos="0.0 0.0 0.4" quat="0 0 0 1"/>
           <body name="arm_left_1_link" pos="0 0.105954 0.390496" quat="-4.68302e-06 -2.52466e-06 0.642799 -0.766035">
             <inertial pos="0.0070639 0.0030301 -0.05724" quat="0.991252 0.0809813 -0.0910271 0.0507521" mass="1.1788" diaginertia="0.00192068 0.00177268 0.000875278" />
             <joint name="arm_left_1_joint" axis="0 0 -1" range="-2.61799 2.61799" />
