@@ -23,6 +23,9 @@ from pal_mjlab.robots import (
     KANGAROO_HANDS_ACTUATOR_NAMES,
     REGEX_ALL_ACTIVE_JOINTS_EXCEPT_LENGTH,
     REGEX_LEG_LENGTH_JOINTS_ONLY,
+    REGEX_FEMUR_KNEE_AND_ARMS_LINKS,
+    REGEX_ARM_LINKS,
+    REGEX_KNEE_AND_FEMUR_LINKS,
     get_kangaroo_grippers_robot_cfg,
     get_kangaroo_hands_robot_cfg,
     get_kangaroo_robot_cfg,
@@ -130,18 +133,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.observations["critic"].history_length = 5  # Keep last 5 frames
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
-    # joint level domain randomization
-    cfg.events["joint_offset"] = EventTermCfg(
-        mode="startup",
-        func=mdp.randomize_field,
-        domain_randomization=True,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-            "field": "qpos0",
-            "ranges": (-0.008, 0.008),
-            "operation": "add",
-        },
-    )
+    # cfg.events["joint_offset"] = None # joint level domain randomization
     cfg.events["encoder_bias"] = EventTermCfg(
       mode="startup",
       func=mdp.randomize_encoder_bias,
@@ -189,7 +181,45 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis_2_link"]),
             "field": "body_mass",
-            "ranges": (0.0, 4.0),
+            "ranges": (0.0, 1.0),
+            "operation": "add",
+        },
+    )
+
+    cfg.events["other_links_com"] = EventTermCfg(
+      mode="startup",
+      func=mdp.randomize_field,
+      domain_randomization=True,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", body_names=[REGEX_FEMUR_KNEE_AND_ARMS_LINKS]),  # Set per-robot.
+        "operation": "add",
+        "field": "body_ipos",
+        "ranges": {
+          0: (-0.005, 0.005),
+          1: (-0.005, 0.005),
+          2: (-0.005, 0.005),
+        },
+      },
+    )
+    cfg.events["arm_links_mass"] = EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=[REGEX_ARM_LINKS]),
+            "field": "body_mass",
+            "ranges": (-0.05, 0.05),
+            "operation": "add",
+        },
+    )
+    cfg.events["legs_links_mass"] = EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=[REGEX_KNEE_AND_FEMUR_LINKS]),
+            "field": "body_mass",
+            "ranges": (-0.2, 0.2),
             "operation": "add",
         },
     )

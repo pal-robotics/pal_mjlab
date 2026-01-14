@@ -57,7 +57,7 @@
         <joint name="pelvis_1_joint" axis="0 0 -1" range="-0.349066 0.349066" />
         <geom type="mesh" class="visual" mesh="pelvis_1_link" />
         <body name="pelvis_2_link" pos="-0.0591 0 0" quat="0.707105 0 -0.707108 0">
-          <inertial pos="-0.0096298 -0.000857135 0.220739" quat="0.999875 0.0105643 0.00161433 -0.0116448" mass="13.7723" diaginertia="0.312791 0.291456 0.113386" />
+          <inertial pos="-0.0096298 -0.000857135 0.220739" quat="0.999875 0.0105643 0.00161433 -0.0116448" mass="15.7" diaginertia="0.312791 0.291456 0.113386" />
           <joint name="pelvis_2_joint" axis="0 0 -1" range="-1.309 1.309" />
           <geom type="mesh" class="visual" mesh="pelvis_2_link" />
           <geom pos="0 0 0.0061" quat="1 0 0 0" type="mesh" class="visual" mesh="torso_link" />
