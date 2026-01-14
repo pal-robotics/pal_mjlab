@@ -194,10 +194,10 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     #     "z_des": 1.0,
     #   },
     # ),
-    # "posture": RewardTermCfg(
-    #   func=mdp.getup_posture,
-    #   weight=0.5,
-    # ),
+    "posture": RewardTermCfg(
+      func=mdp.getup_posture,
+      weight=0.5,
+    ),
     # -- regularization --
     "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-0.1),
     # "dof_vel_limits": RewardTermCfg(
@@ -209,16 +209,19 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     #     "soft_ratio": 0.9,
     #   },
     # ),
-    # "joint_vel_hinge": RewardTermCfg(
-    #   func=mdp.joint_velocity_hinge_penalty,
-    #   weight=-0.01,
-    #   params={
-    #     "max_vel": 0.5,
-    #     "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-    #   },
-    # ),
+    "joint_vel_hinge": RewardTermCfg(
+      func=mdp.joint_velocity_hinge_penalty,
+      weight=-0.01,
+      params={
+        "max_vel": 4.0, # TODO Louis: Adjust per-robot per-joint.
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+      },
+    ),
     "action_rate_l2": RewardTermCfg(
-        func=mdp.action_rate_l2, weight=-0.01,
+        func=mdp.action_rate_l2, weight=-0.05,
+    ),
+    "joint_vel_l2": RewardTermCfg(
+        func=mdp.joint_vel_l2, weight=-0.1,
     ),
     # "power": RewardTermCfg(
     #     func=mdp.power_limit, weight=-0.0,
@@ -226,11 +229,11 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     #         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
     #     },
     # ),
-    # "self_collisions": RewardTermCfg(
-    #   func=mdp.self_collision_cost,
-    #   weight=-1.0,
-    #   params={"sensor_name": ""}, # Set per-robot.
-    # )
+    "self_collisions": RewardTermCfg(
+      func=mdp.self_collision_cost,
+      weight=-0.1,
+      params={"sensor_name": ""}, # Set per-robot.
+    )
   }
 
   ##
@@ -239,6 +242,10 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
 
   terminations = {
     "time_out": TerminationTermCfg(func=mdp.time_out, time_out=True),
+    # "over_gyro": TerminationTermCfg(
+    #   func=mdp.over_gyro,
+    #   params={"limit_vel": 25.0},
+    # ),
     # TODO Louis: Could it be good to add it as a termination? In the
     # sense that when I tested it, the torque limitation issue was still
     # present, so I suppose it had an impact on this kind of task.
