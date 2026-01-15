@@ -63,7 +63,6 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     **policy_terms,
     "base_projected_gravity": ObservationTermCfg(
       func=mdp.projected_gravity,
-      noise=Unoise(n_min=-0.05, n_max=0.05),
     ),
     "head_to_foot_diff": ObservationTermCfg(
       func=mdp.head_to_foot_delta_xyz,
