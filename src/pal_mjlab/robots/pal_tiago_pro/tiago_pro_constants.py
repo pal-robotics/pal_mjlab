@@ -86,11 +86,6 @@ TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=("torso_lift_joint",),
     **TORSO,
 )
-# Grippers
-GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=(r"gripper_(left|right)_.*_joint",),
-    **GRIPPER,
-)
 
 ##
 # Initial State
@@ -132,7 +127,6 @@ TIAGO_PRO_ARTICULATION = EntityArticulationInfoCfg(
         TIAGO_PRO_S_MINUS_ACTUATOR_CFG,
         TIAGO_PRO_XS_ACTUATOR_CFG,
         TORSO_ACTUATOR_CFG,
-        # GRIPPER_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.9,
 )
