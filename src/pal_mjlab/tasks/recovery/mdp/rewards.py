@@ -175,3 +175,6 @@ def joint_velocity_hinge_penalty(
   joint_vel = robot.data.joint_vel[:, asset_cfg.joint_ids]
   excess = (joint_vel.abs() - max_vel).clamp_min(0.0)
   return (excess**2).sum(dim=-1)
+
+
+
