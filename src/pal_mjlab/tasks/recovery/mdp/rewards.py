@@ -175,3 +175,112 @@ def joint_velocity_hinge_penalty(
   joint_vel = robot.data.joint_vel[:, asset_cfg.joint_ids]
   excess = (joint_vel.abs() - max_vel).clamp_min(0.0)
   return (excess**2).sum(dim=-1)
+
+
+class variable_posture_standup:
+    """Penalize deviation from standing pose with height-dependent tolerance.
+    
+    Uses per-joint standard deviations to control how much each joint can deviate
+    from the standing pose. Smaller std = stricter (less deviation allowed), larger
+    std = more forgiving. The reward is: exp(-mean(error² / std²))
+    
+    Three height regimes (based on head height):
+      - std_fallen (height < rising_threshold): Loose tolerance for exploration.
+      - std_rising (rising_threshold <= height < standing_threshold): Moderate.
+      - std_standing (height >= standing_threshold): Tight tolerance for good posture.
+    
+    Tune std values per joint based on how much freedom that joint needs at each
+    height. Map joint name patterns to std values, e.g. {".*knee.*": 0.5}.
+    """
+    
+    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+        asset: Entity = env.scene[cfg.params["asset_cfg"].name]
+        
+        # Standing pose (not default fallen pose!)
+        _, joint_names = asset.find_joints(cfg.params["asset_cfg"].joint_names)
+
+        default_joint_pos = asset.data.default_joint_pos
+        assert default_joint_pos is not None
+        self.default_joint_pos = default_joint_pos
+        
+        # Standard deviations for fallen state (loose)
+        _, _, std_fallen = resolve_matching_names_values(
+            data=cfg.params["std_fallen"],
+            list_of_strings=joint_names,
+        )
+        self.std_fallen = torch.tensor(
+            std_fallen, device=env.device, dtype=torch.float32
+        )
+        
+        # Standard deviations for rising state (moderate)
+        _, _, std_rising = resolve_matching_names_values(
+            data=cfg.params["std_rising"],
+            list_of_strings=joint_names,
+        )
+        self.std_rising = torch.tensor(
+            std_rising, device=env.device, dtype=torch.float32
+        )
+        
+        # Standard deviations for standing state (tight)
+        _, _, std_standing = resolve_matching_names_values(
+            data=cfg.params["std_standing"],
+            list_of_strings=joint_names,
+        )
+        self.std_standing = torch.tensor(
+            std_standing, device=env.device, dtype=torch.float32
+        )
+        
+        # Target standing height
+        self.z_des = cfg.params["z_des"]
+    
+    def __call__(
+        self,
+        env: ManagerBasedRlEnv,
+        std_fallen,
+        std_rising,
+        std_standing,
+        z_des,
+        asset_cfg: SceneEntityCfg,
+        head_name: str = "head",
+        rising_threshold: float = 0.4,    # Height ratio for rising state
+        standing_threshold: float = 0.75,  # Height ratio for standing state
+    ) -> torch.Tensor:
+        del std_fallen, std_rising, std_standing, z_des  # Unused (loaded in __init__)
+        
+        asset: Entity = env.scene[asset_cfg.name]
+        
+        # Get head height
+        if head_name in asset.site_names:
+            head_ids, _ = asset.find_sites(head_name)
+            z = asset.data.site_pos_w[:, head_ids[0], 2]
+        elif head_name in asset.body_names:
+            head_ids, _ = asset.find_bodies(head_name)
+            z = asset.data.body_link_pos_w[:, head_ids[0], 2]
+        else:
+            raise ValueError(f"'{head_name}' not found in sites or bodies")
+        
+        # Compute height ratio
+        height_ratio = z / self.z_des
+        
+        # Create masks for different height regimes
+        fallen_mask = (height_ratio < rising_threshold).float()
+        rising_mask = (
+            (height_ratio >= rising_threshold) & (height_ratio < standing_threshold)
+        ).float()
+        standing_mask = (height_ratio >= standing_threshold).float()
+        
+        # Interpolate standard deviation based on height
+        std = (
+            self.std_fallen * fallen_mask.unsqueeze(1)
+            + self.std_rising * rising_mask.unsqueeze(1)
+            + self.std_standing * standing_mask.unsqueeze(1)
+        )
+        
+        # Get current and desired joint positions
+        current_joint_pos = asset.data.joint_pos[:, asset_cfg.joint_ids]
+        desired_joint_pos = self.default_joint_pos[:, asset_cfg.joint_ids]
+        
+        # Compute error with height-dependent tolerance
+        error_squared = torch.square(current_joint_pos - desired_joint_pos)
+        
+        return torch.exp(-torch.mean(error_squared / (std**2), dim=1))
