@@ -53,7 +53,7 @@
 
   <worldbody>
     <body name="base_link" pos="0 0 0.9">
-      <inertial pos="-0.0913441 -0.0313598 0.00676412" quat="0.445077 0.406142 -0.397876 0.691845" mass="4.82254" diaginertia="0.0600103 0.0509711 0.0269078" />
+      <inertial pos="-0.0913441 -0.0013598 0.00676412" quat="0.5 0.5 -0.5 0.5" mass="4.82254" diaginertia="0.0600103 0.0509711 0.0269078" />
       <joint name="origin" type="free" />
       <geom type="mesh" class="visual" mesh="base_link_with_pelvis" />
       <geom type="mesh" class="visual" mesh="handle" />
