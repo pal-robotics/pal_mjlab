@@ -22,7 +22,9 @@ REGEX_ALL_ARM_JOINTS = r"arm_.*_joint"
 REGEX_ALL_LEG_JOINTS = r"leg_.*_joint"
 REGEX_ALL_JOINTS_EXCEPT_LENGTH = r"(?!leg_.*_length_joint).*_joint"
 REGEX_ALL_ACTIVE_JOINTS = r"(?!.*_femur_joint)(?!.*_knee_joint).*_joint"
-REGEX_ALL_ACTIVE_JOINTS_EXCEPT_LENGTH = r"(?!leg_.*_length_joint)(?!.*_femur_joint)(?!.*_knee_joint).*_joint"
+REGEX_ALL_ACTIVE_JOINTS_EXCEPT_LENGTH = (
+    r"(?!leg_.*_length_joint)(?!.*_femur_joint)(?!.*_knee_joint).*_joint"
+)
 REGEX_FEMUR_KNEE_AND_ARMS_LINKS = r"(leg_.*_femur_link|leg_.*_knee_link|arm_.*_link)"
 REGEX_KNEE_AND_FEMUR_LINKS = r"(leg_.*_femur_link|leg_.*_knee_link)"
 REGEX_ARM_LINKS = r"arm_.*_link"

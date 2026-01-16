@@ -22,10 +22,10 @@ from pal_mjlab.robots import (
     KANGAROO_HANDS_ACTION_SCALE,
     KANGAROO_HANDS_ACTUATOR_NAMES,
     REGEX_ALL_ACTIVE_JOINTS_EXCEPT_LENGTH,
-    REGEX_LEG_LENGTH_JOINTS_ONLY,
-    REGEX_FEMUR_KNEE_AND_ARMS_LINKS,
     REGEX_ARM_LINKS,
+    REGEX_FEMUR_KNEE_AND_ARMS_LINKS,
     REGEX_KNEE_AND_FEMUR_LINKS,
+    REGEX_LEG_LENGTH_JOINTS_ONLY,
     get_kangaroo_grippers_robot_cfg,
     get_kangaroo_hands_robot_cfg,
     get_kangaroo_robot_cfg,
@@ -135,20 +135,24 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
     # cfg.events["joint_offset"] = None # joint level domain randomization
     cfg.events["encoder_bias"] = EventTermCfg(
-      mode="startup",
-      func=mdp.randomize_encoder_bias,
-      params={
-        "asset_cfg": SceneEntityCfg("robot", joint_names=[REGEX_ALL_ACTIVE_JOINTS_EXCEPT_LENGTH]),
-        "bias_range": (-0.035, 0.035),
-      },
+        mode="startup",
+        func=mdp.randomize_encoder_bias,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=[REGEX_ALL_ACTIVE_JOINTS_EXCEPT_LENGTH]
+            ),
+            "bias_range": (-0.035, 0.035),
+        },
     )
     cfg.events["leg_length_encoder_bias"] = EventTermCfg(
-      mode="startup",
-      func=mdp.randomize_encoder_bias,
-      params={
-        "asset_cfg": SceneEntityCfg("robot", joint_names=[REGEX_LEG_LENGTH_JOINTS_ONLY]),
-        "bias_range": (-0.008, 0.008),
-      },
+        mode="startup",
+        func=mdp.randomize_encoder_bias,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=[REGEX_LEG_LENGTH_JOINTS_ONLY]
+            ),
+            "bias_range": (-0.008, 0.008),
+        },
     )
     cfg.events["joint_friction"] = EventTermCfg(
         mode="startup",
@@ -187,19 +191,21 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     )
 
     cfg.events["other_links_com"] = EventTermCfg(
-      mode="startup",
-      func=mdp.randomize_field,
-      domain_randomization=True,
-      params={
-        "asset_cfg": SceneEntityCfg("robot", body_names=[REGEX_FEMUR_KNEE_AND_ARMS_LINKS]),  # Set per-robot.
-        "operation": "add",
-        "field": "body_ipos",
-        "ranges": {
-          0: (-0.005, 0.005),
-          1: (-0.005, 0.005),
-          2: (-0.005, 0.005),
+        mode="startup",
+        func=mdp.randomize_field,
+        domain_randomization=True,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", body_names=[REGEX_FEMUR_KNEE_AND_ARMS_LINKS]
+            ),  # Set per-robot.
+            "operation": "add",
+            "field": "body_ipos",
+            "ranges": {
+                0: (-0.005, 0.005),
+                1: (-0.005, 0.005),
+                2: (-0.005, 0.005),
+            },
         },
-      },
     )
     cfg.events["arm_links_mass"] = EventTermCfg(
         mode="startup",
@@ -217,7 +223,9 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         func=mdp.randomize_field,
         domain_randomization=True,
         params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=[REGEX_KNEE_AND_FEMUR_LINKS]),
+            "asset_cfg": SceneEntityCfg(
+                "robot", body_names=[REGEX_KNEE_AND_FEMUR_LINKS]
+            ),
             "field": "body_mass",
             "ranges": (-0.2, 0.2),
             "operation": "add",
