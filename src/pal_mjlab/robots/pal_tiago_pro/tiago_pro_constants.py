@@ -3,12 +3,12 @@
 from pathlib import Path
 
 import mujoco
-
-from pal_mjlab import PAL_MJLAB_SRC_PATH
+from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
-from mjlab.actuator import BuiltinPositionActuatorCfg
+
+from pal_mjlab import PAL_MJLAB_SRC_PATH
 
 TIAGO_PRO_XML: Path = (
     PAL_MJLAB_SRC_PATH / "robots" / "pal_tiago_pro" / "xmls" / "tiago_pro.xml"
@@ -70,26 +70,21 @@ def get_spec() -> mujoco.MjSpec:
 
 # Arms
 TIAGO_PRO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"arm_.*_(1|2)_joint",),
+    target_names_expr=(r"arm_.*_(1|2)_joint",),
     **S_PLUS,
 )
 TIAGO_PRO_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
+    target_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
     **S_MINUS,
 )
 TIAGO_PRO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
+    target_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
     **XS,
 )
 # Torso
 TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=("torso_lift_joint",),
+    target_names_expr=("torso_lift_joint",),
     **TORSO,
-)
-# Grippers
-GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"gripper_(left|right)_.*_joint",),
-    **GRIPPER,
 )
 
 ##
@@ -132,7 +127,6 @@ TIAGO_PRO_ARTICULATION = EntityArticulationInfoCfg(
         TIAGO_PRO_S_MINUS_ACTUATOR_CFG,
         TIAGO_PRO_XS_ACTUATOR_CFG,
         TORSO_ACTUATOR_CFG,
-        # GRIPPER_ACTUATOR_CFG,
     ),
     soft_joint_pos_limit_factor=0.9,
 )
@@ -154,7 +148,7 @@ def get_tiago_pro_robot_cfg() -> EntityCfg:
 for a in TIAGO_PRO_ARTICULATION.actuators:
     e = a.effort_limit
     s = a.stiffness
-    names = a.joint_names_expr
+    names = a.target_names_expr
 
     if not isinstance(e, dict):
         e = {n: e for n in names}

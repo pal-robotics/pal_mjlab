@@ -1,29 +1,31 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
-from pal_mjlab.robots import (
-    get_kangaroo_robot_cfg,
-    get_kangaroo_hands_robot_cfg,
-    get_kangaroo_grippers_robot_cfg,
-    KANGAROO_ACTION_SCALE,
-    KANGAROO_HANDS_ACTION_SCALE,
-    KANGAROO_GRIPPERS_ACTION_SCALE,
-    KANGAROO_ACTUATOR_NAMES,
-    KANGAROO_HANDS_ACTUATOR_NAMES,
-    KANGAROO_GRIPPERS_ACTUATOR_NAMES,
-)
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
-from mjlab.managers.manager_term_config import RewardTermCfg
+from mjlab.managers.manager_term_config import (
+    EventTermCfg,
+    ObservationTermCfg,
+    RewardTermCfg,
+    TerminationTermCfg,
+)
+from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
-from pal_mjlab.tasks.velocity.kangaroo import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
-from mjlab.managers.manager_term_config import TerminationTermCfg, EventTermCfg
-from mjlab.managers.scene_entity_config import SceneEntityCfg
-from mjlab.managers.manager_term_config import (
-    ObservationTermCfg,
-)
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
+
+from pal_mjlab.robots import (
+    KANGAROO_ACTION_SCALE,
+    KANGAROO_ACTUATOR_NAMES,
+    KANGAROO_GRIPPERS_ACTION_SCALE,
+    KANGAROO_GRIPPERS_ACTUATOR_NAMES,
+    KANGAROO_HANDS_ACTION_SCALE,
+    KANGAROO_HANDS_ACTUATOR_NAMES,
+    get_kangaroo_grippers_robot_cfg,
+    get_kangaroo_hands_robot_cfg,
+    get_kangaroo_robot_cfg,
+)
+from pal_mjlab.tasks.velocity.kangaroo import mdp
 
 
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -252,6 +254,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
         cfg.observations["policy"].enable_corruption = False
         cfg.events.pop("push_robot", None)
+        cfg.events["randomize_terrain"] = EventTermCfg(
+            func=mdp.randomize_terrain,
+            mode="reset",
+            params={},
+        )
 
         if cfg.scene.terrain is not None:
             if cfg.scene.terrain.terrain_generator is not None:

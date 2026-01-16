@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-
 from mjlab.managers import CommandTerm, CommandTermCfg
 from mjlab.utils.lab_api.math import (
     matrix_from_quat,
@@ -30,7 +29,7 @@ class UniformPoseCommand(CommandTerm):
         super().__init__(cfg, env)
 
         # Extract the robot and site index for which the command is generated
-        self.robot: Entity = env.scene[cfg.asset_name]
+        self.robot: Entity = env.scene[cfg.entity_name]
         self.site_idx = self.robot.site_names.index(cfg.site_name)
 
         # Create buffers
@@ -216,7 +215,7 @@ class UniformPoseCommandCfg(CommandTermCfg):
 
     class_type: type[CommandTerm] = UniformPoseCommand
 
-    asset_name: str
+    entity_name: str
     """Name of the robot asset in the scene."""
 
     site_name: str
@@ -247,3 +246,6 @@ class UniformPoseCommandCfg(CommandTermCfg):
 
     viz: VizCfg = field(default_factory=VizCfg)
     """Visualization configuration."""
+
+    def build(self, env: ManagerBasedRlEnv) -> UniformPoseCommand:
+        return UniformPoseCommand(self, env)

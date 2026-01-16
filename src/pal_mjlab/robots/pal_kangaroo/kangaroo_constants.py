@@ -1,13 +1,14 @@
 """Pal Robotics KANGAROO constants."""
 
 from pathlib import Path
-import mujoco
 
-from pal_mjlab import PAL_MJLAB_SRC_PATH
+import mujoco
+from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
-from mjlab.actuator import BuiltinPositionActuatorCfg
+
+from pal_mjlab import PAL_MJLAB_SRC_PATH
 
 # There are multiple variants of the KANGAROO robot. For simplicity, we only implemented the following:
 # - kangaroo: simplified model with 4 DoF per arm and a fake forearm
@@ -99,28 +100,28 @@ def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
 # Legs
 KANGAROO_LEG_ACTUATORS = (
     BuiltinPositionActuatorCfg(
-        joint_names_expr=("leg_.*_1_joint",), **_calc_leg_params(100, 80)
+        target_names_expr=("leg_.*_1_joint",), **_calc_leg_params(100.0, 80.0)
     ),
     BuiltinPositionActuatorCfg(
-        joint_names_expr=("leg_.*_2_joint",), **_calc_leg_params(100, 230)
+        target_names_expr=("leg_.*_2_joint",), **_calc_leg_params(100.0, 230.0)
     ),
     BuiltinPositionActuatorCfg(
-        joint_names_expr=("leg_.*_3_joint",), **_calc_leg_params(100, 139)
+        target_names_expr=("leg_.*_3_joint",), **_calc_leg_params(100.0, 139.0)
     ),
     BuiltinPositionActuatorCfg(
-        joint_names_expr=("leg_.*_4_joint",), **_calc_leg_params(30, 140)
+        target_names_expr=("leg_.*_4_joint",), **_calc_leg_params(30.0, 140.0)
     ),
     BuiltinPositionActuatorCfg(
-        joint_names_expr=("leg_.*_5_joint",), **_calc_leg_params(30, 82)
+        target_names_expr=("leg_.*_5_joint",), **_calc_leg_params(30.0, 82.0)
     ),
     BuiltinPositionActuatorCfg(
-        joint_names_expr=("leg_.*_length_joint",), **_calc_leg_params(1600, 1100)
+        target_names_expr=("leg_.*_length_joint",), **_calc_leg_params(1600.0, 1100.0)
     ),
 )
 
 # Arms & Torso
 KANGAROO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(
+    target_names_expr=(
         "arm_.*_1_joint",
         "arm_.*_2_joint",
         "pelvis_1_joint",
@@ -129,11 +130,11 @@ KANGAROO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     **S_PLUS,
 )
 KANGAROO_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
+    target_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
     **S_MINUS,
 )
 KANGAROO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    joint_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
+    target_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
     **XS,
 )
 
@@ -262,14 +263,14 @@ def _build_action_scales(
         e = (
             a.effort_limit
             if isinstance(a.effort_limit, dict)
-            else {n: a.effort_limit for n in a.joint_names_expr}
+            else {n: a.effort_limit for n in a.target_names_expr}
         )
         s = (
             a.stiffness
             if isinstance(a.stiffness, dict)
-            else {n: a.stiffness for n in a.joint_names_expr}
+            else {n: a.stiffness for n in a.target_names_expr}
         )
-        for n in a.joint_names_expr:
+        for n in a.target_names_expr:
             if n in e and n in s and s[n] and n not in exclude:
                 scales[n] = 0.25 * e[n] / s[n]
                 names.append(n)
