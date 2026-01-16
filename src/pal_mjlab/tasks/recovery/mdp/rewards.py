@@ -242,8 +242,8 @@ class variable_posture_standup:
         z_des,
         asset_cfg: SceneEntityCfg,
         head_name: str = "head",
-        rising_threshold: float = 0.4,    # Height ratio for rising state
-        standing_threshold: float = 0.75,  # Height ratio for standing state
+        rising_threshold: float = 0.6,    # Height ratio for rising state
+        standing_threshold: float = 0.9,  # Height ratio for standing state
     ) -> torch.Tensor:
         del std_fallen, std_rising, std_standing, z_des  # Unused (loaded in __init__)
         

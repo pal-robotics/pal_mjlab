@@ -203,7 +203,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     # ),
     "posture": RewardTermCfg(
       func=mdp.variable_posture_standup,
-      weight=0.5,
+      weight=0.2,
       params={
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
         "std_fallen": {},  # Set per-robot.
