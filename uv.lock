@@ -16,9 +16,6 @@ resolution-markers = [
     "python_full_version < '3.11' and sys_platform == 'darwin'",
 ]
 
-[manifest]
-overrides = [{ name = "mujoco", specifier = ">=3.2.0" }]
-
 [[package]]
 name = "absl-py"
 version = "2.3.1"
@@ -1100,7 +1097,6 @@ dependencies = [
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pyopengl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/75/3b/f688fbe34eb609ffdc9dc0f53f7acd3327588f970752780d05a0762d3511/mujoco-3.4.0.tar.gz", hash = "sha256:5a6dc6b7db41eb0ab8724cd477bd0316ba4b53debfc2d80a2d6f444a116fb8d2", size = 826806, upload-time = "2025-12-05T23:13:46.833Z" }
 wheels = [
     { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl" },
     { url = "https://py.mujoco.org/mujoco/mujoco-3.4.1.dev852634373-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
