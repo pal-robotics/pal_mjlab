@@ -44,8 +44,9 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     # TODO Louis: Use IMU projected gravity instead
     "projected_gravity": ObservationTermCfg(
-      func=mdp.projected_gravity,
-      noise=Unoise(n_min=-0.05, n_max=0.05),
+        func=mdp.imu_projected_gravity,
+        params={"sensor_name": "robot/imu_quat"},
+        noise=Unoise(n_min=-0.5, n_max=0.5),
     ),
     "joint_pos": ObservationTermCfg(
       func=mdp.joint_pos_rel,
@@ -55,6 +56,14 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.joint_vel_rel,
       noise=Unoise(n_min=-1.5, n_max=1.5),
     ),
+    "actions": ObservationTermCfg(func=mdp.last_action),
+  }
+
+  critic_terms = {
+    **policy_terms,
+    "base_projected_gravity": ObservationTermCfg(
+      func=mdp.projected_gravity,
+    ),
     "head_to_foot_diff": ObservationTermCfg(
       func=mdp.head_to_foot_delta_xyz,
       params={
@@ -62,13 +71,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
         "left_foot_name": "leg_left_5_link",
         "right_foot_name": "leg_right_5_link",
       },
-      noise=Unoise(n_min=-0.02, n_max=0.02),
     ),
-    "actions": ObservationTermCfg(func=mdp.last_action),
-  }
-
-  critic_terms = {
-    **policy_terms,
     "head_pos": ObservationTermCfg(
       func=mdp.head_pos,
       params={"head_name": "head"},
@@ -225,7 +228,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     # ),
     "joint_vel_hinge": RewardTermCfg(
       func=mdp.joint_velocity_hinge_penalty,
-      weight=-0.01,
+      weight=0.0,
       params={
         "max_vel": 4.0, # TODO Louis: Adjust per-robot per-joint.
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
@@ -234,9 +237,9 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     "action_rate_l2": RewardTermCfg(
         func=mdp.action_rate_l2, weight=-0.05,
     ),
-    "joint_vel_l2": RewardTermCfg(
-        func=mdp.joint_vel_l2, weight=-0.1,
-    ),
+    # "joint_vel_l2": RewardTermCfg(
+    #     func=mdp.joint_vel_l2, weight=-0.1,
+    # ),
     # "power": RewardTermCfg(
     #     func=mdp.power_limit, weight=-0.0,
     #     params={
@@ -291,17 +294,17 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     #       ],
     #   },
     # ),
-    # "joint_vel_hinge_weight": CurriculumTermCfg(
-    #   func=mdp.reward_weight,
-    #   params={
-    #     "reward_name": "joint_vel_hinge",
-    #     "weight_stages": [
-    #       {"step": 0, "weight": -0.01},
-    #       {"step": 5_000 * 24, "weight": -0.1},
-    #       # {"step": 15_000 * 24, "weight": -1.0},
-    #     ],
-    #   },
-    # ),
+    "joint_vel_hinge_weight": CurriculumTermCfg(
+      func=mdp.reward_weight,
+      params={
+        "reward_name": "joint_vel_hinge",
+        "weight_stages": [
+          {"step": 0, "weight": 0.0},
+          {"step": 5_000 * 24, "weight": -0.01},
+          # {"step": 15_000 * 24, "weight": -1.0},
+        ],
+      },
+    ),
   }
 
   ##
@@ -343,5 +346,5 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
       ),
     ),
     decimation=4,
-    episode_length_s=20.0,
+    episode_length_s=10.0,
   )
