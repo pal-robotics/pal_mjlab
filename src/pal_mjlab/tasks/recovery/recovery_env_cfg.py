@@ -197,24 +197,29 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     #     "z_des": 1.0,
     #   },
     # ),
-    # "posture": RewardTermCfg(
-    #   func=mdp.getup_posture,
-    #   weight=0.5,
-    # ),
     "posture": RewardTermCfg(
-      func=mdp.variable_posture_standup,
+      func=mdp.getup_posture,
       weight=0.2,
       params={
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-        "std_fallen": {},  # Set per-robot.
-        "std_rising": {},  # Set per-robot.
-        "std_standing": {},  # Set per-robot.
-        "z_des": 1.365,
+        "z_min": 1.0,
         "head_name": "head",
-        "rising_threshold": 0.4,    # 40% of target height
-        "standing_threshold": 0.75,  # 75% of target height
       },
     ),
+    # "posture": RewardTermCfg(
+    #   func=mdp.variable_posture_standup,
+    #   weight=0.2,
+    #   params={
+    #     "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+    #     "std_fallen": {},  # Set per-robot.
+    #     "std_rising": {},  # Set per-robot.
+    #     "std_standing": {},  # Set per-robot.
+    #     "z_des": 1.365,
+    #     "head_name": "head",
+    #     "rising_threshold": 0.4,    # 40% of target height
+    #     "standing_threshold": 0.75,  # 75% of target height
+    #   },
+    # ),
     # -- regularization --
     "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-0.1),
     # "dof_vel_limits": RewardTermCfg(

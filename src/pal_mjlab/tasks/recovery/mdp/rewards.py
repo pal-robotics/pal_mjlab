@@ -78,9 +78,21 @@ def head_height(
 def getup_posture(
     env: ManagerBasedRlEnv,
     z_min: float = 0.0,
+    head_name: str = "head",  # either link or site,
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
     asset: Entity = env.scene[asset_cfg.name]
+
+    # Determine if head_name is a site or a body
+    if head_name in asset.site_names:
+        head_ids, _ = asset.find_sites(head_name)
+        z = asset.data.site_pos_w[:, head_ids[0], 2]
+    elif head_name in asset.body_names:
+        head_ids, _ = asset.find_bodies(head_name)
+        z = asset.data.body_link_pos_w[:, head_ids[0], 2]
+    else:
+        raise ValueError(f"'{head_name}' not found in sites or bodies")
+    
 
     pos_err = torch.sum(
         torch.square(asset.data.joint_pos - asset.data.default_joint_pos), dim=1
