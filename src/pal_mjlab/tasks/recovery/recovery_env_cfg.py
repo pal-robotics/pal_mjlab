@@ -176,7 +176,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
 
     "head_height": RewardTermCfg(
       func=mdp.head_height,
-      weight=1.0,
+      weight=2.0,
       params={
         "z_des": 1.365,
         "std": math.sqrt(2 / 3),
@@ -186,7 +186,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     # -- getup rewards --
     "orientation": RewardTermCfg(
       func=mdp.orientation,
-      weight=1.0,
+      weight=2.0,
       params={"std": math.sqrt(0.5)},
     ),
     # "torso_height": RewardTermCfg(
