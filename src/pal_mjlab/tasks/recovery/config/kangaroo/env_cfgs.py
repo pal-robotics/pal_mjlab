@@ -87,52 +87,52 @@ def pal_kangaroo_flat_recovery_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
 
 
 
-    cfg.rewards["posture"].params["asset_cfg"].joint_names = actuated_joints
-    cfg.rewards["posture"].params["std_standing"] = {
-        # Lower body.
-        r"leg_.*_1_.*": 0.05,
-        r"leg_.*_2_.*": 0.05,
-        r"leg_.*_3_.*": 0.05,
-        r"leg_.*_length_.*": 0.05,
-        r"leg_.*_4_.*": 0.05,
-        r"leg_.*_5_.*": 0.05,
-        # Waist.
-        r"pelvis_.*": 0.05,
-        # Arms.
-        r"arm_.*": 0.05,
-    }
-    cfg.rewards["posture"].params["std_rising"] = {
-        # Lower body.
-        r"leg_.*_1_.*": 0.5,
-        r"leg_.*_2_.*": 0.6,  # pitch
-        r"leg_.*_3_.*": 0.5,
-        r"leg_.*_length_.*": 0.7,  # length
-        r"leg_.*_4_.*": 0.5,
-        r"leg_.*_5_.*": 0.5,
-        # Waist.
-        r"pelvis_1.*": 0.08,
-        r"pelvis_2.*": 0.2,
-        # Arms.
-        r"arm_.*_1_.*": 0.5,  # pitch
-        r"arm_.*_4_.*": 0.5,
-        r"arm_.*_(?![14]_joint)\d+_joint": 0.5,
-    }
-    cfg.rewards["posture"].params["std_fallen"] = {
-        # Lower body.
-        r"leg_.*_1_.*": 1.0,
-        r"leg_.*_2_.*": 1.2,
-        r"leg_.*_3_.*": 1.0,
-        r"leg_.*_length_.*": 1.5,
-        r"leg_.*_4_.*": 1.0,
-        r"leg_.*_5_.*": 1.0,
-        # Waist.
-        r"pelvis_1.*": 1.0,
-        r"pelvis_2.*": 1.0,
-        # Arms.
-        r"arm_.*_1_.*": 1.0,
-        r"arm_.*_4_.*": 1.0,
-        r"arm_.*_(?![14]_joint)\d+_joint": 1.0,
-    }
+    # cfg.rewards["posture"].params["asset_cfg"].joint_names = actuated_joints
+    # cfg.rewards["posture"].params["std_standing"] = {
+    #     # Lower body.
+    #     r"leg_.*_1_.*": 0.05,
+    #     r"leg_.*_2_.*": 0.05,
+    #     r"leg_.*_3_.*": 0.05,
+    #     r"leg_.*_length_.*": 0.05,
+    #     r"leg_.*_4_.*": 0.05,
+    #     r"leg_.*_5_.*": 0.05,
+    #     # Waist.
+    #     r"pelvis_.*": 0.05,
+    #     # Arms.
+    #     r"arm_.*": 0.05,
+    # }
+    # cfg.rewards["posture"].params["std_rising"] = {
+    #     # Lower body.
+    #     r"leg_.*_1_.*": 0.5,
+    #     r"leg_.*_2_.*": 0.6,  # pitch
+    #     r"leg_.*_3_.*": 0.5,
+    #     r"leg_.*_length_.*": 0.7,  # length
+    #     r"leg_.*_4_.*": 0.5,
+    #     r"leg_.*_5_.*": 0.5,
+    #     # Waist.
+    #     r"pelvis_1.*": 0.08,
+    #     r"pelvis_2.*": 0.2,
+    #     # Arms.
+    #     r"arm_.*_1_.*": 0.5,  # pitch
+    #     r"arm_.*_4_.*": 0.5,
+    #     r"arm_.*_(?![14]_joint)\d+_joint": 0.5,
+    # }
+    # cfg.rewards["posture"].params["std_fallen"] = {
+    #     # Lower body.
+    #     r"leg_.*_1_.*": 1.0,
+    #     r"leg_.*_2_.*": 1.2,
+    #     r"leg_.*_3_.*": 1.0,
+    #     r"leg_.*_length_.*": 1.5,
+    #     r"leg_.*_4_.*": 1.0,
+    #     r"leg_.*_5_.*": 1.0,
+    #     # Waist.
+    #     r"pelvis_1.*": 1.0,
+    #     r"pelvis_2.*": 1.0,
+    #     # Arms.
+    #     r"arm_.*_1_.*": 1.0,
+    #     r"arm_.*_4_.*": 1.0,
+    #     r"arm_.*_(?![14]_joint)\d+_joint": 1.0,
+    # }
 
 
 
