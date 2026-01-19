@@ -965,7 +965,7 @@ wheels = [
 [[package]]
 name = "mjlab"
 version = "1.0.0"
-source = { git = "https://github.com/mujocolab/mjlab?rev=cef73219be9803b590dda5e8b1c7251e74a2a20c#cef73219be9803b590dda5e8b1c7251e74a2a20c" }
+source = { git = "https://github.com/mujocolab/mjlab#9f089d28ef2f83aba46f48add6a27d6bb63a86e4" }
 dependencies = [
     { name = "moviepy" },
     { name = "mujoco" },
@@ -1601,7 +1601,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mjlab", git = "https://github.com/mujocolab/mjlab?rev=cef73219be9803b590dda5e8b1c7251e74a2a20c" },
+    { name = "mjlab", git = "https://github.com/mujocolab/mjlab" },
     { name = "ruff", specifier = ">=0.14.0" },
 ]
 
