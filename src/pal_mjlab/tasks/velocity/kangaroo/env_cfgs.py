@@ -33,7 +33,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.sim.nconmax = 45
     cfg.sim.mujoco.ccd_iterations = 500
     cfg.sim.contact_sensor_maxmatch = 500
-    cfg.sim.dt = 0.002
+    cfg.sim.mujoco.timestep = 0.002
     cfg.decimation = 10
 
     site_names = ("left_foot", "right_foot")
