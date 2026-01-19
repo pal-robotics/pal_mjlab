@@ -33,12 +33,13 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.sim.nconmax = 45
     cfg.sim.mujoco.ccd_iterations = 500
     cfg.sim.contact_sensor_maxmatch = 500
+    cfg.sim.dt = 0.002
 
     site_names = ("left_foot", "right_foot")
     geom_names = tuple(
         f"{side}_foot{i}_collision"
         for side in ("left", "right")
-        for i in [2, 8]
+        for i in [0, 2, 4, 6, 8, 10]
     )
     actuated_joints = (
         # Lower body.
