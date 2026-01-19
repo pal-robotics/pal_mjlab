@@ -42,19 +42,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         for side in ("left", "right")
         for i in [0, 2, 4, 6, 8, 10]
     )
-    actuated_joints = (
-        # Lower body.
-        r"leg_.*_1_.*",
-        r"leg_.*_2_.*",
-        r"leg_.*_3_.*",
-        r"leg_.*_length_.*",
-        r"leg_.*_4_.*",
-        r"leg_.*_5_.*",
-        # Waist.
-        r"pelvis_.*",
-        # Arms.
-        r"arm_.*",
-    )
+    actuated_joints = r"^(?!leg_.*_femur_joint$|leg_.*_knee_joint$).*$"  # Exclude femur and knee joints.
 
     feet_ground_cfg = ContactSensorCfg(
         name="feet_ground_contact",
@@ -110,7 +98,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     twist_cmd.viz.z_offset = 1.15
 
     cfg.observations["policy"].terms["base_lin_vel"] = None
-    cfg.observations["policy"].terms["projected_gravity"] = ObservationTermCfg(
+    cfg.observations["policy"].terms["imu_projected_gravity"] = ObservationTermCfg(
         func=mdp.imu_projected_gravity,
         params={"sensor_name": "robot/imu_quat"},
         noise=Unoise(n_min=-0.5, n_max=0.5),
@@ -133,7 +121,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     ].site_names = site_names
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
-    # joint level domain randomization
+    cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
     cfg.events["joint_friction"] = EventTermCfg(
         mode="startup",
         func=mdp.randomize_field,
@@ -158,20 +146,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         },
     )
 
-    cfg.rewards["pose"].params["asset_cfg"].joint_names = actuated_joints
-    cfg.rewards["pose"].params["std_standing"] = {
-        # Lower body.
-        r"leg_.*_1_.*": 0.05,
-        r"leg_.*_2_.*": 0.05,
-        r"leg_.*_3_.*": 0.05,
-        r"leg_.*_length_.*": 0.05,
-        r"leg_.*_4_.*": 0.05,
-        r"leg_.*_5_.*": 0.05,
-        # Waist.
-        r"pelvis_.*": 0.05,
-        # Arms.
-        r"arm_.*": 0.05,
-    }
+    cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
+    cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
     cfg.rewards["pose"].params["std_walking"] = {
         # Lower body.
         r"leg_.*_1_.*": 0.15,
@@ -185,7 +161,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"pelvis_2.*": 0.2,
         # Arms.
         r"arm_.*_1_.*": 0.2,  # pitch
-        r"arm_.*_4_.*": 0.2,
+        r"arm_.*_4_.*": 0.2,  # elbow
         r"arm_.*_(?![14]_joint)\d+_joint": 0.1,
     }
     cfg.rewards["pose"].params["std_running"] = {
