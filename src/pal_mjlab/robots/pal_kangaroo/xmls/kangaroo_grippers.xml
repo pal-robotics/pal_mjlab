@@ -327,8 +327,8 @@
   </worldbody>
 
   <equality>
-    <connect anchor="0.0 0.0 0.0" body1="leg_left_4_link" body2="leg_left_knee_link" name="leg_left_closed_kin_joint" solref="0.002 1" />
-    <connect anchor="0.0 0.0 0.0" body1="leg_right_4_link" body2="leg_right_knee_link" name="leg_right_closed_kin_joint" solref="0.002 1" />
+    <connect anchor="0.0 0.0 0.0" body1="leg_left_4_link" body2="leg_left_knee_link" name="leg_left_closed_kin_joint" solref="0.004 1" />
+    <connect anchor="0.0 0.0 0.0" body1="leg_right_4_link" body2="leg_right_knee_link" name="leg_right_closed_kin_joint" solref="0.004 1" />
     <!-- grippers -->
     <connect active="true" anchor="0.01475 -0.001463 0.001" body1="gripper_left_fingertip_right_link" body2="gripper_left_outer_finger_right_link" name="gripper_left_r" solimp="0.95 0.99 0.001" solref="0.005 1" />
     <connect active="true" anchor="0.0145 -0.0015 0.001" body1="gripper_left_fingertip_left_link" body2="gripper_left_outer_finger_left_link" name="gripper_left_l" solimp="0.95 0.99 0.001" solref="0.005 1" />

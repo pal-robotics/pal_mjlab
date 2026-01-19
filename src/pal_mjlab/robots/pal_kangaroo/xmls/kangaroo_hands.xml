@@ -434,8 +434,8 @@
   </worldbody>
 
   <equality>
-    <connect anchor="0.0 0.0 0.0" body1="leg_left_4_link" body2="leg_left_knee_link" name="leg_left_closed_kin_joint" solref="0.002 1" />
-    <connect anchor="0.0 0.0 0.0" body1="leg_right_4_link" body2="leg_right_knee_link" name="leg_right_closed_kin_joint" solref="0.002 1" />
+    <connect anchor="0.0 0.0 0.0" body1="leg_left_4_link" body2="leg_left_knee_link" name="leg_left_closed_kin_joint" solref="0.004 1" />
+    <connect anchor="0.0 0.0 0.0" body1="leg_right_4_link" body2="leg_right_knee_link" name="leg_right_closed_kin_joint" solref="0.004 1" />
     <!-- hands -->
     <joint joint1="hand_left_thumb_methacarpal_joint" joint2="hand_left_thumb_proximal_joint" name="hand_left_thumb_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
     <joint joint1="hand_left_thumb_methacarpal_joint" joint2="hand_left_thumb_distal_joint" name="hand_left_thumb_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
