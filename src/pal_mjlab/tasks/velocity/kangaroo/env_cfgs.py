@@ -131,22 +131,9 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.observations["critic"].terms["foot_height"].params[
         "asset_cfg"
     ].site_names = site_names
-    cfg.observations["policy"].history_length = 5  # Keep last 5 frames
-    cfg.observations["critic"].history_length = 5  # Keep last 5 frames
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
     # joint level domain randomization
-    cfg.events["joint_offset"] = EventTermCfg(
-        mode="startup",
-        func=mdp.randomize_field,
-        domain_randomization=True,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-            "field": "qpos0",
-            "ranges": (-0.003, 0.003),
-            "operation": "add",
-        },
-    )
     cfg.events["joint_friction"] = EventTermCfg(
         mode="startup",
         func=mdp.randomize_field,
@@ -154,17 +141,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
             "field": "dof_frictionloss",
-            "ranges": (-0.003, 0.003),
-            "operation": "add",
-        },
-    )
-    cfg.events["joint_armature"] = EventTermCfg(
-        mode="startup",
-        func=mdp.randomize_field,
-        domain_randomization=True,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-            "field": "dof_armature",
             "ranges": (-0.003, 0.003),
             "operation": "add",
         },
