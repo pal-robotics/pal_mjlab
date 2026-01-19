@@ -98,6 +98,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     twist_cmd.viz.z_offset = 1.15
 
     cfg.observations["policy"].terms["base_lin_vel"] = None
+    cfg.observations["policy"].terms["projected_gravity"] = None
     cfg.observations["policy"].terms["imu_projected_gravity"] = ObservationTermCfg(
         func=mdp.imu_projected_gravity,
         params={"sensor_name": "robot/imu_quat"},
