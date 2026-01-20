@@ -2,13 +2,11 @@
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
-from mjlab.managers.manager_term_config import (
-    EventTermCfg,
-    ObservationTermCfg,
-    RewardTermCfg,
-    TerminationTermCfg,
-)
+from mjlab.managers.event_manager import EventTermCfg
+from mjlab.managers.observation_manager import ObservationTermCfg
+from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
@@ -33,6 +31,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg = make_velocity_env_cfg()
     cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
     cfg.sim.nconmax = 45
+    cfg.sim.mujoco.ccd_iterations = 500
+    cfg.sim.contact_sensor_maxmatch = 500
+    cfg.sim.mujoco.timestep = 0.002
+    cfg.decimation = 10
 
     site_names = ("left_foot", "right_foot")
     geom_names = tuple(
@@ -302,6 +304,11 @@ def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO flat terrain velocity configuration."""
     cfg = pal_kangaroo_rough_env_cfg(play=play)
 
+    cfg.sim.njmax = 300
+    cfg.sim.mujoco.ccd_iterations = 50
+    cfg.sim.contact_sensor_maxmatch = 64
+    cfg.sim.nconmax = None
+    
     # Switch to flat terrain.
     assert cfg.scene.terrain is not None
     cfg.scene.terrain.terrain_type = "plane"
