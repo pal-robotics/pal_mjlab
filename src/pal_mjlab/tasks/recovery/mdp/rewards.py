@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import torch
-from mjlab.managers.manager_term_config import RewardTermCfg
+from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.entity import Entity
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 

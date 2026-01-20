@@ -9,16 +9,14 @@ from dataclasses import replace
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
-from mjlab.managers.manager_term_config import (
-  ActionTermCfg,
-  CommandTermCfg,
-  CurriculumTermCfg,
-  EventTermCfg,
-  ObservationGroupCfg,
-  ObservationTermCfg,
-  RewardTermCfg,
-  TerminationTermCfg,
-)
+from mjlab.managers.action_manager import ActionTermCfg
+from mjlab.managers.command_manager import CommandTermCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
+from mjlab.managers.event_manager import EventTermCfg
+from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
+from mjlab.managers.reward_manager import RewardTermCfg
+from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.scene import SceneCfg
 from mjlab.sim import MujocoCfg, SimulationCfg
@@ -42,7 +40,6 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"sensor_name": "robot/imu_ang_vel"},
       noise=Unoise(n_min=-0.2, n_max=0.2),
     ),
-    # TODO Louis: Use IMU projected gravity instead
     "projected_gravity": ObservationTermCfg(
         func=mdp.imu_projected_gravity,
         params={"sensor_name": "robot/imu_quat"},
@@ -176,7 +173,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
 
     "head_height": RewardTermCfg(
       func=mdp.head_height,
-      weight=2.0,
+      weight=1.0,
       params={
         "z_des": 1.365,
         "std": math.sqrt(2 / 3),
@@ -186,7 +183,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     # -- getup rewards --
     "orientation": RewardTermCfg(
       func=mdp.orientation,
-      weight=2.0,
+      weight=1.0,
       params={"std": math.sqrt(0.5)},
     ),
     # "torso_height": RewardTermCfg(

@@ -13,23 +13,23 @@ from pal_mjlab.robots import (
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
-from mjlab.managers.manager_term_config import RewardTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from pal_mjlab.tasks.recovery import mdp
 from pal_mjlab.tasks.recovery.recovery_env_cfg import make_recovery_env_cfg
-from mjlab.managers.manager_term_config import TerminationTermCfg, EventTermCfg
-from mjlab.managers.scene_entity_config import SceneEntityCfg
-from mjlab.managers.manager_term_config import (
-    ObservationTermCfg,
-)
-from mjlab.utils.noise import UniformNoiseCfg as Unoise
+# from mjlab.managers.event_manager import EventTermCfg
+# from mjlab.managers.observation_manager import ObservationTermCfg
+from mjlab.managers.reward_manager import RewardTermCfg
+# from mjlab.managers.scene_entity_config import SceneEntityCfg
+# from mjlab.managers.termination_manager import TerminationTermCfg
+# from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
 
 def pal_kangaroo_flat_recovery_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO rough terrain recovery configuration."""
     cfg = make_recovery_env_cfg()
     cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
-    cfg.sim.nconmax = 45
+    cfg.sim.nconmax = None  # Use default max contacts.
+    
     actuated_joints = (
         # Lower body.
         r"leg_.*_1_.*",
