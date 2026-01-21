@@ -176,7 +176,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
       weight=1.0,
       params={
         "z_des": 1.365,
-        "std": math.sqrt(2 / 3),
+        "std": math.sqrt(0.25),
         "head_name": "head",
       },
     ),
@@ -199,7 +199,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
       weight=0.0,
       params={
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-        "z_min": 1.2,
+        "z_min": 1.1,
         "head_name": "head",
       },
     ),
