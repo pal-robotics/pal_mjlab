@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 from mjlab.utils.lab_api.string import (
     resolve_matching_names_values,
 )
+from mjlab.sensor import BuiltinSensor, ContactSensor
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
@@ -28,6 +29,14 @@ def orientation(
 
     return torch.exp(-ori_err_squarred / std**2)
 
+def terrain_collision_cost(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tensor:
+    """Penalize terrain collisions.
+    Returns the number of terrain collisions detected by the specified contact sensor.
+    """
+    sensor: ContactSensor = env.scene[sensor_name]
+    assert sensor.data.found is not None
+    # Sum across body parts to get total collisions per environment
+    return sensor.data.found.sum(dim=-1)
 
 def torso_height(
     env: ManagerBasedRlEnv,

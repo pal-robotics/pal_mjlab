@@ -74,7 +74,7 @@ def pal_kangaroo_flat_recovery_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
         name="body_ground_contact",
         primary=ContactMatch(
             mode="body",
-            pattern=r"^(leg_left_femur_link|leg_right_femur_link|leg_left_knee_link|leg_right_knee_link)$",
+            pattern=r"^(leg_left_femur_link|leg_right_femur_link|leg_left_knee_link|leg_right_knee_link|pelvis_2_link|leg_left_1_link|leg_right_1_link)$",
             entity="robot",
         ),
         secondary=ContactMatch(mode="body", pattern="terrain"),
