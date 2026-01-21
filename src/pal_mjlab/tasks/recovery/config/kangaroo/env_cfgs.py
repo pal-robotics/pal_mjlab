@@ -70,18 +70,27 @@ def pal_kangaroo_flat_recovery_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
         reduce="none",
         num_slots=1,
     )
-    cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg)
+    body_ground_cfg = ContactSensorCfg(
+        name="body_ground_contact",
+        primary=ContactMatch(
+            mode="body",
+            pattern=r"^(leg_left_femur_link|leg_right_femur_link|leg_left_knee_link|leg_right_knee_link)$",
+            entity="robot",
+        ),
+        secondary=ContactMatch(mode="body", pattern="terrain"),
+        fields=("found",),
+        reduce="none",
+        num_slots=1,
+    )
+    cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
 
     joint_pos_action = cfg.actions["joint_pos"]
     assert isinstance(joint_pos_action, JointPositionActionCfg)
     joint_pos_action.scale = KANGAROO_ACTION_SCALE
     joint_pos_action.actuator_names = KANGAROO_ACTUATOR_NAMES
 
-    cfg.rewards["self_collisions"] = RewardTermCfg(
-        func=mdp.self_collision_cost,
-        weight=-1.0,
-        params={"sensor_name": self_collision_cfg.name},
-    )
+    cfg.rewards["self_collisions"].params["sensor_name"] = "self_collision"
+    cfg.rewards["terrain_collisions"].params["sensor_name"] = "body_ground_contact"
     # cfg.rewards["power"].params["asset_cfg"].joint_names = ("leg_.*(1|2|3|4|5|length)_joint", "arm.*", "pelvis_.*")
     cfg.rewards["joint_vel_hinge"].params["asset_cfg"].joint_names = ("leg_.*(1|2|3|4|5|knee|femur)_joint", "arm.*", "pelvis_.*")
 

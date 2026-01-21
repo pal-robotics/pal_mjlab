@@ -251,6 +251,11 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     #         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
     #     },
     # ),
+    "terrain_collisions": RewardTermCfg(
+      func=mdp.self_collision_cost,
+      weight=-0.1,
+      params={"sensor_name": ""}, # Set per-robot.
+    ),
     "self_collisions": RewardTermCfg(
       func=mdp.self_collision_cost,
       weight=-0.1,
