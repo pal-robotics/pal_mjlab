@@ -173,7 +173,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
 
     "head_height": RewardTermCfg(
       func=mdp.head_height,
-      weight=1.0,
+      weight=2.0,
       params={
         "z_des": 1.365,
         "std": math.sqrt(0.25),
@@ -196,10 +196,10 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     # ),
     "posture": RewardTermCfg(
       func=mdp.getup_posture,
-      weight=0.0,
+      weight=0.5,
       params={
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-        "z_min": 1.1,
+        "z_min": 0.0,
         "head_name": "head",
       },
     ),
