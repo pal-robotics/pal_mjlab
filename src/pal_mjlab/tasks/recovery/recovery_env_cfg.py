@@ -173,17 +173,17 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
 
     "head_height": RewardTermCfg(
       func=mdp.head_height,
-      weight=2.0,
+      weight=1.0,
       params={
         "z_des": 1.365,
-        "std": math.sqrt(0.25),
+        "std": math.sqrt(2/3),
         "head_name": "head",
       },
     ),
     # -- getup rewards --
     "orientation": RewardTermCfg(
       func=mdp.orientation,
-      weight=2.0,
+      weight=1.0,
       params={"std": math.sqrt(0.5)},
     ),
     # "torso_height": RewardTermCfg(
@@ -196,10 +196,10 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     # ),
     "posture": RewardTermCfg(
       func=mdp.getup_posture,
-      weight=0.5,
+      weight=0.0,
       params={
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-        "z_min": 0.5,
+        "z_min": 1.0,
         "head_name": "head",
       },
     ),
@@ -291,17 +291,16 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
     #     ],
     #   },
     # ),
-    # "power": CurriculumTermCfg(
-    #   func=mdp.reward_weight,
-    #   params={
-    #       "reward_name": "power",
-    #       "weight_stages": [
-    #           {"step": 0, "weight": 0.0},
-    #           {"step": 5000 * 24, "weight": -0.01},
-    #           {"step": 7500 * 24, "weight": -0.1},
-    #       ],
-    #   },
-    # ),
+    "posture": CurriculumTermCfg(
+      func=mdp.reward_weight,
+      params={
+          "reward_name": "posture",
+          "weight_stages": [
+              {"step": 0, "weight": 0.0},
+              {"step": 5000 * 24, "weight": 1.0},
+          ],
+      },
+    ),
     "joint_vel_hinge_weight": CurriculumTermCfg(
       func=mdp.reward_weight,
       params={
