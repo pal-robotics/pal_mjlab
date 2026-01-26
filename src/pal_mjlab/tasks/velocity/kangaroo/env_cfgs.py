@@ -161,18 +161,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "operation": "add",
         },
     )
-    # link level domain randomization
-    cfg.events["com"] = EventTermCfg(
-        mode="startup",
-        func=mdp.randomize_field,
-        domain_randomization=True,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis_2_link"]),
-            "field": "body_ipos",
-            "ranges": {0: (-0.02, 0.02), 1: (-0.02, 0.02)},
-            "operation": "add",
-        },
-    )
+    cfg.events["base_com"].params["asset_cfg"].body_names = ["pelvis_2_link"]
     cfg.events["mass"] = EventTermCfg(
         mode="startup",
         func=mdp.randomize_field,
