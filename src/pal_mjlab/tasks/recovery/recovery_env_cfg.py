@@ -112,44 +112,12 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
 
   events = {
-    # "reset_base": EventTermCfg(
-    #   func=mdp.reset_root_state_uniform,
-    #   mode="reset",
-    #   params={
-    #     "pose_range": {
-    #       "x": (-0.5, 0.5), 
-    #       "y": (-0.5, 0.5), 
-    #       # Dropping it from high.
-    #       "z": (0.5, 0.5),
-    #       # Randomizing its orientation.
-    #       "roll": (-math.pi, math.pi),
-    #       "pitch": (-math.pi, math.pi),
-    #       "yaw": (-math.pi, math.pi),
-    #     },
-    #     "velocity_range": {
-    #       "lin_vel_x": (-0.0, 0.0),
-    #       "lin_vel_y": (-0.0, 0.0),
-    #       "lin_vel_z": (-0.0, 0.0),
-    #       "ang_vel_x": (-0.0, 0.0),
-    #       "ang_vel_y": (-0.0, 0.0),
-    #       "ang_vel_z": (-0.0, 0.0),
-    #     },
-    #   },
-    # ),
-    # "reset_robot_joints": EventTermCfg(
-    #   func=mdp.reset_joints_by_offset,
-    #   mode="reset",
-    #   params={
-    #     "position_range": (-math.pi / 2, math.pi / 2),
-    #     "velocity_range": (0.0, 0.0),
-    #     "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-    #   },
-    # ),
     "reset_robot_qpos": EventTermCfg(
       func=mdp.reset_joints_random_or_default,
       mode="reset",
       params={
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+        "preset_probability": 0.5,  # Updated by curriculum.
       },
     ),
     "foot_friction": EventTermCfg(
@@ -173,61 +141,45 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
 
     "head_height": RewardTermCfg(
       func=mdp.head_height,
-      weight=1.0,
+      weight=2.0,
       params={
         "z_des": 1.365,
-        "std": math.sqrt(2/3),
+        "std": 0.5, # L1 error
+        # "std": math.sqrt(2/3), # L2 error
         "head_name": "head",
       },
     ),
     # -- getup rewards --
     "orientation": RewardTermCfg(
       func=mdp.orientation,
-      weight=1.0,
+      weight=2.0,
       params={"std": math.sqrt(0.5)},
     ),
-    # "torso_height": RewardTermCfg(
-    #   func=mdp.torso_height,
-    #   weight=4.0,
+    # "posture": RewardTermCfg(
+    #   func=mdp.getup_posture,
+    #   weight=0.1,
     #   params={
-    #     "std": math.sqrt(2 / 3),
-    #     "z_des": 1.0,
+    #     "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+    #     "z_min": 1.0,
+    #     "head_name": "head",
     #   },
     # ),
     "posture": RewardTermCfg(
-      func=mdp.getup_posture,
+      func=mdp.variable_posture_standup,
       weight=0.0,
       params={
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-        "z_min": 1.0,
+        "std_fallen": {},  # Set per-robot.
+        "std_rising": {},  # Set per-robot.
+        "std_standing": {},  # Set per-robot.
+        "z_des": 1.365,
         "head_name": "head",
+        "rising_threshold": 0.4,    # 40% of target height
+        "standing_threshold": 0.75,  # 75% of target height
       },
     ),
-    # "posture": RewardTermCfg(
-    #   func=mdp.variable_posture_standup,
-    #   weight=0.2,
-    #   params={
-    #     "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-    #     "std_fallen": {},  # Set per-robot.
-    #     "std_rising": {},  # Set per-robot.
-    #     "std_standing": {},  # Set per-robot.
-    #     "z_des": 1.365,
-    #     "head_name": "head",
-    #     "rising_threshold": 0.4,    # 40% of target height
-    #     "standing_threshold": 0.75,  # 75% of target height
-    #   },
-    # ),
     # -- regularization --
     "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-0.1),
-    # "dof_vel_limits": RewardTermCfg(
-    #   func=mdp.joint_vel_limits, 
-    #   weight=-0.01,
-    #   params={
-    #     "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-    #     "velocity_limits": {},
-    #     "soft_ratio": 0.9,
-    #   },
-    # ),
     "joint_vel_hinge": RewardTermCfg(
       func=mdp.joint_velocity_hinge_penalty,
       weight=0.0,
@@ -237,25 +189,16 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
       },
     ),
     "action_rate_l2": RewardTermCfg(
-        func=mdp.action_rate_l2, weight=-0.05,
+        func=mdp.action_rate_l2, weight=-0.02,
     ),
-    # "joint_vel_l2": RewardTermCfg(
-    #     func=mdp.joint_vel_l2, weight=-0.1,
-    # ),
-    # "power": RewardTermCfg(
-    #     func=mdp.power_limit, weight=-0.0,
-    #     params={
-    #         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-    #     },
-    # ),
     "self_collisions": RewardTermCfg(
       func=mdp.self_collision_cost,
-      weight=-1.0,
+      weight=-0.3,
       params={"sensor_name": ""}, # Set per-robot.
     ),
     "terrain_collisions": RewardTermCfg(
       func=mdp.terrain_collision_cost,
-      weight=-0.1,
+      weight=-0.05,
       params={"sensor_name": ""}, # Set per-robot.
     ),
 
@@ -279,38 +222,39 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
   # Curriculum
   ##
-
   curriculum = {
-    # "action_rate": CurriculumTermCfg(
-    #   func=mdp.reward_weight,
-    #   params={
-    #     "reward_name": "action_rate_l2",
-    #     "weight_stages": [
-    #         {"step": 0, "weight": -0.01},
-    #         {"step": 2500 * 24, "weight": -0.1},
-    #     ],
-    #   },
-    # ),
-    "posture": CurriculumTermCfg(
-      func=mdp.reward_weight,
-      params={
-          "reward_name": "posture",
-          "weight_stages": [
-              {"step": 0, "weight": 0.0},
-              {"step": 5000 * 24, "weight": 1.0},
-          ],
-      },
+    "preset_difficulty": CurriculumTermCfg(
+        func=mdp.preset_probability_curriculum,
+        params={
+            "event_name": "reset_robot_qpos",
+            "probability_stages": [
+                {"step": 0, "preset_probability": 0.5},           # 50% presets early
+                {"step": 3000 * 24, "preset_probability": 0.7},   # 70% at 3k iters
+                {"step": 6000 * 24, "preset_probability": 0.9},   # 90% at 6k iters (final)
+            ],
+        },
     ),
-    "joint_vel_hinge_weight": CurriculumTermCfg(
-      func=mdp.reward_weight,
-      params={
-        "reward_name": "joint_vel_hinge",
-        "weight_stages": [
-          {"step": 0, "weight": 0.0},
-          {"step": 5_000 * 24, "weight": -0.01},
-          # {"step": 15_000 * 24, "weight": -1.0},
-        ],
-      },
+    "posture": CurriculumTermCfg(
+        func=mdp.reward_weight,
+        params={
+            "reward_name": "posture",
+            "weight_stages": [
+              {"step": 0, "weight": 0.0},            # Let it explore
+              {"step": 3000 * 24, "weight": 0.3},    # Gentle guidance
+              {"step": 6000 * 24, "weight": 0.7},    # Moderate  
+              {"step": 10000 * 24, "weight": 1.0},   # Full enforcement
+            ],
+        },
+    ),
+    "joint_vel_hinge": CurriculumTermCfg(
+        func=mdp.reward_weight,
+        params={
+            "reward_name": "joint_vel_hinge",
+            "weight_stages": [
+                {"step": 0, "weight": 0.0},
+                {"step": 5000 * 24, "weight": -0.01},
+            ],
+        },
     ),
   }
 

@@ -5,3 +5,4 @@ from .rewards import *  # noqa: F403
 from .actions import *  # noqa: F403
 from .events import *  # noqa: F403
 from .terminations import *  # noqa: F403
+from .curriculums import *  # noqa: F403

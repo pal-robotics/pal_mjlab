@@ -96,52 +96,42 @@ def pal_kangaroo_flat_recovery_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
 
 
 
-    # cfg.rewards["posture"].params["asset_cfg"].joint_names = actuated_joints
-    # cfg.rewards["posture"].params["std_standing"] = {
-    #     # Lower body.
-    #     r"leg_.*_1_.*": 0.05,
-    #     r"leg_.*_2_.*": 0.05,
-    #     r"leg_.*_3_.*": 0.05,
-    #     r"leg_.*_length_.*": 0.05,
-    #     r"leg_.*_4_.*": 0.05,
-    #     r"leg_.*_5_.*": 0.05,
-    #     # Waist.
-    #     r"pelvis_.*": 0.05,
-    #     # Arms.
-    #     r"arm_.*": 0.05,
-    # }
-    # cfg.rewards["posture"].params["std_rising"] = {
-    #     # Lower body.
-    #     r"leg_.*_1_.*": 0.5,
-    #     r"leg_.*_2_.*": 0.6,  # pitch
-    #     r"leg_.*_3_.*": 0.5,
-    #     r"leg_.*_length_.*": 0.7,  # length
-    #     r"leg_.*_4_.*": 0.5,
-    #     r"leg_.*_5_.*": 0.5,
-    #     # Waist.
-    #     r"pelvis_1.*": 0.08,
-    #     r"pelvis_2.*": 0.2,
-    #     # Arms.
-    #     r"arm_.*_1_.*": 0.5,  # pitch
-    #     r"arm_.*_4_.*": 0.5,
-    #     r"arm_.*_(?![14]_joint)\d+_joint": 0.5,
-    # }
-    # cfg.rewards["posture"].params["std_fallen"] = {
-    #     # Lower body.
-    #     r"leg_.*_1_.*": 1.0,
-    #     r"leg_.*_2_.*": 1.2,
-    #     r"leg_.*_3_.*": 1.0,
-    #     r"leg_.*_length_.*": 1.5,
-    #     r"leg_.*_4_.*": 1.0,
-    #     r"leg_.*_5_.*": 1.0,
-    #     # Waist.
-    #     r"pelvis_1.*": 1.0,
-    #     r"pelvis_2.*": 1.0,
-    #     # Arms.
-    #     r"arm_.*_1_.*": 1.0,
-    #     r"arm_.*_4_.*": 1.0,
-    #     r"arm_.*_(?![14]_joint)\d+_joint": 1.0,
-    # }
+    cfg.rewards["posture"].params["asset_cfg"].joint_names = actuated_joints
+    cfg.rewards["posture"].params["std_standing"] = {
+        r"leg_.*_1_.*": 0.2,       # Hip roll: tight (~11°)
+        r"leg_.*_2_.*": 0.25,      # Hip pitch: slightly looser (~14°)
+        r"leg_.*_3_.*": 0.2,       # Hip roll: tight
+        r"leg_.*_length_.*": 0.08, # Leg length: prefer default (~8cm variation)
+        r"leg_.*_4_.*": 0.2,       # Ankle pitch: tight
+        r"leg_.*_5_.*": 0.2,       # Ankle roll: tight
+        r"pelvis_1.*": 0.15,       # Waist roll: very tight (~9°)
+        r"pelvis_2.*": 0.2,        # Waist pitch: tight (~11°)
+        r"arm_.*_1_.*": 0.3,       # Shoulder pitch: moderate (balance)
+        r"arm_.*_4_.*": 0.3,       # Elbow: moderate (balance)
+        r"arm_.*_(?![14]_joint)\d+_joint": 0.25,  # Other arm joints
+    }
+    cfg.rewards["posture"].params["std_rising"] = {
+        r"leg_.*_1_.*": 0.6,       # Hip roll: moderate
+        r"leg_.*_2_.*": 0.8,       # Hip pitch: more freedom (important for rising)
+        r"leg_.*_3_.*": 0.6,       # Hip roll: moderate
+        r"leg_.*_length_.*": 0.15, # Leg length: prefer extension
+        r"leg_.*_4_.*": 0.6,       # Ankle pitch: moderate
+        r"leg_.*_5_.*": 0.6,       # Ankle roll: moderate
+        r"pelvis_1.*": 0.3,        # Waist roll: tighter
+        r"pelvis_2.*": 0.5,        # Waist pitch: some freedom for rising motion
+        r"arm_.*": 0.8,            # Arms: still flexible
+    }
+    cfg.rewards["posture"].params["std_fallen"] = {
+        r"leg_.*_1_.*": 1.5,       # Hip roll: very free
+        r"leg_.*_2_.*": 1.5,       # Hip pitch: very free
+        r"leg_.*_3_.*": 1.5,       # Hip roll: very free
+        r"leg_.*_length_.*": 0.3,  # Leg length: allow compression
+        r"leg_.*_4_.*": 1.5,       # Ankle pitch: very free
+        r"leg_.*_5_.*": 1.5,       # Ankle roll: very free
+        r"pelvis_1.*": 1.2,        # Waist roll: free
+        r"pelvis_2.*": 1.2,        # Waist pitch: free
+        r"arm_.*": 1.5,            # Arms: very free
+    }
 
 
 

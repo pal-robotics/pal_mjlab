@@ -18,7 +18,9 @@ _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
 
 def orientation(
-    env: ManagerBasedRlEnv, std: float, asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
+    env: ManagerBasedRlEnv, 
+    std: float, 
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
 ) -> torch.Tensor:
     asset: Entity = env.scene[asset_cfg.name]
 
@@ -75,13 +77,13 @@ def head_height(
     else:
         raise ValueError(f"'{head_name}' not found in sites or bodies")
     
-    z_err = z - z_des
-    z_err_scaled = torch.where(z_err < 0, z_err, z_err * 0.25)
-    z_err_squared = torch.square(z_err_scaled)
+    z_error = z - z_des
+    # reward = torch.exp(-torch.square(z_error) / std**2) # L2 squared error
+    reward = torch.exp(-torch.abs(z_error) / std) # L1 error
 
     env.extras["log"]["Metrics/mean_head_height"] = torch.mean(z)
 
-    return torch.exp(-z_err_squared / std**2)
+    return reward
 
 
 def getup_posture(
