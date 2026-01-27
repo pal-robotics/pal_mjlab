@@ -239,10 +239,12 @@
 
   <contact>
     <!-- Left leg closed chain -->
+    <exclude body1="leg_left_foot_link" body2="leg_left_femur_link"/>
     <exclude body1="leg_left_1_link" body2="leg_left_femur_link"/>
     <exclude body1="leg_left_ankle_link" body2="leg_left_knee_link"/>
     
     <!-- Right leg closed chain -->
+    <exclude body1="leg_right_foot_link" body2="leg_right_femur_link"/>
     <exclude body1="leg_right_1_link" body2="leg_right_femur_link"/>
     <exclude body1="leg_right_ankle_link" body2="leg_right_knee_link"/>
   </contact>
