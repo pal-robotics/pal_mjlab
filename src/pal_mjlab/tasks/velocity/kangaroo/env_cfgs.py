@@ -30,7 +30,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics KANGAROO rough terrain velocity configuration."""
     cfg = make_velocity_env_cfg()
     cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
-    cfg.sim.nconmax = 45
+    cfg.sim.nconmax = None
     cfg.sim.mujoco.ccd_iterations = 500
     cfg.sim.contact_sensor_maxmatch = 500
     cfg.sim.mujoco.timestep = 0.002
