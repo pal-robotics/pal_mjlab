@@ -98,16 +98,16 @@ def pal_kangaroo_flat_recovery_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
 
     cfg.rewards["posture"].params["asset_cfg"].joint_names = actuated_joints
     cfg.rewards["posture"].params["std_standing"] = {
-        r"leg_.*_1_.*": 0.2,       # Hip roll: tight (~11°)
-        r"leg_.*_2_.*": 0.25,      # Hip pitch: slightly looser (~14°)
-        r"leg_.*_3_.*": 0.2,       # Hip roll: tight
-        r"leg_.*_length_.*": 0.08, # Leg length: prefer default (~8cm variation)
-        r"leg_.*_4_.*": 0.2,       # Ankle pitch: tight
-        r"leg_.*_5_.*": 0.2,       # Ankle roll: tight
-        r"pelvis_1.*": 0.15,       # Waist roll: very tight (~9°)
-        r"pelvis_2.*": 0.2,        # Waist pitch: tight (~11°)
-        r"arm_.*_1_.*": 0.3,       # Shoulder pitch: moderate (balance)
-        r"arm_.*_4_.*": 0.3,       # Elbow: moderate (balance)
+        r"leg_.*_1_.*": 0.05,       # Hip roll: tight (~11°)
+        r"leg_.*_2_.*": 0.05,      # Hip pitch: slightly looser (~14°)
+        r"leg_.*_3_.*": 0.05,       # Hip roll: tight
+        r"leg_.*_length_.*": 0.05, # Leg length: prefer default (~8cm variation)
+        r"leg_.*_4_.*": 0.05,       # Ankle pitch: tight
+        r"leg_.*_5_.*": 0.05,       # Ankle roll: tight
+        r"pelvis_1.*": 0.05,       # Waist roll: very tight (~9°)
+        r"pelvis_2.*": 0.05,        # Waist pitch: tight (~11°)
+        r"arm_.*_1_.*": 0.05,       # Shoulder pitch: moderate (balance)
+        r"arm_.*_4_.*": 0.05,       # Elbow: moderate (balance)
         r"arm_.*_(?![14]_joint)\d+_joint": 0.25,  # Other arm joints
     }
     cfg.rewards["posture"].params["std_rising"] = {

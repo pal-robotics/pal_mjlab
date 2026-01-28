@@ -175,7 +175,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
         "z_des": 1.365,
         "head_name": "head",
         "rising_threshold": 0.4,    # 40% of target height
-        "standing_threshold": 0.75,  # 75% of target height
+        "standing_threshold": 0.95,  # 75% of target height
       },
     ),
     # -- regularization --
@@ -239,7 +239,7 @@ def make_recovery_env_cfg() -> ManagerBasedRlEnvCfg:
         params={
             "reward_name": "posture",
             "weight_stages": [
-              {"step": 0, "weight": 0.0},            # Let it explore
+              {"step": 0, "weight": 0.01},            # Let it explore
               {"step": 3000 * 24, "weight": 0.3},    # Gentle guidance
               {"step": 6000 * 24, "weight": 0.7},    # Moderate  
               {"step": 10000 * 24, "weight": 1.0},   # Full enforcement
