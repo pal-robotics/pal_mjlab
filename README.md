@@ -135,11 +135,13 @@ uv run play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/r
       <p align="center"><em>Reaching policy for TIAGo Pro (sim)</em></p>
     </td>
     <td width="50%"></td>
+    <td width="50%">
+      <video src="https://github.com/user-attachments/assets/85da2add-ffe7-485b-b4e7-d3c20a435012" controls muted loop playsinline style="width:100%;"></video>
+      <p align="center"><em>Deployed Reaching policy for TIAGo Pro (using interactive marker RViz)</em></p>
+    </td>
+    <td width="50%"></td>
   </tr>
 </table>
-
-
-
 
 ## Configuring the mjlab Dependency
 
