@@ -165,8 +165,8 @@
                 <inertial pos="-0.0569665 -5.4131e-05 -0.148821" quat="0.698616 0.0970713 0.0960701 0.702341" mass="1.02238" diaginertia="0.00215347 0.00207236 0.000258578" />
                 <joint name="leg_left_knee_joint" axis="0 -1 0" range="0.349066 2.44346" />
                 <geom class="visual" mesh="leg_tibia_link" />
-                <geom name="leg_left_knee_collision" size="0.04 0.2" pos="-0.0455604 -7.35027e-05 -0.174883" quat="0.963852 -0.000204 0.266438 1.8e-05" class="collision"/>
-                <geom name="leg_left_knee_bar_collision" class="collision" size="0.05" fromto="-0.05 -0.0 0.0 -0.15 0.0 -0.32"/>
+                <geom name="leg_left_knee_collision" size="0.04" fromto="-0.1483 0.0 -0.3 0.0571 0.0 -0.0033" class="collision"/>
+                <geom name="leg_left_knee_bar_collision" class="collision" size="0.05" fromto="-0.05 -0.0 0.0 -0.15 0.0 -0.3"/>
               </body>
             </body>
           </body>
@@ -222,8 +222,8 @@
                 <inertial pos="-0.0569665 -5.4131e-05 -0.148821" quat="0.698616 0.0970713 0.0960701 0.702341" mass="1.02238" diaginertia="0.00215347 0.00207236 0.000258578" />
                 <joint name="leg_right_knee_joint" axis="0 -1 0" range="0.349066 2.44346" />
                 <geom class="visual" mesh="leg_tibia_link" />
-                <geom name="leg_right_knee_collision" size="0.04 0.2" pos="-0.0455604 -7.35027e-05 -0.174883" quat="0.963852 -0.000204 0.266438 1.8e-05" class="collision"/>
-                <geom name="leg_right_knee_bar_collision" class="collision" size="0.05" fromto="-0.05 -0.0 0.0 -0.15 0.0 -0.32"/>
+                <geom name="leg_right_knee_collision" size="0.04" fromto="-0.1483 0.0 -0.3 0.0571 0.0 -0.0033" class="collision"/>
+                <geom name="leg_right_knee_bar_collision" class="collision" size="0.05" fromto="-0.05 -0.0 0.0 -0.15 0.0 -0.3"/>
               </body>
             </body>
           </body>
@@ -239,16 +239,14 @@
 
   <contact>
     <!-- Left leg closed chain -->
-    <exclude body1="leg_left_foot_link" body2="leg_left_knee_link"/>
     <exclude body1="leg_left_1_link" body2="leg_left_femur_link"/>
     <exclude body1="leg_left_ankle_link" body2="leg_left_knee_link"/>
     
     <!-- Right leg closed chain -->
-    <exclude body1="leg_right_foot_link" body2="leg_right_knee_link"/>
     <exclude body1="leg_right_1_link" body2="leg_right_femur_link"/>
     <exclude body1="leg_right_ankle_link" body2="leg_right_knee_link"/>
   </contact>
- 
+  
   <sensor>
     <gyro           name="imu_ang_vel" site="imu"/>
     <velocimeter    name="imu_lin_vel" site="imu"/>
