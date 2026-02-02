@@ -97,6 +97,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.viz.z_offset = 1.15
 
+    #-- Observations
+
     cfg.observations["policy"].terms["base_lin_vel"] = None
     cfg.observations["policy"].terms["projected_gravity"] = None
     cfg.observations["policy"].terms["imu_projected_gravity"] = ObservationTermCfg(
@@ -121,6 +123,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         "asset_cfg"
     ].site_names = site_names
 
+    #-- Events
+
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
     cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
     cfg.events["joint_friction"] = EventTermCfg(
@@ -130,7 +134,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
             "field": "dof_frictionloss",
-            "ranges": (-0.003, 0.003),
+            "ranges": (-0.008, 0.008),
             "operation": "add",
         },
     )
@@ -146,6 +150,19 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "operation": "add",
         },
     )
+    cfg.events["encoder_bias"].params["asset_cfg"].joint_names = [r"^(?!leg_.*_length_.*$).*"]
+    cfg.events["leg_length_encoder_bias"] = EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_encoder_bias,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=[r"leg_.*_length_.*$"]
+            ),
+            "bias_range": (-0.005, 0.005),
+        },
+    )
+
+    #-- Rewards
 
     cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
     cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
@@ -193,6 +210,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
     )
+
+    #-- Terminations
 
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
         func=mdp.illegal_contact,
