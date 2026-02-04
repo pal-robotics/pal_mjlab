@@ -14,3 +14,4 @@ logs
 wandb
 
 .vscode
+MUJOCO_LOG.TXT
