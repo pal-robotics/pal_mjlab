@@ -92,6 +92,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     cfg.viewer.body_name = "pelvis_2_link"
 
+
+    # cfg.viewer.distance=5.0
+    # cfg.viewer.elevation=-90.0
+    # cfg.viewer.azimuth=0.0
+
     assert cfg.commands is not None
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
@@ -293,8 +298,19 @@ def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         assert commands is not None
         twist_cmd = commands["twist"]
         assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-        twist_cmd.ranges.lin_vel_x = (-1.5, 2.0)
-        twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
+        # twist_cmd.ranges.lin_vel_x = (0.5, 0.5)
+        # twist_cmd.ranges.lin_vel_y = (0.0, 0.0)
+        # twist_cmd.ranges.ang_vel_z = (0.0, 0.0)
+
+        # cfg.events["reset_base"].params = {
+        #     "pose_range": {
+        #         "x": (0.0, 0.0),
+        #         "y": (0.0, 0.0),
+        #         "z": (0.0, 0.0),
+        #         "yaw": (0.0, 0.0),
+        #     },
+        #     "velocity_range": {},
+        # }
 
     return cfg
 
