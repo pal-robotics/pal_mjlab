@@ -60,9 +60,6 @@ uv run play Mjlab-Velocity-Flat-Pal-Talos --wandb-run-path your-org/mjlab/run-id
 
 Motion imitation uses [GMR](https://github.com/YanjieZe/GMR) to retarget animations from the [LaFAN1 dataset](https://github.com/ubisoft/ubisoft-laforge-animation-dataset) to PAL robots.
 
-> [!NOTE]
-> We provide `talos_walking.csv` as a ready-to-use example.
-
 ### Retargeting a new motion
 
 First, use GMR to retarget and convert a motion file.
@@ -140,28 +137,6 @@ uv run play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/r
     </td>
   </tr>
 </table>
-
-## Configuring the mjlab Dependency
-
-```bash
-# Track default branch (pinned at lock time)
-uv add "mjlab @ git+https://github.com/mujocolab/mjlab"
-
-# Pin to a specific commit
-uv add "mjlab @ git+https://github.com/mujocolab/mjlab@<commit-sha>"
-
-# Use the latest PyPI release
-uv add mjlab
-
-# Use a local editable checkout (recommended for development)
-uv add "mjlab @ path/to/mjlab" --editable
-```
-
-After changing the dependency:
-
-```bash
-uv sync
-```
 
 ## Contributing
 
