@@ -10,8 +10,15 @@ wheels/
 # Virtual environments
 .venv
 
+# Logs
 logs
 wandb
-
-.vscode
 MUJOCO_LOG.TXT
+
+# IDE
+.vscode
+
+# Data
+artifacts/
+*.csv
+*.npz
