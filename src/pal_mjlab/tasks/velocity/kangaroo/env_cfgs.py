@@ -138,7 +138,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "operation": "add",
         },
     )
-    cfg.events["base_com"].params["asset_cfg"].body_names = ["pelvis_2_link"]
     cfg.events["mass"] = EventTermCfg(
         mode="startup",
         func=mdp.randomize_field,
