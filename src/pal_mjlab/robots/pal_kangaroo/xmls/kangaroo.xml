@@ -3,9 +3,6 @@
 
   <default>
     <default class="kangaroo">
-      <!-- We applied this thinking it would give use more
-      realistic contact but the sim2real was not as good. 
-      Check v62 vs v61 results for more informations -->
       <!-- stiffer contact (solref="0.002 1") worsened sim2real, using defaults -->
       <!-- <geom solref="0.002 1" priority="1"/> -->
       <site group="5" rgba="1 0 0 1" size="0.01" />
