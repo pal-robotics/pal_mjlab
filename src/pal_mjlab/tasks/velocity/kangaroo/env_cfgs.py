@@ -42,19 +42,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         for side in ("left", "right")
         for i in [0, 2, 4, 6, 8, 10]
     )
-    actuated_joints = (
-        # Lower body.
-        r"leg_.*_1_.*",
-        r"leg_.*_2_.*",
-        r"leg_.*_3_.*",
-        r"leg_.*_length_.*",
-        r"leg_.*_4_.*",
-        r"leg_.*_5_.*",
-        # Waist.
-        r"pelvis_.*",
-        # Arms.
-        r"arm_.*",
-    )
+    actuated_joints = r"^(?!leg_.*_femur_joint$|leg_.*_knee_joint$).*$"  # Exclude femur and knee joints.
 
     feet_ground_cfg = ContactSensorCfg(
         name="feet_ground_contact",
@@ -109,12 +97,23 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.viz.z_offset = 1.15
 
+    #-- Observations
+
     cfg.observations["policy"].terms["base_lin_vel"] = None
     cfg.observations["policy"].terms["projected_gravity"] = None
+    cfg.observations["policy"].terms["imu_projected_gravity"] = ObservationTermCfg(
+        func=mdp.imu_projected_gravity,
+        params={"sensor_name": "robot/imu_quat"},
+        noise=Unoise(n_min=-0.5, n_max=0.5),
+    )
     cfg.observations["policy"].terms["base_lin_acc"] = ObservationTermCfg(
         func=mdp.builtin_sensor,
         params={"sensor_name": "robot/imu_lin_acc"},
         noise=Unoise(n_min=-0.5, n_max=0.5),
+    )
+    cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
+        func=mdp.imu_projected_gravity,
+        params={"sensor_name": "robot/imu_quat"},
     )
     cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
         func=mdp.builtin_sensor,
@@ -123,22 +122,16 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.observations["critic"].terms["foot_height"].params[
         "asset_cfg"
     ].site_names = site_names
-    cfg.observations["policy"].history_length = 5  # Keep last 5 frames
-    cfg.observations["critic"].history_length = 5  # Keep last 5 frames
+
+    ### Disabling the use of history length as we haven't seen much improvements with it
+    ### Moreover, our best policy #62 doesn't use any history length
+    # cfg.observations["policy"].history_length = 5  # Keep last 5 frames
+    # cfg.observations["critic"].history_length = 5  # Keep last 5 frames
+    
+    #-- Events
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
-    # joint level domain randomization
-    cfg.events["joint_offset"] = EventTermCfg(
-        mode="startup",
-        func=mdp.randomize_field,
-        domain_randomization=True,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-            "field": "qpos0",
-            "ranges": (-0.003, 0.003),
-            "operation": "add",
-        },
-    )
+    cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
     cfg.events["joint_friction"] = EventTermCfg(
         mode="startup",
         func=mdp.randomize_field,
@@ -146,22 +139,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
             "field": "dof_frictionloss",
-            "ranges": (-0.003, 0.003),
+            "ranges": (-0.008, 0.008),
             "operation": "add",
         },
     )
-    cfg.events["joint_armature"] = EventTermCfg(
-        mode="startup",
-        func=mdp.randomize_field,
-        domain_randomization=True,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-            "field": "dof_armature",
-            "ranges": (-0.003, 0.003),
-            "operation": "add",
-        },
-    )
-    cfg.events["base_com"].params["asset_cfg"].body_names = ["pelvis_2_link"]
     cfg.events["mass"] = EventTermCfg(
         mode="startup",
         func=mdp.randomize_field,
@@ -173,21 +154,22 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "operation": "add",
         },
     )
+    cfg.events["encoder_bias"].params["asset_cfg"].joint_names = [r"^(?!leg_.*_length_.*$).*"]
+    cfg.events["leg_length_encoder_bias"] = EventTermCfg(
+        mode="startup",
+        func=mdp.randomize_encoder_bias,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=[r"leg_.*_length_.*$"]
+            ),
+            "bias_range": (-0.005, 0.005),
+        },
+    )
 
-    cfg.rewards["pose"].params["asset_cfg"].joint_names = actuated_joints
-    cfg.rewards["pose"].params["std_standing"] = {
-        # Lower body.
-        r"leg_.*_1_.*": 0.05,
-        r"leg_.*_2_.*": 0.05,
-        r"leg_.*_3_.*": 0.05,
-        r"leg_.*_length_.*": 0.05,
-        r"leg_.*_4_.*": 0.05,
-        r"leg_.*_5_.*": 0.05,
-        # Waist.
-        r"pelvis_.*": 0.05,
-        # Arms.
-        r"arm_.*": 0.05,
-    }
+    #-- Rewards
+
+    cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
+    cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
     cfg.rewards["pose"].params["std_walking"] = {
         # Lower body.
         r"leg_.*_1_.*": 0.15,
@@ -201,7 +183,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"pelvis_2.*": 0.2,
         # Arms.
         r"arm_.*_1_.*": 0.2,  # pitch
-        r"arm_.*_4_.*": 0.2,
+        r"arm_.*_4_.*": 0.2,  # elbow
         r"arm_.*_(?![14]_joint)\d+_joint": 0.1,
     }
     cfg.rewards["pose"].params["std_running"] = {
@@ -232,6 +214,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
     )
+
+    #-- Terminations
 
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
         func=mdp.illegal_contact,
@@ -309,9 +293,11 @@ def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     del cfg.curriculum["terrain_levels"]
 
     if play:
-        commands = cfg.commands
-        assert commands is not None
-        twist_cmd = commands["twist"]
+        # Disable command curriculum.
+        assert "command_vel" in cfg.curriculum
+        del cfg.curriculum["command_vel"]
+
+        twist_cmd = cfg.commands["twist"]
         assert isinstance(twist_cmd, UniformVelocityCommandCfg)
         twist_cmd.ranges.lin_vel_x = (-1.5, 2.0)
         twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
