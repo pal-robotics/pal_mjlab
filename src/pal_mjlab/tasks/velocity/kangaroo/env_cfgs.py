@@ -123,6 +123,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         "asset_cfg"
     ].site_names = site_names
 
+    ### Disabling the use of history length as we haven't seen much improvements with it
+    ### Moreover, our best policy #62 doesn't use any history length
+    # cfg.observations["policy"].history_length = 5  # Keep last 5 frames
+    # cfg.observations["critic"].history_length = 5  # Keep last 5 frames
+    
     #-- Events
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
