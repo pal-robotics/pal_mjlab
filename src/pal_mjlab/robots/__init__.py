@@ -18,3 +18,7 @@ from pal_mjlab.robots.pal_tiago_pro.tiago_pro_constants import (  # noqa: F401
     TIAGO_PRO_ACTUATOR_NAMES,
     get_tiago_pro_robot_cfg,
 )
+from pal_mjlab.robots.pal_reemc.reemc_constants import (  # noqa: F401
+    REEMC_ACTION_SCALE,
+    get_reemc_robot_cfg,
+)
