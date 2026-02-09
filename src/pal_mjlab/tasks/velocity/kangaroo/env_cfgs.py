@@ -99,14 +99,14 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     #-- Observations
 
-    cfg.observations["policy"].terms["base_lin_vel"] = None
-    cfg.observations["policy"].terms["projected_gravity"] = None
-    cfg.observations["policy"].terms["imu_projected_gravity"] = ObservationTermCfg(
+    cfg.observations["actor"].terms["base_lin_vel"] = None
+    cfg.observations["actor"].terms["projected_gravity"] = None
+    cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
         func=mdp.imu_projected_gravity,
         params={"sensor_name": "robot/imu_quat"},
         noise=Unoise(n_min=-0.5, n_max=0.5),
     )
-    cfg.observations["policy"].terms["base_lin_acc"] = ObservationTermCfg(
+    cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
         func=mdp.builtin_sensor,
         params={"sensor_name": "robot/imu_lin_acc"},
         noise=Unoise(n_min=-0.5, n_max=0.5),
@@ -125,7 +125,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     ### Disabling the use of history length as we haven't seen much improvements with it
     ### Moreover, our best policy #62 doesn't use any history length
-    # cfg.observations["policy"].history_length = 5  # Keep last 5 frames
+    # cfg.observations["actor"].history_length = 5  # Keep last 5 frames
     # cfg.observations["critic"].history_length = 5  # Keep last 5 frames
     
     #-- Events
@@ -227,7 +227,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         # Effectively infinite episode length.
         cfg.episode_length_s = int(1e9)
 
-        cfg.observations["policy"].enable_corruption = False
+        cfg.observations["actor"].enable_corruption = False
         cfg.events.pop("push_robot", None)
         cfg.events["randomize_terrain"] = EventTermCfg(
             func=mdp.randomize_terrain,

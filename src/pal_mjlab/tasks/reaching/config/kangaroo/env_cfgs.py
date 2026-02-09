@@ -144,17 +144,17 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     # Observations: add locomotion observations
     # -----------------------------------------------------------------
     # Add locomotion-specific observations to policy
-    cfg.observations["policy"].terms["base_ang_vel"] = ObservationTermCfg(
+    cfg.observations["actor"].terms["base_ang_vel"] = ObservationTermCfg(
         func=loco_mdp.builtin_sensor,
         params={"sensor_name": "robot/imu_ang_vel"},
         noise=Unoise(n_min=-0.2, n_max=0.2),
     )
-    cfg.observations["policy"].terms["base_lin_acc"] = ObservationTermCfg(
+    cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
         func=loco_mdp.builtin_sensor,
         params={"sensor_name": "robot/imu_lin_acc"},
         noise=Unoise(n_min=-0.5, n_max=0.5),
     )
-    cfg.observations["policy"].terms["twist_command"] = ObservationTermCfg(
+    cfg.observations["actor"].terms["twist_command"] = ObservationTermCfg(
         func=loco_mdp.generated_commands,
         params={"command_name": "twist"},
     )
@@ -400,7 +400,7 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     # -----------------------------------------------------------------
     if play:
         cfg.episode_length_s = int(1e9)
-        cfg.observations["policy"].enable_corruption = False
+        cfg.observations["actor"].enable_corruption = False
         cfg.events.pop("push_robot", None)
 
     return cfg

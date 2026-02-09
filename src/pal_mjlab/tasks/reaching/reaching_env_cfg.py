@@ -25,7 +25,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     # Observations
     ## --------------------------------------------------------
 
-    policy_terms = {
+    actor_terms = {
         "joint_pos": ObservationTermCfg(
             func=mdp.joint_pos_rel,
             noise=Unoise(n_min=-0.07, n_max=0.07),
@@ -46,12 +46,12 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     }
 
     critic_terms = {
-        **policy_terms,
+        **actor_terms,
     }
 
     observations = {
-        "policy": ObservationGroupCfg(
-            terms=policy_terms,
+        "actor": ObservationGroupCfg(
+            terms=actor_terms,
             concatenate_terms=True,
             enable_corruption=True,
         ),
