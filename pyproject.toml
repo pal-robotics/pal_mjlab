@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.10,<3.14"
 dependencies = [
     "mjlab",
+    "mujoco-warp",
     "ruff>=0.14.0",
 ]
 
@@ -22,6 +23,7 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 mjlab = { git = "https://github.com/mujocolab/mjlab" }
+mujoco-warp = { git = "https://github.com/google-deepmind/mujoco_warp", rev = "7f89cacecbf0baff92a631671d4a7a45c2b07e20" }
 
 [project.entry-points."mjlab.tasks"]
 pal_mjlab = "pal_mjlab.tasks"
