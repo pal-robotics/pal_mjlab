@@ -103,6 +103,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     #-- Observations
 
+    cfg.observations["actor"].terms["height_scan"] = None
+    cfg.observations["critic"].terms["height_scan"] = None
     cfg.observations["actor"].terms["base_lin_vel"] = None
     cfg.observations["actor"].terms["projected_gravity"] = None
     cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
