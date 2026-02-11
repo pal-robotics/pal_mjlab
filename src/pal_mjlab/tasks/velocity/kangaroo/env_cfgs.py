@@ -1,5 +1,7 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
+import torch
+
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
@@ -8,6 +10,8 @@ from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
+from mjlab.managers import MetricsTermCfg
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
@@ -214,6 +218,59 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
     )
+
+    ## Metrics Calculations
+    def joint_velocity_magnitude(env, asset_cfg):
+        """L1 norm of joint velocities."""
+        return env.scene[asset_cfg.name].data.joint_vel.abs().sum(dim=-1)  # (num_envs,)
+
+    def joint_accelerations_magnitude(env, asset_cfg):
+        """L1 norm of joint velocities."""
+        return env.scene[asset_cfg.name].data.joint_acc.abs().sum(dim=-1)  # (num_envs,)
+
+    def joint_torques_magnitude(env, asset_cfg):
+        """L1 norm of joint torques."""
+        return env.scene[asset_cfg.name].data.actuator_force.abs().sum(dim=-1)  # (num_envs,)
+
+    def action_rate_l2(env) -> torch.Tensor:
+        """Penalize the rate of change of the actions using L2 squared kernel."""
+        return torch.sum(
+            torch.square(env.action_manager.action - env.action_manager.prev_action), dim=1
+        )
+    def action_acc_l2(env) -> torch.Tensor:
+        """Penalize the acceleration of the actions using L2 squared kernel."""
+        action_acc = (
+            env.action_manager.action
+            - 2 * env.action_manager.prev_action
+            + env.action_manager.prev_prev_action
+        )
+        return torch.sum(torch.square(action_acc), dim=1)
+
+    cfg.metrics = {"joint_vel_mag": MetricsTermCfg(func=joint_velocity_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
+                "joint_acc_mag": MetricsTermCfg(func=joint_accelerations_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
+                "joint_torque_mag": MetricsTermCfg(func=joint_torques_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
+                "action_rate_l2": MetricsTermCfg(func=action_rate_l2, params={}),
+                "action_acc_l2": MetricsTermCfg(func=action_acc_l2, params={})}
+
+    # # All except leg length joints
+    # cfg.rewards["joint_accel"] = RewardTermCfg(
+    #     func=mdp.joint_acc_l2,
+    #     weight=-1.0e-8,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*"])},
+    # )
+
+    # cfg.curriculum["joint_accel"] = CurriculumTermCfg(
+    #   func=mdp.reward_weight,
+    #   params={"reward_name": "joint_accel",
+    #           "weight_stages": [
+    #               {"step": 0, "weight": 0.0 },
+    #               {"step": 2000 * 24, "weight": -1.0e-8},
+    #               {"step": 8000 * 24, "weight": -1.0e-7},
+    #               {"step": 15000 * 24, "weight": -1.0e-6},
+    #           ],
+    #   },
+    # )
+
 
     #-- Terminations
 
