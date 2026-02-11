@@ -15,7 +15,6 @@ dependencies = [
 
 [project.scripts]
 pal-mjlab = "pal_mjlab:main"
-pal_npz = "pal_mjlab.scripts.csv_to_npz:main"
 
 [build-system]
 requires = ["uv_build>=0.8.18,<0.9.0"]
@@ -23,7 +22,7 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 mjlab = { git = "https://github.com/mujocolab/mjlab" }
-mujoco-warp = { git = "https://github.com/google-deepmind/mujoco_warp", rev = "7f89cacecbf0baff92a631671d4a7a45c2b07e20" }
+mujoco-warp = { git = "https://github.com/google-deepmind/mujoco_warp", rev = "b75f85b4dbc60f2d6e9277d345953aa1f1dd1611" }
 
 [project.entry-points."mjlab.tasks"]
 pal_mjlab = "pal_mjlab.tasks"
