@@ -58,7 +58,7 @@ uv run play Mjlab-Velocity-Flat-Pal-Talos --wandb-run-path your-org/mjlab/run-id
 
 ## Motion Imitation
 
-We added support to [GMR](https://github.com/YanjieZe/GMR) to retarget animations from the [LaFAN1 dataset](https://github.com/ubisoft/ubisoft-laforge-animation-dataset) for PAL robots.
+We added support to [GMR](https://github.com/YanjieZe/GMR) to retarget animations from the [LaFAN1 dataset](https://github.com/ubisoft/ubisoft-laforge-animation-dataset) for PAL robots (KANGAROO and Talos).
 
 ### Retargeting a new motion
 
@@ -69,10 +69,10 @@ Then convert the CSV to NPZ format.
 ```bash
 uv run -m pal_mjlab.scripts.csv_to_npz \
     --input-file motions/kang_walk.csv \
-    --output-name motion_name \
+    --output-name kang_walk \
     --input-fps 30 \
     --output-fps 50 \
-    --robot kangaroo
+    --robot-name kangaroo \
     --render True
 ```
 
@@ -82,14 +82,14 @@ Train.
 
 ```bash
 uv run train Mjlab-Tracking-Flat-Pal-Kangaroo \
-    --registry-name your-org/csv_to_npz/motion_name \
+    --registry-name your-org/csv_to_npz/kang_walk \
     --env.scene.num-envs 4096
 ```
 
 Evaluate.
 
 ```bash
-uv run play Mjlab-Tracking-Flat-Pal-Talos-Play --wandb-run-path your-org/mjlab/run-id
+uv run play Mjlab-Tracking-Flat-Pal-Kangaroo --wandb-run-path your-org/mjlab/run-id
 ```
 
 ## Results
