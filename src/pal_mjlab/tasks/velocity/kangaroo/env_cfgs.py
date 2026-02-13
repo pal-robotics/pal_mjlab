@@ -8,6 +8,8 @@ from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
+from mjlab.managers import MetricsTermCfg
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
@@ -99,14 +101,16 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     #-- Observations
 
-    cfg.observations["policy"].terms["base_lin_vel"] = None
-    cfg.observations["policy"].terms["projected_gravity"] = None
-    cfg.observations["policy"].terms["imu_projected_gravity"] = ObservationTermCfg(
+    cfg.observations["actor"].terms["height_scan"] = None
+    cfg.observations["critic"].terms["height_scan"] = None
+    cfg.observations["actor"].terms["base_lin_vel"] = None
+    cfg.observations["actor"].terms["projected_gravity"] = None
+    cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
         func=mdp.imu_projected_gravity,
         params={"sensor_name": "robot/imu_quat"},
         noise=Unoise(n_min=-0.5, n_max=0.5),
     )
-    cfg.observations["policy"].terms["base_lin_acc"] = ObservationTermCfg(
+    cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
         func=mdp.builtin_sensor,
         params={"sensor_name": "robot/imu_lin_acc"},
         noise=Unoise(n_min=-0.5, n_max=0.5),
@@ -125,7 +129,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     ### Disabling the use of history length as we haven't seen much improvements with it
     ### Moreover, our best policy #62 doesn't use any history length
-    # cfg.observations["policy"].history_length = 5  # Keep last 5 frames
+    # cfg.observations["actor"].history_length = 5  # Keep last 5 frames
     # cfg.observations["critic"].history_length = 5  # Keep last 5 frames
     
     #-- Events
@@ -215,6 +219,33 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={"sensor_name": self_collision_cfg.name},
     )
 
+    ## Metrics
+    cfg.metrics = {"joint_vel_mag": MetricsTermCfg(func=mdp.joint_velocity_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
+                "joint_acc_mag": MetricsTermCfg(func=mdp.joint_accelerations_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
+                "joint_torque_mag": MetricsTermCfg(func=mdp.joint_torques_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
+                "action_rate_l2": MetricsTermCfg(func=mdp.action_rate_l2, params={}),
+                "action_acc_l2": MetricsTermCfg(func=mdp.action_acc_l2, params={})}
+
+    # # All except leg length joints
+    # cfg.rewards["joint_accel"] = RewardTermCfg(
+    #     func=mdp.joint_acc_l2,
+    #     weight=-1.0e-8,
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*"])},
+    # )
+
+    # cfg.curriculum["joint_accel"] = CurriculumTermCfg(
+    #   func=mdp.reward_weight,
+    #   params={"reward_name": "joint_accel",
+    #           "weight_stages": [
+    #               {"step": 0, "weight": 0.0 },
+    #               {"step": 2000 * 24, "weight": -1.0e-8},
+    #               {"step": 8000 * 24, "weight": -1.0e-7},
+    #               {"step": 15000 * 24, "weight": -1.0e-6},
+    #           ],
+    #   },
+    # )
+
+
     #-- Terminations
 
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
@@ -227,7 +258,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         # Effectively infinite episode length.
         cfg.episode_length_s = int(1e9)
 
-        cfg.observations["policy"].enable_corruption = False
+        cfg.observations["actor"].enable_corruption = False
         cfg.events.pop("push_robot", None)
         cfg.events["randomize_terrain"] = EventTermCfg(
             func=mdp.randomize_terrain,
