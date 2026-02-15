@@ -147,17 +147,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "operation": "add",
         },
     )
-    cfg.events["mass"] = EventTermCfg(
-        mode="startup",
-        func=mdp.randomize_field,
-        domain_randomization=True,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=["pelvis_2_link"]),
-            "field": "body_mass",
-            "ranges": (-0.2, 0.2),
-            "operation": "add",
-        },
-    )
     cfg.events["encoder_bias"].params["asset_cfg"].joint_names = [r"^(?!leg_.*_length_.*$).*"]
     cfg.events["leg_length_encoder_bias"] = EventTermCfg(
         mode="startup",

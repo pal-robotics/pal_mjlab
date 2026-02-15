@@ -129,28 +129,6 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
                 "operation": "abs",
             },
         ),
-        "reset_inertia": EventTermCfg(
-            mode="reset",
-            func=mdp.randomize_field,
-            domain_randomization=True,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-                "field": "body_inertia",
-                "ranges": (0.95, 1.05),
-                "operation": "scale",
-            },
-        ),
-        "reset_mass": EventTermCfg(
-            mode="reset",
-            func=mdp.randomize_field,
-            domain_randomization=True,
-            params={
-                "asset_cfg": SceneEntityCfg("robot", body_names=(".*",)),
-                "field": "body_mass",
-                "ranges": (0.95, 1.05),
-                "operation": "scale",
-            },
-        ),
     }
 
     ## --------------------------------------------------------
