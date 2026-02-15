@@ -78,6 +78,7 @@ def pal_talos_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     ].site_names = site_names
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
+    cfg.events["base_com"].params["asset_cfg"].body_names = ("torso_2_link",)
 
     cfg.rewards["pose"].params["std_standing"] = {".*": 0.05}
     cfg.rewards["pose"].params["std_walking"] = {
