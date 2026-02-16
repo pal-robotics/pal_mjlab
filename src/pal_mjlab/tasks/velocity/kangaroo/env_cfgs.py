@@ -10,9 +10,11 @@ from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers import MetricsTermCfg
+import torch
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
+from pal_mjlab.tasks.velocity.kangaroo.mdp.rewards import joint_limits_convex_hull
 
 from pal_mjlab.robots import (
     KANGAROO_ACTION_SCALE,
@@ -207,6 +209,20 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
     )
+
+    cfg.rewards["convex_hull_joint_limits_hip_left"] = RewardTermCfg(
+        func=joint_limits_convex_hull,
+        weight=-10.0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=[r"leg_left_[23]_joint"]
+            ),
+            "hull_points": torch.tensor([
+                [-0.59341,-0.26180],[-0.59341,-0.17453],[-0.59341,-0.08727],[-0.74176,0.00000], [-0.59341,0.08727],[-0.59341,0.17453],[-0.59341,0.26180],
+                [-0.44506,0.34907], [-0.44506,0.43633],[-0.29671,0.43633],[-0.14835,0.43633],[0.00000,0.43633], [0.14835,0.43633],[0.29671,0.43633],
+                [0.44506,0.43633],[0.44506,0.34907], [0.59341,0.26180],[0.59341,0.17453],[0.59341,0.08727],[0.74176,0.00000], [0.59341,-0.08727],
+                [0.59341,-0.17453],[0.59341,-0.26180],[0.44506,-0.34907], [0.44506,-0.43633],[0.29671,-0.43633],[0.14835,-0.43633],[0.00000,-0.43633],
+                [-0.14835,-0.43633],[-0.29671,-0.43633],[-0.44506,-0.43633],[-0.44506,-0.43633]])})
 
     ## Metrics
     cfg.metrics = {"joint_vel_mag": MetricsTermCfg(func=mdp.joint_velocity_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
