@@ -210,13 +210,16 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         params={"sensor_name": self_collision_cfg.name},
     )
 
+    # The hull points should correspond to the respective joints defined in the joint_names_group order
+    # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
     cfg.rewards["convex_hull_joint_limits_hip_left"] = RewardTermCfg(
         func=joint_limits_convex_hull,
         weight=-10.0,
         params={
             "asset_cfg": SceneEntityCfg(
-                "robot", joint_names=[r"leg_left_[23]_joint"]
+                "robot", joint_names=(r".*",)
             ),
+            "joint_names_group": [[r"leg_left_2_joint", r"leg_left_3_joint"], [r"leg_right_2_joint", r"leg_right_3_joint"]],
             "hull_points": torch.tensor([
                 [-0.59341,-0.26180],[-0.59341,-0.17453],[-0.59341,-0.08727],[-0.74176,0.00000], [-0.59341,0.08727],[-0.59341,0.17453],[-0.59341,0.26180],
                 [-0.44506,0.34907], [-0.44506,0.43633],[-0.29671,0.43633],[-0.14835,0.43633],[0.00000,0.43633], [0.14835,0.43633],[0.29671,0.43633],
