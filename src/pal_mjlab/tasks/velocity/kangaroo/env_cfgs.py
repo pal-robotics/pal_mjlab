@@ -212,7 +212,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     # The hull points should correspond to the respective joints defined in the joint_names_group order
     # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
-    cfg.rewards["convex_hull_joint_limits_hip_left"] = RewardTermCfg(
+    cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
         func=joint_limits_convex_hull,
         weight=-10.0,
         params={
@@ -226,6 +226,34 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
                 [0.44506,0.43633],[0.44506,0.34907], [0.59341,0.26180],[0.59341,0.17453],[0.59341,0.08727],[0.74176,0.00000], [0.59341,-0.08727],
                 [0.59341,-0.17453],[0.59341,-0.26180],[0.44506,-0.34907], [0.44506,-0.43633],[0.29671,-0.43633],[0.14835,-0.43633],[0.00000,-0.43633],
                 [-0.14835,-0.43633],[-0.29671,-0.43633],[-0.44506,-0.43633],[-0.44506,-0.43633]])})
+
+    cfg.rewards["convex_hull_joint_limits_ankle_left"] = RewardTermCfg(
+        func=joint_limits_convex_hull,
+        weight=-10.0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=(r".*",)
+            ),
+            "joint_names_group": [[r"leg_left_4_joint", r"leg_left_5_joint"]],
+            "hull_points": torch.tensor([[0.679, 0.068], [0.64, 0.137], [0.586, 0.227], [0.512, 0.35], [0.467, 0.415], [0.243, 0.432], [-0.095, 0.44],
+                                         [-0.358, 0.444], [-0.457, 0.449], [-0.529, 0.35], [-0.685, -0.383], [-0.758, -0.003], [-0.658, -0.164],
+                                         [-0.531, -0.356], [-0.469, -0.437], [-0.259, -0.436], [-0.02, -0.435], [0.233, -0.434], [0.385, -0.426],
+                                         [0.438, -0.335], [0.551, -0.143], [0.641, 0.01]])})
+
+    cfg.rewards["convex_hull_joint_limits_ankle_right"] = RewardTermCfg(
+        func=joint_limits_convex_hull,
+        weight=-10.0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=(r".*",)
+            ),
+            "joint_names_group": [[r"leg_right_4_joint", r"leg_right_5_joint"]],
+            "hull_points": torch.tensor([[-0.752, 0.001], [-0.69, -0.099], [-0.579, -0.261], [-0.503, -0.365], [-0.422, -0.467], [-0.173, -0.459],
+                                          [0.066, -0.457], [0.323, -0.45], [0.472, -0.45], [0.518, -0.372], [0.631, -0.175], [0.689, -0.082],
+                                          [0.599, 0.071], [0.532, 0.185], [0.448, 0.334], [0.389, 0.431], [0.236, 0.442], [0.001, 0.446],
+                                          [-0.287, 0.446], [-0.453, 0.445], [-0.516, 0.361], [-0.605, 0.234], [-0.707, 0.08]])})
+
+
 
     ## Metrics
     cfg.metrics = {"joint_vel_mag": MetricsTermCfg(func=mdp.joint_velocity_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
