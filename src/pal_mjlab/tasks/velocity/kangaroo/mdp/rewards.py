@@ -84,6 +84,7 @@ class joint_limits_convex_hull:
 
     def __call__(self, env: ManagerBasedRlEnv,
                 asset_cfg: SceneEntityCfg,
+                metrics_suffix: str,
                 joint_names_group: list[list[str]],
                 hull_points: torch.Tensor) -> torch.Tensor:
 
@@ -122,5 +123,5 @@ class joint_limits_convex_hull:
             metrics_violation_dist += violation_dist
             # penalty = torch.where(inside, torch.zeros_like(inside, dtype=torch.float32), torch.square(dot_product_res))
 
-        env.extras["log"][f"Metrics/convex_joint_limits_hull_hip_{asset_cfg.name}"] = torch.mean(metrics_violation_dist)
+        env.extras["log"][f"Metrics/joint_limits_hull_{metrics_suffix}"] = torch.mean(metrics_violation_dist)
         return penalty
