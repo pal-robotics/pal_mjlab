@@ -1,5 +1,5 @@
 from mjlab.envs import ManagerBasedRlEnvCfg
-from mjlab.envs.mdp.actions import JointPositionActionCfg
+from mjlab.envs.mdp.actions import JointPositionActionCfg, DifferentialIKActionCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
@@ -21,6 +21,18 @@ def pal_tiago_pro_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     joint_pos_action = cfg.actions["joint_pos"]
     assert isinstance(joint_pos_action, JointPositionActionCfg)
     joint_pos_action.scale = 0.5  # TIAGO_PRO_ACTION_SCALE
+    joint_pos_action.actuator_names=("torso.*",)
+
+    # Differential IK actio setup for Tiago-Pro
+    right_IK_action = cfg.actions["right_ee_IK"]
+    left_IK_action = cfg.actions["left_ee_IK"]
+    assert isinstance(right_IK_action, DifferentialIKActionCfg)
+    assert isinstance(left_IK_action, DifferentialIKActionCfg)
+    right_IK_action.frame_name = "ee_right"
+    right_IK_action.actuator_names=(".*right.*",)
+    left_IK_action.frame_name = "ee_left"
+    left_IK_action.actuator_names=(".*left.*",)
+
 
     cfg.commands["pose_command_left"].ranges.pos_x = (0.1, 0.8)
     cfg.commands["pose_command_left"].ranges.pos_y = (-0.2, 0.5)
