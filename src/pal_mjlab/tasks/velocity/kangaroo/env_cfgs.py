@@ -221,6 +221,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             ),
             "metrics_suffix": "hipXY",
             "joint_names_group": [[r"leg_left_2_joint", r"leg_left_3_joint"], [r"leg_right_2_joint", r"leg_right_3_joint"]],
+            "margin": 0.0,
             "hull_points": torch.tensor([
                 [-0.59341,-0.26180],[-0.59341,-0.17453],[-0.59341,-0.08727],[-0.74176,0.00000], [-0.59341,0.08727],[-0.59341,0.17453],[-0.59341,0.26180],
                 [-0.44506,0.34907], [-0.44506,0.43633],[-0.29671,0.43633],[-0.14835,0.43633],[0.00000,0.43633], [0.14835,0.43633],[0.29671,0.43633],
@@ -235,6 +236,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "asset_cfg": SceneEntityCfg(
                 "robot", joint_names=(r".*",)
             ),
+            "margin": 0.0,
             "metrics_suffix": "ankleXY",
             "joint_names_group": [[r"leg_left_4_joint", r"leg_left_5_joint"], [r"leg_right_4_joint", r"leg_right_5_joint"]],
             "hull_points": torch.tensor([[0.707, 0.005], [0.648, 0.112], [0.576, 0.23], [0.484, 0.38], [0.443, 0.439], [0.266, 0.443], [0.008, 0.441],

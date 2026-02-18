@@ -81,10 +81,31 @@ class joint_limits_convex_hull:
         self.equation_coeff_A = None
         self.equation_coeff_b = None
 
+    def _reduce_convex_hull(self, margin: float) -> None:
+        """
+        Reduce the convex hull by moving each hyperplane inward by the specified margin.
+        This shrinks the feasible region to create a safety buffer.
+
+        Args:
+            margin: The distance by which to shrink each hyperplane (must be non-negative)
+        """
+        if self.convex_hull is None or margin <= 0:
+            return
+
+        # Get the normal vectors (normalized)
+        normals = self.equation_coeff_A
+        # Compute the norm of each normal vector
+        norm_magnitudes = torch.norm(normals, dim=1, keepdim=True)
+        # Normalize the vectors
+        normalized_normals = normals / (norm_magnitudes + 1e-8)
+        # Reduce b by margin * norm of the normal vector
+        self.equation_coeff_b = self.equation_coeff_b - margin * norm_magnitudes.squeeze(1)
+
 
     def __call__(self, env: ManagerBasedRlEnv,
                 asset_cfg: SceneEntityCfg,
                 metrics_suffix: str,
+                margin: float,
                 joint_names_group: list[list[str]],
                 hull_points: torch.Tensor) -> torch.Tensor:
 
@@ -104,6 +125,8 @@ class joint_limits_convex_hull:
                 self.equation_coeff_A = self.equations[:, :-1].to(device=joint_pos.device, dtype=joint_pos.dtype) # Normals
                 self.equation_coeff_b = self.equations[:, -1].to(device=joint_pos.device, dtype=joint_pos.dtype)  # Offsets
                 print("Convex hull equations device", self.equations.device)
+                # Apply margin reduction to shrink the convex hull
+                self._reduce_convex_hull(margin)
 
             M = joint_pos.shape[0]
             ones = torch.ones((M, 1), dtype=joint_pos.dtype, device=joint_pos.device)
