@@ -70,30 +70,30 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     actions: dict[str, ActionTermCfg] = {
         "right_ee_IK": DifferentialIKActionCfg(
             entity_name="robot",
-            actuator_names=(".*",), # Regex for controlled joints
-            frame_name="",         # End-effector element name
+            actuator_names=(".*",),        # Regex for controlled joints
+            frame_name="",                 # End-effector element name
             frame_type="site",             # "body", "site", or "geom"
             use_relative_mode=False,       # Absolute target mode
             damping=0.05,                  # DLS damping (lambda)
             max_dq=0.5,                    # Per-step joint displacement limit
-            position_weight=1.0,           # Position tracking weight
-            orientation_weight=1.0,        # Orientation tracking weight
-            joint_limit_weight=0.1,        # Soft joint-limit avoidance
+            position_weight=2.0,           # Position tracking weight
+            orientation_weight=2.0,        # Orientation tracking weight
+            joint_limit_weight=0.05,        # Soft joint-limit avoidance
             posture_weight=0.0,            # Null-space posture regularization
             posture_target={".*": 0.0},    # Posture target (regex → value)
         ),
 
         "left_ee_IK": DifferentialIKActionCfg(
             entity_name="robot",
-            actuator_names=(".*",),  # Regex for controlled joints
-            frame_name="",          # End-effector element name
+            actuator_names=(".*",),        # Regex for controlled joints
+            frame_name="",                 # End-effector element name
             frame_type="site",             # "body", "site", or "geom"
             use_relative_mode=False,       # Absolute target mode
             damping=0.05,                  # DLS damping (lambda)
             max_dq=0.5,                    # Per-step joint displacement limit
-            position_weight=1.0,           # Position tracking weight
-            orientation_weight=1.0,        # Orientation tracking weight
-            joint_limit_weight=0.1,        # Soft joint-limit avoidance
+            position_weight=2.0,           # Position tracking weights
+            orientation_weight=2.0,        # Orientation tracking weight
+            joint_limit_weight=0.05,        # Soft joint-limit avoidance
             posture_weight=0.0,            # Null-space posture regularization
             posture_target={".*": 0.0},    # Posture target (regex → value)
         ),
@@ -103,7 +103,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             actuator_names=(".*",),
             scale=0.5,  # Override per-robot.
             use_default_offset=True,
-        )
+        ),
     }
 
     ## --------------------------------------------------------
