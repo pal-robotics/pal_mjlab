@@ -42,5 +42,5 @@ def pal_tiago_pro_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
         save_interval=50,
         num_steps_per_env=24,
         max_iterations=30_000,
-        clip_actions = 0.3,
+        clip_actions = 0.5,
     )
