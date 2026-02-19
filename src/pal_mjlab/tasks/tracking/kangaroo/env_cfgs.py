@@ -132,7 +132,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
         "ranges": (0.3, 2.0),
         "shared_random": False,  # All foot geoms share the same friction.
       },
-    ),
+    )
 
 
 
