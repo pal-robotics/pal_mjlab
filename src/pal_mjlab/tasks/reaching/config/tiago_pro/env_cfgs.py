@@ -40,12 +40,12 @@ def pal_tiago_pro_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     # Clip actions (because unbounded space, non bijective control through differential IK)
     left_IK_action.clip = {
-        TransmissionType.SITE : (-1.0,1.0),
-        TransmissionType.JOINT : (-1.0,1.0),
+        TransmissionType.SITE : (-0.3,0.3),
+        TransmissionType.JOINT : (-0.3,0.3),
     }
     right_IK_action.clip = {
-        TransmissionType.SITE : (-1.0,1.0),
-        TransmissionType.JOINT : (-1.0,1.0),
+        TransmissionType.SITE : (-0.3,0.3),
+        TransmissionType.JOINT : (-0.3,0.3),
     }
 
     cfg.commands["pose_command_left"].ranges.pos_x = (0.1, 0.8)
