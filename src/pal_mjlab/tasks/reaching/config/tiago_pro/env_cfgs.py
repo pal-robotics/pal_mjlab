@@ -30,12 +30,12 @@ def pal_tiago_pro_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     right_IK_action = cfg.actions["right_ee_IK"]
     assert isinstance(right_IK_action, DifferentialIKActionCfg)
     right_IK_action.frame_name = "ee_right"
-    right_IK_action.actuator_names=(".*right.*",)
+    right_IK_action.actuator_names=("arm_right.*",)
 
     left_IK_action = cfg.actions["left_ee_IK"]
     assert isinstance(left_IK_action, DifferentialIKActionCfg)
     left_IK_action.frame_name = "ee_left"
-    left_IK_action.actuator_names=(".*left.*",)
+    left_IK_action.actuator_names=("arm_left.*",)
 
     cfg.commands["pose_command_left"].ranges.pos_x = (0.1, 0.8)
     cfg.commands["pose_command_left"].ranges.pos_y = (-0.2, 0.5)

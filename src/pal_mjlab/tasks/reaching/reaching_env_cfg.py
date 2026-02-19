@@ -70,13 +70,13 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     actions: dict[str, ActionTermCfg] = {
         "joint_pos": JointPositionActionCfg(
             entity_name="robot",
-            actuator_names=(".*",),
+            actuator_names=( ),#TO BE FILLED PER ROBOT TYPE 
             scale=0.5,  # Override per-robot.
             use_default_offset=True,
         ),
         "right_ee_IK": DifferentialIKActionCfg(
             entity_name="robot",
-            actuator_names=(".*",),        # Regex for controlled joints
+            actuator_names=( ),#TO BE FILLED PER ROBOT TYPE 
             frame_name="",                 # End-effector element name
             frame_type="site",             # "body", "site", or "geom"
             use_relative_mode=True,        # Absolute target mode
@@ -91,7 +91,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
 
         "left_ee_IK": DifferentialIKActionCfg(
             entity_name="robot",
-            actuator_names=(".*",),        # Regex for controlled joints
+            actuator_names=( ),#TO BE FILLED PER ROBOT TYPE 
             frame_name="",                 # End-effector element name
             frame_type="site",             # "body", "site", or "geom"
             use_relative_mode=True,        # Absolute target mode
