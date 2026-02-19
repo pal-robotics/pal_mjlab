@@ -88,19 +88,22 @@ class action_rate_l2_louis:
         _, joint_names = asset.find_joints(
             cfg.params["asset_cfg"].joint_names,
         )
+
         self._joint_ids = [
             asset.actuator_names.index(jname)
             for jname in joint_names
-            if jname in asset.actuator_names
+            if (jname in asset.actuator_names and not('right' in jname or 'left' in jname))
         ]
+        self._joint_ids
+        self._joint_ids_2 = [self._joint_ids.index(i) for i in self._joint_ids]
 
     def __call__(
         self, env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg
     ) -> torch.Tensor:
         return torch.sum(
             torch.square(
-                env.action_manager.action[:, self._joint_ids]
-                - env.action_manager.prev_action[:, self._joint_ids]
+                env.action_manager.action[:, self._joint_ids_2]
+                - env.action_manager.prev_action[:, self._joint_ids_2]
             ),
             dim=1,
         )
