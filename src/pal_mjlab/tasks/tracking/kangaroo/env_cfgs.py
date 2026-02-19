@@ -10,6 +10,7 @@ from mjlab.managers.observation_manager import ObservationTermCfg
 from pal_mjlab.tasks.velocity.kangaroo import mdp
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.managers.reward_manager import RewardTermCfg
+from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 import torch
 
@@ -29,13 +30,13 @@ def pal_kangaroo_flat_tracking_env_cfg(
 
     site_names = ("left_foot", "right_foot")
     geom_names = (
-        # Feet
-        *(
-            f"{side}_foot{i}_collision"
-            for side in ("left", "right")
-            for i in [0, 2, 4, 6, 8, 10]
-        ),
-        # Femur
+        f"{side}_foot{i}_collision"
+        for side in ("left", "right")
+        for i in [0, 2, 4, 6, 8, 10]
+    )
+
+    body_geoms = (
+        # # Femur
         "leg_left_femur_collision",
         "leg_right_femur_collision",
         # Knee
@@ -120,6 +121,21 @@ def pal_kangaroo_flat_tracking_env_cfg(
                                           [0.232, -0.456], [0.429, -0.46], [0.475, -0.382], [0.583, -0.207], [0.665, -0.071]])})
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
+    cfg.events["body_friction"] = EventTermCfg(
+      mode="startup",
+      func=mdp.randomize_field,
+      domain_randomization=True,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", geom_names=body_geoms),  # Set per-robot.
+        "operation": "abs",
+        "field": "geom_friction",
+        "ranges": (0.3, 2.0),
+        "shared_random": False,  # All foot geoms share the same friction.
+      },
+    ),
+
+
+
     cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
     cfg.terminations["ee_body_pos"].params["body_names"] = (
