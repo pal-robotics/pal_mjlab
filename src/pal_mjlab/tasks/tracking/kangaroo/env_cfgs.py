@@ -9,7 +9,11 @@ from mjlab.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
 from mjlab.managers.observation_manager import ObservationTermCfg
 from pal_mjlab.tasks.velocity.kangaroo import mdp
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
+from mjlab.managers.reward_manager import RewardTermCfg
+from mjlab.managers.scene_entity_config import SceneEntityCfg
+import torch
 
+from pal_mjlab.tasks.velocity.kangaroo import mdp
 from pal_mjlab.robots import KANGAROO_ACTION_SCALE, get_kangaroo_robot_cfg, KANGAROO_ACTUATOR_NAMES
 
 def pal_kangaroo_flat_tracking_env_cfg(
@@ -24,12 +28,27 @@ def pal_kangaroo_flat_tracking_env_cfg(
     cfg.decimation = 10
 
     site_names = ("left_foot", "right_foot")
-    geom_names = tuple(
-        f"{side}_foot{i}_collision"
-        for side in ("left", "right")
-        for i in [0, 2, 4, 6, 8, 10]
+    geom_names = (
+        # Feet
+        *(
+            f"{side}_foot{i}_collision"
+            for side in ("left", "right")
+            for i in [0, 2, 4, 6, 8, 10]
+        ),
+        # Femur
+        "leg_left_femur_collision",
+        "leg_right_femur_collision",
+        # Knee
+        "leg_left_knee_collision",
+        "leg_left_knee_bar_collision",
+        "leg_right_knee_collision",
+        "leg_right_knee_bar_collision",
+        # Arms (4 only — arm 3 has no collision geom)
+        "arm_left_4_collision",
+        "arm_right_4_collision",
+        # Pelvis
+        "pelvis_2_collision",
     )
-
     self_collision_cfg = ContactSensorCfg(
         name="self_collision",
         primary=ContactMatch(mode="subtree", pattern="base_link", entity="robot"),
@@ -66,26 +85,39 @@ def pal_kangaroo_flat_tracking_env_cfg(
         "arm_right_5_link",
     )
 
-    # cfg.observations["actor"].terms["base_lin_vel"] = None
-    # cfg.observations["actor"].terms["projected_gravity"] = None
-    # cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
-    #     func=mdp.imu_projected_gravity,
-    #     params={"sensor_name": "robot/imu_quat"},
-    #     noise=Unoise(n_min=-0.5, n_max=0.5),
-    # )
-    # cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
-    #     func=mdp.builtin_sensor,
-    #     params={"sensor_name": "robot/imu_lin_acc"},
-    #     noise=Unoise(n_min=-0.5, n_max=0.5),
-    # )
-    # cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
-    #     func=mdp.imu_projected_gravity,
-    #     params={"sensor_name": "robot/imu_quat"},
-    # )
-    # cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
-    #     func=mdp.builtin_sensor,
-    #     params={"sensor_name": "robot/imu_lin_acc"},
-    # )
+    # The hull points should correspond to the respective joints defined in the joint_names_group order
+    # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
+    cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
+        func=mdp.joint_limits_convex_hull,
+        weight=-10.0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=(r".*",)
+            ),
+            "metrics_suffix": "hipXY",
+            "joint_names_group": [[r"leg_left_2_joint", r"leg_left_3_joint"], [r"leg_right_2_joint", r"leg_right_3_joint"]],
+            "margin": 0.0,
+            "hull_points": torch.tensor([
+                [-0.59341,-0.26180],[-0.59341,-0.17453],[-0.59341,-0.08727],[-0.74176,0.00000], [-0.59341,0.08727],[-0.59341,0.17453],[-0.59341,0.26180],
+                [-0.44506,0.34907], [-0.44506,0.43633],[-0.29671,0.43633],[-0.14835,0.43633],[0.00000,0.43633], [0.14835,0.43633],[0.29671,0.43633],
+                [0.44506,0.43633],[0.44506,0.34907], [0.59341,0.26180],[0.59341,0.17453],[0.59341,0.08727],[0.74176,0.00000], [0.59341,-0.08727],
+                [0.59341,-0.17453],[0.59341,-0.26180],[0.44506,-0.34907], [0.44506,-0.43633],[0.29671,-0.43633],[0.14835,-0.43633],[0.00000,-0.43633],
+                [-0.14835,-0.43633],[-0.29671,-0.43633],[-0.44506,-0.43633],[-0.44506,-0.43633]])})
+
+    cfg.rewards["convex_hull_joint_limits_ankle"] = RewardTermCfg(
+        func=mdp.joint_limits_convex_hull,
+        weight=-10.0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=(r".*",)
+            ),
+            "margin": 0.0,
+            "metrics_suffix": "ankleXY",
+            "joint_names_group": [[r"leg_left_4_joint", r"leg_left_5_joint"], [r"leg_right_4_joint", r"leg_right_5_joint"]],
+            "hull_points": torch.tensor([[0.707, 0.005], [0.648, 0.112], [0.576, 0.23], [0.484, 0.38], [0.443, 0.439], [0.266, 0.443], [0.008, 0.441],
+                                          [-0.293, 0.45], [-0.46, 0.448], [-0.505, 0.379], [-0.594, 0.244], [-0.686, 0.098], [-0.744, 0.001], 
+                                          [-0.688, -0.099], [-0.604, -0.231], [-0.499, -0.394], [-0.445, -0.472], [-0.254, -0.469], [0.005, -0.462], 
+                                          [0.232, -0.456], [0.429, -0.46], [0.475, -0.382], [0.583, -0.207], [0.665, -0.071]])})
 
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
     cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
