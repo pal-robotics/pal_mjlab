@@ -4,6 +4,9 @@ from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 
+from mjlab.actuator.actuator import TransmissionType
+
+
 from pal_mjlab.robots import (
     get_tiago_pro_robot_cfg,
 )
@@ -37,10 +40,10 @@ def pal_tiago_pro_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     # Clip actions (because unbounded space, non bijective control through differential IK)
     left_IK_action.clip = {
-        'position' : (-1.0,1.0),
+        TransmissionType.SITE : (-1.0,1.0),
     }
     right_IK_action.clip = {
-        'position' : (-1.0,1.0),
+        TransmissionType.SITE : (-1.0,1.0),
     }
 
     cfg.commands["pose_command_left"].ranges.pos_x = (0.1, 0.8)
