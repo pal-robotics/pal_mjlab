@@ -29,7 +29,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     cfg.decimation = 10
 
     site_names = ("left_foot", "right_foot")
-    geom_names = (
+    geom_names = tuple(
         f"{side}_foot{i}_collision"
         for side in ("left", "right")
         for i in [0, 2, 4, 6, 8, 10]
