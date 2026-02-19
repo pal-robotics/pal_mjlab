@@ -168,7 +168,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     rewards = {
         "pos_left": RewardTermCfg(
             func=mdp.position_command_error,
-            weight=-4.0,
+            weight=-2.0,
             params={
                 "site_name": "ee_left",
                 "command_name": "pose_command_left",
@@ -176,7 +176,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "pos_left_fine_grained": RewardTermCfg(
             func=mdp.position_command_error_tanh,
-            weight=10.0,
+            weight=3.0,
             params={
                 "site_name": "ee_left",
                 "command_name": "pose_command_left",
@@ -193,7 +193,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "pos_right": RewardTermCfg(
             func=mdp.position_command_error,
-            weight=-4.0,
+            weight=-2.0,
             params={
                 "site_name": "ee_right",
                 "command_name": "pose_command_right",
@@ -201,7 +201,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "pos_right_fine_grained": RewardTermCfg(
             func=mdp.position_command_error_tanh,
-            weight=10.0,
+            weight=3.0,
             params={
                 "site_name": "ee_right",
                 "command_name": "pose_command_right",
@@ -219,7 +219,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
         "action_rate_l2": RewardTermCfg(
             func=mdp.action_rate_l2_louis,
-            weight=-0.000,
+            weight=-0.003,
             params={
                 "asset_cfg": SceneEntityCfg(
                     "robot", joint_names=(".*",)
@@ -228,7 +228,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "joint_vel_hinge": RewardTermCfg(
             func=mdp.joint_velocity_hinge_penalty,
-            weight=-0.00,
+            weight=-0.05,
             params={
                 "max_vel": 0.5,
                 "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),

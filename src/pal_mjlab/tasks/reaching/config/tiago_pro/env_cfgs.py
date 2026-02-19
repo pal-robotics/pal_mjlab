@@ -66,7 +66,7 @@ def pal_tiago_pro_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["stand_still_joint_deviation_l1"] = (
         RewardTermCfg(
             func=mdp.stand_still_joint_deviation_l1,
-            weight=-0.0,
+            weight=-5.0,
             params={
                 "asset_cfg": SceneEntityCfg(
                     "robot",
