@@ -79,12 +79,12 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             actuator_names=(".*",),        # Regex for controlled joints
             frame_name="",                 # End-effector element name
             frame_type="site",             # "body", "site", or "geom"
-            use_relative_mode=True,       # Absolute target mode
+            use_relative_mode=True,        # Absolute target mode
             damping=0.05,                  # DLS damping (lambda)
             max_dq=0.5,                    # Per-step joint displacement limit
-            position_weight=3.0,           # Position tracking weight
-            orientation_weight=3.0,        # Orientation tracking weight
-            joint_limit_weight=0.001,        # Soft joint-limit avoidance
+            position_weight=1.5,           # Position tracking weight
+            orientation_weight=0.5,        # Orientation tracking weight
+            joint_limit_weight=0.001,      # Soft joint-limit avoidance
             posture_weight=0.0,            # Null-space posture regularization
             posture_target={".*": 0.0},    # Posture target (regex → value)
         ),
@@ -94,12 +94,12 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             actuator_names=(".*",),        # Regex for controlled joints
             frame_name="",                 # End-effector element name
             frame_type="site",             # "body", "site", or "geom"
-            use_relative_mode=True,       # Absolute target mode
+            use_relative_mode=True,        # Absolute target mode
             damping=0.05,                  # DLS damping (lambda)
             max_dq=0.5,                    # Per-step joint displacement limit
-            position_weight=3.0,           # Position tracking weights
-            orientation_weight=3.0,        # Orientation tracking weight
-            joint_limit_weight=0.001,        # Soft joint-limit avoidance
+            position_weight=1.5,           # Position tracking weight
+            orientation_weight=0.5,        # Orientation tracking weight
+            joint_limit_weight=0.001,      # Soft joint-limit avoidance
             posture_weight=0.0,            # Null-space posture regularization
             posture_target={".*": 0.0},    # Posture target (regex → value)
         ),
@@ -168,7 +168,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     rewards = {
         "pos_left": RewardTermCfg(
             func=mdp.position_command_error,
-            weight=-6.0,
+            weight=-2.0,
             params={
                 "site_name": "ee_left",
                 "command_name": "pose_command_left",
@@ -185,7 +185,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "ee_left_orientation": RewardTermCfg(
             func=mdp.orientation_command_error,
-            weight=-0.6,
+            weight=-0.2,
             params={
                 "site_name": "ee_left",
                 "command_name": "pose_command_left",
@@ -193,7 +193,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "pos_right": RewardTermCfg(
             func=mdp.position_command_error,
-            weight=-6.0,
+            weight=-2.0,
             params={
                 "site_name": "ee_right",
                 "command_name": "pose_command_right",
@@ -210,7 +210,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "ee_right_orientation": RewardTermCfg(
             func=mdp.orientation_command_error,
-            weight=-0.6,
+            weight=-0.2,
             params={
                 "site_name": "ee_right",
                 "command_name": "pose_command_right",
