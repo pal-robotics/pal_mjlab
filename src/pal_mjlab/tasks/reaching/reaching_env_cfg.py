@@ -73,7 +73,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             actuator_names=(".*",),        # Regex for controlled joints
             frame_name="",                 # End-effector element name
             frame_type="site",             # "body", "site", or "geom"
-            use_relative_mode=False,       # Absolute target mode
+            use_relative_mode=True,       # Absolute target mode
             damping=0.05,                  # DLS damping (lambda)
             max_dq=0.5,                    # Per-step joint displacement limit
             position_weight=3.0,           # Position tracking weight
@@ -88,7 +88,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             actuator_names=(".*",),        # Regex for controlled joints
             frame_name="",                 # End-effector element name
             frame_type="site",             # "body", "site", or "geom"
-            use_relative_mode=False,       # Absolute target mode
+            use_relative_mode=True,       # Absolute target mode
             damping=0.05,                  # DLS damping (lambda)
             max_dq=0.5,                    # Per-step joint displacement limit
             position_weight=3.0,           # Position tracking weights
