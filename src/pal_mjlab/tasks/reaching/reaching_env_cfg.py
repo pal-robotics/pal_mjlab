@@ -82,8 +82,8 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             use_relative_mode=True,        # Absolute target mode
             damping=0.05,                  # DLS damping (lambda)
             max_dq=0.5,                    # Per-step joint displacement limit
-            position_weight=1.5,           # Position tracking weight
-            orientation_weight=0.5,        # Orientation tracking weight
+            position_weight=1.0,           # Position tracking weight
+            orientation_weight=1.0,        # Orientation tracking weight
             joint_limit_weight=0.001,      # Soft joint-limit avoidance
             posture_weight=0.0,            # Null-space posture regularization
             posture_target={".*": 0.0},    # Posture target (regex → value)
@@ -97,8 +97,8 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
             use_relative_mode=True,        # Absolute target mode
             damping=0.05,                  # DLS damping (lambda)
             max_dq=0.5,                    # Per-step joint displacement limit
-            position_weight=1.5,           # Position tracking weight
-            orientation_weight=0.5,        # Orientation tracking weight
+            position_weight=1.0,           # Position tracking weight
+            orientation_weight=1.0,        # Orientation tracking weight
             joint_limit_weight=0.001,      # Soft joint-limit avoidance
             posture_weight=0.0,            # Null-space posture regularization
             posture_target={".*": 0.0},    # Posture target (regex → value)
