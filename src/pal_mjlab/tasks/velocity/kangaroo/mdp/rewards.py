@@ -289,11 +289,11 @@ class joint_limits_convex_hull:
             # print("Target joint ids:", target_ids)
             joint_pos = asset.data.joint_pos[:, target_ids]
 
-            M = joint_pos.shape[0]
-            ones = torch.ones((M, 1), dtype=joint_pos.dtype, device=joint_pos.device)
-            query_points_homo = torch.cat([joint_pos, ones], dim=1)
-
-            dot_product_res = torch.matmul(query_points_homo, self.equations.T)
+            # Calculate distance using A*x + b
+            # equation_coeff_A has shape (K, N), joint_pos has shape (M, N)
+            # equation_coeff_b has shape (K,)
+            # Result has shape (M, K)
+            dot_product_res = torch.matmul(joint_pos, self.equation_coeff_A.T) + self.equation_coeff_b
             # For those that are within the polygon return 0.0, but for others return the squared distance to the polygon
             violation_dist = torch.clamp(dot_product_res, min=0.0).max(dim=1)[0]
             penalty += torch.square(violation_dist)
