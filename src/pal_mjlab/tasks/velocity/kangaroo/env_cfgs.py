@@ -21,6 +21,8 @@ from pal_mjlab.robots import (
     KANGAROO_GRIPPERS_ACTUATOR_NAMES,
     KANGAROO_HANDS_ACTION_SCALE,
     KANGAROO_HANDS_ACTUATOR_NAMES,
+    HIP_XY_CONVEX_HULL_POINTS,
+    ANKLE_XY_CONVEX_HULL_POINTS,
     get_kangaroo_grippers_robot_cfg,
     get_kangaroo_hands_robot_cfg,
     get_kangaroo_robot_cfg,
@@ -207,6 +209,34 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
     )
+
+    # The hull points should correspond to the respective joints defined in the joint_names_group order
+    # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
+    cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
+        func=mdp.joint_limits_convex_hull,
+        weight=-10.0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=(r".*",)
+            ),
+            "metrics_suffix": "hipXY",
+            "joint_names_group": [[r"leg_left_2_joint", r"leg_left_3_joint"], [r"leg_right_2_joint", r"leg_right_3_joint"]],
+            "margin": 0.02,
+            "hull_points": HIP_XY_CONVEX_HULL_POINTS,})
+
+    cfg.rewards["convex_hull_joint_limits_ankle"] = RewardTermCfg(
+        func=mdp.joint_limits_convex_hull,
+        weight=-10.0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", joint_names=(r".*",)
+            ),
+            "margin": 0.02,
+            "metrics_suffix": "ankleXY",
+            "joint_names_group": [[r"leg_left_4_joint", r"leg_left_5_joint"], [r"leg_right_4_joint", r"leg_right_5_joint"]],
+            "hull_points": ANKLE_XY_CONVEX_HULL_POINTS,})
+
+
 
     ## Metrics
     cfg.metrics = {"joint_vel_mag": MetricsTermCfg(func=mdp.joint_velocity_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
