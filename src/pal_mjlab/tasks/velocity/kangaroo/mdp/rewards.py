@@ -264,7 +264,6 @@ class joint_limits_convex_hull:
         penalty = torch.zeros(env.num_envs, device=env.device, dtype=torch.float32)
         metrics_violation_dist = torch.zeros(env.num_envs, device=env.device, dtype=torch.float32)
         for joint_group in joint_names_group:
-            # print("Processing joint group:", joint_group)
             asset: Entity = env.scene[asset_cfg.name]
             target_ids, target_names = asset.find_joints(joint_group)
             # print("Target joint names:", target_names)
@@ -284,21 +283,13 @@ class joint_limits_convex_hull:
 
             M = joint_pos.shape[0]
             ones = torch.ones((M, 1), dtype=joint_pos.dtype, device=joint_pos.device)
-            # print("self.equation_coeff_A device", self.equation_coeff_A.device)
-            # print("self.equation_coeff_b device", self.equation_coeff_b.device)
             query_points_homo = torch.cat([joint_pos, ones], dim=1)
-            # print("query_points_homo", query_points_homo)
 
             dot_product_res = torch.matmul(query_points_homo, self.equations.T)
-            # dot_product_res = joint_pos @ self.equation_coeff_A.T + self.equation_coeff_b
-
-            # torch.all(dot_products <= 1e-9, dim=1)
             # For those that are within the polygon return 0.0, but for others return the squared distance to the polygon
-            inside = torch.all(dot_product_res <= 1e-9, dim=1)
             violation_dist = torch.clamp(dot_product_res, min=0.0).max(dim=1)[0]
             penalty += torch.square(violation_dist)
             metrics_violation_dist += violation_dist
-            # penalty = torch.where(inside, torch.zeros_like(inside, dtype=torch.float32), torch.square(dot_product_res))
 
         env.extras["log"][f"Metrics/joint_limits_hull_{metrics_suffix}"] = torch.mean(metrics_violation_dist)
         return penalty
