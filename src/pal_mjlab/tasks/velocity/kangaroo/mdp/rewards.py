@@ -303,7 +303,7 @@ class joint_limits_convex_hull:
             linestyle="--",
           )
           ax.add_collection3d(poly)
-      except:
+      except Exception:
         # If reduced hull cannot be computed, just plot points
         ax.scatter(
           reduced_points[:, 0],
