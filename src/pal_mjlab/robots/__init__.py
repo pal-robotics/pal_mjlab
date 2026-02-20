@@ -9,10 +9,18 @@ from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (  # noqa: F401
     get_kangaroo_hands_robot_cfg,
     get_kangaroo_robot_cfg,
 )
+
+from pal_mjlab.robots.pal_kangaroo_full.kangaroo_full_constants import (  # noqa: F401
+    KANG_FULL_ACTUATOR_NAMES,
+    KANG_FULL_ACTION_SCALE,
+    get_kangaroo_full_robot_cfg,
+)
+
 from pal_mjlab.robots.pal_talos.talos_constants import (  # noqa: F401
     TALOS_ACTION_SCALE,
     get_talos_robot_cfg,
 )
+
 from pal_mjlab.robots.pal_tiago_pro.tiago_pro_constants import (  # noqa: F401
     TIAGO_PRO_ACTION_SCALE,
     TIAGO_PRO_ACTUATOR_NAMES,
