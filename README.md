@@ -49,6 +49,9 @@ Train a locomotion policy.
 uv run train Mjlab-Velocity-Flat-Pal-Talos --env.scene.num-envs 4096
 ```
 
+> [!NOTE]
+> For FastSAC, run: `uv run pal_train Mjlab-Velocity-Flat-FastSAC-Pal-Kangaroo --env.scene.num-envs 4096`
+
 Evaluate a trained policy.
 
 ```bash
@@ -97,7 +100,8 @@ Train.
 
 ```bash
 uv run train Mjlab-Tracking-Flat-Pal-Talos \
-    --registry-name your-org/csv_to_npz/motion_name
+    --registry-name your-org/csv_to_npz/motion_name \
+    --env.scene.num-envs 4096
 ```
 
 Evaluate.
