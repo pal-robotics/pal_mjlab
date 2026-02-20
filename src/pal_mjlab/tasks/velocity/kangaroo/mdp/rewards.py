@@ -84,6 +84,25 @@ class joint_limits_convex_hull:
         self.equation_coeff_b = None
         self.original_equation_coeff_b = None  # Store original b coefficients
 
+        for joint_group in cfg.params["joint_names_group"]:
+            asset: Entity = env.scene[asset_cfg.name]
+            target_ids, target_names = asset.find_joints(joint_group)
+            # print("Target joint names:", target_names)
+            # print("Target joint ids:", target_ids)
+            joint_pos = asset.data.joint_pos[:, target_ids]
+
+            if self.convex_hull is None:
+                self.convex_hull = ConvexHull(cfg.params["hull_points"].cpu().numpy())
+                self.equations = torch.from_numpy(self.convex_hull.equations).to(device=joint_pos.device, dtype=joint_pos.dtype)
+                self.equation_coeff_A = self.equations[:, :-1].to(device=joint_pos.device, dtype=joint_pos.dtype) # Normals
+                self.equation_coeff_b = self.equations[:, -1].to(device=joint_pos.device, dtype=joint_pos.dtype)  # Offsets
+                print("Convex hull equations device", self.equations.device)
+                # Apply margin reduction to shrink the convex hull
+                self._reduce_convex_hull(cfg.params["margin"])
+                # Plot comparison of original and reduced hulls
+                self._plot_hull_comparison(cfg.params["hull_points"].cpu().numpy(), cfg.params["margin"], f"/tmp/convex_hull_comparison_{cfg.params["metrics_suffix"]}.png")
+
+
     def _reduce_convex_hull(self, margin: float) -> None:
         """
         Reduce the convex hull by moving each hyperplane inward by the specified margin.
@@ -269,17 +288,6 @@ class joint_limits_convex_hull:
             # print("Target joint names:", target_names)
             # print("Target joint ids:", target_ids)
             joint_pos = asset.data.joint_pos[:, target_ids]
-
-            if self.convex_hull is None:
-                self.convex_hull = ConvexHull(hull_points.cpu().numpy())
-                self.equations = torch.from_numpy(self.convex_hull.equations).to(device=joint_pos.device, dtype=joint_pos.dtype)
-                self.equation_coeff_A = self.equations[:, :-1].to(device=joint_pos.device, dtype=joint_pos.dtype) # Normals
-                self.equation_coeff_b = self.equations[:, -1].to(device=joint_pos.device, dtype=joint_pos.dtype)  # Offsets
-                print("Convex hull equations device", self.equations.device)
-                # Apply margin reduction to shrink the convex hull
-                self._reduce_convex_hull(margin)
-                # Plot comparison of original and reduced hulls
-                self._plot_hull_comparison(hull_points.cpu().numpy(), margin, f"/tmp/convex_hull_comparison_{metrics_suffix}.png")
 
             M = joint_pos.shape[0]
             ones = torch.ones((M, 1), dtype=joint_pos.dtype, device=joint_pos.device)
