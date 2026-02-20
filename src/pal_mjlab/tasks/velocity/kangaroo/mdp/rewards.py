@@ -272,10 +272,6 @@ class joint_limits_convex_hull:
 
     # For the reduced hull, we'll visualize it by showing points that are inside
     if margin > 0 and self.original_equation_coeff_b is not None:
-      # Create sample points on the original hull surface scaled inward
-      A = self.equation_coeff_A.cpu().numpy()
-      b_reduced = self.equation_coeff_b.cpu().numpy()
-
       # Generate points slightly inside the reduced hull boundary
       reduced_points = []
       for simplex in self.convex_hull.simplices:
