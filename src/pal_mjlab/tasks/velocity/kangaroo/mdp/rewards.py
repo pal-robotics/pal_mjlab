@@ -134,7 +134,7 @@ class joint_limits_convex_hull:
     # Compute the norm of each normal vector
     norm_magnitudes = torch.norm(normals, dim=1, keepdim=True)
     # Normalize the vectors
-    normalized_normals = normals / (norm_magnitudes + 1e-8)
+    # normalized_normals = normals / (norm_magnitudes + 1e-8)
     # Reduce the feasible region by increasing b (making constraint tighter)
     # For equations Ax + b <= 0, increasing b shrinks the region
     self.equation_coeff_b = self.equation_coeff_b + margin * norm_magnitudes.squeeze(1)
