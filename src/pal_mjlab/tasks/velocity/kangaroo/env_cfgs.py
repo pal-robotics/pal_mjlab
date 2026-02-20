@@ -222,7 +222,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "metrics_suffix": "hipXY",
             "joint_names_group": [[r"leg_left_2_joint", r"leg_left_3_joint"], [r"leg_right_2_joint", r"leg_right_3_joint"]],
             "margin": 0.02,
-            "hull_points": HIPXY_CONVEX_HULL_POINTS,})
+            "hull_points": HIP_XY_CONVEX_HULL_POINTS,})
 
     cfg.rewards["convex_hull_joint_limits_ankle"] = RewardTermCfg(
         func=mdp.joint_limits_convex_hull,
