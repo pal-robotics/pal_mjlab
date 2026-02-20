@@ -7,11 +7,10 @@ from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
-
 from pal_mjlab import PAL_MJLAB_SRC_PATH
 
 TIAGO_PRO_XML: Path = (
-    PAL_MJLAB_SRC_PATH / "robots" / "pal_tiago_pro" / "xmls" / "tiago_pro.xml"
+  PAL_MJLAB_SRC_PATH / "robots" / "pal_tiago_pro" / "xmls" / "tiago_pro.xml"
 )
 
 assert TIAGO_PRO_XML.exists()
@@ -26,18 +25,18 @@ FACTOR = 0.05
 
 
 def _calc_actuator_params(
-    gear_ratio: float, motor_inertia: float, effort: float
+  gear_ratio: float, motor_inertia: float, effort: float
 ) -> dict:
-    """Calculate armature, stiffness, and damping for an actuator."""
-    armature = FACTOR * motor_inertia * gear_ratio**2
-    stiffness = round(armature * NATURAL_FREQ**2, 3)
-    damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
-    return {
-        "armature": armature,
-        "stiffness": stiffness,
-        "damping": damping,
-        "effort_limit": effort,
-    }
+  """Calculate armature, stiffness, and damping for an actuator."""
+  armature = FACTOR * motor_inertia * gear_ratio**2
+  stiffness = round(armature * NATURAL_FREQ**2, 3)
+  damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
+  return {
+    "armature": armature,
+    "stiffness": stiffness,
+    "damping": damping,
+    "effort_limit": effort,
+  }
 
 
 # Motor parameters: (gear_ratio, motor_inertia, effort_limit)
@@ -53,15 +52,15 @@ TORSO = {"armature": 0.1, "stiffness": 1500.0, "damping": 300.0, "effort_limit":
 
 
 def get_assets(meshdir: str) -> dict[str, bytes]:
-    assets: dict[str, bytes] = {}
-    update_assets(assets, TIAGO_PRO_XML.parent / "assets", meshdir)
-    return assets
+  assets: dict[str, bytes] = {}
+  update_assets(assets, TIAGO_PRO_XML.parent / "assets", meshdir)
+  return assets
 
 
 def get_spec() -> mujoco.MjSpec:
-    spec = mujoco.MjSpec.from_file(str(TIAGO_PRO_XML))
-    spec.assets = get_assets(spec.meshdir)
-    return spec
+  spec = mujoco.MjSpec.from_file(str(TIAGO_PRO_XML))
+  spec.assets = get_assets(spec.meshdir)
+  return spec
 
 
 ## --------------------------------------------------------
@@ -70,21 +69,21 @@ def get_spec() -> mujoco.MjSpec:
 
 # Arms
 TIAGO_PRO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=(r"arm_.*_(1|2)_joint",),
-    **S_PLUS,
+  target_names_expr=(r"arm_.*_(1|2)_joint",),
+  **S_PLUS,
 )
 TIAGO_PRO_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
-    **S_MINUS,
+  target_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
+  **S_MINUS,
 )
 TIAGO_PRO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
-    **XS,
+  target_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
+  **XS,
 )
 # Torso
 TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=("torso_lift_joint",),
-    **TORSO,
+  target_names_expr=("torso_lift_joint",),
+  **TORSO,
 )
 
 ##
@@ -92,18 +91,18 @@ TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 ##
 
 INIT_STATE = EntityCfg.InitialStateCfg(
-    pos=(0.0, 0.0, 0.0),
-    joint_pos={
-        "torso_lift_joint": 0.1,
-        "arm_left_1_joint": 0.3578,
-        "arm_right_1_joint": -0.3578,
-        "arm_.*_2_joint": -1.8266,
-        "arm_left_3_joint": 0.4698,
-        "arm_right_3_joint": -0.4698,
-        "arm_.*_4_joint": -2.3409,
-        "arm_.*_6_joint": -1.2006,
-    },
-    joint_vel={".*": 0.0},
+  pos=(0.0, 0.0, 0.0),
+  joint_pos={
+    "torso_lift_joint": 0.1,
+    "arm_left_1_joint": 0.3578,
+    "arm_right_1_joint": -0.3578,
+    "arm_.*_2_joint": -1.8266,
+    "arm_left_3_joint": 0.4698,
+    "arm_right_3_joint": -0.4698,
+    "arm_.*_4_joint": -2.3409,
+    "arm_.*_6_joint": -1.2006,
+  },
+  joint_vel={".*": 0.0},
 )
 
 ##
@@ -111,10 +110,10 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 ##
 
 FULL_COLLISION = CollisionCfg(
-    geom_names_expr=(".*",),  # all geoms
-    condim=3,
-    priority=1,
-    friction=(0.7,),
+  geom_names_expr=(".*",),  # all geoms
+  condim=3,
+  priority=1,
+  friction=(0.7,),
 )
 
 ##
@@ -122,13 +121,13 @@ FULL_COLLISION = CollisionCfg(
 ##
 
 TIAGO_PRO_ARTICULATION = EntityArticulationInfoCfg(
-    actuators=(
-        TIAGO_PRO_S_PLUS_ACTUATOR_CFG,
-        TIAGO_PRO_S_MINUS_ACTUATOR_CFG,
-        TIAGO_PRO_XS_ACTUATOR_CFG,
-        TORSO_ACTUATOR_CFG,
-    ),
-    soft_joint_pos_limit_factor=0.9,
+  actuators=(
+    TIAGO_PRO_S_PLUS_ACTUATOR_CFG,
+    TIAGO_PRO_S_MINUS_ACTUATOR_CFG,
+    TIAGO_PRO_XS_ACTUATOR_CFG,
+    TORSO_ACTUATOR_CFG,
+  ),
+  soft_joint_pos_limit_factor=0.9,
 )
 
 TIAGO_PRO_ACTION_SCALE: dict[str, float] = {}
@@ -136,34 +135,34 @@ TIAGO_PRO_ACTUATOR_NAMES: tuple = ()
 
 
 def get_tiago_pro_robot_cfg() -> EntityCfg:
-    """Get a fresh TIAGo Pro robot configuration instance."""
-    return EntityCfg(
-        init_state=INIT_STATE,
-        collisions=(FULL_COLLISION,),
-        spec_fn=get_spec,
-        articulation=TIAGO_PRO_ARTICULATION,
-    )
+  """Get a fresh TIAGo Pro robot configuration instance."""
+  return EntityCfg(
+    init_state=INIT_STATE,
+    collisions=(FULL_COLLISION,),
+    spec_fn=get_spec,
+    articulation=TIAGO_PRO_ARTICULATION,
+  )
 
 
 for a in TIAGO_PRO_ARTICULATION.actuators:
-    e = a.effort_limit
-    s = a.stiffness
-    names = a.target_names_expr
+  e = a.effort_limit
+  s = a.stiffness
+  names = a.target_names_expr
 
-    if not isinstance(e, dict):
-        e = {n: e for n in names}
-    if not isinstance(s, dict):
-        s = {n: s for n in names}
+  if not isinstance(e, dict):
+    e = {n: e for n in names}
+  if not isinstance(s, dict):
+    s = {n: s for n in names}
 
-    for n in names:
-        if n in e and n in s and s[n]:
-            TIAGO_PRO_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
-            TIAGO_PRO_ACTUATOR_NAMES += (n,)
+  for n in names:
+    if n in e and n in s and s[n]:
+      TIAGO_PRO_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
+      TIAGO_PRO_ACTUATOR_NAMES += (n,)
 
 
 if __name__ == "__main__":
-    import mujoco.viewer as viewer
-    from mjlab.entity.entity import Entity
+  import mujoco.viewer as viewer
+  from mjlab.entity.entity import Entity
 
-    robot = Entity(get_tiago_pro_robot_cfg())
-    viewer.launch(robot.spec.compile())
+  robot = Entity(get_tiago_pro_robot_cfg())
+  viewer.launch(robot.spec.compile())
