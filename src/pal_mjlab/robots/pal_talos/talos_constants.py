@@ -7,7 +7,6 @@ from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
-
 from pal_mjlab import PAL_MJLAB_SRC_PATH
 
 ##
@@ -19,15 +18,15 @@ assert TALOS_XML.exists()
 
 
 def get_assets(meshdir: str) -> dict[str, bytes]:
-    assets: dict[str, bytes] = {}
-    update_assets(assets, TALOS_XML.parent / "assets", meshdir)
-    return assets
+  assets: dict[str, bytes] = {}
+  update_assets(assets, TALOS_XML.parent / "assets", meshdir)
+  return assets
 
 
 def get_spec() -> mujoco.MjSpec:
-    spec = mujoco.MjSpec.from_file(str(TALOS_XML))
-    spec.assets = get_assets(spec.meshdir)
-    return spec
+  spec = mujoco.MjSpec.from_file(str(TALOS_XML))
+  spec.assets = get_assets(spec.meshdir)
+  return spec
 
 
 ##
@@ -138,101 +137,101 @@ LEG_6_DAMPING = 2.0 * DAMPING_RATIO * LEG_6_ARMATURE * NATURAL_FREQ
 
 # arm actuators
 ARM_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=("arm_.*_1_joint",),
-    effort_limit=ARM_1_EFFORT_LIMIT,
-    armature=ARM_1_ARMATURE,
-    stiffness=ARM_1_STIFFNESS,
-    damping=ARM_1_DAMPING,
+  target_names_expr=("arm_.*_1_joint",),
+  effort_limit=ARM_1_EFFORT_LIMIT,
+  armature=ARM_1_ARMATURE,
+  stiffness=ARM_1_STIFFNESS,
+  damping=ARM_1_DAMPING,
 )
 ARM_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=("arm_.*_2_joint",),
-    effort_limit=ARM_2_EFFORT_LIMIT,
-    armature=ARM_2_ARMATURE,
-    stiffness=ARM_2_STIFFNESS,
-    damping=ARM_2_DAMPING,
+  target_names_expr=("arm_.*_2_joint",),
+  effort_limit=ARM_2_EFFORT_LIMIT,
+  armature=ARM_2_ARMATURE,
+  stiffness=ARM_2_STIFFNESS,
+  damping=ARM_2_DAMPING,
 )
 ARM_34_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=(
-        "arm_.*_3_joint",
-        "arm_.*_4_joint",
-    ),
-    effort_limit=ARM_34_EFFORT_LIMIT,
-    armature=ARM_34_ARMATURE,
-    stiffness=ARM_34_STIFFNESS,
-    damping=ARM_34_DAMPING,
+  target_names_expr=(
+    "arm_.*_3_joint",
+    "arm_.*_4_joint",
+  ),
+  effort_limit=ARM_34_EFFORT_LIMIT,
+  armature=ARM_34_ARMATURE,
+  stiffness=ARM_34_STIFFNESS,
+  damping=ARM_34_DAMPING,
 )
 ARM_567_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=(
-        "arm_.*_5_joint",
-        "arm_.*_6_joint",
-        "arm_.*_7_joint",
-    ),
-    effort_limit=ARM_567_EFFORT_LIMIT,
-    armature=ARM_567_ARMATURE,
-    stiffness=ARM_567_STIFFNESS,
-    damping=ARM_567_DAMPING,
+  target_names_expr=(
+    "arm_.*_5_joint",
+    "arm_.*_6_joint",
+    "arm_.*_7_joint",
+  ),
+  effort_limit=ARM_567_EFFORT_LIMIT,
+  armature=ARM_567_ARMATURE,
+  stiffness=ARM_567_STIFFNESS,
+  damping=ARM_567_DAMPING,
 )
 # torso actuators
 TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=("torso_.*_joint",),
-    effort_limit=TORSO_EFFORT_LIMIT,
-    armature=TORSO_ARMATURE,
-    stiffness=TORSO_STIFFNESS,
-    damping=TORSO_DAMPING,
+  target_names_expr=("torso_.*_joint",),
+  effort_limit=TORSO_EFFORT_LIMIT,
+  armature=TORSO_ARMATURE,
+  stiffness=TORSO_STIFFNESS,
+  damping=TORSO_DAMPING,
 )
 # head actuators
 HEAD_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=("head_1_joint",),
-    effort_limit=HEAD_1_EFFORT_LIMIT,
-    armature=HEAD_ARMATURE,
-    stiffness=HEAD_STIFFNESS,
-    damping=HEAD_DAMPING,
+  target_names_expr=("head_1_joint",),
+  effort_limit=HEAD_1_EFFORT_LIMIT,
+  armature=HEAD_ARMATURE,
+  stiffness=HEAD_STIFFNESS,
+  damping=HEAD_DAMPING,
 )
 HEAD_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=("head_2_joint",),
-    effort_limit=HEAD_2_EFFORT_LIMIT,
-    armature=HEAD_ARMATURE,
-    stiffness=HEAD_STIFFNESS,
-    damping=HEAD_DAMPING,
+  target_names_expr=("head_2_joint",),
+  effort_limit=HEAD_2_EFFORT_LIMIT,
+  armature=HEAD_ARMATURE,
+  stiffness=HEAD_STIFFNESS,
+  damping=HEAD_DAMPING,
 )
 # leg actuators
 LEG_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_1_joint",),
-    effort_limit=LEG_1_EFFORT_LIMIT,
-    armature=LEG_1_ARMATURE,
-    stiffness=LEG_1_STIFFNESS,
-    damping=LEG_1_DAMPING,
+  target_names_expr=("leg_.*_1_joint",),
+  effort_limit=LEG_1_EFFORT_LIMIT,
+  armature=LEG_1_ARMATURE,
+  stiffness=LEG_1_STIFFNESS,
+  damping=LEG_1_DAMPING,
 )
 LEG_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_2_joint",),
-    effort_limit=LEG_2_EFFORT_LIMIT,
-    armature=LEG_2_ARMATURE,
-    stiffness=LEG_2_STIFFNESS,
-    damping=LEG_2_DAMPING,
+  target_names_expr=("leg_.*_2_joint",),
+  effort_limit=LEG_2_EFFORT_LIMIT,
+  armature=LEG_2_ARMATURE,
+  stiffness=LEG_2_STIFFNESS,
+  damping=LEG_2_DAMPING,
 )
 LEG_35_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=(
-        "leg_.*_3_joint",
-        "leg_.*_5_joint",
-    ),
-    effort_limit=LEG_35_EFFORT_LIMIT,
-    armature=LEG_35_ARMATURE,
-    stiffness=LEG_35_STIFFNESS,
-    damping=LEG_35_DAMPING,
+  target_names_expr=(
+    "leg_.*_3_joint",
+    "leg_.*_5_joint",
+  ),
+  effort_limit=LEG_35_EFFORT_LIMIT,
+  armature=LEG_35_ARMATURE,
+  stiffness=LEG_35_STIFFNESS,
+  damping=LEG_35_DAMPING,
 )
 LEG_4_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_4_joint",),
-    effort_limit=LEG_4_EFFORT_LIMIT,
-    armature=LEG_4_ARMATURE,
-    stiffness=LEG_4_STIFFNESS,
-    damping=LEG_4_DAMPING,
+  target_names_expr=("leg_.*_4_joint",),
+  effort_limit=LEG_4_EFFORT_LIMIT,
+  armature=LEG_4_ARMATURE,
+  stiffness=LEG_4_STIFFNESS,
+  damping=LEG_4_DAMPING,
 )
 LEG_6_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_6_joint",),
-    effort_limit=LEG_6_EFFORT_LIMIT,
-    armature=LEG_6_ARMATURE,
-    stiffness=LEG_6_STIFFNESS,
-    damping=LEG_6_DAMPING,
+  target_names_expr=("leg_.*_6_joint",),
+  effort_limit=LEG_6_EFFORT_LIMIT,
+  armature=LEG_6_ARMATURE,
+  stiffness=LEG_6_STIFFNESS,
+  damping=LEG_6_DAMPING,
 )
 
 ##
@@ -241,34 +240,34 @@ LEG_6_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 
 
 INIT_STATE = EntityCfg.InitialStateCfg(
-    pos=(0.0, 0.0, 1.0),
-    joint_pos={
-        # legs
-        "leg_.*_1_joint": 0.0,
-        "leg_.*_2_joint": 0.0,
-        "leg_.*_3_joint": -0.4,
-        "leg_.*_4_joint": 0.8,
-        "leg_.*_5_joint": -0.4,
-        "leg_.*_6_joint": 0.0,
-        # arms
-        "arm_left_1_joint": 0.3,
-        "arm_right_1_joint": -0.3,
-        "arm_left_2_joint": 0.4,
-        "arm_right_2_joint": -0.4,
-        "arm_left_3_joint": -0.5,
-        "arm_right_3_joint": 0.5,
-        "arm_.*_4_joint": -1.5,
-        "arm_.*_5_joint": 0.0,
-        "arm_.*_6_joint": 0.0,
-        "arm_.*_7_joint": 0.0,
-        # head
-        "head_1_joint": 0.0,
-        "head_2_joint": 0.0,
-        # torso
-        "torso_1_joint": 0.0,
-        "torso_2_joint": 0.15,
-    },
-    joint_vel={".*": 0.0},
+  pos=(0.0, 0.0, 1.0),
+  joint_pos={
+    # legs
+    "leg_.*_1_joint": 0.0,
+    "leg_.*_2_joint": 0.0,
+    "leg_.*_3_joint": -0.4,
+    "leg_.*_4_joint": 0.8,
+    "leg_.*_5_joint": -0.4,
+    "leg_.*_6_joint": 0.0,
+    # arms
+    "arm_left_1_joint": 0.3,
+    "arm_right_1_joint": -0.3,
+    "arm_left_2_joint": 0.4,
+    "arm_right_2_joint": -0.4,
+    "arm_left_3_joint": -0.5,
+    "arm_right_3_joint": 0.5,
+    "arm_.*_4_joint": -1.5,
+    "arm_.*_5_joint": 0.0,
+    "arm_.*_6_joint": 0.0,
+    "arm_.*_7_joint": 0.0,
+    # head
+    "head_1_joint": 0.0,
+    "head_2_joint": 0.0,
+    # torso
+    "torso_1_joint": 0.0,
+    "torso_2_joint": 0.15,
+  },
+  joint_vel={".*": 0.0},
 )
 
 ##
@@ -278,78 +277,78 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 _foot_regex = ".*_foot_collision"
 
 FEET_ONLY_COLLISION = CollisionCfg(
-    geom_names_expr=(_foot_regex,),
-    contype=0,
-    conaffinity=1,
-    condim=3,
-    priority=1,
-    friction=(0.6,),
+  geom_names_expr=(_foot_regex,),
+  contype=0,
+  conaffinity=1,
+  condim=3,
+  priority=1,
+  friction=(0.6,),
 )
 
 FULL_COLLISION = CollisionCfg(
-    geom_names_expr=(".*_collision",),
-    condim={_foot_regex: 3, ".*_collision": 1},
-    priority={_foot_regex: 1},
-    friction={_foot_regex: (0.6,)},
+  geom_names_expr=(".*_collision",),
+  condim={_foot_regex: 3, ".*_collision": 1},
+  priority={_foot_regex: 1},
+  friction={_foot_regex: (0.6,)},
 )
 ##
 # Final config.
 ##
 
 TALOS_ARTICULATION = EntityArticulationInfoCfg(
-    actuators=(
-        ARM_1_ACTUATOR_CFG,
-        ARM_2_ACTUATOR_CFG,
-        ARM_34_ACTUATOR_CFG,
-        ARM_567_ACTUATOR_CFG,
-        LEG_1_ACTUATOR_CFG,
-        LEG_2_ACTUATOR_CFG,
-        LEG_35_ACTUATOR_CFG,
-        LEG_4_ACTUATOR_CFG,
-        LEG_6_ACTUATOR_CFG,
-        HEAD_1_ACTUATOR_CFG,
-        HEAD_2_ACTUATOR_CFG,
-        TORSO_ACTUATOR_CFG,
-    ),
-    soft_joint_pos_limit_factor=0.9,
+  actuators=(
+    ARM_1_ACTUATOR_CFG,
+    ARM_2_ACTUATOR_CFG,
+    ARM_34_ACTUATOR_CFG,
+    ARM_567_ACTUATOR_CFG,
+    LEG_1_ACTUATOR_CFG,
+    LEG_2_ACTUATOR_CFG,
+    LEG_35_ACTUATOR_CFG,
+    LEG_4_ACTUATOR_CFG,
+    LEG_6_ACTUATOR_CFG,
+    HEAD_1_ACTUATOR_CFG,
+    HEAD_2_ACTUATOR_CFG,
+    TORSO_ACTUATOR_CFG,
+  ),
+  soft_joint_pos_limit_factor=0.9,
 )
 
 
 def get_talos_robot_cfg() -> EntityCfg:
-    """Get a fresh Talos robot configuration instance.
+  """Get a fresh Talos robot configuration instance.
 
-    Returns a new EntityCfg instance each time to avoid mutation issues when
-    the config is shared across multiple places.
-    """
-    return EntityCfg(
-        init_state=INIT_STATE,
-        collisions=(FULL_COLLISION,),
-        spec_fn=get_spec,
-        articulation=TALOS_ARTICULATION,
-    )
+  Returns a new EntityCfg instance each time to avoid mutation issues when
+  the config is shared across multiple places.
+  """
+  return EntityCfg(
+    init_state=INIT_STATE,
+    collisions=(FULL_COLLISION,),
+    spec_fn=get_spec,
+    articulation=TALOS_ARTICULATION,
+  )
 
 
 TALOS_ACTION_SCALE: dict[str, float] = {}
 
 for a in TALOS_ARTICULATION.actuators:
-    e = a.effort_limit
-    s = a.stiffness
-    names = a.target_names_expr
+  e = a.effort_limit
+  s = a.stiffness
+  names = a.target_names_expr
 
-    if not isinstance(e, dict):
-        e = {n: e for n in names}
-    if not isinstance(s, dict):
-        s = {n: s for n in names}
+  if not isinstance(e, dict):
+    e = {n: e for n in names}
+  if not isinstance(s, dict):
+    s = {n: s for n in names}
 
-    for n in names:
-        if n in e and n in s and s[n]:
-            TALOS_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
+  for n in names:
+    if n in e and n in s and s[n]:
+      TALOS_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
 
 
 if __name__ == "__main__":
-    import mujoco.viewer as viewer
-    from mjlab.entity.entity import Entity
+  import mujoco.viewer as viewer
+  from mjlab.entity.entity import Entity
 
-    robot = Entity(get_talos_robot_cfg())
+  robot = Entity(get_talos_robot_cfg())
 
-    viewer.launch(robot.spec.compile())
+  viewer.launch(robot.spec.compile())
