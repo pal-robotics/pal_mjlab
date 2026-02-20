@@ -37,7 +37,18 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         f"{side}_foot_collision"
         for side in ("left", "right")
     )
-    actuated_joints = r".*$"  # Exclude femur and knee joints.
+
+    _ACTUATED_JOINT_RE = (
+        r".*_hip_z_slider$"
+        r"|.*_hip_xy_slider_l$"
+        r"|.*_hip_xy_slider_r$"
+        r"|.*_ankle_xy_slider_l$"
+        r"|.*_ankle_xy_slider_r$"
+        r"|.*_leg_length_slider$"
+        r"|pelvis_1_joint$"
+        r"|pelvis_2_joint$"
+        r"|arm_.*_[1-4]_joint$"
+    )
 
     feet_ground_cfg = ContactSensorCfg(
         name="feet_ground_contact",
@@ -98,6 +109,7 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.observations["critic"].terms["height_scan"] = None
     cfg.observations["actor"].terms["base_lin_vel"] = None
     cfg.observations["actor"].terms["projected_gravity"] = None
+    cfg.observations["actor"].terms["base_ang_vel"] = None
     cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
         func=mdp.imu_projected_gravity,
         params={"sensor_name": "robot/orientation"},
@@ -115,6 +127,14 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
         func=mdp.builtin_sensor,
         params={"sensor_name": "robot/local_linacc"},
+    )
+    cfg.observations["critic"].terms["base_lin_vel"] = ObservationTermCfg(
+        func=mdp.builtin_sensor,
+        params={"sensor_name": "robot/local_linvel"},
+    )
+    cfg.observations["critic"].terms["base_ang_vel"] = ObservationTermCfg(
+        func=mdp.builtin_sensor,
+        params={"sensor_name": "robot/global_angvel"},
     )
     cfg.observations["critic"].terms["foot_height"].params[
         "asset_cfg"
@@ -154,8 +174,8 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     #-- Rewards
 
-    cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
-    cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
+    cfg.rewards["pose"].params["asset_cfg"].joint_names = (_ACTUATED_JOINT_RE,)
+    cfg.rewards["pose"].params["std_standing"] = {_ACTUATED_JOINT_RE: 0.05}
     cfg.rewards["pose"].params["std_walking"] = {
         # Lower body.
         r".*_hip_z_slider": 0.15,
