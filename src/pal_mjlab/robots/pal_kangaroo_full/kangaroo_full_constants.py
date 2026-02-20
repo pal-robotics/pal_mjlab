@@ -37,7 +37,7 @@ def get_spec() -> mujoco.MjSpec:
 # Actuator config.
 ##
 
-KANG_FULL_PASSIVE_JOINTS = [
+KANG_FULL_PASSIVE_JOINTS = (
     "baselink__.*_hip_z_motor",
     ".*_hip_z_yaw",
     ".*_hipyaw_yaw__hip_xy_bracket_l",
@@ -65,27 +65,27 @@ KANG_FULL_PASSIVE_JOINTS = [
     ".*_ankle_xy_crank_l__ankle_xy_bar1_l",
     ".*_hip_xy_legholder__ankle_xy_crank_r",
     ".*_ankle_xy_crank_r__ankle_xy_bar1_r",
-]
+)
 
 KANG_FULL_MEASURED_PASSIVE_JOINTS = None  # TODO
 
-KANG_FULL_LINEAR_ACTUATORS = [
+KANG_FULL_LINEAR_ACTUATORS = (
     ".*_hip_z_slider",
     ".*_hip_xy_slider_l",
     ".*_hip_xy_slider_r",
     ".*_ankle_xy_slider_l",
     ".*_ankle_xy_slider_r",
     ".*_leg_length_slider$",
-]
+)
 
-KANG_FULL_REVOLUTE_ACTUATORS = [
+KANG_FULL_REVOLUTE_ACTUATORS = (
     "arm_.*_1_joint",
     "arm_.*_2_joint",
     "arm_.*_3_joint",
     "arm_.*_4_joint",
     "pelvis_1_joint",
     "pelvis_2_joint",
-]
+)
 
 KANG_FULL_BENT_KNEES_JOINTS = {
     "baselink__left_hip_z_motor": 0.012612334452569485,
@@ -166,9 +166,9 @@ KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 
 KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=[
+    target_names_expr=(
         ".*_hip_z_slider",
-    ],
+    ),
     effort_limit=3000.0,
     armature=0.01,
     stiffness=75000.0,
@@ -176,9 +176,9 @@ KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 
 KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=[
+    target_names_expr=(
         ".*_hip_xy_slider_l",
-    ],
+    ),
     effort_limit=3000.0,
     armature=0.01,
     stiffness=175000.0,
@@ -186,9 +186,9 @@ KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 
 KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=[
+    target_names_expr=(
         ".*_hip_xy_slider_r",
-    ],
+    ),
     effort_limit=3000.0,
     armature=0.01,
     stiffness=175000.0,
@@ -196,9 +196,9 @@ KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=[
+    target_names_expr=(
         ".*_ankle_xy_slider_l",
-    ],
+    ),
     effort_limit=3000.0,
     armature=0.01,
     stiffness=200000.0,
@@ -206,9 +206,9 @@ KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=[
+    target_names_expr=(
         ".*_ankle_xy_slider_r",
-    ],
+    ),
     effort_limit=3000.0,
     armature=0.01,
     stiffness=200000.0,
@@ -216,9 +216,9 @@ KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 
 KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=[
+    target_names_expr=(
         ".*_leg_length_slider$",
-    ],
+    ),
     effort_limit=5000.0,
     armature=0.01,
     stiffness=250000.0,
@@ -226,12 +226,12 @@ KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 
 KANG_FULL_ARMS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=[
+    target_names_expr=(
         "arm_.*_1_joint",
         "arm_.*_2_joint",
         "arm_.*_3_joint",
         "arm_.*_4_joint",
-    ],
+    ),
     armature=0.01,
     effort_limit=43.0,
     stiffness=100.0,
@@ -239,9 +239,9 @@ KANG_FULL_ARMS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 
 KANG_FULL_PELVIS_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=[
+    target_names_expr=(
         "pelvis_1_joint",
-    ],
+    ),
     effort_limit=100.0,
     armature=0.01,
     stiffness=500.0,
@@ -249,9 +249,9 @@ KANG_FULL_PELVIS_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 
 KANG_FULL_PELVIS_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=[
+    target_names_expr=(
         "pelvis_2_joint",
-    ],
+    ),
     effort_limit=100.0,
     armature=0.01,
     stiffness=500.0,
