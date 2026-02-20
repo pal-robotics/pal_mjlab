@@ -21,7 +21,7 @@ from pal_mjlab.robots import (
     KANGAROO_GRIPPERS_ACTUATOR_NAMES,
     KANGAROO_HANDS_ACTION_SCALE,
     KANGAROO_HANDS_ACTUATOR_NAMES,
-    HIPXY_CONVEX_HULL_POINTS,
+    HIP_XY_CONVEX_HULL_POINTS,
     ANKLE_XY_CONVEX_HULL_POINTS,
     get_kangaroo_grippers_robot_cfg,
     get_kangaroo_hands_robot_cfg,
