@@ -14,7 +14,6 @@ import torch
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
-from pal_mjlab.tasks.velocity.kangaroo.mdp.rewards import joint_limits_convex_hull
 
 from pal_mjlab.robots import (
     KANGAROO_ACTION_SCALE,
@@ -213,7 +212,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     # The hull points should correspond to the respective joints defined in the joint_names_group order
     # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
     cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
-        func=joint_limits_convex_hull,
+        func=mdp.joint_limits_convex_hull,
         weight=-10.0,
         params={
             "asset_cfg": SceneEntityCfg(
@@ -229,7 +228,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
                                          [-0.742, 0.222], [-0.742, 0.133]])})
 
     cfg.rewards["convex_hull_joint_limits_ankle"] = RewardTermCfg(
-        func=joint_limits_convex_hull,
+        func=mdp.joint_limits_convex_hull,
         weight=-10.0,
         params={
             "asset_cfg": SceneEntityCfg(
