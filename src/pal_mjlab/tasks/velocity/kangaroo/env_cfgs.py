@@ -10,7 +10,6 @@ from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers import MetricsTermCfg
-import torch
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
@@ -22,6 +21,8 @@ from pal_mjlab.robots import (
     KANGAROO_GRIPPERS_ACTUATOR_NAMES,
     KANGAROO_HANDS_ACTION_SCALE,
     KANGAROO_HANDS_ACTUATOR_NAMES,
+    HIPXY_CONVEX_HULL_POINTS,
+    ANKLE_XY_CONVEX_HULL_POINTS,
     get_kangaroo_grippers_robot_cfg,
     get_kangaroo_hands_robot_cfg,
     get_kangaroo_robot_cfg,
@@ -221,11 +222,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "metrics_suffix": "hipXY",
             "joint_names_group": [[r"leg_left_2_joint", r"leg_left_3_joint"], [r"leg_right_2_joint", r"leg_right_3_joint"]],
             "margin": 0.02,
-            "hull_points": torch.tensor([[-0.742, 0.035], [-0.742, -0.094], [-0.742, -0.167], [-0.707, -0.243], [-0.655, -0.349], [-0.61, -0.411],
-                                         [-0.344, -0.413], [-0.061, -0.41], [0.307, -0.404], [0.486, -0.4], [0.55, -0.354], [0.638, -0.282],
-                                         [0.709, -0.186], [0.72, -0.081], [0.722, 0.054], [0.708, 0.18], [0.641, 0.301], [0.531, 0.389], [0.448, 0.45],
-                                         [0.171, 0.453], [-0.164, 0.455], [-0.434, 0.461], [-0.605, 0.467], [-0.659, 0.404], [-0.713, 0.309],
-                                         [-0.742, 0.222], [-0.742, 0.133]])})
+            "hull_points": HIPXY_CONVEX_HULL_POINTS,})
 
     cfg.rewards["convex_hull_joint_limits_ankle"] = RewardTermCfg(
         func=mdp.joint_limits_convex_hull,
@@ -237,10 +234,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
             "margin": 0.02,
             "metrics_suffix": "ankleXY",
             "joint_names_group": [[r"leg_left_4_joint", r"leg_left_5_joint"], [r"leg_right_4_joint", r"leg_right_5_joint"]],
-            "hull_points": torch.tensor([[0.707, 0.005], [0.648, 0.112], [0.576, 0.23], [0.484, 0.38], [0.443, 0.439], [0.266, 0.443], [0.008, 0.441],
-                                          [-0.293, 0.45], [-0.46, 0.448], [-0.505, 0.379], [-0.594, 0.244], [-0.686, 0.098], [-0.744, 0.001], 
-                                          [-0.688, -0.099], [-0.604, -0.231], [-0.499, -0.394], [-0.445, -0.472], [-0.254, -0.469], [0.005, -0.462], 
-                                          [0.232, -0.456], [0.429, -0.46], [0.475, -0.382], [0.583, -0.207], [0.665, -0.071]])})
+            "hull_points": ANKLE_XY_CONVEX_HULL_POINTS,})
 
 
 
