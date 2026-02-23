@@ -1,17 +1,13 @@
 from typing import Any
 
+import mjlab
 import numpy as np
 import torch
 import tyro
-from tqdm import tqdm
-
-import mjlab
 from mjlab.entity import Entity
 from mjlab.scene import Scene
 from mjlab.sim.sim import Simulation, SimulationCfg
 from mjlab.tasks.tracking.config.g1.env_cfgs import unitree_g1_flat_tracking_env_cfg
-from pal_mjlab.tasks.tracking.talos.env_cfgs import pal_talos_flat_tracking_env_cfg
-from pal_mjlab.tasks.tracking.kangaroo.env_cfgs import pal_kangaroo_flat_tracking_env_cfg
 from mjlab.utils.lab_api.math import (
   axis_angle_from_quat,
   quat_conjugate,
@@ -20,7 +16,11 @@ from mjlab.utils.lab_api.math import (
 )
 from mjlab.viewer.offscreen_renderer import OffscreenRenderer
 from mjlab.viewer.viewer_config import ViewerConfig
-
+from pal_mjlab.tasks.tracking.kangaroo.env_cfgs import (
+  pal_kangaroo_flat_tracking_env_cfg,
+)
+from pal_mjlab.tasks.tracking.talos.env_cfgs import pal_talos_flat_tracking_env_cfg
+from tqdm import tqdm
 
 # Robot configurations
 ROBOT_CONFIGS = {
