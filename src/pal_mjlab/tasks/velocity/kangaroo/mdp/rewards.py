@@ -2,10 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-<<<<<<< HEAD
-=======
 from mjlab.managers.reward_manager import RewardTermCfg
->>>>>>> 6af66b9 (updates geoms rnd)
 # from mjlab.tests.test_runner import env
 import torch
 from mjlab.entity import Entity
