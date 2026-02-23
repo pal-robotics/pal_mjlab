@@ -1,7 +1,7 @@
 <mujoco model="kangaroo">
   <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
-  <option timestep="0.001" integrator="implicitfast"  />
+  <!--<option timestep="0.001" integrator="implicitfast"  />  -->
 
   <size nkey="1"/>
 
@@ -642,6 +642,7 @@
     <connect name="right_tibia_r" body1="right_ankle_xy_foot" body2="right_ankle_xy_bar2_r" anchor="0.035 0 0.06" solref="1e-05 0.6"/>
   </equality>
 
+  <!--
   <actuator>
     <general name="pelvis_1_actuator_position" class="position" joint="pelvis_1_joint" ctrllimited="true" ctrlrange="-0.349066 0.349066" gainprm="500" biasprm="0 -500"/>
     <general name="pelvis_2_actuator_position" class="position" joint="pelvis_2_joint" ctrllimited="true" ctrlrange="-1.309 1.309" gainprm="500" biasprm="0 -500"/>
@@ -666,7 +667,7 @@
     <general name="pos_right_ankle_xy_motor_l" class="position" joint="right_ankle_xy_slider_l" ctrllimited="true" ctrlrange="-0.02 0.02" gainprm="1000000" biasprm="0 -1000000 -1000"/>
     <general name="pos_right_ankle_xy_motor_r" class="position" joint="right_ankle_xy_slider_r" ctrllimited="true" ctrlrange="-0.02 0.02" gainprm="1000000" biasprm="0 -1000000 -1000"/>
   </actuator>
-
+  -->
   <sensor>
     <gyro site="imu" name="gyro"/>
     <velocimeter site="imu" name="local_linvel"/>
