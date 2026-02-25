@@ -249,6 +249,17 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
+  cfg.rewards["soft_landing"] = None
+  cfg.rewards["disney_soft_landing"] = RewardTermCfg(
+      func=mdp.disney_soft_landing,
+      weight=-0.0025,
+      params={
+          "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
+          "metrics_sensor_name": "feet_ground_contact",
+      },
+  )
+
+
   ## Metrics
   cfg.metrics = {
     "joint_vel_mag": MetricsTermCfg(
