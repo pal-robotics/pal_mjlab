@@ -93,7 +93,7 @@ TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 INIT_STATE = EntityCfg.InitialStateCfg(
   pos=(0.0, 0.0, 0.0),
   joint_pos={
-    "torso_lift_joint": 0.1,
+    # "torso_lift_joint": 0.1,
     "arm_left_1_joint": 0.3578,
     "arm_right_1_joint": -0.3578,
     "arm_.*_2_joint": -1.8266,
@@ -125,7 +125,7 @@ TIAGO_PRO_ARTICULATION = EntityArticulationInfoCfg(
     TIAGO_PRO_S_PLUS_ACTUATOR_CFG,
     TIAGO_PRO_S_MINUS_ACTUATOR_CFG,
     TIAGO_PRO_XS_ACTUATOR_CFG,
-    TORSO_ACTUATOR_CFG,
+    # TORSO_ACTUATOR_CFG,
   ),
   soft_joint_pos_limit_factor=0.9,
 )
