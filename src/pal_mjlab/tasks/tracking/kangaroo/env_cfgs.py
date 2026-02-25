@@ -1,4 +1,4 @@
-"""PAL Robotics Talos flat terrain tracking configuration."""
+"""PAL Robotics Kangaroo Flat terrain tracking configuration."""
 
 import torch
 from mjlab.envs import ManagerBasedRlEnvCfg
