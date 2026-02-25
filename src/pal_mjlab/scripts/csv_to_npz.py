@@ -1,5 +1,6 @@
 from typing import Any
 
+import mjlab
 import numpy as np
 import torch
 import tyro
@@ -8,15 +9,91 @@ from mjlab.scene import Scene
 from mjlab.sim.sim import Simulation, SimulationCfg
 from mjlab.utils.lab_api.math import (
   axis_angle_from_quat,
-  quat_apply_inverse,
   quat_conjugate,
   quat_mul,
   quat_slerp,
 )
 from mjlab.viewer.offscreen_renderer import OffscreenRenderer
 from mjlab.viewer.viewer_config import ViewerConfig
-from pal_mjlab.tasks.talos_tracking.env_cfgs import TalosFlatEnvCfg
+from pal_mjlab.tasks.tracking.kangaroo.env_cfgs import (
+  pal_kangaroo_flat_tracking_env_cfg,
+)
+from pal_mjlab.tasks.tracking.talos.env_cfgs import pal_talos_flat_tracking_env_cfg
 from tqdm import tqdm
+
+# Robot configurations
+ROBOT_CONFIGS = {
+  "talos": {
+    "env_cfg_fn": pal_talos_flat_tracking_env_cfg,
+    "joint_names": [
+      "torso_1_joint",  # waist_yaw
+      "torso_2_joint",  # waist_pitch
+      "head_1_joint",
+      "head_2_joint",
+      # left arm
+      "arm_left_1_joint",  # left_shoulder_yaw
+      "arm_left_2_joint",  # left_shoulder_pitch
+      "arm_left_3_joint",  # left_shoulder_roll
+      "arm_left_4_joint",  # left_elbow
+      "arm_left_5_joint",  # left_wrist_roll
+      "arm_left_6_joint",  # left_wrist_pitch
+      "arm_left_7_joint",  # left_wrist_yaw
+      # right arm
+      "arm_right_1_joint",  # right_shoulder_yaw
+      "arm_right_2_joint",  # right_shoulder_pitch
+      "arm_right_3_joint",  # right_shoulder_roll
+      "arm_right_4_joint",  # right_elbow
+      "arm_right_5_joint",  # right_wrist_roll
+      "arm_right_6_joint",  # right_wrist_pitch
+      "arm_right_7_joint",  # right_wrist_yaw
+      # legs (L)
+      "leg_left_1_joint",  # left_hip_pitch
+      "leg_left_2_joint",  # left_hip_roll
+      "leg_left_3_joint",  # left_hip_yaw
+      "leg_left_4_joint",  # left_knee
+      "leg_left_5_joint",  # left_ankle_pitch
+      "leg_left_6_joint",  # left_ankle_roll
+      # legs (R)
+      "leg_right_1_joint",  # right_hip_pitch
+      "leg_right_2_joint",  # right_hip_roll
+      "leg_right_3_joint",  # right_hip_yaw
+      "leg_right_4_joint",  # right_knee
+      "leg_right_5_joint",  # right_ankle_pitch
+      "leg_right_6_joint",  # right_ankle_roll
+    ],
+  },
+  "kangaroo": {
+    "env_cfg_fn": pal_kangaroo_flat_tracking_env_cfg,
+    "joint_names": [
+      "pelvis_1_joint",
+      "pelvis_2_joint",
+      "arm_left_1_joint",
+      "arm_left_2_joint",
+      "arm_left_3_joint",
+      "arm_left_4_joint",
+      "arm_right_1_joint",
+      "arm_right_2_joint",
+      "arm_right_3_joint",
+      "arm_right_4_joint",
+      "leg_left_1_joint",
+      "leg_left_2_joint",
+      "leg_left_3_joint",
+      "leg_left_length_joint",
+      "leg_left_4_joint",
+      "leg_left_5_joint",
+      "leg_left_femur_joint",
+      "leg_left_knee_joint",
+      "leg_right_1_joint",
+      "leg_right_2_joint",
+      "leg_right_3_joint",
+      "leg_right_length_joint",
+      "leg_right_4_joint",
+      "leg_right_5_joint",
+      "leg_right_femur_joint",
+      "leg_right_knee_joint",
+    ],
+  },
+}
 
 
 class MotionLoader:
@@ -248,7 +325,7 @@ def run_sim(
     root_states[:, :2] += scene.env_origins[:, :2]
     root_states[:, 3:7] = motion_base_rot
     root_states[:, 7:10] = motion_base_lin_vel
-    root_states[:, 10:] = quat_apply_inverse(motion_base_rot, motion_base_ang_vel)
+    root_states[:, 10:] = motion_base_ang_vel
     robot.write_root_state_to_sim(root_states)
 
     joint_pos = robot.data.default_joint_pos.clone()
@@ -311,11 +388,7 @@ def run_sim(
         import wandb
 
         COLLECTION = output_name
-        run = wandb.init(
-          project="csv_to_npz",
-          name=COLLECTION,
-          entity="le-lay-louis-pal-robotics",
-        )
+        run = wandb.init(project="csv_to_npz", name=COLLECTION)
         print(f"[INFO]: Logging motion to wandb: {COLLECTION}")
         REGISTRY = "motions"
         logged_artifact = run.log_artifact(
@@ -335,12 +408,13 @@ def run_sim(
           clip.write_videofile("./motion.mp4")
 
           print("Logging video to wandb...")
-          wandb.log({"motion_video": wandb.Video("./motion.mp4", fps=output_fps)})
+          wandb.log({"motion_video": wandb.Video("./motion.mp4", format="mp4")})
 
         wandb.finish()
 
 
 def main(
+  robot_name: str,
   input_file: str,
   output_name: str,
   input_fps: float = 30.0,
@@ -352,6 +426,7 @@ def main(
   """Replay motion from CSV file and output to npz file.
 
   Args:
+    robot_name: Name of the robot ('talos', or 'kangaroo').
     input_file: Path to the input CSV file.
     output_name: Path to the output npz file.
     input_fps: Frame rate of the CSV file.
@@ -360,10 +435,27 @@ def main(
     render: Whether to render the simulation and save a video.
     line_range: Range of lines to process from the CSV file.
   """
+  if robot_name not in ROBOT_CONFIGS:
+    raise ValueError(
+      f"Unknown robot name: {robot_name}. Must be one of {list(ROBOT_CONFIGS.keys())}"
+    )
+
+  if device.startswith("cuda") and not torch.cuda.is_available():
+    print("[WARNING]: CUDA is not available. Falling back to CPU. This may be slow.")
+    device = "cpu"
+
+  # Get robot configuration
+  robot_config = ROBOT_CONFIGS[robot_name]
+  env_cfg_fn = robot_config["env_cfg_fn"]
+  joint_names = robot_config["joint_names"]
+
+  print(f"[INFO]: Using robot: {robot_name}")
+  print(f"[INFO]: Number of joints: {len(joint_names)}")
+
   sim_cfg = SimulationCfg()
   sim_cfg.mujoco.timestep = 1.0 / output_fps
 
-  scene = Scene(TalosFlatEnvCfg().scene, device=device)
+  scene = Scene(env_cfg_fn().scene, device=device)
   model = scene.compile()
 
   sim = Simulation(num_envs=1, cfg=sim_cfg, model=model, device=device)
@@ -390,43 +482,7 @@ def main(
   run_sim(
     sim=sim,
     scene=scene,
-    joint_names=[
-      # waist (2 DOF only)
-      "torso_1_joint",  # waist_yaw
-      "torso_2_joint",  # waist_pitch
-      "head_1_joint",
-      "head_2_joint",
-      # left arm
-      "arm_left_1_joint",  # left_shoulder_yaw
-      "arm_left_2_joint",  # left_shoulder_pitch
-      "arm_left_3_joint",  # left_shoulder_roll
-      "arm_left_4_joint",  # left_elbow
-      "arm_left_5_joint",  # left_wrist_roll
-      "arm_left_6_joint",  # left_wrist_pitch
-      "arm_left_7_joint",  # left_wrist_yaw
-      # right arm
-      "arm_right_1_joint",  # right_shoulder_yaw
-      "arm_right_2_joint",  # right_shoulder_pitch
-      "arm_right_3_joint",  # right_shoulder_roll
-      "arm_right_4_joint",  # right_elbow
-      "arm_right_5_joint",  # right_wrist_roll
-      "arm_right_6_joint",  # right_wrist_pitch
-      "arm_right_7_joint",  # right_wrist_yaw
-      # legs (L)
-      "leg_left_1_joint",  # left_hip_pitch
-      "leg_left_2_joint",  # left_hip_roll
-      "leg_left_3_joint",  # left_hip_yaw
-      "leg_left_4_joint",  # left_knee
-      "leg_left_5_joint",  # left_ankle_pitch
-      "leg_left_6_joint",  # left_ankle_roll
-      # legs (R)
-      "leg_right_1_joint",  # right_hip_pitch
-      "leg_right_2_joint",  # right_hip_roll
-      "leg_right_3_joint",  # right_hip_yaw
-      "leg_right_4_joint",  # right_knee
-      "leg_right_5_joint",  # right_ankle_pitch
-      "leg_right_6_joint",  # right_ankle_roll
-    ],
+    joint_names=joint_names,
     input_fps=input_fps,
     input_file=input_file,
     output_fps=output_fps,
@@ -438,4 +494,4 @@ def main(
 
 
 if __name__ == "__main__":
-  tyro.cli(main)
+  tyro.cli(main, config=mjlab.TYRO_FLAGS)
