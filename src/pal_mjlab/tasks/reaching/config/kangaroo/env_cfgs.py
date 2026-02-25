@@ -228,7 +228,7 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     },
   )
   cfg.events["reset_frictionloss"].params["asset_cfg"].joint_names = (r"arm_.*",)
-  
+
   # -----------------------------------------------------------------
   # Rewards: add locomotion rewards to existing reaching rewards
   # -----------------------------------------------------------------
