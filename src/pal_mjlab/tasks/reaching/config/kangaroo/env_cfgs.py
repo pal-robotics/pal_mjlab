@@ -200,6 +200,7 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
       "velocity_range": {},
     },
   )
+  cfg.events["reset_robot_joints"].params["position_range"] = (0.0, 0.0)
   cfg.events["push_robot"] = EventTermCfg(
     func=loco_mdp.push_by_setting_velocity,
     mode="interval",
@@ -217,9 +218,17 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
       "ranges": (0.3, 1.2),
     },
   )
-  cfg.events["reset_robot_joints"].params["asset_cfg"].joint_names = (r"arm_.*",)
+  cfg.events["reset_robot_joints_arms"] = EventTermCfg(
+    func=reach_mdp.reset_joints_by_offset,
+    mode="reset",
+    params={
+      "position_range": (0.1, 0.1),
+      "velocity_range": (0.0, 0.0),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(r"arm_.*",)),
+    },
+  )
   cfg.events["reset_frictionloss"].params["asset_cfg"].joint_names = (r"arm_.*",)
-
+  
   # -----------------------------------------------------------------
   # Rewards: add locomotion rewards to existing reaching rewards
   # -----------------------------------------------------------------
