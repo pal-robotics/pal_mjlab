@@ -46,16 +46,6 @@ def pal_tiago_pro_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
   cfg.scene.sensors = (self_collision_cfg,)
 
-  cfg.rewards["stand_still_joint_deviation_l1"] = RewardTermCfg(
-    func=mdp.stand_still_joint_deviation_l1,
-    weight=-5.0,
-    params={
-      "asset_cfg": SceneEntityCfg(
-        "robot",
-        joint_names=("torso_lift_joint",),
-      )
-    },
-  )
   cfg.rewards["self_collisions"] = RewardTermCfg(
     func=mdp.self_collision_cost,
     weight=-1.0,
