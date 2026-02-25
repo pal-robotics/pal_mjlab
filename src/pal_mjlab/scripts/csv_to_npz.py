@@ -426,7 +426,7 @@ def main(
   """Replay motion from CSV file and output to npz file.
 
   Args:
-    robot_name: Name of the robot ('g1', 'talos', or 'kangaroo').
+    robot_name: Name of the robot ('talos', or 'kangaroo').
     input_file: Path to the input CSV file.
     output_name: Path to the output npz file.
     input_fps: Frame rate of the CSV file.
