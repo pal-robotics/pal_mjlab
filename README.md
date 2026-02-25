@@ -1,6 +1,6 @@
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![mjlab](https://img.shields.io/badge/mjlab-1.1.1-76B900.svg)](https://mujocolab.github.io/mjlab/v1.1.1/index.html)
-[![Python](https://img.shields.io/badge/python-3.13-3776AB.svg)](https://docsthon.org/3/whatsnew/3.13.html)
+[![Python](https://img.shields.io/badge/python-3.13-3776AB.svg)](https://docs.python.org/3/whatsnew/3.13.html)
 
 # PAL Robotics in mjlab
 
