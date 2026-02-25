@@ -84,10 +84,10 @@ def pal_kangaroo_flat_tracking_env_cfg(
     "leg_right_5_link",
     "arm_left_2_link",
     "arm_left_3_link",
-    "arm_left_5_link",
+    "arm_left_tip_link",
     "arm_right_2_link",
     "arm_right_3_link",
-    "arm_right_5_link",
+    "arm_right_tip_link",
   )
 
   # The hull points should correspond to the respective joints defined in the joint_names_group order
