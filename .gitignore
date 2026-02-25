@@ -20,5 +20,5 @@ MUJOCO_LOG.TXT
 
 # Data
 artifacts/
-*.csv
 *.npz
+motion.mp4

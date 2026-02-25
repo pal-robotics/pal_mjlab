@@ -70,6 +70,8 @@ def pal_talos_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   assert isinstance(twist_cmd, UniformVelocityCommandCfg)
   twist_cmd.viz.z_offset = 1.15
 
+  cfg.observations["actor"].terms["height_scan"] = None
+  cfg.observations["critic"].terms["height_scan"] = None
   cfg.observations["critic"].terms["foot_height"].params[
     "asset_cfg"
   ].site_names = site_names
