@@ -17,7 +17,7 @@ from pal_mjlab import PAL_MJLAB_SRC_PATH
 # - kangaroo_full: full model with 4 DoF per arm and a fake forearm
 
 KANGAROO_PATH = PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo" / "xmls"
-KANGAROO_XML = KANGAROO_PATH / "kangaroo.xml"
+KANGAROO_XML = KANGAROO_PATH / "kangaroo_accurate.xml"
 KANGAROO_HANDS_XML = KANGAROO_PATH / "kangaroo_hands.xml"
 KANGAROO_GRIPPERS_XML = KANGAROO_PATH / "kangaroo_grippers.xml"
 
