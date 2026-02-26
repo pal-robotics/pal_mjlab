@@ -1,0 +1,20 @@
+<mujoco model="leg_right_2_link">
+  <default>
+    <default class="visual">
+      <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+    </default>
+    <default class="collision">
+      <geom group="3" type="mesh"/>
+    </default>
+  </default>
+  <asset>
+    <material name="mtl_m14" specular="0.20000000000000004" shininess="1.0" rgba="0.29803922 0.29803922 0.29803922 1.0"/>
+    <mesh file="leg_right_2_link.obj"/>
+  </asset>
+  <worldbody>
+    <body name="leg_right_2_link">
+      <geom material="mtl_m14" mesh="leg_right_2_link" class="visual"/>
+      <geom mesh="leg_right_2_link" class="collision"/>
+    </body>
+  </worldbody>
+</mujoco>
