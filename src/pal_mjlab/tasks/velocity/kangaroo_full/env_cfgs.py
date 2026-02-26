@@ -109,7 +109,10 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.observations["critic"].terms["height_scan"] = None
     cfg.observations["actor"].terms["base_lin_vel"] = None
     cfg.observations["actor"].terms["projected_gravity"] = None
-    cfg.observations["actor"].terms["base_ang_vel"] = None
+    cfg.observations["actor"].terms["base_ang_vel"] = ObservationTermCfg(
+        func=mdp.builtin_sensor,
+        params={"sensor_name": "robot/global_angvel"},
+    )
     cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
         func=mdp.imu_projected_gravity,
         params={"sensor_name": "robot/orientation"},
