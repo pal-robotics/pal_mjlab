@@ -239,6 +239,14 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "hull_points": ANKLE_XY_CONVEX_HULL_POINTS,
     },
   )
+  cfg.rewards["joint_vel_limits"] = RewardTermCfg(
+    func=mdp.joint_vel_limits,
+    weight=-10.0,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=[r"leg_.*_length_.*$"]),
+      "velocity_limits": {r"leg_.*_length_.*$": (-1.6, 1.6)},
+    },
+  )
 
   ## Metrics
   cfg.metrics = {
