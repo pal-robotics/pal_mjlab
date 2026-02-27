@@ -25,12 +25,67 @@ for p in [KANGAROO_PATH, KANGAROO_XML, KANGAROO_HANDS_XML, KANGAROO_GRIPPERS_XML
   assert p.exists(), f"Missing: {p}"
 
 ##
-# Actuator Parameters (BeyondMimic methodology)
+# Actuator Parameters
 ##
 
-NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
-DAMPING_RATIO = 2.0
-FACTOR = 0.05
+# --- Stiff PD gains ---
+# High Kp/Kd so the actuator behaves as a position servo.
+# This minimises sensitivity to unmodeled armature, friction, etc.
+# Kd ≈ Kp/20 gives near-critical damping without ringing.
+# Armature is a small nominal regulariser — exact value doesn't matter.
+
+
+def _stiff_params(kp: float, kd: float, effort: float) -> dict:
+  """Direct stiff PD parameters for an actuator."""
+  return {
+    "armature": 0.01,
+    "stiffness": kp,
+    "damping": kd,
+    "effort_limit": effort,
+  }
+
+
+# --- Compliant gains (BeyondMimic methodology) — kept for reference ---
+# NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
+# DAMPING_RATIO = 2.0
+# FACTOR = 0.05
+#
+#
+# def _calc_actuator_params(
+#   gear_ratio: float, motor_inertia: float, effort: float
+# ) -> dict:
+#   """Calculate armature, stiffness, and damping for an actuator."""
+#   armature = FACTOR * motor_inertia * gear_ratio**2
+#   stiffness = round(armature * NATURAL_FREQ**2, 3)
+#   damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
+#   return {
+#     "armature": armature,
+#     "stiffness": stiffness,
+#     "damping": damping,
+#     "effort_limit": effort,
+#   }
+#
+#
+# def _calc_leg_params(stiffness: float, effort: float) -> dict:
+#   """Calculate leg actuator parameters."""
+#   damping = round(2.0 * DAMPING_RATIO * stiffness / NATURAL_FREQ, 3)
+#   return {
+#     "armature": 0.01,
+#     "stiffness": stiffness,
+#     "damping": damping,
+#     "effort_limit": effort,
+#   }
+#
+#
+# # Motor parameters: (gear_ratio, motor_inertia, effort_limit)
+# S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
+# S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
+# XS = _calc_actuator_params(101, 1.3e-5, 25)
+
+# Arms & Torso — stiff gains
+S_PLUS = _stiff_params(150.0, 8.0, 50.0)
+S_MINUS = _stiff_params(100.0, 5.0, 25.0)
+XS = _stiff_params(100.0, 5.0, 25.0)
 
 HIP_XY_CONVEX_HULL_POINTS = torch.tensor(
   [
@@ -94,36 +149,36 @@ ANKLE_XY_CONVEX_HULL_POINTS = torch.tensor(
 )
 
 
-def _calc_actuator_params(
-  gear_ratio: float, motor_inertia: float, effort: float
-) -> dict:
-  """Calculate armature, stiffness, and damping for an actuator."""
-  armature = FACTOR * motor_inertia * gear_ratio**2
-  stiffness = round(armature * NATURAL_FREQ**2, 3)
-  damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
-  return {
-    "armature": armature,
-    "stiffness": stiffness,
-    "damping": damping,
-    "effort_limit": effort,
-  }
+# def _calc_actuator_params(
+#   gear_ratio: float, motor_inertia: float, effort: float
+# ) -> dict:
+#   """Calculate armature, stiffness, and damping for an actuator."""
+#   armature = FACTOR * motor_inertia * gear_ratio**2
+#   stiffness = round(armature * NATURAL_FREQ**2, 3)
+#   damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
+#   return {
+#     "armature": armature,
+#     "stiffness": stiffness,
+#     "damping": damping,
+#     "effort_limit": effort,
+#   }
 
 
-def _calc_leg_params(stiffness: float, effort: float) -> dict:
-  """Calculate leg actuator parameters."""
-  damping = round(2.0 * DAMPING_RATIO * stiffness / NATURAL_FREQ, 3)
-  return {
-    "armature": 0.01,
-    "stiffness": stiffness,
-    "damping": damping,
-    "effort_limit": effort,
-  }
+# def _calc_leg_params(stiffness: float, effort: float) -> dict:
+#   """Calculate leg actuator parameters."""
+#   damping = round(2.0 * DAMPING_RATIO * stiffness / NATURAL_FREQ, 3)
+#   return {
+#     "armature": 0.01,
+#     "stiffness": stiffness,
+#     "damping": damping,
+#     "effort_limit": effort,
+#   }
 
 
-# Motor parameters: (gear_ratio, motor_inertia, effort_limit)
-S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
-S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
-XS = _calc_actuator_params(101, 1.3e-5, 25)
+# # Motor parameters: (gear_ratio, motor_inertia, effort_limit)
+# S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
+# S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
+# XS = _calc_actuator_params(101, 1.3e-5, 25)
 
 ##
 # MJCF & Assets
@@ -158,27 +213,49 @@ def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
 # Actuator Configs
 ##
 
-# Legs
+# Legs — stiff gains per joint group
 KANGAROO_LEG_ACTUATORS = (
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_1_joint",), **_calc_leg_params(100.0, 80.0)
+    target_names_expr=("leg_.*_1_joint",), **_stiff_params(200.0, 10.0, 80.0)
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_2_joint",), **_calc_leg_params(100.0, 230.0)
+    target_names_expr=("leg_.*_2_joint",), **_stiff_params(200.0, 10.0, 230.0)
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_3_joint",), **_calc_leg_params(100.0, 139.0)
+    target_names_expr=("leg_.*_3_joint",), **_stiff_params(200.0, 10.0, 139.0)
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_4_joint",), **_calc_leg_params(30.0, 140.0)
+    target_names_expr=("leg_.*_4_joint",), **_stiff_params(80.0, 4.0, 140.0)
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_5_joint",), **_calc_leg_params(30.0, 82.0)
+    target_names_expr=("leg_.*_5_joint",), **_stiff_params(80.0, 4.0, 82.0)
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_length_joint",), **_calc_leg_params(1600.0, 1100.0)
+    target_names_expr=("leg_.*_length_joint",), **_stiff_params(3200.0, 160.0, 1100.0)
   ),
 )
+
+# --- Compliant leg actuators — kept for reference ---
+# KANGAROO_LEG_ACTUATORS = (
+#   BuiltinPositionActuatorCfg(
+#     target_names_expr=("leg_.*_1_joint",), **_calc_leg_params(100.0, 80.0)
+#   ),
+#   BuiltinPositionActuatorCfg(
+#     target_names_expr=("leg_.*_2_joint",), **_calc_leg_params(100.0, 230.0)
+#   ),
+#   BuiltinPositionActuatorCfg(
+#     target_names_expr=("leg_.*_3_joint",), **_calc_leg_params(100.0, 139.0)
+#   ),
+#   BuiltinPositionActuatorCfg(
+#     target_names_expr=("leg_.*_4_joint",), **_calc_leg_params(30.0, 140.0)
+#   ),
+#   BuiltinPositionActuatorCfg(
+#     target_names_expr=("leg_.*_5_joint",), **_calc_leg_params(30.0, 82.0)
+#   ),
+#   BuiltinPositionActuatorCfg(
+#     target_names_expr=("leg_.*_length_joint",), **_calc_leg_params(1600.0, 1100.0)
+#   ),
+# )
 
 # Arms & Torso
 KANGAROO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
