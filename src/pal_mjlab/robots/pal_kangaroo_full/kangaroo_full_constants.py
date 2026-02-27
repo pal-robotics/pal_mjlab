@@ -283,6 +283,8 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         ".*_ankle_xy_slider_l": 0.0,
         ".*_ankle_xy_slider_r": 0.0,
         ".*_leg_length_slider$": 0.0,
+        "arm_left_2_joint" : 1.49179553985595703,
+        "arm_right_2_joint" : 1.49179553985595703,
     },
     joint_vel={".*": 0.0},
 )
@@ -345,7 +347,7 @@ _ROBOT_CONFIGS = {
 
 def _make_robot_cfg(variant: str) -> EntityCfg:
     return EntityCfg(
-        init_state=KNEES_BENT_KEYFRAME,
+        init_state=INIT_STATE,
         collisions=(FULL_COLLISION,),
         spec_fn=get_spec,
         articulation=KANG_FULL_ARTICULATION,
