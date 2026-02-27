@@ -216,22 +216,22 @@ def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
 # Legs — stiff gains per joint group
 KANGAROO_LEG_ACTUATORS = (
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_1_joint",), **_stiff_params(200.0, 10.0, 80.0)
+    target_names_expr=("leg_.*_1_joint",), **_stiff_params(300.0, 15.0, 80.0)
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_2_joint",), **_stiff_params(200.0, 10.0, 230.0)
+    target_names_expr=("leg_.*_2_joint",), **_stiff_params(300.0, 15.0, 230.0)
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_3_joint",), **_stiff_params(200.0, 10.0, 139.0)
+    target_names_expr=("leg_.*_3_joint",), **_stiff_params(300.0, 15.0, 139.0)
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_4_joint",), **_stiff_params(80.0, 4.0, 140.0)
+    target_names_expr=("leg_.*_4_joint",), **_stiff_params(90.0, 4.5, 140.0)
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_5_joint",), **_stiff_params(80.0, 4.0, 82.0)
+    target_names_expr=("leg_.*_5_joint",), **_stiff_params(90.0, 4.5, 82.0)
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_length_joint",), **_stiff_params(3200.0, 160.0, 1100.0)
+    target_names_expr=("leg_.*_length_joint",), **_stiff_params(4800.0, 240.0, 1100.0)
   ),
 )
 
