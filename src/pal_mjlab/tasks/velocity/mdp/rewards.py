@@ -457,7 +457,7 @@ class disney_soft_landing:
     asset: Entity = env.scene[asset_cfg.name]
     site_velocities = asset.data.site_lin_vel_w[:, asset_cfg.site_ids]
     change_in_site_velocities = site_velocities - self.prev_site_velocities
-    self.prev_site_velocities = site_velocities
+    self.prev_site_velocities = site_velocities.clone()
     # print(change_in_site_velocities)
     # Calculate the squared sum of change in velocity along the projected gravity direction
     projected_gravity = asset.data.projected_gravity_b
