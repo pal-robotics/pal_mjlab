@@ -497,6 +497,10 @@ class disney_soft_landing:
       ..., 2
     ]  # shape (N, M)
 
+    env.extras["log"]["Metrics/delta_v_max"] = torch.max(
+      change_in_velocities_along_projected_gravity
+    ).item()
+
     # calculate the cummulative sum of all the sites that is min(max_of_all_sites, change_in_velocities_along_projected_gravity)
     cost = torch.sum(
       torch.min(
