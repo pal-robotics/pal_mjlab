@@ -348,6 +348,8 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         ".*_leg_length_slider$": 0.0,
         "arm_left_2_joint" : 1.49179553985595703,
         "arm_right_2_joint" : 1.49179553985595703,
+        "arm_left_1_joint" : -0.3,
+        "arm_right_1_joint" : 0.3,
     },
     joint_vel={".*": 0.0},
 )
