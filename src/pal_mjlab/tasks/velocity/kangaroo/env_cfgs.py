@@ -265,6 +265,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     ),
     "action_rate_l2": MetricsTermCfg(func=mdp.action_rate_l2, params={}),
     "action_acc_l2": MetricsTermCfg(func=mdp.action_acc_l2, params={}),
+    "max_feet_delta_vel_along_gravity": MetricsTermCfg(
+      func=mdp.max_feet_delta_velocity_along_gravity,
+      params={"asset_cfg": SceneEntityCfg("robot", site_names=site_names)},
+    ),
   }
 
   # # All except leg length joints

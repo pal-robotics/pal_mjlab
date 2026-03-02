@@ -1,6 +1,10 @@
 """Useful methods for MDP Metrics."""
 
 import torch
+from mjlab.entity.entity import Entity
+from mjlab.envs.manager_based_rl_env import ManagerBasedRlEnv
+from mjlab.managers.metrics_manager import MetricsTermCfg
+from mjlab.managers.scene_entity_config import SceneEntityCfg
 
 
 def joint_velocity_magnitude(env, asset_cfg):
@@ -33,3 +37,30 @@ def action_acc_l2(env) -> torch.Tensor:
     + env.action_manager.prev_prev_action
   )
   return torch.sum(torch.square(action_acc), dim=1)
+
+
+class max_feet_delta_velocity_along_gravity:
+  """Calculate the maximum change in velocity of the feet along the gravity direction."""
+
+  def __init__(self, cfg: MetricsTermCfg, env: ManagerBasedRlEnv):
+    # self.sensor_name = cfg.params["sensor_name"]
+    self.site_names = cfg.params["asset_cfg"].site_names
+    self.prev_site_velocities = torch.zeros(
+      (env.num_envs, len(self.site_names), 3),
+      device=env.device,
+      dtype=torch.float32,
+    )
+
+  def __call__(self, env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    asset: Entity = env.scene[asset_cfg.name]
+
+    site_velocities = asset.data.site_lin_vel_w[:, asset_cfg.site_ids]
+    change_in_site_velocities = site_velocities - self.prev_site_velocities
+    self.prev_site_velocities = site_velocities.clone()
+
+    term = change_in_site_velocities * asset.data.gravity_vec_w.unsqueeze(1)
+    squared_term_along_gravity = torch.square(term)
+    max_term = torch.max(squared_term_along_gravity, dim=1).values
+    max_term_z = max_term[:, 2]  # (num_envs,)
+
+    return max_term_z
