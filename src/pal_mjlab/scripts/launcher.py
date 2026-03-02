@@ -79,13 +79,11 @@ def cleanup(*args):
     print(f"Terminating {name}...")
     try:
       # Ask process to terminate nicely
-      proc.terminate()
       try:
-        proc.wait(timeout=5)  # wait up to 5 seconds
-        print(f"{name} terminated gracefully.")
+        os.killpg(proc.pid, signal.SIGTERM)
+        proc.wait(timeout=5)
       except subprocess.TimeoutExpired:
-        print(f"{name} did not terminate in time; killing it.")
-        proc.kill()  # force kill
+        os.killpg(proc.pid, signal.SIGKILL)
     except Exception as e:
       print(f"Error terminating {name}: {e}")
     finally:
@@ -116,7 +114,8 @@ def open_menu():
           stdout=subprocess.PIPE,
           stderr=subprocess.STDOUT,
           text=True,
-          executable="/bin/bash"
+          executable="/bin/bash",
+          preexec_fn=os.setpgrp
         )
         processes[label] = proc
 
@@ -464,9 +463,10 @@ def open_menu():
       proc = processes.get(label)
       if proc:
         try:
-          proc.terminate()
-        except Exception as e:
-          consoles[selected_console.get()].insert(tk.END, f"✗ Failed to terminate {label}: {e}\n", "status")
+          os.killpg(proc.pid, signal.SIGTERM)
+          proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+          os.killpg(proc.pid, signal.SIGKILL)
       refresh_process_list()
 
     tk.Label(left, text="Select Terminal:", font=label_font, bg=PANEL, fg=MUTED).pack(anchor="w", padx=16, pady=(8,2))
@@ -545,4 +545,8 @@ def main():
 
 
 if __name__ == "__main__":
-  main()
+  try:
+    main()
+  except KeyboardInterrupt:
+    print("\nKeyboardInterrupt detected. Exiting cleanly...")
+    cleanup()
