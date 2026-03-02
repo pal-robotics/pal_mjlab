@@ -14,10 +14,13 @@ from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
+
 from pal_mjlab.robots.pal_kangaroo_full.kangaroo_full_constants import (  # noqa: F401
     KANG_FULL_ACTUATOR_NAMES,
     KANG_FULL_ACTION_SCALE,
-    get_kangaroo_full_robot_cfg
+    get_kangaroo_full_robot_cfg,
+    ANKLE_XY_CONVEX_HULL_POINTS,
+    HIP_XY_CONVEX_HULL_POINTS,
 )
 from pal_mjlab.tasks.velocity.kangaroo_full import mdp
 
@@ -228,6 +231,38 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         func=mdp.joint_vel_limit,
         weight = -0.02,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]), "limit_scale": 1.0},
+    )
+
+    # The hull points should correspond to the respective joints defined in the joint_names_group order
+    # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
+    cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
+        func=mdp.joint_limits_convex_hull,
+        weight=-10.0,
+        params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(r".*",)),
+        "metrics_suffix": "hipXY",
+        "joint_names_group": [
+            [r"left_hip_xy_pitch", r"left_hip_xy_roll"],
+            [r"right_hip_xy_pitch", r"right_hip_xy_roll"],
+        ],
+        "margin": 0.02,
+        "hull_points": HIP_XY_CONVEX_HULL_POINTS,
+        },
+    )
+
+    cfg.rewards["convex_hull_joint_limits_ankle"] = RewardTermCfg(
+        func=mdp.joint_limits_convex_hull,
+        weight=-10.0,
+        params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(r".*",)),
+        "margin": 0.02,
+        "metrics_suffix": "ankleXY",
+        "joint_names_group": [
+            [r"left_ankle_xy_pitch", r"left_ankle_xy_roll"],
+            [r"right_ankle_xy_pitch", r"right_ankle_xy_roll"],
+        ],
+        "hull_points": ANKLE_XY_CONVEX_HULL_POINTS,
+        },
     )
 
     ## Metrics
