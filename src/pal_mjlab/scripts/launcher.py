@@ -231,20 +231,71 @@ def open_menu():
       dropdown_ckpt = tk.OptionMenu(win, selected_ckpt, *checkpoint_labels)
       dropdown_ckpt.pack(fill="x", padx=20, pady=(0, 16))
 
+      agentZero_check_var = tk.BooleanVar(value=False)
+      agentRandom_check_var = tk.BooleanVar(value=False)
+
+      checkbox = tk.Checkbutton(
+          win,
+          text="Agent Zero",
+          variable=agentZero_check_var,
+          onvalue=True,
+          offvalue=False,
+          font=label_font,
+          bg=BG,
+          fg="#e8eaf0",
+          activebackground=BG,
+          activeforeground="#00d4aa",  
+          selectcolor=BG,               
+          relief="flat",
+          anchor="w",                   
+          padx=5,
+          pady=2,
+          bd=0,
+          highlightthickness=0,
+      )
+      checkbox.pack(fill="x", padx=20, pady=(0,16))
+
+      checkbox = tk.Checkbutton(
+          win,
+          text="Agent Random",
+          variable=agentRandom_check_var,
+          onvalue=True,
+          offvalue=False,
+          font=label_font,
+          bg=BG,
+          fg="#e8eaf0",
+          activebackground=BG,
+          activeforeground="#00d4aa",  
+          selectcolor=BG,               
+          relief="flat",
+          anchor="w",                   
+          padx=5,
+          pady=2,
+          bd=0,
+          highlightthickness=0,
+      )
+      checkbox.pack(fill="x", padx=20, pady=(0,16))
+
       def confirm():
         task = selected_task.get()
         label = selected_ckpt.get()
 
-        # find matching path
-        ckpt_path = None
-        for l, path in checkpoints:
-          if l == label:
-            ckpt_path = path
-            break
+        if (agentZero_check_var) :
+          cmd = f"uv run play {task} --agent zero"
+        elif (agentRandom_check_var) :
+          cmd = f"uv run play {task} --agent random"
+        else :
+          # find matching path
+          ckpt_path = None
+          for l, path in checkpoints:
+            if l == label:
+              ckpt_path = path
+              break
+          f"uv run play {task} --checkpoint-file {ckpt_path}",
 
         win.destroy()
         launch_process(
-          f"uv run play {task} --checkpoint-file {ckpt_path}",
+          cmd,
           consoles[selected_console.get()],
           label="deploy"
         )
@@ -535,6 +586,8 @@ def open_menu():
       c_widget.insert(tk.END, f"Terminal {i+1} ready.\n\n", "status")
 
       c_widget.bind("<Key>", lambda e: "break") 
+
+      c_widget.bind("<Button-1>", lambda e, idx=i: selected_console.set(idx))
 
       consoles.append(c_widget)
 
