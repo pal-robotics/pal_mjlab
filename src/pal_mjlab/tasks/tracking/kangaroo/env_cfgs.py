@@ -31,7 +31,6 @@ def pal_kangaroo_flat_tracking_env_cfg(
   cfg.sim.mujoco.timestep = 0.002
   cfg.decimation = 10
 
-  site_names = ("left_foot", "right_foot")
   geom_names = tuple(
     f"{side}_foot{i}_collision"
     for side in ("left", "right")
