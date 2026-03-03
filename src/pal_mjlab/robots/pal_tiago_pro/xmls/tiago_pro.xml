@@ -1,14 +1,15 @@
 <mujoco model="tiago_pro">   
-  <compiler angle="radian" balanceinertia="true" discardvisual="false" strippath="false" meshdir="assets" />
-  <option iterations="1" ls_iterations="5" timestep="0.001"/>
+  <compiler angle="radian" meshdir="assets" />
 
   <default>
-    <site size="0.01" group="5" rgba="1 0 0 1"/>
-    <default class="visual">
-      <geom type="mesh" contype="0" conaffinity="0" group="2" density="0"/>
-    </default>
-    <default class="collision">
-      <geom type="capsule" material="transparent_orange" contype="1" conaffinity="1" group="3"/>
+    <default class="tiago_pro">
+      <site size="0.01" group="5" rgba="1 0 0 1"/>
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2" density="0"/>
+      </default>
+      <default class="collision">
+        <geom type="capsule" material="bright_orange" contype="1" conaffinity="1" group="3"/>
+      </default>
     </default>
   </default>
 
@@ -18,11 +19,10 @@
     <material name="dark_gray" rgba="0.25098 0.25098 0.25098 1"/>
     <material name="light_gray" rgba="0.75294 0.75294 0.75294 1"/>
     <material name="light_blue_gray" rgba="0.79216 0.81961 0.93333 1"/>
-    <material name="transparent_orange" rgba="1 0.65 0 0.2"/>
+    <material name="bright_orange"  rgba="1 0.65 0 0.2"/>
     <material name="dark_medium_gray" rgba="0.29804 0.29804 0.29804 1"/>
     <material name="very_light_blue_gray" rgba="0.894118 0.913725 0.929412 1"/>
     <material name="white" rgba="1 1 1 1"/>
-    <material name="red" rgba="1 0 0 1"/>
     <material name="black" rgba="0 0 0 1"/>
     <!-- meshes -->
     <mesh name="sick_tim551" content_type="model/stl" file="laser/sick_tim551.stl" />
@@ -57,7 +57,7 @@
   </asset>
 
   <worldbody>
-    <body name="base_footprint">
+    <body name="base_footprint" childclass="tiago_pro">
       <site name="base_footprint_site"/>
       <inertial mass="20" diaginertia="1 1 1" pos="0 0 0.2" quat="1 0 0 0"/>
       <geom class="visual" pos="0 0 0.0762" quat="1 0 0 0" material="light_gray" mesh="base_link" />
