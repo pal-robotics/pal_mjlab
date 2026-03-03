@@ -16,6 +16,19 @@ from pal_mjlab import PAL_MJLAB_SRC_PATH
 # - kangaroo_gripper: simplified model with 7 DoF per arm and a gripper
 # - kangaroo_full: full model with 4 DoF per arm and a fake forearm
 
+REGEX_LEG_LENGTH_JOINTS_ONLY = r"leg_.*_length_joint"
+REGEX_ALL_JOINTS = r".*"
+REGEX_ALL_ARM_JOINTS = r"arm_.*_joint"
+REGEX_ALL_LEG_JOINTS = r"leg_.*_joint"
+REGEX_ALL_JOINTS_EXCEPT_LENGTH = r"(?!leg_.*_length_joint).*_joint"
+REGEX_ALL_ACTUATED_JOINTS = r"^(?!leg_.*_femur_joint$|leg_.*_knee_joint$).*$"
+REGEX_ALL_ACTUATED_JOINTS_EXCEPT_LENGTH = (
+    r"(?!leg_.*_length_joint)(?!.*_femur_joint)(?!.*_knee_joint).*_joint"
+)
+REGEX_FEMUR_KNEE_AND_ARMS_LINKS = r"(leg_.*_femur_link|leg_.*_knee_link|arm_.*_link)"
+REGEX_FEMUR_AND_KNEE_LINKS = r"^(leg_left_femur_link|leg_right_femur_link|leg_left_knee_link|leg_right_knee_link)$"
+REGEX_ARM_LINKS = r"arm_.*_link"
+
 KANGAROO_PATH = PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo" / "xmls"
 KANGAROO_XML = KANGAROO_PATH / "kangaroo.xml"
 KANGAROO_HANDS_XML = KANGAROO_PATH / "kangaroo_hands.xml"
