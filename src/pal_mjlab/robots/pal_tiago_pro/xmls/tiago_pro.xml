@@ -156,7 +156,7 @@
                       </body>
                       <body name="gripper_left_outer_finger_left_link" pos="0 -0.0288 0.0913" quat="0.253401 0.660141 -0.253406 -0.660141">
                         <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                        <joint name="gripper_left_outer_finger_left_joint" range="0 0.9" actuatorfrcrange="-8 8" />
+                        <!-- <joint name="gripper_left_outer_finger_left_joint" range="0 0.9" actuatorfrcrange="-8 8" /> -->
                         <geom class="visual" material="light_gray" mesh="outer_finger" />
                       </body>
                       <body name="gripper_left_inner_finger_right_link" pos="0 0.013977 0.095832" quat="0.66014 0.253404 0.660142 0.253404">
@@ -174,7 +174,7 @@
                       </body>
                       <body name="gripper_left_outer_finger_right_link" pos="0 0.0288 0.0913" quat="0.66014 0.253404 0.660142 0.253404">
                         <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                        <joint name="gripper_left_outer_finger_right_joint" range="0 0.9" actuatorfrcrange="-8 8" />
+                        <!-- <joint name="gripper_left_outer_finger_right_joint" range="0 0.9" actuatorfrcrange="-8 8" /> -->
                         <geom class="visual" material="light_gray" mesh="outer_finger" />
                       </body>
                     </body>
@@ -232,7 +232,7 @@
                       </body>
                       <body name="gripper_right_outer_finger_left_link" pos="0 -0.0288 0.0913" quat="0.253401 0.660141 -0.253406 -0.660141">
                         <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                        <joint name="gripper_right_outer_finger_left_joint" range="0 0.95" actuatorfrcrange="-8 8"/>
+                        <!-- <joint name="gripper_right_outer_finger_left_joint" range="0 0.95" actuatorfrcrange="-8 8"/> -->
                         <geom class="visual" material="light_gray" mesh="outer_finger" />
                       </body>
                       <body name="gripper_right_inner_finger_right_link" pos="0 0.013977 0.095832" quat="0.66014 0.253404 0.660142 0.253404">
@@ -249,7 +249,7 @@
                       </body>
                       <body name="gripper_right_outer_finger_right_link" pos="0 0.0288 0.0913" quat="0.66014 0.253404 0.660142 0.253404">
                         <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                        <joint name="gripper_right_outer_finger_right_joint" range="0 0.95" actuatorfrcrange="-8 8" />
+                        <!-- <joint name="gripper_right_outer_finger_right_joint" range="0 0.95" actuatorfrcrange="-8 8" /> -->
                         <geom class="visual" material="light_gray" mesh="outer_finger" />
                       </body>
                     </body>
@@ -263,12 +263,12 @@
     </body>
   </worldbody>
 
-  <equality>
+  <!-- <equality>
     <connect anchor="0.0 0.05 0.0" body1="gripper_right_outer_finger_left_link" body2="gripper_right_fingertip_left_link" name="gripper_right_finger_left_eq" solref="0.002 1" />
     <connect anchor="0.0 0.05 0.0" body1="gripper_right_outer_finger_right_link" body2="gripper_right_fingertip_right_link" name="gripper_right_finger_right_eq" solref="0.002 1" />
     <connect anchor="0.0 0.05 0.0" body1="gripper_left_outer_finger_left_link" body2="gripper_left_fingertip_left_link" name="gripper_left_finger_left_eq" solref="0.002 1" />
     <connect anchor="0.0 0.05 0.0" body1="gripper_left_outer_finger_right_link" body2="gripper_left_fingertip_right_link" name="gripper_left_finger_right_eq" solref="0.002 1" />
-  </equality>
+  </equality> -->
 
   <contact>
     <exclude body1="arm_right_3_link" body2="arm_right_5_link" />

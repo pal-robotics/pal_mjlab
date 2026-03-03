@@ -416,39 +416,39 @@
     <exclude body1="arm_left_4_link" body2="arm_left_7_link"/>
     <exclude body1="arm_left_5_link" body2="arm_left_7_link"/>
     <exclude body1="arm_left_6_link" body2="arm_left_7_link"/>
-    <!-- <exclude body1="arm_left_7_link" body2="gripper_left_motor_double_link"/>
-    <exclude body1="arm_left_7_link" body2="gripper_left_inner_double_link"/>
-    <exclude body1="arm_left_7_link" body2="gripper_left_motor_single_link"/>
-    <exclude body1="arm_left_7_link" body2="gripper_left_inner_single_link"/>
-    <exclude body1="gripper_left_motor_double_link" body2="gripper_left_inner_double_link"/>
-    <exclude body1="gripper_left_motor_double_link" body2="gripper_left_fingertip_2_link"/>
-    <exclude body1="gripper_left_motor_double_link" body2="gripper_left_motor_single_link"/>
-    <exclude body1="gripper_left_motor_double_link" body2="gripper_left_inner_single_link"/>
-    <exclude body1="gripper_left_inner_double_link" body2="gripper_left_motor_single_link"/>
-    <exclude body1="gripper_left_fingertip_1_link" body2="gripper_left_fingertip_2_link"/>
-    <exclude body1="gripper_left_fingertip_1_link" body2="gripper_left_fingertip_3_link"/>
-    <exclude body1="gripper_left_fingertip_2_link" body2="gripper_left_fingertip_3_link"/>
-    <exclude body1="gripper_left_motor_single_link" body2="gripper_left_inner_single_link"/>
-    <exclude body1="gripper_left_motor_single_link" body2="gripper_left_fingertip_3_link"/>
-    <exclude body1="gripper_left_motor_single_link" body2="leg_left_4_link"/> -->
+    <!-- <exclude body1="arm_left_7_link" body2="gripper_left_motor_double_link"/> -->
+    <!-- <exclude body1="arm_left_7_link" body2="gripper_left_inner_double_link"/> -->
+    <!-- <exclude body1="arm_left_7_link" body2="gripper_left_motor_single_link"/> -->
+    <!-- <exclude body1="arm_left_7_link" body2="gripper_left_inner_single_link"/> -->
+    <!-- <exclude body1="gripper_left_motor_double_link" body2="gripper_left_inner_double_link"/> -->
+    <!-- <exclude body1="gripper_left_motor_double_link" body2="gripper_left_fingertip_2_link"/> -->
+    <!-- <exclude body1="gripper_left_motor_double_link" body2="gripper_left_motor_single_link"/> -->
+    <!-- <exclude body1="gripper_left_motor_double_link" body2="gripper_left_inner_single_link"/> -->
+    <!-- <exclude body1="gripper_left_inner_double_link" body2="gripper_left_motor_single_link"/> -->
+    <!-- <exclude body1="gripper_left_fingertip_1_link" body2="gripper_left_fingertip_2_link"/> -->
+    <!-- <exclude body1="gripper_left_fingertip_1_link" body2="gripper_left_fingertip_3_link"/> -->
+    <!-- <exclude body1="gripper_left_fingertip_2_link" body2="gripper_left_fingertip_3_link"/> -->
+    <!-- <exclude body1="gripper_left_motor_single_link" body2="gripper_left_inner_single_link"/> -->
+    <!-- <exclude body1="gripper_left_motor_single_link" body2="gripper_left_fingertip_3_link"/> -->
+    <!-- <exclude body1="gripper_left_motor_single_link" body2="leg_left_4_link"/> -->
     <exclude body1="arm_right_4_link" body2="arm_right_7_link"/>
     <exclude body1="arm_right_5_link" body2="arm_right_7_link"/>
     <exclude body1="arm_right_6_link" body2="arm_right_7_link"/>
-    <!-- <exclude body1="arm_right_7_link" body2="gripper_right_motor_double_link"/>
-    <exclude body1="arm_right_7_link" body2="gripper_right_inner_double_link"/>
-    <exclude body1="arm_right_7_link" body2="gripper_right_motor_single_link"/>
-    <exclude body1="arm_right_7_link" body2="gripper_right_inner_single_link"/>
-    <exclude body1="gripper_right_motor_double_link" body2="gripper_right_inner_double_link"/>
-    <exclude body1="gripper_right_motor_double_link" body2="gripper_right_fingertip_2_link"/>
-    <exclude body1="gripper_right_motor_double_link" body2="gripper_right_motor_single_link"/>
-    <exclude body1="gripper_right_motor_double_link" body2="gripper_right_inner_single_link"/>
-    <exclude body1="gripper_right_inner_double_link" body2="gripper_right_motor_single_link"/>
-    <exclude body1="gripper_right_fingertip_1_link" body2="gripper_right_fingertip_2_link"/>
-    <exclude body1="gripper_right_fingertip_1_link" body2="gripper_right_fingertip_3_link"/>
-    <exclude body1="gripper_right_fingertip_2_link" body2="gripper_right_fingertip_3_link"/>
-    <exclude body1="gripper_right_motor_single_link" body2="gripper_right_inner_single_link"/>
-    <exclude body1="gripper_right_motor_single_link" body2="gripper_right_fingertip_3_link"/>
-    <exclude body1="gripper_right_motor_single_link" body2="leg_right_4_link"/> -->
+    <!-- <exclude body1="arm_right_7_link" body2="gripper_right_motor_double_link"/> -->
+    <!-- <exclude body1="arm_right_7_link" body2="gripper_right_inner_double_link"/> -->
+    <!-- <exclude body1="arm_right_7_link" body2="gripper_right_motor_single_link"/> -->
+    <!-- <exclude body1="arm_right_7_link" body2="gripper_right_inner_single_link"/> -->
+    <!-- <exclude body1="gripper_right_motor_double_link" body2="gripper_right_inner_double_link"/> -->
+    <!-- <exclude body1="gripper_right_motor_double_link" body2="gripper_right_fingertip_2_link"/> -->
+    <!-- <exclude body1="gripper_right_motor_double_link" body2="gripper_right_motor_single_link"/> -->
+    <!-- <exclude body1="gripper_right_motor_double_link" body2="gripper_right_inner_single_link"/> -->
+    <!-- <exclude body1="gripper_right_inner_double_link" body2="gripper_right_motor_single_link"/> -->
+    <!-- <exclude body1="gripper_right_fingertip_1_link" body2="gripper_right_fingertip_2_link"/> -->
+    <!-- <exclude body1="gripper_right_fingertip_1_link" body2="gripper_right_fingertip_3_link"/> -->
+    <!-- <exclude body1="gripper_right_fingertip_2_link" body2="gripper_right_fingertip_3_link"/> -->
+    <!-- <exclude body1="gripper_right_motor_single_link" body2="gripper_right_inner_single_link"/> -->
+    <!-- <exclude body1="gripper_right_motor_single_link" body2="gripper_right_fingertip_3_link"/> -->
+    <!-- <exclude body1="gripper_right_motor_single_link" body2="leg_right_4_link"/> -->
     <exclude body1="leg_left_1_link" body2="leg_left_3_link"/>
     <exclude body1="leg_left_2_link" body2="leg_left_3_link"/>
     <exclude body1="leg_left_3_link" body2="leg_left_4_link"/>
