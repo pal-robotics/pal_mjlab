@@ -280,9 +280,9 @@ def open_menu():
         task = selected_task.get()
         label = selected_ckpt.get()
 
-        if (agentZero_check_var) :
+        if (agentZero_check_var.get()) :
           cmd = f"uv run play {task} --agent zero"
-        elif (agentRandom_check_var) :
+        elif (agentRandom_check_var.get()) :
           cmd = f"uv run play {task} --agent random"
         else :
           # find matching path
