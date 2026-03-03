@@ -9,7 +9,7 @@ from .env_cfgs import (
 from .rl_cfg import pal_kangaroo_ppo_runner_cfg
 
 register_mjlab_task(
-  task_id="Mjlab-Reaching-Pal-Kangaroo",
+  task_id="Mjlab-Reaching-Flat-Pal-Kangaroo",
   env_cfg=pal_kangaroo_flat_loco_reaching_env_cfg(),
   play_env_cfg=pal_kangaroo_flat_loco_reaching_env_cfg(play=True),
   rl_cfg=pal_kangaroo_ppo_runner_cfg(),
@@ -17,7 +17,7 @@ register_mjlab_task(
 )
 
 register_mjlab_task(
-  task_id="Mjlab-Reaching-Pal-Kangaroo-Hands",
+  task_id="Mjlab-Reaching-Flat-Pal-Kangaroo-Hands",
   env_cfg=pal_kangaroo_hands_flat_loco_reaching_env_cfg(),
   play_env_cfg=pal_kangaroo_hands_flat_loco_reaching_env_cfg(play=True),
   rl_cfg=pal_kangaroo_ppo_runner_cfg(),
@@ -25,7 +25,7 @@ register_mjlab_task(
 )
 
 register_mjlab_task(
-  task_id="Mjlab-Reaching-Pal-Kangaroo-Grippers",
+  task_id="Mjlab-Reaching-Flat-Pal-Kangaroo-Grippers",
   env_cfg=pal_kangaroo_grippers_flat_loco_reaching_env_cfg(),
   play_env_cfg=pal_kangaroo_grippers_flat_loco_reaching_env_cfg(play=True),
   rl_cfg=pal_kangaroo_ppo_runner_cfg(),

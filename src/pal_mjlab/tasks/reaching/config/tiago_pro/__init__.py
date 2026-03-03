@@ -7,7 +7,7 @@ from .env_cfgs import (
 from .rl_cfg import pal_tiago_pro_ppo_runner_cfg
 
 register_mjlab_task(
-  task_id="Mjlab-Reaching-Pal-Tiago-Pro",
+  task_id="Mjlab-Reaching-Flat-Pal-Tiago-Pro",
   env_cfg=pal_tiago_pro_reaching_env_cfg(),
   play_env_cfg=pal_tiago_pro_reaching_env_cfg(play=True),
   rl_cfg=pal_tiago_pro_ppo_runner_cfg(),
