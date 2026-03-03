@@ -17,7 +17,7 @@ from pal_mjlab.robots import (
   KANGAROO_ACTUATOR_NAMES,
   get_kangaroo_robot_cfg,
 )
-from pal_mjlab.tasks.velocity.kangaroo import mdp
+from pal_mjlab.tasks.velocity import mdp
 
 
 def pal_kangaroo_flat_tracking_env_cfg(

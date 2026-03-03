@@ -29,7 +29,7 @@ from pal_mjlab.robots import (
   get_kangaroo_hands_robot_cfg,
   get_kangaroo_robot_cfg,
 )
-from pal_mjlab.tasks.velocity.kangaroo import mdp
+from pal_mjlab.tasks.velocity import mdp
 
 
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
