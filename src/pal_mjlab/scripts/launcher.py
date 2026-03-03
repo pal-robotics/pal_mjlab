@@ -291,7 +291,7 @@ def open_menu():
             if l == label:
               ckpt_path = path
               break
-          f"uv run play {task} --checkpoint-file {ckpt_path}",
+          cmd = f"uv run play {task} --checkpoint-file {ckpt_path}",
 
         win.destroy()
         launch_process(
