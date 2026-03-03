@@ -181,7 +181,7 @@ def open_menu():
           menu_console.after(0, append_to_console, menu_console, line)
         proc.wait()
 
-        status = "✓ done" if proc.returncode == 0 else f"✗ exited {proc.returncode}"
+        status = "\n✓ done" if proc.returncode == 0 else f"\n✗ exited {proc.returncode}"
         menu_console.after(0, append_to_console, menu_console, f"{status}\n\n", "status")
         processes.pop(label, None)
         menu_console.after(0, refresh_process_list)
@@ -197,6 +197,7 @@ def open_menu():
     root.title("mjlab launcher")
     root.configure(bg=BG)
     root.geometry("1600x900")
+    root.resizable(False, False)
     root.minsize(700, 450)
 
     # Fonts
@@ -588,6 +589,7 @@ def open_menu():
         highlightthickness=0,
       ).pack(anchor="w", padx=20)
 
+    tk.Frame(left, bg=PANEL, height=8).pack(fill="x", padx=16)
     make_button(left, "List Files",    ACCENT,  run_ls)
     make_button(left, "Build - Train Policy", ACCENT2, run_hpc_train)
     make_button(left, "Prebuilt - Train Policy", ACCENT, run_train)
