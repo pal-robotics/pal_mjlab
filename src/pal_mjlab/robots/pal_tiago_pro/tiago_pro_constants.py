@@ -13,7 +13,9 @@ from pal_mjlab import PAL_MJLAB_SRC_PATH
 # MJCF and assets.
 ##
 
-TIAGO_PRO_XML: Path = PAL_MJLAB_SRC_PATH / "robots" / "pal_tiago_pro" / "xmls" / "tiago_pro.xml"
+TIAGO_PRO_XML: Path = (
+  PAL_MJLAB_SRC_PATH / "robots" / "pal_tiago_pro" / "xmls" / "tiago_pro.xml"
+)
 assert TIAGO_PRO_XML.exists()
 
 
