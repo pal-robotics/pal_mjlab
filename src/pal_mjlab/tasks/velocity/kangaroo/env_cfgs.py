@@ -22,6 +22,9 @@ from pal_mjlab.robots import (
   KANGAROO_GRIPPERS_ACTUATOR_NAMES,
   KANGAROO_HANDS_ACTION_SCALE,
   KANGAROO_HANDS_ACTUATOR_NAMES,
+  REGEX_ALL_ACTUATED_JOINTS,
+  REGEX_FEMUR_AND_KNEE_LINKS,
+  REGEX_LEG_LENGTH_JOINTS_ONLY,
   get_kangaroo_grippers_robot_cfg,
   get_kangaroo_hands_robot_cfg,
   get_kangaroo_robot_cfg,
@@ -46,7 +49,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     for i in [0, 2, 4, 6, 8, 10]
   )
   actuated_joints = (
-    r"^(?!leg_.*_femur_joint$|leg_.*_knee_joint$).*$"  # Exclude femur and knee joints.
+    REGEX_ALL_ACTUATED_JOINTS  # Exclude femur and knee joints.
   )
 
   feet_ground_cfg = ContactSensorCfg(
@@ -66,7 +69,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     name="body_ground_contact",
     primary=ContactMatch(
       mode="body",
-      pattern=r"^(leg_left_femur_link|leg_right_femur_link|leg_left_knee_link|leg_right_knee_link)$",
+      pattern=REGEX_FEMUR_AND_KNEE_LINKS,
       entity="robot",
     ),
     secondary=ContactMatch(mode="body", pattern="terrain"),
@@ -154,7 +157,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     mode="startup",
     func=mdp.randomize_encoder_bias,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=[r"leg_.*_length_.*$"]),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=[REGEX_LEG_LENGTH_JOINTS_ONLY]),
       "bias_range": (-0.005, 0.005),
     },
   )
@@ -243,8 +246,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.joint_vel_limits,
     weight=-10.0,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=[r"leg_.*_length_.*$"]),
-      "velocity_limits": {r"leg_.*_length_.*$": (-1.6, 1.6)},
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_LEG_LENGTH_JOINTS_ONLY,)),
+      "velocity_limits": {REGEX_LEG_LENGTH_JOINTS_ONLY: (-1.6, 1.6)},
     },
   )
 
