@@ -34,7 +34,6 @@ from mjlab.utils.torch import configure_torch_backends
 from mjlab.utils.wrappers import VideoRecorder
 from mjlab.viewer import NativeMujocoViewer, ViserPlayViewer
 
-from pathlib import Path
 
 LOG_ROOT = Path("/home/manuelactis/hpc_remote_logs").resolve()
 
@@ -132,6 +131,24 @@ import atexit, signal
 atexit.register(cleanup)
 signal.signal(signal.SIGTERM, cleanup)
 
+
+MAX_CONSOLE_LINES = 500
+
+def append_to_console(console, text, tag=None):
+  if tag:
+    console.insert(tk.END, text, tag)
+  else:
+    console.insert(tk.END, text)
+  
+  # Count lines and trim oldest if over limit
+  line_count = int(console.index(tk.END).split(".")[0])
+  if line_count > MAX_CONSOLE_LINES:
+    excess = line_count - MAX_CONSOLE_LINES
+    console.delete("1.0", f"{excess + 1}.0")
+  
+  console.see(tk.END)
+
+
 # --- GUI ---
 def open_menu():
     BG       = "#0f1117"
@@ -156,18 +173,16 @@ def open_menu():
         processes[label] = proc
 
         output = []
-        menu_console.after(0, menu_console.insert, tk.END, f"$ {command}\n", "cmd")
+        menu_console.after(0, append_to_console, menu_console, f"$ {command}\n", "cmd")
         menu_console.after(0, refresh_process_list)
 
         for line in proc.stdout:
           output.append(line)
-          menu_console.after(0, menu_console.insert, tk.END, line)
-          menu_console.after(0, menu_console.see, tk.END)
+          menu_console.after(0, append_to_console, menu_console, line)
         proc.wait()
 
         status = "✓ done" if proc.returncode == 0 else f"✗ exited {proc.returncode}"
-        menu_console.after(0, menu_console.insert, tk.END, f"{status}\n\n", "status")
-        menu_console.after(0, menu_console.see, tk.END)
+        menu_console.after(0, append_to_console, menu_console, f"{status}\n\n", "status")
         processes.pop(label, None)
         menu_console.after(0, refresh_process_list)
 
@@ -236,12 +251,12 @@ def open_menu():
 
     def run_deploy():
       if not tasks:
-        consoles[selected_console.get()].insert(tk.END, "✗ No tasks loaded, click 'List Tasks' first\n", "status")
+        append_to_console(consoles[selected_console.get()], "✗ No tasks loaded, click 'List Tasks' first\n", "status")
         return
 
       checkpoints = find_latest_checkpoints()
       if not checkpoints:
-        consoles[selected_console.get()].insert(tk.END, "✗ No checkpoints found\n", "status")
+        append_to_console(consoles[selected_console.get()], "✗ No checkpoints found\n", "status")
         return
 
       # New window
@@ -327,7 +342,7 @@ def open_menu():
             if l == label:
               ckpt_path = path
               break
-          cmd = f"uv run play {task} --checkpoint-file {ckpt_path}",
+          cmd = f"uv run play {task} --checkpoint-file {ckpt_path}"
 
         win.destroy()
         launch_process(
@@ -366,7 +381,7 @@ def open_menu():
       def run_next(index=0):
         if index >= len(commands):
           # all done
-          menu_console.after(0, menu_console.insert, tk.END, "All HPC steps finished.\n", "status")
+          menu_console.after(0, append_to_console, menu_console, "All HPC steps finished.\n", "status")
           menu_console.after(0, menu_console.see, tk.END)
           return
 
@@ -385,7 +400,7 @@ def open_menu():
 
     def run_hpc_train():
       if not tasks:
-        consoles[selected_console.get()].insert(tk.END, "✗ No tasks loaded, click 'List Tasks' first\n", "status")
+        append_to_console(consoles[selected_console.get()], "✗ No tasks loaded, click 'List Tasks' first\n", "status")
         return
 
       win = tk.Toplevel(root)
@@ -429,7 +444,7 @@ def open_menu():
         custom_job_name = job_entry.get().strip()
         environment_name = selected_task.get()
         if not (experiment_name and custom_job_name and environment_name):
-          consoles[selected_console.get()].insert(tk.END, "✗ All three fields are required\n", "status")
+          append_to_console(consoles[selected_console.get()], "✗ All three fields are required\n", "status")
           return
         lines = options_text.get("1.0", tk.END).splitlines()
         extra_opts = " ".join(f"--{line.strip()}" for line in lines if line.strip())
@@ -443,7 +458,7 @@ def open_menu():
 
     def run_train():
       if not tasks:
-        consoles[selected_console.get()].insert(tk.END, "✗ No tasks loaded, click 'List Tasks' first\n", "status")
+        append_to_console(consoles[selected_console.get()], "✗ No tasks loaded, click 'List Tasks' first\n", "status")
         return
 
       win = tk.Toplevel(root)
@@ -511,7 +526,7 @@ def open_menu():
         custom_job_name = job_entry.get().strip()
         environment_name = selected_task.get()
         if not (experiment_name and custom_job_name and environment_name):
-          consoles[selected_console.get()].insert(tk.END, "✗ All three fields are required\n", "status")
+          append_to_console(consoles[selected_console.get()], "✗ All three fields are required\n", "status")
           return
 
         lines = options_text.get("1.0", tk.END).splitlines()
@@ -535,7 +550,7 @@ def open_menu():
 
     def clear_selected_terminal ():
       consoles[selected_console.get()].delete("1.0", tk.END)
-      consoles[selected_console.get()].insert(tk.END,f'Terminal {selected_console.get() + 1} ready.\n\n', "status")
+      append_to_console(consoles[selected_console.get()], f'Terminal {selected_console.get() + 1} ready.\n\n', "status")
 
     def refresh_process_list():
       proc_listbox.delete(0, tk.END)
@@ -552,7 +567,7 @@ def open_menu():
         try:
           kill_proc_tree(proc)
         except Exception as e:
-          print(f"Error terminating {name}: {e}")
+          print(f"Error terminating {label}: {e}")
         processes.pop(label, None)
       refresh_process_list()
 
@@ -619,7 +634,7 @@ def open_menu():
       c_widget.grid(row=r, column=c, sticky="nsew", padx=2, pady=2)
       c_widget.tag_config("cmd",    foreground=ACCENT, font=tkfont.Font(family="Courier New", size=10, weight="bold"))
       c_widget.tag_config("status", foreground=ACCENT2, font=tkfont.Font(family="Courier New", size=10, weight="bold"))
-      c_widget.insert(tk.END, f"Terminal {i+1} ready.\n\n", "status")
+      append_to_console(c_widget, f"Terminal {i+1} ready.\n\n", "status")
 
       c_widget.bind("<Key>", lambda e: "break") 
 
