@@ -1,6 +1,5 @@
 """PAL Robotics Kangaroo Flat terrain tracking configuration."""
 
-import torch
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg

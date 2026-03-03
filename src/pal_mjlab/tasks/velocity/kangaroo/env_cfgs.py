@@ -48,9 +48,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     for side in ("left", "right")
     for i in [0, 2, 4, 6, 8, 10]
   )
-  actuated_joints = (
-    REGEX_ALL_ACTUATED_JOINTS  # Exclude femur and knee joints.
-  )
+  actuated_joints = REGEX_ALL_ACTUATED_JOINTS  # Exclude femur and knee joints.
 
   feet_ground_cfg = ContactSensorCfg(
     name="feet_ground_contact",
