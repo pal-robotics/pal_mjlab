@@ -74,21 +74,58 @@ tasks = []
 # --- Process registry for cleanup ---
 processes = {}
 
+def kill_proc_tree(proc):
+  try:
+    # Get all child PIDs via /proc filesystem (Linux only)
+    def get_children(pid):
+      children = []
+      try:
+        task_dir = Path(f"/proc/{pid}/task")
+        for tid in task_dir.iterdir():
+          children_file = tid / "children"
+          if children_file.exists():
+            pids = children_file.read_text().split()
+            for child_pid in pids:
+              child_pid = int(child_pid)
+              children.append(child_pid)
+              children.extend(get_children(child_pid))
+      except (FileNotFoundError, PermissionError):
+        pass
+      return children
+
+    children = get_children(proc.pid)
+
+    # Terminate children first, then parent
+    for pid in children:
+      try:
+        os.kill(pid, signal.SIGTERM)
+      except ProcessLookupError:
+        pass
+
+    proc.terminate()
+    proc.wait(timeout=5)
+
+  except subprocess.TimeoutExpired:
+    # Force kill anything still alive
+    for pid in children:
+      try:
+        os.kill(pid, signal.SIGKILL)
+      except ProcessLookupError:
+        pass
+    proc.kill()
+
+  except Exception as e:
+    print(f"Error killing process tree: {e}")
+
 def cleanup(*args):
   for name, proc in list(processes.items()):
     print(f"Terminating {name}...")
     try:
-      # Ask process to terminate nicely
-      try:
-        os.killpg(proc.pid, signal.SIGTERM)
-        proc.wait(timeout=5)
-      except subprocess.TimeoutExpired:
-        os.killpg(proc.pid, signal.SIGKILL)
+      kill_proc_tree(proc)
     except Exception as e:
       print(f"Error terminating {name}: {e}")
     finally:
       processes.pop(name, None)
-
   sys.exit(0)
 
 import atexit, signal
@@ -115,7 +152,6 @@ def open_menu():
           stderr=subprocess.STDOUT,
           text=True,
           executable="/bin/bash",
-          preexec_fn=os.setpgrp,
         )
         processes[label] = proc
 
@@ -322,7 +358,7 @@ def open_menu():
         3) Schedule training job on MN5
       """
       commands = [
-        f"cd .. ; pkexec hpc job build /home/manuelactis/pal_mjlab -o /home/manuelactis/{experiment_name}.sif",
+        f"cd .. ; hpc job build /home/manuelactis/pal_mjlab -o /home/manuelactis/{experiment_name}.sif",
         f"hpc deploy mn5 /home/manuelactis/{experiment_name}.sif",
         f'hpc job schedule --name {custom_job_name} mn5 {experiment_name}.sif "python -m mjlab.scripts.train {environment_name} --env.scene.num-envs 4096 --agent.run-name {custom_job_name} --agent.logger tensorboard --agent.save-interval 500 {extra_opts}"'
       ]
@@ -514,10 +550,10 @@ def open_menu():
       proc = processes.get(label)
       if proc:
         try:
-          os.killpg(proc.pid, signal.SIGTERM)
-          proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-          os.killpg(proc.pid, signal.SIGKILL)
+          kill_proc_tree(proc)
+        except Exception as e:
+          print(f"Error terminating {name}: {e}")
+        processes.pop(label, None)
       refresh_process_list()
 
     tk.Label(left, text="Select Terminal:", font=label_font, bg=PANEL, fg=MUTED).pack(anchor="w", padx=16, pady=(8,2))
