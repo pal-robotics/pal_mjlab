@@ -115,7 +115,7 @@ def open_menu():
           stderr=subprocess.STDOUT,
           text=True,
           executable="/bin/bash",
-          preexec_fn=os.setpgrp
+          preexec_fn=os.setpgrp,
         )
         processes[label] = proc
 
@@ -322,7 +322,7 @@ def open_menu():
         3) Schedule training job on MN5
       """
       commands = [
-        f"hpc job build /home/manuelactis/pal_mjlab -o /home/manuelactis/{experiment_name}.sif",
+        f"cd .. ; pkexec hpc job build /home/manuelactis/pal_mjlab -o /home/manuelactis/{experiment_name}.sif",
         f"hpc deploy mn5 /home/manuelactis/{experiment_name}.sif",
         f'hpc job schedule --name {custom_job_name} mn5 {experiment_name}.sif "python -m mjlab.scripts.train {environment_name} --env.scene.num-envs 4096 --agent.run-name {custom_job_name} --agent.logger tensorboard --agent.save-interval 500 {extra_opts}"'
       ]
@@ -481,7 +481,7 @@ def open_menu():
         lines = options_text.get("1.0", tk.END).splitlines()
         extra_opts = " ".join(f"--{line.strip()}" for line in lines if line.strip())
 
-        if (check_var):
+        if (check_var.get()):
           label = f"local_train:{custom_job_name}:{environment_name}"
           cmd = f'uv run train {environment_name} {extra_opts}'
         else :
