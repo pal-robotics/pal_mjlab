@@ -1,5 +1,5 @@
 <mujoco model="tiago_pro">   
-  <compiler angle="radian" meshdir="assets" />
+  <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
   <default>
     <default class="tiago_pro">

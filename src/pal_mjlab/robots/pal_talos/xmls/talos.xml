@@ -1,5 +1,5 @@
 <mujoco model="talos">
-  <compiler angle="radian" meshdir="assets/"/>
+  <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
   <default>
     <default class="talos">
