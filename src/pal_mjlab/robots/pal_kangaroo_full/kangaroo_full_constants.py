@@ -20,7 +20,11 @@ from pal_mjlab import PAL_MJLAB_SRC_PATH
 KANG_FULL_XML: Path = (
     PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo_full" / "xmls" / "kangaroo_full.xml"
 )
+KANG_FULL_FIXED_XML = Path(
+    PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo_full" / "xmls" / "kangaroo_full_fixed.xml"
+)
 assert KANG_FULL_XML.exists()
+assert KANG_FULL_FIXED_XML.exists()
 
 
 HIP_XY_CONVEX_HULL_POINTS = torch.tensor(
@@ -128,8 +132,13 @@ def get_assets(meshdir: str) -> dict[str, bytes]:
     return assets
 
 
-def get_spec() -> mujoco.MjSpec:
+def get_full_spec() -> mujoco.MjSpec:
     spec = mujoco.MjSpec.from_file(str(KANG_FULL_XML))
+    spec.assets = get_assets(spec.meshdir)
+    return spec
+
+def get_full_fixed_spec() -> mujoco.MjSpec:
+    spec = mujoco.MjSpec.from_file(str(KANG_FULL_FIXED_XML))
     spec.assets = get_assets(spec.meshdir)
     return spec
     
@@ -259,54 +268,54 @@ KANG_FULL_BENT_KNEES_JOINTS = {
 }
 
 # Passive
-KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=KANG_FULL_PASSIVE_JOINTS,
-    effort_limit=100.0,
-    armature=0.01,
-    stiffness=0.0,
-    damping=0.0,
-)
+# KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+#     target_names_expr=KANG_FULL_PASSIVE_JOINTS,
+#     effort_limit=100.0,
+#     armature=0.01,
+#     stiffness=0.0,
+#     damping=0.0,
+# )
 
 KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_hip_z_slider",
     ),
-    **_calc_leg_params(16000.0, 1100.0),
+    **_calc_leg_params(16000.0, 2000.0),
 )
 
 KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_hip_xy_slider_l",
     ),
-    **_calc_leg_params(16000.0, 1100.0),
+    **_calc_leg_params(16000.0, 2000.0),
 )
 
 KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_hip_xy_slider_r",
     ),
-    **_calc_leg_params(16000.0, 1100.0),
+    **_calc_leg_params(16000.0, 2000.0),
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_ankle_xy_slider_l",
     ),
-    **_calc_leg_params(16000.0, 1100.0),
+    **_calc_leg_params(16000.0, 2000.0),
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_ankle_xy_slider_r",
     ),
-    **_calc_leg_params(16000.0, 1100.0),
+    **_calc_leg_params(16000.0, 2000.0),
 )
 
 KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_leg_length_slider$",
     ),
-    **_calc_leg_params(16000.0, 1100.0),
+    **_calc_leg_params(16000.0, 5000.0),
 )
 
 KANG_FULL_ARMS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
@@ -346,13 +355,18 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         ".*_ankle_xy_slider_l": 0.0,
         ".*_ankle_xy_slider_r": 0.0,
         ".*_leg_length_slider$": 0.0,
-        "arm_left_2_joint" : 1.49179553985595703,
-        "arm_right_2_joint" : 1.49179553985595703,
-        "arm_left_1_joint" : -0.3,
-        "arm_right_1_joint" : 0.3,
+        "arm_left_1_joint" :0.002,
+        "arm_left_2_joint" :1.21,
+        "arm_left_3_joint" :1.62,
+        "arm_left_4_joint" :0.6,
+        "arm_right_1_joint" :-0.002,
+        "arm_right_2_joint" :1.21,
+        "arm_right_3_joint" :-1.62,
+        "arm_right_4_joint" :0.6,
     },
     joint_vel={".*": 0.0},
 )
+       
 
 KNEES_BENT_KEYFRAME = EntityCfg.InitialStateCfg(
     pos=(0, 0, 0.85),
@@ -387,7 +401,7 @@ FULL_COLLISION = CollisionCfg(
 
 KANG_FULL_ARTICULATION = EntityArticulationInfoCfg(
     actuators=(
-        KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG,
+        # KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG,
         KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG,
         KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG,
         KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG,
@@ -406,21 +420,24 @@ _EXCLUDED_JOINTS = { }
 
 
 _ROBOT_CONFIGS = {
-    "kangaroo_full": (get_spec, KANG_FULL_ARTICULATION, FULL_COLLISION),
+    "kangaroo_full": (get_full_spec, KANG_FULL_ARTICULATION, FULL_COLLISION),
+    "kangaroo_full_fixed": (get_full_fixed_spec, KANG_FULL_ARTICULATION, FULL_COLLISION),
 }
 
 
 def _make_robot_cfg(variant: str) -> EntityCfg:
+    spec_fn, articulation, collision = _ROBOT_CONFIGS[variant]
     return EntityCfg(
         init_state=INIT_STATE,
-        collisions=(FULL_COLLISION,),
-        spec_fn=get_spec,
-        articulation=KANG_FULL_ARTICULATION,
+        collisions=(collision,),
+        spec_fn=spec_fn,
+        articulation=articulation,
     )
 
 
-def get_kangaroo_full_robot_cfg() -> EntityCfg:
-    return _make_robot_cfg("kangaroo_full")
+
+def get_kangaroo_full_robot_cfg(variant: str) -> EntityCfg:
+    return _make_robot_cfg(variant)
 
 
 def _build_action_scales(
@@ -454,8 +471,19 @@ KANG_FULL_ACTION_SCALE, KANG_FULL_ACTUATOR_NAMES = _build_action_scales(
 
 
 if __name__ == "__main__":
+    import argparse
     import mujoco.viewer as viewer
     from mjlab.entity.entity import Entity
 
-    robot = Entity(get_kangaroo_full_robot_cfg())
+    parser = argparse.ArgumentParser(description="Launch Kangaroo Full robot viewer")
+    parser.add_argument(
+        "--variant",
+        type=str,
+        default="kangaroo_full",
+        choices=["kangaroo_full", "kangaroo_full_fixed"],
+        help="Robot variant to load (default: kangaroo_full)",
+    )
+    args = parser.parse_args()
+
+    robot = Entity(get_kangaroo_full_robot_cfg(args.variant))
     viewer.launch(robot.spec.compile())

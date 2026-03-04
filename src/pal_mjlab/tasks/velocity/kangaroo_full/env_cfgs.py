@@ -28,7 +28,7 @@ from pal_mjlab.tasks.velocity.kangaroo_full import mdp
 def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics kangaroo_full rough terrain velocity configuration."""
     cfg = make_velocity_env_cfg()
-    cfg.scene.entities = {"robot": get_kangaroo_full_robot_cfg()}
+    cfg.scene.entities = {"robot": get_kangaroo_full_robot_cfg("kangaroo_full")}
     cfg.sim.nconmax = None
     cfg.sim.mujoco.ccd_iterations = 500
     cfg.sim.contact_sensor_maxmatch = 500
