@@ -407,7 +407,7 @@ def open_menu():
       win = tk.Toplevel(root)
       win.title("HPC Train Policy")
       win.configure(bg=BG)
-      win.geometry("400x400")
+      win.geometry("600x400")
       win.resizable(False, True)
 
       # Experiment name
@@ -465,7 +465,7 @@ def open_menu():
       win = tk.Toplevel(root)
       win.title("Train Policy")
       win.configure(bg=BG)
-      win.geometry("400x450")
+      win.geometry("600x450")
       win.resizable(False, True)
 
       # Experiment name
@@ -638,7 +638,7 @@ def open_menu():
       c_widget.tag_config("status", foreground=ACCENT2, font=tkfont.Font(family="Courier New", size=10, weight="bold"))
       append_to_console(c_widget, f"Terminal {i+1} ready.\n\n", "status")
 
-      c_widget.bind("<Key>", lambda e: "break") 
+      c_widget.bind("<Key>", lambda e: "break" if not (e.state & 0x4 and e.keysym in ("c", "C", "a", "A")) else None)
 
       c_widget.bind("<Button-1>", lambda e, idx=i: selected_console.set(idx))
 
