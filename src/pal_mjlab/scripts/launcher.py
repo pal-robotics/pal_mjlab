@@ -81,7 +81,7 @@ def save_training_snapshot(environment_name, job_name, extra_opts, description =
     f.write(f"job name   : {job_name}\n")
     f.write(f"options    : --env.scene.num-envs 4096 --agent.run-name {job_name} --agent.logger tensorboard --agent.save-interval 500 {extra_opts if extra_opts else ''}\n")
     f.write(f"________________________________________________\n")
-    f.write(f"Description   : \n\n{description}\n")
+    f.write(f"Description   :\n\n{description}\n")
     f.write(f"________________________________________________\n")
     f.write("\n\n")
 
