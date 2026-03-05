@@ -142,6 +142,16 @@ def pal_kangaroo_full_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
             }
         )
     
+    REGEX_LEG_ACTUATORS_ONLY = (".*_hip_z_slider", ".*_hip_xy_slider_l", ".*_hip_xy_slider_r", ".*_ankle_xy_slider_l", ".*_ankle_xy_slider_r", ".*_leg_length_slider$")
+    cfg.rewards["joint_vel_limits"] = RewardTermCfg(
+            func=reach_mdp.joint_vel_limits,
+            weight=-10.0,
+            params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=REGEX_LEG_ACTUATORS_ONLY),
+            "velocity_limits": {r".*": (-0.5, 0.5)},
+            },
+        )
+    
     # cfg.rewards["ee_left_orientation"] = RewardTermCfg(
     #         func=reach_mdp.orientation_command_error,
     #         weight=-0.2,
@@ -162,13 +172,13 @@ def pal_kangaroo_full_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
 
     cfg.rewards["action_rate_l2"] = RewardTermCfg(
             func=reach_mdp.action_rate_l2_louis,
-            weight=-0.003,
+            weight=-0.1,
             params={
                 "asset_cfg": SceneEntityCfg(
                     "robot", joint_names=KANG_FULL_ACTUATOR_NAMES
                 ),  
             },
-        ),
+        )
     
     cfg.rewards["self_collisions"] = RewardTermCfg(
         func=reach_mdp.self_collision_cost,

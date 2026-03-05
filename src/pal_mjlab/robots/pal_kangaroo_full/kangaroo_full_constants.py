@@ -412,7 +412,7 @@ KANG_FULL_ARTICULATION = EntityArticulationInfoCfg(
         KANG_FULL_PELVIS_1_ACTUATOR_CFG,
         KANG_FULL_PELVIS_2_ACTUATOR_CFG
     ),
-    soft_joint_pos_limit_factor=0.99,
+    soft_joint_pos_limit_factor=0.9,
 )
 
 
