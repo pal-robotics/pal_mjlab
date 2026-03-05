@@ -134,7 +134,7 @@ def pal_kangaroo_full_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
         )
     cfg.rewards["pos_right_fine_grained"] = RewardTermCfg(
             func=reach_mdp.position_command_error_tanh,
-            weight=3.0,
+            weight=2.0,
             params={
                 "site_name": "right_foot",
                 "command_name": "pose_command_right",
@@ -148,7 +148,7 @@ def pal_kangaroo_full_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
             weight=-10.0,
             params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=REGEX_LEG_ACTUATORS_ONLY),
-            "velocity_limits": {r".*": (-0.5, 0.5)},
+            "velocity_limits": {r".*": (-0.1, 0.1)},
             },
         )
     
