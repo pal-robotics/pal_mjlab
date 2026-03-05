@@ -179,7 +179,18 @@ def pal_kangaroo_full_reaching_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
                 ),  
             },
         )
+
+    cfg.rewards["joint_vel_hinge"] = RewardTermCfg(
+            func=reach_mdp.joint_velocity_hinge_penalty,
+            weight=-0.05,
+            params={
+                "max_vel": 0.5,
+                "asset_cfg": SceneEntityCfg("robot", joint_names=REGEX_LEG_ACTUATORS_ONLY),
+            },
+        )
     
+    cfg.rewards["dof_pos_limits"] = RewardTermCfg(func=reach_mdp.joint_pos_limits, weight=-1.0)
+
     cfg.rewards["self_collisions"] = RewardTermCfg(
         func=reach_mdp.self_collision_cost,
         weight=-1.0,
