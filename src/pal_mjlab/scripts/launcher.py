@@ -67,6 +67,21 @@ def find_latest_checkpoints():
 
   return checkpoints
 
+SNAPSHOTS_DIR = Path("../training_snapshots").resolve()
+
+def save_training_snapshot(environment_name, job_name, extra_opts):
+  SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+  from datetime import datetime
+  date_str = datetime.now().strftime("%Y-%m-%d")
+  timestamp_str = datetime.now().strftime("%H:%M:%S")
+  snapshot_file = SNAPSHOTS_DIR / f"{date_str}.txt"
+  with open(snapshot_file, "a") as f:
+    f.write(f"[{timestamp_str}]\n")
+    f.write(f"  env        : {environment_name}\n")
+    f.write(f"  job name   : {job_name}\n")
+    f.write(f"  options    : --env.scene.num-envs 4096 --agent.run-name {job_name} --agent.logger tensorboard --agent.save-interval 500 {extra_opts if extra_opts else ''}\n")
+    f.write("\n")
+
 
 tasks = []
 
@@ -379,6 +394,8 @@ def open_menu():
         f'hpc job schedule --name {custom_job_name} mn5 {experiment_name}.sif "python -m mjlab.scripts.train {environment_name} --env.scene.num-envs 4096 --agent.run-name {custom_job_name} --agent.logger tensorboard --agent.save-interval 500 {extra_opts}"'
       ]
 
+      save_training_snapshot(environment_name, custom_job_name, extra_opts)
+
       def run_next(index=0):
         if index >= len(commands):
           # all done
@@ -539,7 +556,7 @@ def open_menu():
         else :
           label = f"hpc_train:{custom_job_name}:{environment_name}"
           cmd = f'hpc job schedule --name {custom_job_name} mn5 {experiment_name}.sif "python -m mjlab.scripts.train {environment_name} --env.scene.num-envs 4096 --agent.logger tensorboard --agent.run-name {custom_job_name} --agent.save-interval 500 {extra_opts}"'
-        
+          save_training_snapshot(environment_name, custom_job_name, extra_opts)
         win.destroy()
         
         launch_process(cmd, consoles[selected_console.get()], label=label)
