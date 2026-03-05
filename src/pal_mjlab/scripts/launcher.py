@@ -69,18 +69,21 @@ def find_latest_checkpoints():
 
 SNAPSHOTS_DIR = Path("../training_snapshots").resolve()
 
-def save_training_snapshot(environment_name, job_name, extra_opts):
+def save_training_snapshot(environment_name, job_name, extra_opts, description = ""):
   SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
   from datetime import datetime
   date_str = datetime.now().strftime("%Y-%m-%d")
   timestamp_str = datetime.now().strftime("%H:%M:%S")
   snapshot_file = SNAPSHOTS_DIR / f"{date_str}.txt"
   with open(snapshot_file, "a") as f:
-    f.write(f"[{timestamp_str}]\n")
-    f.write(f"  env        : {environment_name}\n")
-    f.write(f"  job name   : {job_name}\n")
-    f.write(f"  options    : --env.scene.num-envs 4096 --agent.run-name {job_name} --agent.logger tensorboard --agent.save-interval 500 {extra_opts if extra_opts else ''}\n")
-    f.write("\n")
+    f.write(f"  [{timestamp_str}]\n")
+    f.write(f"env        : {environment_name}\n")
+    f.write(f"job name   : {job_name}\n")
+    f.write(f"options    : --env.scene.num-envs 4096 --agent.run-name {job_name} --agent.logger tensorboard --agent.save-interval 500 {extra_opts if extra_opts else ''}\n")
+    f.write(f"________________________________________________\n")
+    f.write(f"Description   : \n\n{description}\n")
+    f.write(f"________________________________________________\n")
+    f.write("\n\n")
 
 
 tasks = []
@@ -381,7 +384,7 @@ def open_menu():
           label="Sync"
         )
 
-    def launch_hpc_training(experiment_name, environment_name, custom_job_name, extra_opts, menu_console):
+    def launch_hpc_training(experiment_name, environment_name, custom_job_name, extra_opts, menu_console, description = ""):
       """
       Launches the HPC training workflow sequentially using launch_process:
         1) Build SIF
@@ -394,7 +397,7 @@ def open_menu():
         f'hpc job schedule --name {custom_job_name} mn5 {experiment_name}.sif "python -m mjlab.scripts.train {environment_name} --env.scene.num-envs 4096 --agent.run-name {custom_job_name} --agent.logger tensorboard --agent.save-interval 500 {extra_opts}"'
       ]
 
-      save_training_snapshot(environment_name, custom_job_name, extra_opts)
+      save_training_snapshot(environment_name, custom_job_name, extra_opts, description)
 
       def run_next(index=0):
         if index >= len(commands):
@@ -424,8 +427,9 @@ def open_menu():
       win = tk.Toplevel(root)
       win.title("HPC Train Policy")
       win.configure(bg=BG)
-      win.geometry("600x400")
+      win.geometry("800x700")
       win.resizable(False, True)
+      win.minsize(800, 600)
 
       # Experiment name
       tk.Label(win, text="Experiment Name:", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(20,6))
@@ -457,6 +461,21 @@ def open_menu():
 
       options_text.config(yscrollcommand=scrollbar.set)
 
+      # Description label
+      tk.Label(win, text="Decription:", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(0,6))
+      # Frame to hold Text + scrollbar
+      desc_text_frame = tk.Frame(win)
+      desc_text_frame.pack(fill="both", padx=20, pady=(0,16), expand=True)
+
+      desc_text = tk.Text(desc_text_frame, height=5, font=label_font, wrap=tk.WORD)
+      desc_text.pack(side="left", fill="both", expand=True)
+
+      desc_scrollbar = tk.Scrollbar(desc_text_frame, command=desc_text.yview)
+      desc_scrollbar.pack(side="right", fill="y")
+
+      desc_text.config(yscrollcommand=desc_scrollbar.set)
+
+
       def confirm():
         experiment_name = exp_entry.get().strip()
         custom_job_name = job_entry.get().strip()
@@ -466,8 +485,9 @@ def open_menu():
           return
         lines = options_text.get("1.0", tk.END).splitlines()
         extra_opts = " ".join(f"--{line.strip()}" for line in lines if line.strip())
+        description = desc_text.get("1.0", tk.END)
         win.destroy()
-        launch_hpc_training(experiment_name, environment_name, custom_job_name, extra_opts, consoles[selected_console.get()])
+        launch_hpc_training(experiment_name, environment_name, custom_job_name, extra_opts, consoles[selected_console.get()], description)
 
       btn = tk.Button(win, text="▶  Start HPC Training", font=btn_font,
                       bg=ACCENT, fg=BG, relief="flat", cursor="hand2",
@@ -482,8 +502,9 @@ def open_menu():
       win = tk.Toplevel(root)
       win.title("Train Policy")
       win.configure(bg=BG)
-      win.geometry("600x450")
+      win.geometry("800x700")
       win.resizable(False, True)
+      win.minsize(800, 600)
 
       # Experiment name
       tk.Label(win, text="Experiment Name:", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(20,6))
@@ -539,6 +560,20 @@ def open_menu():
       )
       checkbox.pack(fill="x", padx=20, pady=(0,16))
 
+      # Description label
+      tk.Label(win, text="Decription:", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(0,6))
+      # Frame to hold Text + scrollbar
+      desc_text_frame = tk.Frame(win)
+      desc_text_frame.pack(fill="both", padx=20, pady=(0,16), expand=True)
+
+      desc_text = tk.Text(desc_text_frame, height=5, font=label_font, wrap=tk.WORD)
+      desc_text.pack(side="left", fill="both", expand=True)
+
+      desc_scrollbar = tk.Scrollbar(desc_text_frame, command=desc_text.yview)
+      desc_scrollbar.pack(side="right", fill="y")
+
+      desc_text.config(yscrollcommand=desc_scrollbar.set)
+
       def confirm():
         experiment_name = exp_entry.get().strip()
         custom_job_name = job_entry.get().strip()
@@ -549,6 +584,7 @@ def open_menu():
 
         lines = options_text.get("1.0", tk.END).splitlines()
         extra_opts = " ".join(f"--{line.strip()}" for line in lines if line.strip())
+        description = desc_text.get("1.0", tk.END)
 
         if (check_var.get()):
           label = f"local_train:{custom_job_name}:{environment_name}"
@@ -556,7 +592,7 @@ def open_menu():
         else :
           label = f"hpc_train:{custom_job_name}:{environment_name}"
           cmd = f'hpc job schedule --name {custom_job_name} mn5 {experiment_name}.sif "python -m mjlab.scripts.train {environment_name} --env.scene.num-envs 4096 --agent.logger tensorboard --agent.run-name {custom_job_name} --agent.save-interval 500 {extra_opts}"'
-          save_training_snapshot(environment_name, custom_job_name, extra_opts)
+          save_training_snapshot(environment_name, custom_job_name, extra_opts, description)
         win.destroy()
         
         launch_process(cmd, consoles[selected_console.get()], label=label)
