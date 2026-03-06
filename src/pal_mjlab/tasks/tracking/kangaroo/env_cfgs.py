@@ -1,6 +1,7 @@
 """PAL Robotics Kangaroo Flat terrain tracking configuration."""
 
 from mjlab.envs import ManagerBasedRlEnvCfg
+from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationGroupCfg
@@ -123,14 +124,12 @@ def pal_kangaroo_flat_tracking_env_cfg(
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
   cfg.events["body_friction"] = EventTermCfg(
     mode="startup",
-    func=mdp.randomize_field,
-    domain_randomization=True,
+    func=dr.geom_friction,
     params={
       "asset_cfg": SceneEntityCfg("robot", geom_names=body_geoms),  # Set per-robot.
       "operation": "abs",
-      "field": "geom_friction",
       "ranges": (0.3, 2.0),
-      "shared_random": False,  # All foot geoms share the same friction.
+      "shared_random": False,  # All body geoms share the same friction.
     },
   )
 

@@ -424,7 +424,7 @@ class joint_vel_limits:
 
 class sound_suppression:
   """Soft-landing reward that penalizes impulsive contact forces at footstrike.
-  
+
   Ref: https://arxiv.org/abs/2512.16705 (Disney Olaf paper)
   """
 
@@ -437,7 +437,10 @@ class sound_suppression:
       dtype=torch.float32,
     )
     self.step_dt = env.step_dt
-    self.delta_vel_max = torch.ones(1, device=env.device, dtype=torch.float32) * cfg.params["delta_vel_max"]
+    self.delta_vel_max = (
+      torch.ones(1, device=env.device, dtype=torch.float32)
+      * cfg.params["delta_vel_max"]
+    )
 
   def __call__(
     self,

@@ -1,6 +1,7 @@
 """Reaching task configuration."""
 
 from mjlab.envs import ManagerBasedRlEnvCfg
+from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.action_manager import ActionTermCfg
 from mjlab.managers.command_manager import CommandTermCfg
@@ -121,13 +122,12 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "reset_frictionloss": EventTermCfg(
       mode="reset",
-      func=mdp.randomize_field,
-      domain_randomization=True,
+      func=dr.dof_frictionloss,
       params={
-        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-        "field": "dof_frictionloss",
-        "ranges": (0.5, 2.0),
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
         "operation": "abs",
+        "ranges": (0.5, 2.0),
+        "shared_random": False,
       },
     ),
   }

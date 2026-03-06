@@ -1,6 +1,7 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
 from mjlab.envs import ManagerBasedRlEnvCfg
+from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import MetricsTermCfg
 from mjlab.managers.event_manager import EventTermCfg
@@ -137,15 +138,16 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
   cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
+
+  # Domain Randomization for joint friction
   cfg.events["joint_friction"] = EventTermCfg(
     mode="startup",
-    func=mdp.randomize_field,
-    domain_randomization=True,
+    func=dr.dof_frictionloss,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-      "field": "dof_frictionloss",
-      "ranges": (-0.008, 0.008),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
       "operation": "add",
+      "ranges": (-0.008, 0.008),
+      "shared_random": False,
     },
   )
   cfg.events["encoder_bias"].params["asset_cfg"].joint_names = [
@@ -153,7 +155,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   ]
   cfg.events["leg_length_encoder_bias"] = EventTermCfg(
     mode="startup",
-    func=mdp.randomize_encoder_bias,
+    func=dr.encoder_bias,
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=[REGEX_LEG_LENGTH_JOINTS_ONLY]),
       "bias_range": (-0.005, 0.005),
