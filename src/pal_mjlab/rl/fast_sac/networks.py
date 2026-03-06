@@ -66,9 +66,7 @@ class Actor(MLPModel):
     
     #def to_MLPModel(self,):
 
-    nn.Module.__init__(self)   # initialize nn.Module directly
-    MLPModel.__init__(
-      self,
+    super().__init__(
       obs = obs_d,
       obs_groups = obs_g,
       obs_set = "actor",
