@@ -437,12 +437,14 @@ class sound_suppression:
       dtype=torch.float32,
     )
     self.step_dt = env.step_dt
+    self.delta_vel_max = torch.ones(1, device=env.device, dtype=torch.float32) * cfg.params["delta_vel_max"]
 
   def __call__(
     self,
     env: ManagerBasedRlEnv,
     asset_cfg: SceneEntityCfg,
     metrics_sensor_name: str,
+    delta_vel_max: float,
   ) -> torch.Tensor:
     # Calculate and set the metrics
     contact_sensor: ContactSensor = env.scene[metrics_sensor_name]
@@ -461,42 +463,14 @@ class sound_suppression:
     site_velocities = asset.data.site_lin_vel_w[:, asset_cfg.site_ids]
     change_in_site_velocities = site_velocities - self.prev_site_velocities
     self.prev_site_velocities = site_velocities.clone()
-    # print(change_in_site_velocities)
     # Calculate the squared sum of change in velocity along the projected gravity direction
     gravity_vector_w = asset.data.gravity_vec_w
 
-    # User asked for "change in velocities along projected gravity but only z element"
-    # We interpret this as:
-    # 1. Project change in velocity onto the gravity direction vector?
-    #    OR perform element-wise multiplication and take the Z component?
-    # Based on "only z element", likely just the Z-component of the element-wise product.
-    # But usually "along projected gravity" implies a dot product.
-    # However, if gravity_vector_w is [0, 0, -1] (in body frame aligned with world),
-    # then dot product is -vz.
-    # We will compute the element-wise product, then take the Z component, then square it.
-
-    # gravity_vector_w is (N, 3). change is (N, M, 3).
-    # We need to broadcast gravity_vector_w to (N, 1, 3).
-
     term = change_in_site_velocities * gravity_vector_w.unsqueeze(1)
 
-    squared_term_along_proj_gravity = torch.square(term)
-    squared_change_in_site_velocities = torch.square(change_in_site_velocities)
+    squared_term_along_gravity_vector_w = torch.square(term)
 
-    # print(f"Projected gravity: {gravity_vector_w}, change_in_site_velocities: {change_in_site_velocities},"
-    # " term: {term}, z_component: {z_component}, squared_term_along_proj_gravity: {squared_term_along_proj_gravity}")
-
-    # Get the maximum component of the 3 components squared
-    max_component_x = squared_change_in_site_velocities[..., 0]
-    max_component_y = squared_change_in_site_velocities[..., 1]
-    max_component_z = squared_change_in_site_velocities[..., 2]
-
-    max_value = torch.max(torch.max(max_component_x, max_component_y), max_component_z)
-    max_of_all_sites = torch.max(max_value, dim=1).values  # shape (N,)
-    # print(f"Max value x: {max_component_x}, y: {max_component_y}, z: {max_component_z}, max_value:"
-    # " {max_value} and max_of_all_sites : {max_of_all_sites}")
-
-    change_in_velocities_along_gravity_vector_w = squared_term_along_proj_gravity[
+    change_in_velocities_along_gravity_vector_w = squared_term_along_gravity_vector_w[
       ..., 2
     ]  # shape (N, M)
 
@@ -504,17 +478,16 @@ class sound_suppression:
       change_in_velocities_along_gravity_vector_w
     ).item()
 
-    # calculate the cummulative sum of all the sites that is min(max_of_all_sites, change_in_velocities_along_gravity_vector_w)
     cost = torch.sum(
       torch.min(
-        max_of_all_sites.unsqueeze(1),
+        self.delta_vel_max,
         change_in_velocities_along_gravity_vector_w,
       ),
       dim=1,
     )
 
     # print(f"The z_component : {change_in_velocities_along_gravity_vector_w} and max_component : {max_of_all_sites} and "
-    # "cost : {cost} and the term is : {term} and squared_term_along_proj_gravity : {squared_term_along_proj_gravity}")
+    # "cost : {cost} and the term is : {term} and squared_term_along_gravity_vector_w : {squared_term_along_gravity_vector_w}")
 
     # return the squared sum of change in velocity along the projected gravity direction
     return cost
