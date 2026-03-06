@@ -169,7 +169,7 @@ class FastSACRunner(MjlabOnPolicyRunner):
 
   def export_policy_to_onnx(self, path, filename = "policy.onnx", verbose = False):
     #super().export_policy_to_onnx(path, filename, verbose)     # DO NOT CALL SUPER, SINCE IT COMES FROM ON_POLICY_RUNNER
-    onnx_model = self.alg.get_policy().as_onnx(verbose, self.alg.actor_obs_groups_dict, self.alg.obs_dict)
+    onnx_model = self.alg.get_policy().as_onnx(verbose)
 
     onnx_model.to("cpu")
     onnx_model.eval()

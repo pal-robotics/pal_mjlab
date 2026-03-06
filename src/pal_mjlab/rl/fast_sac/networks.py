@@ -10,6 +10,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from rsl_rl.models import MLPModel
+from tensordict import TensorDict
 from copy import deepcopy
 
 
@@ -44,13 +45,15 @@ class _OnnxMLPModel(nn.Module):
   def output_names(self) -> list[str]:
     return ["actions"]
   
-class Actor(nn.Module):
+class Actor(MLPModel):
   """Tanh-squashed Gaussian policy with halving hidden dimensions."""
 
   def __init__(
     self,
     n_obs: int,
     n_act: int,
+    obs_g : dict[str, list[str]], 
+    obs_d : TensorDict,
     hidden_dim: int = 512,
     log_std_min: float = -5.0,
     log_std_max: float = 0.0,
@@ -60,7 +63,20 @@ class Actor(nn.Module):
     action_bias: torch.Tensor | None = None,
     device: torch.device | str | None = None,
   ):
-    super().__init__()
+    
+    #def to_MLPModel(self,):
+
+    nn.Module.__init__(self)   # initialize nn.Module directly
+    MLPModel.__init__(
+      self,
+      obs = obs_d,
+      obs_groups = obs_g,
+      obs_set = "actor",
+      output_dim = n_act,
+      hidden_dims = (hidden_dim,) * 3,
+      activation =  "swish",
+      obs_normalization = True,
+    )
     self.n_act = n_act
     self.n_obs = n_obs
     self.log_std_min = log_std_min
@@ -170,20 +186,9 @@ class Actor(nn.Module):
       return torch.tanh(raw_action) * self.action_scale + self.action_bias
     return raw_action
   
-  def to_MLPModel(self,obs_g, obs_d):
-    return MLPModel(
-      obs = obs_d,
-      obs_groups = obs_g,
-      obs_set = "actor",
-      output_dim = self.n_act,
-      hidden_dims = (self.hidden_dim,) * 3,
-      activation =  "swish",
-      obs_normalization = True,
-    )
-  
-  def as_onnx(self, verbose: bool, obs_g, obs_d) -> nn.Module:
+  def as_onnx(self, verbose: bool) -> nn.Module:
       """Return a version of the model compatible with ONNX export."""
-      return _OnnxMLPModel(self.to_MLPModel(obs_g, obs_d), verbose)
+      return _OnnxMLPModel(self, verbose)
 
 
 class DistributionalQNetwork(nn.Module):

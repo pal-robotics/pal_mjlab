@@ -77,8 +77,6 @@ class FastSAC:
   def __init__(
     self,
     actor: Actor,
-    actor_obs_groups_dict : dict[str, list[str]],
-    obs_dict : TensorDict,
     critic: Critic,
     critic_target: Critic,
     replay_buffer: ReplayBuffer,
@@ -110,8 +108,6 @@ class FastSAC:
   ) -> None:
     self.device = device
     self.actor = actor
-    self.actor_obs_groups_dict = actor_obs_groups_dict
-    self.obs_dict = obs_dict
     self.critic = critic
     self.critic_target = critic_target
     self.replay_buffer = replay_buffer
@@ -583,9 +579,17 @@ class FastSAC:
     buffer_size = alg_cfg.pop("buffer_size", 1024)
     num_steps = alg_cfg.pop("num_steps", 1)
 
+
+    obs_dict = obs
+    actor_obs_groups_dict = dict(
+      (actor_group_name, cfg["obs_groups"][actor_group_name])
+      for actor_group_name in actor_group_names
+    )  
     actor = Actor(
       n_obs=n_actor_obs,
       n_act=n_act,
+      obs_g=actor_obs_groups_dict,
+      obs_d=obs_dict,
       hidden_dim=actor_hidden_dim,
       log_std_min=log_std_min,
       log_std_max=log_std_max,
@@ -642,17 +646,9 @@ class FastSAC:
     print(f"FastSAC Actor: {actor}")
     print(f"FastSAC Critic: {critic}")
 
-    obs_dict = obs
-    actor_obs_groups_dict = dict(
-      (actor_group_name, cfg["obs_groups"][actor_group_name])
-      for actor_group_name in actor_group_names
-    )  
-
     # Build the algorithm instance
     alg = FastSAC(
       actor=actor,
-      actor_obs_groups_dict = actor_obs_groups_dict,
-      obs_dict = obs_dict,
       critic=critic,
       critic_target=critic_target,
       replay_buffer=replay_buffer,
