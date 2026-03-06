@@ -9,8 +9,41 @@ from __future__ import annotations
 import torch
 import torch.nn.functional as F
 from torch import nn
+from rsl_rl.models import MLPModel
+from copy import deepcopy
 
 
+class _OnnxMLPModel(nn.Module):
+  """Exportable MLP model for ONNX."""
+
+  is_recurrent: bool = False
+
+  def __init__(self, model: MLPModel, verbose: bool) -> None:
+    super().__init__()
+    self.verbose = verbose
+    self.obs_normalizer = deepcopy(model.obs_normalizer)
+    self.mlp = deepcopy(model.mlp)
+    self.state_dependent_std = model.state_dependent_std
+    self.input_size = model.obs_dim
+
+  def forward(self, x: torch.Tensor) -> torch.Tensor:
+    x = self.obs_normalizer(x)
+    out = self.mlp(x)
+    if self.state_dependent_std:
+      return out[..., 0, :]
+    return out
+
+  def get_dummy_inputs(self) -> tuple[torch.Tensor]:
+    return (torch.zeros(1, self.input_size),)
+
+  @property
+  def input_names(self) -> list[str]:
+    return ["obs"]
+
+  @property
+  def output_names(self) -> list[str]:
+    return ["actions"]
+  
 class Actor(nn.Module):
   """Tanh-squashed Gaussian policy with halving hidden dimensions."""
 
@@ -29,9 +62,11 @@ class Actor(nn.Module):
   ):
     super().__init__()
     self.n_act = n_act
+    self.n_obs = n_obs
     self.log_std_min = log_std_min
     self.log_std_max = log_std_max
     self.use_tanh = use_tanh
+    self.hidden_dim = hidden_dim
 
     def _ln(dim: int) -> nn.Module:
       return nn.LayerNorm(dim, device=device) if use_layer_norm else nn.Identity()
@@ -134,6 +169,21 @@ class Actor(nn.Module):
     if self.use_tanh:
       return torch.tanh(raw_action) * self.action_scale + self.action_bias
     return raw_action
+  
+  def to_MLPModel(self,obs_g, obs_d):
+    return MLPModel(
+      obs = obs_d,
+      obs_groups = obs_g,
+      obs_set = "actor",
+      output_dim = self.n_act,
+      hidden_dims = (self.hidden_dim,) * 3,
+      activation =  "swish",
+      obs_normalization = True,
+    )
+  
+  def as_onnx(self, verbose: bool, obs_g, obs_d) -> nn.Module:
+      """Return a version of the model compatible with ONNX export."""
+      return _OnnxMLPModel(self.to_MLPModel(obs_g, obs_d), verbose)
 
 
 class DistributionalQNetwork(nn.Module):

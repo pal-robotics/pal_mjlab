@@ -138,8 +138,9 @@ class FastSACRunner(MjlabOnPolicyRunner):
         onnx_path = os.path.join(policy_dir, filename)
         attach_metadata_to_onnx(onnx_path, metadata)
         wandb.save(onnx_path, base_path=policy_dir)
-      except Exception:
+      except Exception as e:
         # ONNX export is best-effort; don't fail the checkpoint
+        print(e)
         pass
 
   def get_inference_policy(self, device: str | None = None):
@@ -165,3 +166,29 @@ class FastSACRunner(MjlabOnPolicyRunner):
       return actor.explore(norm_obs, deterministic=True)
 
     return policy
+
+  def export_policy_to_onnx(self, path, filename = "policy.onnx", verbose = False):
+    #super().export_policy_to_onnx(path, filename, verbose)     # DO NOT CALL SUPER, SINCE IT COMES FROM ON_POLICY_RUNNER
+    onnx_model = self.alg.get_policy().as_onnx(verbose, self.alg.actor_obs_groups_dict, self.alg.obs_dict)
+
+    onnx_model.to("cpu")
+    onnx_model.eval()
+
+    if not os.path.exists(path):
+      os.makedirs(path, exist_ok=True)
+    save_path = os.path.join(path, filename)
+
+    torch.onnx.export(
+      onnx_model,
+      onnx_model.get_dummy_inputs(),  # type: ignore
+      save_path,
+      export_params=True,
+      opset_version=18,
+      verbose=verbose,
+      input_names=onnx_model.input_names,  # type: ignore
+      output_names=onnx_model.output_names,  # type: ignore
+      dynamic_axes={},
+      dynamo = False,
+    )
+
+    return 
