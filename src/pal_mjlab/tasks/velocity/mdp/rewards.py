@@ -422,8 +422,11 @@ class joint_vel_limits:
     return penalty
 
 
-class disney_soft_landing:
-  """Penalize high impact forces at landing to encourage soft footfalls similar to Disney Olaf."""
+class sound_suppression:
+  """Soft-landing reward that penalizes impulsive contact forces at footstrike.
+  
+  Ref: https://arxiv.org/abs/2512.16705 (Disney Olaf paper)
+  """
 
   def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
     # self.sensor_name = cfg.params["sensor_name"]
