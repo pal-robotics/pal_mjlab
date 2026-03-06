@@ -21,7 +21,7 @@ register_mjlab_task(
     runner_cls=VelocityOnPolicyRunner,
 )
 
-register_pal_mjlab_task(
+register_mjlab_task(
     task_id="Mjlab-Velocity-Flat-FastSAC-Pal-Kangaroo",
     env_cfg=pal_kangaroo_flat_env_cfg(),
     play_env_cfg=pal_kangaroo_flat_env_cfg(play=True),

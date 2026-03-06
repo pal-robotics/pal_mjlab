@@ -1,7 +1,7 @@
 """RSL-RL configuration."""
 
 from dataclasses import dataclass, field
-from mjlab.rl import RslRlBaseRunnerCfg
+from mjlab.rl import RslRlBaseRunnerCfg, RslRlOnPolicyRunnerCfg
 
 @dataclass
 class RslRlFastSacAlgorithmCfg:
@@ -86,7 +86,7 @@ class RslRlFastSacAlgorithmCfg:
   rnd_cfg: dict | None = None
 
 @dataclass
-class RslRlFastSacRunnerCfg(RslRlBaseRunnerCfg):
+class RslRlFastSacRunnerCfg(RslRlOnPolicyRunnerCfg):
   """Runner configuration for FastSAC.
 
   FastSAC is off-policy, so we use num_steps_per_env=1 and let the
