@@ -1,6 +1,5 @@
 """PAL Robotics Kangaroo Flat terrain tracking configuration."""
 
-import torch
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
@@ -18,7 +17,7 @@ from pal_mjlab.robots import (
   KANGAROO_ACTUATOR_NAMES,
   get_kangaroo_robot_cfg,
 )
-from pal_mjlab.tasks.velocity.kangaroo import mdp
+from pal_mjlab.tasks.velocity import mdp
 
 
 def pal_kangaroo_flat_tracking_env_cfg(
@@ -32,7 +31,6 @@ def pal_kangaroo_flat_tracking_env_cfg(
   cfg.sim.mujoco.timestep = 0.002
   cfg.decimation = 10
 
-  site_names = ("left_foot", "right_foot")
   geom_names = tuple(
     f"{side}_foot{i}_collision"
     for side in ("left", "right")

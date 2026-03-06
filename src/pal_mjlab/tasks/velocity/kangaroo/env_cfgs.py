@@ -29,7 +29,7 @@ from pal_mjlab.robots import (
   get_kangaroo_hands_robot_cfg,
   get_kangaroo_robot_cfg,
 )
-from pal_mjlab.tasks.velocity.kangaroo import mdp
+from pal_mjlab.tasks.velocity import mdp
 
 
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -48,9 +48,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     for side in ("left", "right")
     for i in [0, 2, 4, 6, 8, 10]
   )
-  actuated_joints = (
-    REGEX_ALL_ACTUATED_JOINTS  # Exclude femur and knee joints.
-  )
+  actuated_joints = REGEX_ALL_ACTUATED_JOINTS  # Exclude femur and knee joints.
 
   feet_ground_cfg = ContactSensorCfg(
     name="feet_ground_contact",

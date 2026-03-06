@@ -9,11 +9,27 @@ from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
 from pal_mjlab import PAL_MJLAB_SRC_PATH
 
+##
+# MJCF and assets.
+##
+
 TIAGO_PRO_XML: Path = (
   PAL_MJLAB_SRC_PATH / "robots" / "pal_tiago_pro" / "xmls" / "tiago_pro.xml"
 )
-
 assert TIAGO_PRO_XML.exists()
+
+
+def get_assets(meshdir: str) -> dict[str, bytes]:
+  assets: dict[str, bytes] = {}
+  update_assets(assets, TIAGO_PRO_XML.parent / "assets", meshdir)
+  return assets
+
+
+def get_spec() -> mujoco.MjSpec:
+  spec = mujoco.MjSpec.from_file(str(TIAGO_PRO_XML))
+  spec.assets = get_assets(spec.meshdir)
+  return spec
+
 
 ##
 # Actuator Parameters (BeyondMimic methodology)
@@ -43,24 +59,7 @@ def _calc_actuator_params(
 S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
 S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
 XS = _calc_actuator_params(101, 1.3e-5, 25)
-GRIPPER = _calc_actuator_params(100, 207e-4, 40)
 TORSO = {"armature": 0.1, "stiffness": 1500.0, "damping": 300.0, "effort_limit": 2200.0}
-
-##
-# MJCF & Assets
-##
-
-
-def get_assets(meshdir: str) -> dict[str, bytes]:
-  assets: dict[str, bytes] = {}
-  update_assets(assets, TIAGO_PRO_XML.parent / "assets", meshdir)
-  return assets
-
-
-def get_spec() -> mujoco.MjSpec:
-  spec = mujoco.MjSpec.from_file(str(TIAGO_PRO_XML))
-  spec.assets = get_assets(spec.meshdir)
-  return spec
 
 
 ## --------------------------------------------------------

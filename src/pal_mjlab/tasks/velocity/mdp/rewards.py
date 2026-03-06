@@ -417,5 +417,5 @@ class joint_vel_limits:
 
     env.extras["log"]["Metrics/joint_vel_max"] = torch.max(torch.abs(joint_vel)).item()
     env.extras["log"]["Metrics/joint_vel_limit_violation"] = torch.mean(penalty).item()
-    
+
     return penalty
