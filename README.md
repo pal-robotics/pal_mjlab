@@ -39,8 +39,8 @@ uv run list_envs --keyword pal
 Test with dummy agents.
 
 ```bash
-uv run play Mjlab-Velocity-Flat-Pal-Talos --agent zero    # send zero actions
-uv run play Mjlab-Velocity-Flat-Pal-Talos --agent random  # send random actions
+uv run play Mjlab-Velocity-Flat-Pal-Kangaroo --agent zero    # send zero actions
+uv run play Mjlab-Velocity-Flat-Pal-Kangaroo --agent random  # send random actions
 ```
 
 
@@ -49,13 +49,13 @@ uv run play Mjlab-Velocity-Flat-Pal-Talos --agent random  # send random actions
 Train a locomotion policy.
 
 ```bash
-uv run train Mjlab-Velocity-Flat-Pal-Talos --env.scene.num-envs 4096
+uv run train Mjlab-Velocity-Flat-Pal-Kangaroo --env.scene.num-envs 4096
 ```
 
 Evaluate a trained policy.
 
 ```bash
-uv run play Mjlab-Velocity-Flat-Pal-Talos --wandb-run-path your-org/mjlab/run-id
+uv run play Mjlab-Velocity-Flat-Pal-Kangaroo --wandb-run-path your-org/mjlab/run-id
 ```
 
 
@@ -97,35 +97,7 @@ uv run play Mjlab-Tracking-Flat-Pal-Kangaroo --wandb-run-path your-org/mjlab/run
 
 ## Results
 
-<table>
-  <tr>
-    <td width="50%">
-      <video src="https://github.com/user-attachments/assets/a378a306-f65d-448b-a6c8-3d40c3f7b3ce" controls muted loop playsinline style="width:100%;"></video>
-      <p align="center"><em>Velocity Tracking for Talos</em></p>
-    </td>
-    <td width="50%">
-      <video src="https://github.com/user-attachments/assets/c0d6c444-a0a2-4c93-99a5-895ae7d31317" controls muted loop playsinline style="width:100%;"></video>
-      <p align="center"><em>Motion Imitation for Talos</em></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <video src="https://github.com/user-attachments/assets/cce8f9d2-d5e1-4218-828e-88d0ae1e0cdb" controls muted loop playsinline style="width:100%;"></video>
-      <p align="center"><em>Velocity Tracking for Kangaroo</em></p>
-    </td>
-    <td width="50%"></td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <video src="https://github.com/user-attachments/assets/fef23ffe-f644-4616-9a3c-780b969a4f23" controls muted loop playsinline style="width:100%;"></video>
-      <p align="center"><em>Reaching policy for TIAGo Pro (sim)</em></p>
-    </td>
-    <td width="50%">
-      <video src="https://github.com/user-attachments/assets/85da2add-ffe7-485b-b4e7-d3c20a435012" controls muted loop playsinline style="width:100%;"></video>
-      <p align="center"><em>Deployed Reaching policy for TIAGo Pro (using interactive marker RViz)</em></p>
-    </td>
-  </tr>
-</table>
+<video src="static/pal_mjlab.mp4" controls muted loop playsinline style="width:100%;"></video>
 
 ## Contributing
 
