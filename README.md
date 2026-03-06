@@ -97,7 +97,7 @@ uv run play Mjlab-Tracking-Flat-Pal-Kangaroo --wandb-run-path your-org/mjlab/run
 
 ## Results
 
-<video src="static/pal_mjlab.mp4" controls muted loop playsinline style="width:100%;"></video>
+<video src="https://github.com/user-attachments/assets/32c0e534-ead9-400e-afe5-42174a6b739b" controls muted loop playsinline style="width:100%;"></video>
 
 ## Contributing
 
