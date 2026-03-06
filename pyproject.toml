@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.10,<3.14"
 dependencies = [
-    "mjlab>=1.1.1",
+    "mjlab>=1.2.0",
 ]
 
 [build-system]
