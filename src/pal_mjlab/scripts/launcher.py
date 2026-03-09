@@ -2,8 +2,8 @@
 """
 Idea :
 
-To have an interactive menu that makes it much easier to laucnh simulation and deploy policies without running and/or modifying bash commands
-If used properly, could also become a tool for comparing trained policies quantitatively
+To have an interactive menu that makes it much easier to launch simulation and deploy policies without running and/or modifying bash commands
+
 """
 import os
 import sys
@@ -35,7 +35,7 @@ from mjlab.utils.wrappers import VideoRecorder
 from mjlab.viewer import NativeMujocoViewer, ViserPlayViewer
 
 
-LOG_ROOT = Path("/home/manuelactis/hpc_remote_logs").resolve()
+LOG_ROOT = Path("../hpc_remote_logs").resolve()
 
 def find_latest_checkpoints():
   checkpoints_dict = {}  # key = (exp_folder, run_folder), value = (step, path)
@@ -392,8 +392,8 @@ def open_menu():
         3) Schedule training job on MN5
       """
       commands = [
-        f"cd .. ; hpc job build /home/manuelactis/pal_mjlab -o /home/manuelactis/{experiment_name}.sif",
-        f"hpc deploy mn5 /home/manuelactis/{experiment_name}.sif",
+        f"cd .. ; hpc job build pal_mjlab -o {experiment_name}.sif",
+        f"cd .. ; hpc deploy mn5 {experiment_name}.sif",
         f'hpc job schedule --name {custom_job_name} mn5 {experiment_name}.sif "python -m mjlab.scripts.train {environment_name} --env.scene.num-envs 4096 --agent.run-name {custom_job_name} --agent.logger tensorboard --agent.save-interval 500 {extra_opts}"'
       ]
 
