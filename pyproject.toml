@@ -37,8 +37,5 @@ pal_mjlab = "pal_mjlab.tasks"
 [tool.uv]
 required-environments = [ "sys_platform == 'linux'" ]
 
-[project.scripts]
-launcher = "pal_mjlab.scripts.launcher:main"
-
 #[tool.uv.sources]
 #mjlab = { git = "https://github.com/pal-robotics-forks/mjlab/", rev = "27738e4d4a4273907ed78cc67a7cd349ec021abf" }
