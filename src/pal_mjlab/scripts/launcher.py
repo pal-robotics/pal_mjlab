@@ -462,7 +462,7 @@ def open_menu():
       options_text.config(yscrollcommand=scrollbar.set)
 
       # Description label
-      tk.Label(win, text="Decription:", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(0,6))
+      tk.Label(win, text="Description:", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(0,6))
       # Frame to hold Text + scrollbar
       desc_text_frame = tk.Frame(win)
       desc_text_frame.pack(fill="both", padx=20, pady=(0,16), expand=True)
