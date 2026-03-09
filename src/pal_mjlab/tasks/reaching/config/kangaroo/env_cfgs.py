@@ -6,6 +6,7 @@ Uses reaching task as base and adds velocity tracking for locomotion.
 import math
 
 from mjlab.envs import ManagerBasedRlEnvCfg
+from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.event_manager import EventTermCfg
@@ -209,15 +210,15 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
   )
   cfg.events["foot_friction"] = EventTermCfg(
     mode="startup",
-    func=loco_mdp.randomize_field,
-    domain_randomization=True,
+    func=dr.geom_friction,
     params={
-      "asset_cfg": SceneEntityCfg("robot", geom_names=geom_names),
+      "asset_cfg": SceneEntityCfg("robot", geom_names=geom_names),  # Set per-robot.
       "operation": "abs",
-      "field": "geom_friction",
       "ranges": (0.3, 1.2),
+      "shared_random": True,  # All foot geoms share the same friction.
     },
   )
+
   cfg.events["reset_robot_joints_arms"] = EventTermCfg(
     func=reach_mdp.reset_joints_by_offset,
     mode="reset",
