@@ -32,3 +32,6 @@ pal_mjlab = "pal_mjlab.tasks"
 
 [project.scripts]
 pal_train = "pal_mjlab.scripts.train:main"
+
+[tool.uv.sources]
+mjlab = { git = "https://github.com/pal-robotics-forks/mjlab/", rev = "941b75b6dcf09bd0fbe56e74a6c2bb2a4a28adc7" }
