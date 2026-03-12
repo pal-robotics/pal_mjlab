@@ -286,26 +286,6 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
                 "action_rate_l2": MetricsTermCfg(func=mdp.action_rate_l2, params={}),
                 "action_acc_l2": MetricsTermCfg(func=mdp.action_acc_l2, params={})}
 
-    # # All except leg length joints
-    # cfg.rewards["joint_accel"] = RewardTermCfg(
-    #     func=mdp.joint_acc_l2,
-    #     weight=-1.0e-8,
-    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*"])},
-    # )
-
-    # cfg.curriculum["joint_accel"] = CurriculumTermCfg(
-    #   func=mdp.reward_weight,
-    #   params={"reward_name": "joint_accel",
-    #           "weight_stages": [
-    #               {"step": 0, "weight": 0.0 },
-    #               {"step": 2000 * 24, "weight": -1.0e-8},
-    #               {"step": 8000 * 24, "weight": -1.0e-7},
-    #               {"step": 15000 * 24, "weight": -1.0e-6},
-    #           ],
-    #   },
-    # )
-
-
     #-- Terminations
 
     cfg.terminations["illegal_contacts"] = TerminationTermCfg(
@@ -516,25 +496,6 @@ def pal_kangaroo_full_rough_env_cfg_MAC_Test(play: bool = False) -> ManagerBased
                 "joint_torque_mag": MetricsTermCfg(func=mdp.joint_torques_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
                 "action_rate_l2": MetricsTermCfg(func=mdp.action_rate_l2, params={}),
                 "action_acc_l2": MetricsTermCfg(func=mdp.action_acc_l2, params={})}
-
-    # # All except leg length joints
-    # cfg.rewards["joint_accel"] = RewardTermCfg(
-    #     func=mdp.joint_acc_l2,
-    #     weight=-1.0e-8,
-    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*"])},
-    # )
-
-    # cfg.curriculum["joint_accel"] = CurriculumTermCfg(
-    #   func=mdp.reward_weight,
-    #   params={"reward_name": "joint_accel",
-    #           "weight_stages": [
-    #               {"step": 0, "weight": 0.0 },
-    #               {"step": 2000 * 24, "weight": -1.0e-8},
-    #               {"step": 8000 * 24, "weight": -1.0e-7},
-    #               {"step": 15000 * 24, "weight": -1.0e-6},
-    #           ],
-    #   },
-    # )
 
 
     #-- Terminations
