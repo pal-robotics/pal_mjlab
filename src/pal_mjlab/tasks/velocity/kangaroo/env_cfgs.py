@@ -4,6 +4,7 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import MetricsTermCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
@@ -291,6 +292,77 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   #           ],
   #   },
   # )
+
+  ### Domain randomization curriculums of the command velocity and reward weight for tracking linear velocity.
+  cfg.curriculum["command_vel"] = CurriculumTermCfg(
+    func=mdp.commands_vel,
+    params={
+      "command_name": "twist",
+      "velocity_stages": [
+        {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
+        {"step": 5000 * 24, "lin_vel_x": (-1.5, 2.0), "ang_vel_z": (-0.7, 0.7)},
+        {
+          "step": 10000 * 24,
+          "lin_vel_x": (-1.0, 1.0),
+          "ang_vel_z": (-0.4, 0.4),
+          "lin_vel_y": (-0.5, 0.5),
+        },
+        {"step": 20000 * 24, "lin_vel_x": (-0.5, 0.5), "lin_vel_y": (-0.3, 0.3)},
+      ],
+    },
+  )
+
+  cfg.curriculum["track_linear_velocity"] = CurriculumTermCfg(
+    func=mdp.reward_weight,
+    params={
+      "reward_name": "track_linear_velocity",
+      "weight_stages": [
+        {"step": 0, "weight": 2.0},
+        {"step": 5000 * 24, "weight": 4.0},
+        {"step": 10000 * 24, "weight": 5.0},
+        {"step": 20000 * 24, "weight": 3.0},
+      ],
+    },
+  )
+
+  cfg.curriculum["track_angular_velocity"] = CurriculumTermCfg(
+    func=mdp.reward_weight,
+    params={
+      "reward_name": "track_angular_velocity",
+      "weight_stages": [
+        {"step": 0, "weight": 2.0},
+        {"step": 5000 * 24, "weight": 4.0},
+        {"step": 10000 * 24, "weight": 5.0},
+        {"step": 20000 * 24, "weight": 3.0},
+      ],
+    },
+  )
+
+  cfg.curriculum["air_time"] = CurriculumTermCfg(
+    func=mdp.reward_weight,
+    params={
+      "reward_name": "air_time",
+      "weight_stages": [
+        {"step": 0, "weight": 0.25},
+        {"step": 25000 * 24, "weight": 0.35},
+        {"step": 35000 * 24, "weight": 0.5},
+        {"step": 45000 * 24, "weight": 0.3},
+      ],
+    },
+  )
+  cfg.curriculum["foot_swing_height"] = CurriculumTermCfg(
+    func=mdp.reward_weight,
+    params={
+      "reward_name": "foot_swing_height",
+      "weight_stages": [
+        {"step": 0, "weight": -0.25},
+        {"step": 35000 * 24, "weight": -0.35},
+        {"step": 45000 * 24, "weight": -0.27},
+      ],
+    },
+  )
+
+  ### END
 
   # -- Terminations
 
