@@ -468,15 +468,15 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={
       "command_name": "twist",
       "velocity_stages": [
-        {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
-        {"step": 5000 * 24, "lin_vel_x": (-0.8, 0.8), "ang_vel_z": (-0.7, 0.7)},
+        {"step": 0, "lin_vel_x": (-0.3, 0.3), "lin_vel_y": (-0.5, 0.5), "ang_vel_z": (-0.5, 0.5)},
+        {"step": 5000 * 24, "lin_vel_x": (-0.4, 0.4), "ang_vel_z": (-0.7, 0.7)},
         {
           "step": 10000 * 24,
-          "lin_vel_x": (-0.6, 0.6),
+          "lin_vel_x": (-0.5, 0.5),
           "ang_vel_z": (-0.4, 0.4),
           "lin_vel_y": (-0.5, 0.5),
         },
-        {"step": 20000 * 24, "lin_vel_x": (-0.5, 0.5), "lin_vel_y": (-0.3, 0.3)},
+        {"step": 20000 * 24, "lin_vel_x": (-0.6, 0.6), "lin_vel_y": (-0.3, 0.3)},
       ],
     },
   )
