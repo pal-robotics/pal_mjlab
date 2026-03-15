@@ -531,6 +531,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
+  ## Fourth try with removing curriculum for air time
   # cfg.curriculum["air_time"] = CurriculumTermCfg(
   #   func=mdp.reward_weight,
   #   params={
