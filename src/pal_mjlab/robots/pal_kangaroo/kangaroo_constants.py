@@ -182,7 +182,7 @@ KANGAROO_LEG_ACTUATORS = (
     target_names_expr=("leg_.*_5_joint",), **_calc_leg_params(30.0, 82.0)
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_length_joint",), **_calc_leg_params(1600.0, 1100.0)
+    target_names_expr=("leg_.*_length_joint",), **_calc_leg_params(1800.0, 1100.0)
   ),
 )
 
