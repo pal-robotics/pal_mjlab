@@ -494,24 +494,3 @@ class sound_suppression:
 
     # return the squared sum of change in velocity along the projected gravity direction
     return cost
-
-def pal_track_linear_velocity(
-  env: ManagerBasedRlEnv,
-  std: float,
-  command_name: str,
-  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-) -> torch.Tensor:
-  """Reward for tracking the commanded base linear velocity.
-
-  The commanded z velocity is assumed to be zero.
-  """
-  asset: Entity = env.scene[asset_cfg.name]
-  command = env.command_manager.get_command(command_name)
-  assert command is not None, f"Command '{command_name}' not found."
-  actual = asset.data.root_link_lin_vel_b
-  xy_error = torch.sum(torch.square(command[:, :2] - actual[:, :2]), dim=1)
-  z_error = torch.square(actual[:, 2])
-  lin_vel_error = xy_error + z_error
-  # clamp lin_vel_error to zero, if the lin_vel_error is less than 0.1, to avoid penalizing small errors that are close to the target velocity
-  lin_vel_error = torch.clamp(lin_vel_error - 0.1, min=0.0)
-  return torch.exp(-lin_vel_error / std**2)
