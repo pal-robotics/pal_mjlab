@@ -12,6 +12,8 @@ from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
+from mjlab.terrains.terrain_generator import TerrainGeneratorCfg
+import mjlab.terrains as terrain_gen
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 import math
 
@@ -383,7 +385,6 @@ def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   return cfg
 
-
 def pal_kangaroo_hands_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO with hands (5 DoF per arms) flat terrain velocity configuration."""
   cfg = pal_kangaroo_flat_env_cfg(play=play)
@@ -401,6 +402,92 @@ def pal_kangaroo_hands_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 def pal_kangaroo_grippers_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) flat terrain velocity configuration."""
   cfg = pal_kangaroo_flat_env_cfg(play=play)
+
+  cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
+
+  joint_pos_action = cfg.actions["joint_pos"]
+  assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action.scale = KANGAROO_GRIPPERS_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
+
+  return cfg
+
+def pal_kangaroo_pebbles_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO pebbles terrain velocity configuration."""
+  cfg = pal_kangaroo_rough_env_cfg(play=play)
+
+  cfg.sim.njmax = 300
+  cfg.sim.mujoco.ccd_iterations = 50
+  cfg.sim.contact_sensor_maxmatch = 64
+
+  # nconmax is the max number of contacts that will be generated at runtime
+  # due to https://github.com/google-deepmind/mujoco_warp/blob/c62864ed2bf816c0a724d4cbf153921188f78eae/mujoco_warp/_src/io.py#L649-L660
+  # for collision-rich envs, it is recommended to be manually set through experimentation
+  cfg.sim.nconmax = 50
+
+  # Switch to pebbles terrain.
+  assert cfg.scene.terrain is not None
+  assert cfg.scene.terrain.terrain_generator is not None
+  cfg.scene.terrain.terrain_type = "generator"
+  cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
+    size=(5.0, 5.0),
+    num_rows=5,
+    num_cols=5,
+    border_width=20.0,
+    curriculum=False,
+    sub_terrains={
+      "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.3),
+      "pebbles": terrain_gen.BoxRandomSpreadTerrainCfg(
+        proportion=0.7,
+        num_boxes=500,
+        box_width_range=(0.02, 0.04),
+        box_length_range=(0.02, 0.04),
+        box_height_range=(0.02, 0.04),
+        platform_width=1.0,
+        border_width=0.25,
+      )
+    },
+  )
+
+  # Disable terrain curriculum.
+  assert cfg.curriculum is not None
+  assert "terrain_levels" in cfg.curriculum
+  del cfg.curriculum["terrain_levels"]  
+
+  if play:
+    # Disable command curriculum.
+    assert "command_vel" in cfg.curriculum
+    del cfg.curriculum["command_vel"]
+
+    twist_cmd = cfg.commands["twist"]
+    assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+    twist_cmd.ranges.lin_vel_x = (-1.5, 2.0)
+    twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
+
+    if cfg.scene.terrain is not None:
+      if cfg.scene.terrain.terrain_generator is not None:
+        cfg.scene.terrain.terrain_generator.num_cols = 5
+        cfg.scene.terrain.terrain_generator.num_rows = 5
+        cfg.scene.terrain.terrain_generator.border_width = 10.0
+
+  return cfg
+
+def pal_kangaroo_hands_pebbles_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO with hands (5 DoF per arms) flat terrain velocity configuration."""
+  cfg = pal_kangaroo_pebbles_env_cfg(play=play)
+
+  cfg.scene.entities = {"robot": get_kangaroo_hands_robot_cfg()}
+
+  joint_pos_action = cfg.actions["joint_pos"]
+  assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action.scale = KANGAROO_HANDS_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_HANDS_ACTUATOR_NAMES
+
+  return cfg
+
+def pal_kangaroo_grippers_pebbles_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) flat terrain velocity configuration."""
+  cfg = pal_kangaroo_pebbles_env_cfg(play=play)
 
   cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
 
