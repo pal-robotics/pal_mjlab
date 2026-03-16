@@ -390,16 +390,18 @@ class joint_vel_limits:
 
   def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
     asset: Entity = env.scene[cfg.params["asset_cfg"].name]
-    _, resolved_names = asset.find_joints(
+    joint_ids, resolved_names = asset.find_joints(
       cfg.params["asset_cfg"].joint_names,
     )
 
-    _, _, limits = resolve_matching_names_values(
+    index_list, _, limits = resolve_matching_names_values(
       data=cfg.params["velocity_limits"],
       list_of_strings=resolved_names,
     )
     limits = torch.tensor(limits, device=env.device, dtype=torch.float32)
     self._soft_vel_limits = 0.9 * limits
+    # Only the joints covered by velocity_limits; may be a subset of asset_cfg joints.
+    self._joint_ids = [joint_ids[i] for i in index_list]
 
   def __call__(
     self,
@@ -409,7 +411,7 @@ class joint_vel_limits:
   ) -> torch.Tensor:
     del velocity_limits  # Resolved in __init__.
     asset: Entity = env.scene[asset_cfg.name]
-    joint_vel = asset.data.joint_vel[:, asset_cfg.joint_ids]
+    joint_vel = asset.data.joint_vel[:, self._joint_ids]
 
     out_of_limits = -(joint_vel - self._soft_vel_limits[:, 0]).clip(max=0.0)
     out_of_limits += (joint_vel - self._soft_vel_limits[:, 1]).clip(min=0.0)
