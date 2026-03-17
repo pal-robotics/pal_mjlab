@@ -106,10 +106,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # -- Observations
 
-  cfg.observations["actor"].terms["height_scan"] = None
-  cfg.observations["critic"].terms["height_scan"] = None
-  cfg.observations["actor"].terms["base_lin_vel"] = None
-  cfg.observations["actor"].terms["projected_gravity"] = None
+  del cfg.observations["actor"].terms["height_scan"]
+  del cfg.observations["critic"].terms["height_scan"]
+  del cfg.observations["actor"].terms["base_lin_vel"]
+  del cfg.observations["actor"].terms["projected_gravity"]
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
@@ -160,7 +160,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     mode="startup",
     func=dr.encoder_bias,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=[REGEX_LEG_LENGTH_JOINTS_ONLY]),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_LEG_LENGTH_JOINTS_ONLY,)),
       "bias_range": (-0.005, 0.005),
     },
   )
