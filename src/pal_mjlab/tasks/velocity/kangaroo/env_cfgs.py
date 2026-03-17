@@ -537,6 +537,9 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
+  # Avoid nan values from stopping the training
+  cfg.terminations["nan_term"] = TerminationTermCfg(func=mdp.nan_detection,)
+
   # Disable terrain curriculum.
   assert cfg.curriculum is not None
   assert "terrain_levels" in cfg.curriculum
