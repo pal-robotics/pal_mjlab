@@ -13,6 +13,7 @@ from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
+import math
 
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
@@ -298,6 +299,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.illegal_contact,
     params={"sensor_name": "body_ground_contact"},
   )
+  cfg.terminations["fell_over"].params = {"limit_angle": math.radians(45.0)}  # Stricter
 
   # Apply play mode overrides.
   if play:
