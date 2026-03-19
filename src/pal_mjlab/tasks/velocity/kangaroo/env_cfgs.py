@@ -524,14 +524,14 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.3),
       "pyramid_stairs": terrain_gen.BoxPyramidStairsTerrainCfg(
         proportion=0.35,
-        step_height_range=(0.1, 0.2),
+        step_height_range=(0.03, 0.2),
         step_width=0.3,
         platform_width=1.0,
         border_width=1.0,
       ),
       "pyramid_stairs_inv": terrain_gen.BoxInvertedPyramidStairsTerrainCfg(
         proportion=0.35,
-        step_height_range=(0.1, 0.2),
+        step_height_range=(0.03, 0.2),
         step_width=0.3,
         platform_width=1.0,
         border_width=1.0,
