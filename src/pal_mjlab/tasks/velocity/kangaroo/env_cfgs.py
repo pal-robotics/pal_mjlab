@@ -131,7 +131,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # -- Observations
 
   del cfg.observations["actor"].terms["height_scan"]
-  # del cfg.observations["critic"].terms["height_scan"]
   del cfg.observations["actor"].terms["base_lin_vel"]
   del cfg.observations["actor"].terms["projected_gravity"]
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
@@ -383,8 +382,11 @@ def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.sim.contact_sensor_maxmatch = 64
   cfg.sim.nconmax = None
 
-  # Disable height scan observation
-  del cfg.observations["critic"].terms["height_scan"]
+  # Remove raycast sensor and height scan (no terrain to scan).
+  cfg.scene.sensors = tuple(
+    s for s in (cfg.scene.sensors or ()) if s.name != "terrain_scan"
+  )
+  del cfg.observations["critic"].terms["height_scan"] # Actor already removed
 
   # Switch to flat terrain.
   assert cfg.scene.terrain is not None
