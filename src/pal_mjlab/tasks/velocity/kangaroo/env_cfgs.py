@@ -43,7 +43,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO rough terrain velocity configuration."""
   cfg = make_velocity_env_cfg()
   cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
-  cfg.sim.nconmax = None
+  
+  # nconmax is the max number of contacts that will be generated at runtime
+  # due to https://github.com/google-deepmind/mujoco_warp/blob/c62864ed2bf816c0a724d4cbf153921188f78eae/mujoco_warp/_src/io.py#L649-L660
+  # for collision-rich envs, it is recommended to be manually set through experimentation
+  cfg.sim.nconmax = 50
   cfg.sim.mujoco.ccd_iterations = 500
   cfg.sim.contact_sensor_maxmatch = 500
   cfg.sim.mujoco.timestep = 0.002
@@ -126,10 +130,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # -- Observations
 
-  cfg.observations["actor"].terms["height_scan"] = None
-  cfg.observations["critic"].terms["height_scan"] = None
-  cfg.observations["actor"].terms["base_lin_vel"] = None
-  cfg.observations["actor"].terms["projected_gravity"] = None
+  del cfg.observations["actor"].terms["height_scan"]
+  # del cfg.observations["critic"].terms["height_scan"]
+  del cfg.observations["actor"].terms["base_lin_vel"]
+  del cfg.observations["actor"].terms["projected_gravity"]
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
@@ -378,6 +382,9 @@ def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.sim.mujoco.ccd_iterations = 50
   cfg.sim.contact_sensor_maxmatch = 64
   cfg.sim.nconmax = None
+
+  # Disable height scan observation
+  del cfg.observations["critic"].terms["height_scan"]
 
   # Switch to flat terrain.
   assert cfg.scene.terrain is not None
