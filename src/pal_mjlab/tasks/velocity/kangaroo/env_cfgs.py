@@ -117,20 +117,17 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   cfg.commands["twist"] = mdp.commands.PiecewiseVelocityCommandCfg(
     entity_name="robot",
-    resampling_time_range=(3.0, 8.0),
+    resampling_time_range=(5.0, 8.0),
     rel_standing_envs=0.1,
     rel_heading_envs=0.3,
     heading_command=True,
     heading_control_stiffness=0.5,
     debug_vis=True,
     ranges=mdp.commands.PiecewiseVelocityCommandCfg.Ranges(
-      # Linear velocity X: 40% [0.0, 0.2], 40% [0.2, 0.5], 20% [0.5, 0.8]
       lin_vel_x_ranges=[(-0.3, 0.0), (0.0, 0.3), (0.3, 0.5), (0.5, 0.8)],
       lin_vel_x_weights=[0.25, 0.4, 0.25, 0.1],
-      # Linear velocity Y: same distribution as X
       lin_vel_y_ranges=[(-0.8, -0.5), (-0.5, -0.2), (-0.2, 0.0), (0.0, 0.2), (0.2, 0.5), (0.5, 0.8)],
       lin_vel_y_weights=[0.1, 0.15, 0.25, 0.25, 0.15, 0.1],
-      # Angular velocity Z: 40% [0.0, 0.1], 40% [0.1, 0.3], 20% [0.3, 0.4]
       ang_vel_z_ranges=[(-0.4, -0.3), (-0.3, -0.15), (-0.15, 0.0), (0.0, 0.15), (0.15, 0.3), (0.3, 0.4)],
       ang_vel_z_weights=[0.1, 0.15, 0.25, 0.25, 0.15, 0.1],
       heading=(-math.pi, math.pi),

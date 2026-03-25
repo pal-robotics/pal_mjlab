@@ -80,16 +80,18 @@ def track_normalized_linear_velocity(
   command = env.command_manager.get_command(command_name)
   assert command is not None, f"Command '{command_name}' not found."
   actual = asset.data.root_link_lin_vel_b
-  x_error = torch.abs(command[:, 0] - actual[:, 0])
-  y_error = torch.abs(command[:, 1] - actual[:, 1])
-  tol = 1.e-2
-  if(torch.abs(command[:, 0]) < tol).any():
-    x_error = tol * x_error / torch.abs(command[:, 0])
-  if(torch.abs(command[:, 1]) < tol).any():
-    y_error = tol * y_error / torch.abs(command[:, 1])
+  eps = 0.05
+  vel_error = command[:, :2] - actual[:, :2]
+  scale = torch.abs(command[:, :2]) + eps
+  rel_error = torch.square(vel_error / scale)
+  abs_error = torch.square(vel_error)
   z_error = torch.abs(actual[:, 2])
-  lin_vel_error = x_error + y_error + z_error
-  return torch.exp(-lin_vel_error / std**2)
+  error = 0.5 * torch.sum(rel_error, dim=1) + 0.5 * torch.sum(abs_error, dim=1) + z_error
+  speed = torch.norm(command[:, :2], dim=1)
+  target_speed = 0.2
+  sigma = 0.2
+  weight = torch.exp(-((speed - target_speed) ** 2) / (2 * sigma**2))
+  return weight * torch.exp(-error / std**2)
 
 def track_normalized_angular_velocity(
   env: ManagerBasedRlEnv,
@@ -105,12 +107,17 @@ def track_normalized_angular_velocity(
   command = env.command_manager.get_command(command_name)
   assert command is not None, f"Command '{command_name}' not found."
   actual = asset.data.root_link_ang_vel_b
-  tol = 1.e-2
-  z_error = torch.abs(command[:, 2] - actual[:, 2])
-  if(torch.abs(command[:, 2]) < tol).any():
-   z_error = z_error / torch.abs(command[:, 2])
-  xy_error = torch.sum(torch.square(actual[:, :2]), dim=1)
-  ang_vel_error = z_error + xy_error
-  return torch.exp(-ang_vel_error / std**2)
+  eps = 0.05
+  vel_error = command[:, 2] - actual[:, 2]
+  scale = torch.abs(command[:, 2]) + eps
+  rel_error = torch.square(vel_error / scale)
+  abs_error = torch.square(vel_error)
+  xy_error = torch.square(command[:, :2] - actual[:, :2])
+  error = 0.5 * rel_error + 0.5 * abs_error + torch.sum(xy_error, dim=1)
+  speed = torch.norm(command[:, :2], dim=1)
+  target_speed = 0.1
+  sigma = 0.2
+  weight = torch.exp(-((speed - target_speed) ** 2) / (2 * sigma**2))
+  return weight * torch.exp(-error / std**2)
 
   
