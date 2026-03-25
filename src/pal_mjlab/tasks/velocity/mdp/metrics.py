@@ -1,5 +1,6 @@
 """Useful methods for MDP Metrics."""
 
+from mjlab.sensor.contact_sensor import ContactSensor
 import torch
 from mjlab.entity.entity import Entity
 from mjlab.envs.manager_based_rl_env import ManagerBasedRlEnv
@@ -65,59 +66,4 @@ class max_feet_delta_velocity_along_gravity:
     max_term_z = max_term[:, 2]  # (num_envs,)
 
     return max_term_z
-
-def track_normalized_linear_velocity(
-  env: ManagerBasedRlEnv,
-  std: float,
-  command_name: str,
-  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-) -> torch.Tensor:
-  """Reward for tracking the commanded base linear velocity.
-
-  The commanded z velocity is assumed to be zero.
-  """
-  asset: Entity = env.scene[asset_cfg.name]
-  command = env.command_manager.get_command(command_name)
-  assert command is not None, f"Command '{command_name}' not found."
-  actual = asset.data.root_link_lin_vel_b
-  eps = 0.05
-  vel_error = command[:, :2] - actual[:, :2]
-  scale = torch.abs(command[:, :2]) + eps
-  rel_error = torch.square(vel_error / scale)
-  abs_error = torch.square(vel_error)
-  z_error = torch.abs(actual[:, 2])
-  error = 0.5 * torch.sum(rel_error, dim=1) + 0.5 * torch.sum(abs_error, dim=1) + z_error
-  speed = torch.norm(command[:, :2], dim=1)
-  target_speed = 0.2
-  sigma = 0.2
-  weight = torch.exp(-((speed - target_speed) ** 2) / (2 * sigma**2))
-  return weight * torch.exp(-error / std**2)
-
-def track_normalized_angular_velocity(
-  env: ManagerBasedRlEnv,
-  std: float,
-  command_name: str,
-  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-) -> torch.Tensor:
-  """Reward heading error for heading-controlled envs, angular velocity for others.
-
-  The commanded xy angular velocities are assumed to be zero.
-  """
-  asset: Entity = env.scene[asset_cfg.name]
-  command = env.command_manager.get_command(command_name)
-  assert command is not None, f"Command '{command_name}' not found."
-  actual = asset.data.root_link_ang_vel_b
-  eps = 0.05
-  vel_error = command[:, 2] - actual[:, 2]
-  scale = torch.abs(command[:, 2]) + eps
-  rel_error = torch.square(vel_error / scale)
-  abs_error = torch.square(vel_error)
-  xy_error = torch.square(command[:, :2] - actual[:, :2])
-  error = 0.5 * rel_error + 0.5 * abs_error + torch.sum(xy_error, dim=1)
-  speed = torch.norm(command[:, :2], dim=1)
-  target_speed = 0.1
-  sigma = 0.2
-  weight = torch.exp(-((speed - target_speed) ** 2) / (2 * sigma**2))
-  return weight * torch.exp(-error / std**2)
-
   

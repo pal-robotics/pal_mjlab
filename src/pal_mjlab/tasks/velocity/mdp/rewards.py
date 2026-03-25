@@ -494,3 +494,95 @@ class sound_suppression:
 
     # return the squared sum of change in velocity along the projected gravity direction
     return cost
+
+
+def track_normalized_linear_velocity(
+  env: ManagerBasedRlEnv,
+  std: float,
+  command_name: str,
+  target_speed: float = 0.2,
+  eps: float = 0.05,
+  sigma: float = 0.2,
+  abs_rel_weight: float = 0.5,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Reward for tracking the commanded base linear velocity.
+
+  The commanded z velocity is assumed to be zero.
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+  actual = asset.data.root_link_lin_vel_b
+  vel_error = command[:, :2] - actual[:, :2]
+  scale = torch.abs(command[:, :2]) + eps
+  rel_error = torch.square(vel_error / scale)
+  abs_error = torch.square(vel_error)
+  z_error = torch.abs(actual[:, 2])
+  error = abs_rel_weight * torch.sum(rel_error, dim=1) + (1 - abs_rel_weight) * torch.sum(abs_error, dim=1) + z_error
+  speed = torch.norm(command[:, :2], dim=1)
+  weight = torch.exp(-((speed - target_speed) ** 2) / (2 * sigma**2))
+  return weight * torch.exp(-error / std**2)
+
+def track_normalized_angular_velocity(
+  env: ManagerBasedRlEnv,
+  std: float,
+  command_name: str,
+  target_speed: float = 0.1,
+  eps: float = 0.05,
+  sigma: float = 0.2,
+  abs_rel_weight: float = 0.5,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Reward heading error for heading-controlled envs, angular velocity for others.
+
+  The commanded xy angular velocities are assumed to be zero.
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+  actual = asset.data.root_link_ang_vel_b
+  vel_error = command[:, 2] - actual[:, 2]
+  scale = torch.abs(command[:, 2]) + eps
+  rel_error = torch.square(vel_error / scale)
+  abs_error = torch.square(vel_error)
+  xy_error = torch.square(command[:, :2] - actual[:, :2])
+  error = abs_rel_weight * rel_error + (1 - abs_rel_weight) * abs_error + torch.sum(xy_error, dim=1)
+  speed = torch.norm(command[:, :2], dim=1)
+  weight = torch.exp(-((speed - target_speed) ** 2) / (2 * sigma**2))
+  return weight * torch.exp(-error / std**2)
+
+def feet_air_time_scaled(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  threshold_min: float = 0.05,
+  threshold_max: float = 0.5,
+  command_name: str | None = None,
+  command_threshold: float = 0.5,
+  desired_air_time: float = 0.3,
+  sigma: float = 0.2,
+) -> torch.Tensor:
+  """Reward feet air time."""
+  sensor: ContactSensor = env.scene[sensor_name]
+  sensor_data = sensor.data
+  current_air_time = sensor_data.current_air_time
+  assert current_air_time is not None
+  air_time_error = torch.square(current_air_time - desired_air_time)
+  air_time_error = torch.sum(air_time_error, dim=1)
+  in_range = (current_air_time > threshold_min) & (current_air_time < threshold_max)
+  reward = torch.sum(in_range.float(), dim=1) * torch.exp(-air_time_error / (2 * sigma**2))
+  in_air = current_air_time > 0
+  num_in_air = torch.sum(in_air.float())
+  mean_air_time = torch.sum(current_air_time * in_air.float()) / torch.clamp(
+    num_in_air, min=1
+  )
+  env.extras["log"]["Metrics/air_time_mean"] = mean_air_time
+  if command_name is not None:
+    command = env.command_manager.get_command(command_name)
+    if command is not None:
+      linear_norm = torch.norm(command[:, :2], dim=1)
+      angular_norm = torch.abs(command[:, 2])
+      total_command = linear_norm + angular_norm
+      scale = (total_command > command_threshold).float()
+      reward *= scale
+  return reward
