@@ -1,4 +1,5 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
+import math
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
@@ -19,6 +20,8 @@ from mjlab.sensor import (
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
+from pal_mjlab.tasks.velocity import mdp
+
 
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
@@ -103,6 +106,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   if cfg.scene.terrain is not None and cfg.scene.terrain.terrain_generator is not None:
     cfg.scene.terrain.terrain_generator.curriculum = True
 
+  cfg.curriculum["command_vel"] = None
+
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
   joint_pos_action.scale = KANGAROO_ACTION_SCALE
@@ -110,9 +115,28 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   cfg.viewer.body_name = "pelvis_2_link"
 
-  assert cfg.commands is not None
+  cfg.commands["twist"] = mdp.commands.PiecewiseVelocityCommandCfg(
+    entity_name="robot",
+    resampling_time_range=(3.0, 8.0),
+    rel_standing_envs=0.1,
+    rel_heading_envs=0.3,
+    heading_command=True,
+    heading_control_stiffness=0.5,
+    debug_vis=True,
+    ranges=mdp.commands.PiecewiseVelocityCommandCfg.Ranges(
+      # Linear velocity X: 40% [0.0, 0.2], 40% [0.2, 0.5], 20% [0.5, 0.8]
+      lin_vel_x_ranges=[(-0.3, 0.0), (0.0, 0.3), (0.3, 0.5), (0.5, 0.8)],
+      lin_vel_x_weights=[0.25, 0.4, 0.25, 0.1],
+      # Linear velocity Y: same distribution as X
+      lin_vel_y_ranges=[(-0.8, -0.5), (-0.5, -0.2), (-0.2, 0.0), (0.0, 0.2), (0.2, 0.5), (0.5, 0.8)],
+      lin_vel_y_weights=[0.1, 0.15, 0.25, 0.25, 0.15, 0.1],
+      # Angular velocity Z: 40% [0.0, 0.1], 40% [0.1, 0.3], 20% [0.3, 0.4]
+      ang_vel_z_ranges=[(-0.4, -0.3), (-0.3, -0.15), (-0.15, 0.0), (0.0, 0.15), (0.15, 0.3), (0.3, 0.4)],
+      ang_vel_z_weights=[0.1, 0.15, 0.25, 0.25, 0.15, 0.1],
+      heading=(-math.pi, math.pi),
+    ),
+  )
   twist_cmd = cfg.commands["twist"]
-  assert isinstance(twist_cmd, UniformVelocityCommandCfg)
   twist_cmd.viz.z_offset = 1.15
 
   # Wire foot height scan to per-foot sites.
@@ -225,11 +249,33 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
   cfg.rewards["body_ang_vel"].weight = -0.05
   cfg.rewards["angular_momentum"].weight = -0.02
-  cfg.rewards["air_time"].weight = 0.25
+  cfg.rewards["air_time"] = RewardTermCfg(
+    func=mdp.feet_air_time,
+    weight=0.25,
+    params={
+      "sensor_name": "feet_ground_contact",
+      "threshold_min": 0.2,
+      "threshold_max": 1.0,
+      "command_name": "twist",
+      "command_threshold": 0.05,
+    },
+  )
   cfg.rewards["self_collisions"] = RewardTermCfg(
     func=mdp.self_collision_cost,
     weight=-1.0,
     params={"sensor_name": self_collision_cfg.name},
+  )
+  cfg.rewards["track_linear_velocity"] = None
+  cfg.rewards["track_angular_velocity"] = None
+  cfg.rewards["track_normalized_linear_velocity"] = RewardTermCfg(
+    func=mdp.track_normalized_linear_velocity,
+    weight=2.0,
+    params={"command_name": "twist", "std": math.sqrt(0.25)},
+  )
+  cfg.rewards["track_normalized_angular_velocity"] = RewardTermCfg(
+    func=mdp.track_normalized_angular_velocity,
+    weight=2.0,
+    params={"command_name": "twist", "std": math.sqrt(0.5)},
   )
 
   # The hull points should correspond to the respective joints defined in the joint_names_group order
@@ -391,14 +437,14 @@ def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   del cfg.curriculum["terrain_levels"]
 
   if play:
-    # Disable command curriculum.
-    assert "command_vel" in cfg.curriculum
-    del cfg.curriculum["command_vel"]
-
     twist_cmd = cfg.commands["twist"]
-    assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.ranges.lin_vel_x = (-1.5, 2.0)
-    twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
+    assert isinstance(twist_cmd, mdp.commands.PiecewiseVelocityCommandCfg)
+    twist_cmd.ranges.lin_vel_x_ranges = [(-0.4, 0.0), (0.0, 0.2), (0.2, 0.4)]
+    twist_cmd.ranges.lin_vel_x_weights=[0.3, 0.4, 0.3]
+    twist_cmd.ranges.lin_vel_y_ranges=[(-0.3, 0.0), (0.0, 0.3)]
+    twist_cmd.ranges.lin_vel_y_weights=[0.5, 0.5]
+    twist_cmd.ranges.ang_vel_z_ranges=[(-0.2, 0.0), (0.0, 0.2)]
+    twist_cmd.ranges.ang_vel_z_weights=[0.5, 0.5]
 
   return cfg
 
