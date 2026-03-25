@@ -4,6 +4,7 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import MetricsTermCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
@@ -18,6 +19,7 @@ from mjlab.sensor import (
 )
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
+from mjlab.terrains import TerrainGeneratorCfg, BoxFlatTerrainCfg, BoxRandomSpreadTerrainCfg, BoxInvertedPyramidStairsTerrainCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
 from pal_mjlab.robots import (
@@ -435,5 +437,71 @@ def pal_kangaroo_grippers_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
   assert isinstance(joint_pos_action, JointPositionActionCfg)
   joint_pos_action.scale = KANGAROO_GRIPPERS_ACTION_SCALE
   joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
+
+  return cfg
+
+
+def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO easy rough terrain velocity configuration."""
+  cfg = pal_kangaroo_rough_env_cfg(play=play)
+
+  ### CV
+
+  # Terrain
+  assert cfg.scene.terrain is not None
+  assert cfg.scene.terrain.terrain_generator is not None
+  cfg.scene.terrain.terrain_type = "generator"
+  cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
+    size=(6.0, 6.0),
+    num_rows=12,
+    num_cols=10,
+    border_width=20.0,
+    curriculum=True,
+    sub_terrains={
+      "flat": BoxFlatTerrainCfg(proportion=0.1),
+      "pebbles": BoxRandomSpreadTerrainCfg(
+        proportion=0.3,
+        num_boxes=350,
+        box_width_range=(0.02, 0.05),
+        box_length_range=(0.02, 0.05),
+        box_height_range=(0.02, 0.05),
+        platform_width=1.5,
+        border_width=0.5,
+      ),
+      "random_obstacles": BoxRandomSpreadTerrainCfg(
+        proportion=0.3,
+        num_boxes=50,
+        box_width_range=(0.4, 1.5),
+        box_length_range=(0.4, 1.5),
+        box_height_range=(0.02, 0.05),
+        platform_width=1.5,
+        border_width=0.5,
+      ),
+      "pyramid_stairs_inv": BoxInvertedPyramidStairsTerrainCfg(
+          proportion=0.3,
+          step_height_range=(0.02, 0.05),
+          step_width=0.3,
+          platform_width=1.5,
+          border_width=0.5,
+        ),
+    },
+  )
+  cfg.scene.terrain.max_init_terrain_level = 1
+
+  if play:
+    # Disable command curriculum.
+    assert "command_vel" in cfg.curriculum
+    del cfg.curriculum["command_vel"]
+
+    twist_cmd = cfg.commands["twist"]
+    assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+    twist_cmd.ranges.lin_vel_x = (-1.5, 2.0)
+    twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
+
+    if cfg.scene.terrain is not None:
+      if cfg.scene.terrain.terrain_generator is not None:
+        cfg.scene.terrain.terrain_generator.num_cols = 5
+        cfg.scene.terrain.terrain_generator.num_rows = 5
+        cfg.scene.terrain.terrain_generator.border_width = 10.0
 
   return cfg
