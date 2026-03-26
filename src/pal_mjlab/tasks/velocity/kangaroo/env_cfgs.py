@@ -488,6 +488,30 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
   cfg.scene.terrain.max_init_terrain_level = 1
 
+  # Commanded velocity
+  cfg.curriculum["command_vel"] = CurriculumTermCfg(
+    func=mdp.commands_vel,
+    params={
+      "command_name": "twist",
+      "velocity_stages": [
+        {"step": 0, "lin_vel_x": (-0.15, 0.15)},
+        {"step": 5000 * 24, "lin_vel_x": (-0.25, 0.25), "ang_vel_z": (-0.15, 0.15)},
+        {
+          "step": 10000 * 24,
+          "lin_vel_x": (-0.4, 0.4),
+          "ang_vel_z": (-0.25, 0.25),
+          "lin_vel_y": (-0.1, 0.1),
+        },
+        {
+          "step": 20000 * 24,
+          "lin_vel_x": (-0.6, 0.6),
+          "ang_vel_z": (-0.4, 0.4),
+          "lin_vel_y": (-0.3, 0.3)
+        },
+      ],
+    },
+  )
+
   if play:
     # Disable command curriculum.
     assert "command_vel" in cfg.curriculum
