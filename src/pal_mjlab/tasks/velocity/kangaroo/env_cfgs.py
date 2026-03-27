@@ -450,6 +450,13 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].history_length = 5  # Keep last 5 frames
   cfg.observations["critic"].history_length = 5  # Keep last 5 frames
 
+  ### REWARDS
+
+  cfg.rewards["is_terminated"] = RewardTermCfg(
+    func=mdp.is_terminated,
+    weight=-200.0
+  )
+
   ### EVENTS
 
   cfg.events["push_robot"] = EventTermCfg(
