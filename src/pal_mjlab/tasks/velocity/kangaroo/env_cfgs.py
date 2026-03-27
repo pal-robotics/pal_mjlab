@@ -445,6 +445,24 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO easy rough terrain velocity configuration."""
   cfg = pal_kangaroo_rough_env_cfg(play=play)
 
+  ### EVENTS
+
+  cfg.events["push_robot"] = EventTermCfg(
+    func=mdp.push_by_setting_velocity,
+    mode="interval",
+    interval_range_s=(1.0, 3.0),
+    params={
+      "velocity_range": {
+        "x": (-0.2, 0.2),
+        "y": (-0.2, 0.2),
+        "z": (-0.2, 0.2),
+        "roll": (-0.1, 0.1),
+        "pitch": (-0.1, 0.1),
+        "yaw": (-0.2, 0.2),
+      }
+    }
+  )
+
   ### CV
 
   # Terrain
