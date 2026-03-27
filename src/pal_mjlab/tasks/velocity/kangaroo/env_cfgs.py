@@ -445,6 +445,11 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO easy rough terrain velocity configuration."""
   cfg = pal_kangaroo_rough_env_cfg(play=play)
 
+  ### OBSERVATIONS
+
+  cfg.observations["actor"].history_length = 5  # Keep last 5 frames
+  cfg.observations["critic"].history_length = 5  # Keep last 5 frames
+
   ### EVENTS
 
   cfg.events["push_robot"] = EventTermCfg(
