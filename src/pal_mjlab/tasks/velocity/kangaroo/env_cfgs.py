@@ -451,16 +451,16 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].history_length = 5  # Keep last 5 frames
   cfg.observations["critic"].history_length = 5  # Keep last 5 frames
 
-  # cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
-  # cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 2
-  # cfg.observations["actor"].terms["base_lin_acc"].delay_min_lag = 0
-  # cfg.observations["actor"].terms["base_lin_acc"].delay_max_lag = 2
-  # cfg.observations["actor"].terms["projected_gravity"].delay_min_lag = 0
-  # cfg.observations["actor"].terms["projected_gravity"].delay_max_lag = 2
-  # cfg.observations["actor"].terms["joint_pos"].delay_min_lag = 0
-  # cfg.observations["actor"].terms["joint_pos"].delay_max_lag = 2
-  # cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
-  # cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 2
+  cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
+  cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 3
+  cfg.observations["actor"].terms["base_lin_acc"].delay_min_lag = 0
+  cfg.observations["actor"].terms["base_lin_acc"].delay_max_lag = 3
+  cfg.observations["actor"].terms["imu_projected_gravity"].delay_min_lag = 0
+  cfg.observations["actor"].terms["imu_projected_gravity"].delay_max_lag = 3
+  cfg.observations["actor"].terms["joint_pos"].delay_min_lag = 0
+  cfg.observations["actor"].terms["joint_pos"].delay_max_lag = 1
+  cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
+  cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
 
   ### REWARDS
 
