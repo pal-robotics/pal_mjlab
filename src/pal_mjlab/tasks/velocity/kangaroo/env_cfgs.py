@@ -242,7 +242,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-  # cfg.rewards["foot_swing_height"].params["target_height"] = 0.07
+  cfg.rewards["foot_swing_height"].params["target_height"] = 0.07
   for reward_name in ["foot_clearance", "foot_swing_height", "foot_slip"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
   cfg.rewards["body_ang_vel"].weight = -0.05
@@ -253,11 +253,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={
       "sensor_name": "feet_ground_contact",
       "threshold_min": 0.2,
-      "threshold_max": 0.8,
+      "threshold_max": 1.0,
       "command_name": "twist",
       "command_threshold": 0.05,
       "desired_air_time": 0.5,
-      "sigma": 0.5,
+      "sigma": 0.2,
     },
   )
   cfg.rewards["self_collisions"] = RewardTermCfg(
