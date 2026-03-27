@@ -21,6 +21,7 @@ from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.terrains import TerrainGeneratorCfg, BoxFlatTerrainCfg, BoxRandomSpreadTerrainCfg, BoxInvertedPyramidStairsTerrainCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
+import math
 
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
@@ -450,12 +451,23 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].history_length = 5  # Keep last 5 frames
   cfg.observations["critic"].history_length = 5  # Keep last 5 frames
 
+  # cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 2
+  # cfg.observations["actor"].terms["base_lin_acc"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["base_lin_acc"].delay_max_lag = 2
+  # cfg.observations["actor"].terms["projected_gravity"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["projected_gravity"].delay_max_lag = 2
+  # cfg.observations["actor"].terms["joint_pos"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["joint_pos"].delay_max_lag = 2
+  # cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 2
+
   ### REWARDS
 
-  cfg.rewards["is_terminated"] = RewardTermCfg(
-    func=mdp.is_terminated,
-    weight=-200.0
-  )
+  # cfg.rewards["is_terminated"] = RewardTermCfg(
+  #   func=mdp.is_terminated,
+  #   weight=-200.0
+  # )
 
   ### EVENTS
 
@@ -475,7 +487,7 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     }
   )
 
-  ### CV
+  ### CURRICULUM
 
   # Terrain
   assert cfg.scene.terrain is not None
@@ -538,6 +550,56 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
           "ang_vel_z": (-0.4, 0.4),
           "lin_vel_y": (-0.3, 0.3)
         },
+      ],
+    },
+  )
+
+  # Rewards curriculum
+  cfg.curriculum["track_linear_velocity_params"] = CurriculumTermCfg(
+    func=mdp.reward_params,
+    params={
+      "reward_name": "track_linear_velocity",
+      "param_stages": [
+        {"step": 0, "params": {"std": math.sqrt(0.25)}},
+        {"step": 5000 * 24, "params": {"std": math.sqrt(0.2)}},
+        {"step": 10000 * 24, "params": {"std": math.sqrt(0.15)}},
+        {"step": 20000 * 24, "params": {"std": math.sqrt(0.1)}},
+      ],
+    },
+  )
+
+  cfg.curriculum["track_linear_velocity_weight"] = CurriculumTermCfg(
+    func=mdp.reward_weight,
+    params={
+      "reward_name": "track_linear_velocity",
+      "weight_stages": [
+        {"step": 0, "weight": 2.5},
+        {"step": 10000 * 24, "weight": 3.0},
+        {"step": 20000 * 24, "weight": 3.5},
+      ],
+    },
+  )
+
+  cfg.curriculum["track_angular_velocity_params"] = CurriculumTermCfg(
+    func=mdp.reward_params,
+    params={
+      "reward_name": "track_angular_velocity",
+      "param_stages": [
+        {"step": 0, "params": {"std": math.sqrt(0.5)}},
+        {"step": 10000 * 24, "params": {"std": math.sqrt(0.4)}},
+        {"step": 20000 * 24, "params": {"std": math.sqrt(0.25)}},
+      ],
+    },
+  )
+
+  cfg.curriculum["track_angular_velocity_weight"] = CurriculumTermCfg(
+    func=mdp.reward_weight,
+    params={
+      "reward_name": "track_angular_velocity",
+      "weight_stages": [
+        {"step": 0, "weight": 2.5},
+        {"step": 10000 * 24, "weight": 2.7},
+        {"step": 20000 * 24, "weight": 3.0},
       ],
     },
   )
