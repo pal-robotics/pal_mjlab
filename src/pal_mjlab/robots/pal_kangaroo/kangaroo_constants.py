@@ -327,17 +327,21 @@ def _build_action_scales(
   """Build action scale dict and actuator names from articulation config."""
   scales, names = {}, []
   for a in articulation.actuators:
+    # Unwrap DelayedActuatorCfg to access base_cfg if needed
+    cfg = a
+    if hasattr(a, "base_cfg"):
+      cfg = a.base_cfg
     e = (
-      a.effort_limit
-      if isinstance(a.effort_limit, dict)
-      else {n: a.effort_limit for n in a.target_names_expr}
+      cfg.effort_limit
+      if isinstance(cfg.effort_limit, dict)
+      else {n: cfg.effort_limit for n in cfg.target_names_expr}
     )
     s = (
-      a.stiffness
-      if isinstance(a.stiffness, dict)
-      else {n: a.stiffness for n in a.target_names_expr}
+      cfg.stiffness
+      if hasattr(cfg, "stiffness") and isinstance(cfg.stiffness, dict)
+      else {n: getattr(cfg, "stiffness", None) for n in cfg.target_names_expr}
     )
-    for n in a.target_names_expr:
+    for n in cfg.target_names_expr:
       if n in e and n in s and s[n] and n not in exclude:
         scales[n] = 0.25 * e[n] / s[n]
         names.append(n)
