@@ -4,7 +4,7 @@ from pathlib import Path
 
 import mujoco
 import torch
-from mjlab.actuator import BuiltinPositionActuatorCfg
+from mjlab.actuator import DelayedActuatorCfg, BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
