@@ -496,3 +496,54 @@ class sound_suppression:
 
     # return the squared sum of change in velocity along the projected gravity direction
     return cost
+
+
+def feet_air_time(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  threshold_min: float = 0.05,
+  threshold_max: float = 0.5,
+  command_name: str | None = None,
+  command_threshold: float = 0.5,
+  overshoot_decay: float = 5.0,
+) -> torch.Tensor:
+  """Reward feet air time with penalty for exceeding threshold_max.
+
+  For each foot:
+    - air_time < threshold_min: reward = 0
+    - threshold_min <= air_time <= threshold_max: reward = 1
+    - air_time > threshold_max: reward = -exp(overshoot_decay * (air_time - threshold_max)) + 1
+      This smoothly decays from 0 toward -inf as air time exceeds the max,
+      providing a gradient to reduce excessively long flight phases.
+  """
+  sensor: ContactSensor = env.scene[sensor_name]
+  sensor_data = sensor.data
+  current_air_time = sensor_data.current_air_time
+  assert current_air_time is not None
+
+  # Per-foot reward components
+  in_range = (current_air_time >= threshold_min) & (current_air_time <= threshold_max)
+  over_max = current_air_time > threshold_max
+  overshoot = current_air_time - threshold_max
+  # Exponential penalty: starts at 0 when air_time == threshold_max, grows negative
+  over_max_penalty = -(torch.exp(overshoot_decay * overshoot) - 1.0) * over_max.float()
+
+  per_foot_reward = in_range.float() + over_max_penalty
+  reward = torch.sum(per_foot_reward, dim=1)
+
+  in_air = current_air_time > 0
+  num_in_air = torch.sum(in_air.float())
+  mean_air_time = torch.sum(current_air_time * in_air.float()) / torch.clamp(
+    num_in_air, min=1
+  )
+  env.extras["log"]["Metrics/air_time_mean"] = mean_air_time
+  if command_name is not None:
+    command = env.command_manager.get_command(command_name)
+    if command is not None:
+      linear_norm = torch.norm(command[:, :2], dim=1)
+      angular_norm = torch.abs(command[:, 2])
+      total_command = linear_norm + angular_norm
+      scale = (total_command > command_threshold).float()
+      reward *= scale
+  return reward
+
