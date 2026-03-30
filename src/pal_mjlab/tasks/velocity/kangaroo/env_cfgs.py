@@ -500,9 +500,9 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     border_width=20.0,
     curriculum=True,
     sub_terrains={
-      "flat": BoxFlatTerrainCfg(proportion=0.1),
+      "flat": BoxFlatTerrainCfg(proportion=0.4),
       "pebbles": BoxRandomSpreadTerrainCfg(
-        proportion=0.3,
+        proportion=0.2,
         num_boxes=350,
         box_width_range=(0.02, 0.05),
         box_length_range=(0.02, 0.05),
@@ -511,7 +511,7 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         border_width=0.5,
       ),
       "random_obstacles": BoxRandomSpreadTerrainCfg(
-        proportion=0.3,
+        proportion=0.2,
         num_boxes=50,
         box_width_range=(0.4, 1.5),
         box_length_range=(0.4, 1.5),
@@ -520,7 +520,7 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         border_width=0.5,
       ),
       "pyramid_stairs_inv": BoxInvertedPyramidStairsTerrainCfg(
-          proportion=0.3,
+          proportion=0.2,
           step_height_range=(0.02, 0.05),
           step_width=0.3,
           platform_width=1.5,
