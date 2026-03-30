@@ -574,6 +574,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.illegal_contact,
     params={"sensor_name": "body_ground_contact"},
   )
+  # Change to 45 degrees as we know that kangaroo cannot recover from large inclinations.
+  cfg.terminations["fell_over"].params["limit_angle"] = math.radians(45) 
 
   # Apply play mode overrides.
   if play:
