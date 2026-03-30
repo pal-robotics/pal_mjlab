@@ -173,8 +173,9 @@ KANGAROO_LEG_ACTUATORS = (
           target_names_expr=("leg_.*_1_joint",),  **_calc_leg_params(100.0, 80.0)
         ),
         delay_target="position",
-        delay_min_lag=2,  # Minimum 2 physics steps
-        delay_max_lag=5,  # Maximum 5 physics steps
+        delay_min_lag=1,  # Minimum 1 physics steps
+        delay_max_lag=3,  # Maximum 3 physics steps
+        delay_hold_prob=0.75,  # 75% chance to hold previous lag
     ),
   DelayedActuatorCfg(
         base_cfg=
@@ -182,8 +183,9 @@ KANGAROO_LEG_ACTUATORS = (
           target_names_expr=("leg_.*_2_joint",),  **_calc_leg_params(100.0, 230.0)
         ),
         delay_target="position",
-        delay_min_lag=2,  # Minimum 2 physics steps
-        delay_max_lag=5,  # Maximum 5 physics steps
+        delay_min_lag=1,  # Minimum 1 physics steps
+        delay_max_lag=3,  # Maximum 3 physics steps
+        delay_hold_prob=0.75,  # 75% chance to hold previous lag
     ),
   DelayedActuatorCfg(
         base_cfg=
@@ -191,8 +193,9 @@ KANGAROO_LEG_ACTUATORS = (
           target_names_expr=("leg_.*_3_joint",), **_calc_leg_params(100.0, 139.0)
         ),
         delay_target="position",
-        delay_min_lag=2,  # Minimum 2 physics steps
-        delay_max_lag=5,  # Maximum 5 physics steps
+        delay_min_lag=1,  # Minimum 1 physics steps
+        delay_max_lag=3,  # Maximum 3 physics steps
+        delay_hold_prob=0.75,  # 75% chance to hold previous lag
     ),
   DelayedActuatorCfg(
         base_cfg=
@@ -200,8 +203,9 @@ KANGAROO_LEG_ACTUATORS = (
           target_names_expr=("leg_.*_4_joint",), **_calc_leg_params(30.0, 140.0)
         ),
         delay_target="position",
-        delay_min_lag=2,  # Minimum 2 physics steps
-        delay_max_lag=5,  # Maximum 5 physics steps
+        delay_min_lag=1,  # Minimum 1 physics steps
+        delay_max_lag=3,  # Maximum 3 physics steps
+        delay_hold_prob=0.75,  # 75% chance to hold previous lag
     ),
   DelayedActuatorCfg(
         base_cfg=
@@ -209,8 +213,9 @@ KANGAROO_LEG_ACTUATORS = (
           target_names_expr=("leg_.*_5_joint",), **_calc_leg_params(30.0, 82.0)
         ),
         delay_target="position",
-        delay_min_lag=2,  # Minimum 2 physics steps
-        delay_max_lag=5,  # Maximum 5 physics steps
+        delay_min_lag=1,  # Minimum 1 physics steps
+        delay_max_lag=3,  # Maximum 3 physics steps
+        delay_hold_prob=0.75,  # 75% chance to hold previous lag
     ),
   DelayedActuatorCfg(
         base_cfg=
@@ -218,8 +223,9 @@ KANGAROO_LEG_ACTUATORS = (
           target_names_expr=("leg_.*_length_joint",), **_calc_leg_params(1600.0, 1100.0)
         ),
         delay_target="position",
-        delay_min_lag=2,  # Minimum 2 physics steps
-        delay_max_lag=5,  # Maximum 5 physics steps
+        delay_min_lag=1,  # Minimum 1 physics steps
+        delay_max_lag=3,  # Maximum 3 physics steps
+        delay_hold_prob=0.75,  # 75% chance to hold previous lag
     ),
 )
 
