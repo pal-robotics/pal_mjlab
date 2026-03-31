@@ -96,6 +96,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     fields=("found",),
     reduce="none",
     num_slots=1,
+    history_length=4 # To also penalize collisions within policy steps
   )
 
   # Remove the default terrain scan sensor
@@ -136,6 +137,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   del cfg.observations["actor"].terms["height_scan"]
   del cfg.observations["actor"].terms["base_lin_vel"]
   del cfg.observations["actor"].terms["projected_gravity"]
+  del cfg.observations["critic"].terms["projected_gravity"]
+
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
@@ -183,7 +186,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     mode="startup",
     func=dr.encoder_bias,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=[REGEX_LEG_LENGTH_JOINTS_ONLY]),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_LEG_LENGTH_JOINTS_ONLY)),
       "bias_range": (-0.005, 0.005),
     },
   )
@@ -448,44 +451,60 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### OBSERVATIONS
 
-  cfg.observations["actor"].history_length = 5  # Keep last 5 frames
-  cfg.observations["critic"].history_length = 5  # Keep last 5 frames
+  # The default is 0, not 1
+  cfg.observations["actor"].history_length = 1
+  cfg.observations["critic"].history_length = 1
 
-  cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
-  cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 3
-  cfg.observations["actor"].terms["base_lin_acc"].delay_min_lag = 0
-  cfg.observations["actor"].terms["base_lin_acc"].delay_max_lag = 3
-  cfg.observations["actor"].terms["imu_projected_gravity"].delay_min_lag = 0
-  cfg.observations["actor"].terms["imu_projected_gravity"].delay_max_lag = 3
-  cfg.observations["actor"].terms["joint_pos"].delay_min_lag = 0
-  cfg.observations["actor"].terms["joint_pos"].delay_max_lag = 1
-  cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
-  cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
+  # Unitree just doesn't use it anywhere
+  del cfg.observations["actor"].terms["base_lin_acc"]
+  del cfg.observations["critic"].terms["base_lin_acc"]
+
+  # Add a soft phasing obs
+  # cfg.observations["actor"].terms["phase"] = ObservationTermCfg(
+  #   func=mdp.phase,
+  #   params={"period": 0.6, "command_name": "twist"},
+  # )
+
+  # cfg.observations["critic"].terms["phase"] = ObservationTermCfg(
+  #   func=mdp.phase,
+  #   params={"period": 0.6, "command_name": "twist"},
+  # )
+
+  # cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 3
+  # cfg.observations["actor"].terms["base_lin_acc"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["base_lin_acc"].delay_max_lag = 3
+  # cfg.observations["actor"].terms["imu_projected_gravity"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["imu_projected_gravity"].delay_max_lag = 3
+  # cfg.observations["actor"].terms["joint_pos"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["joint_pos"].delay_max_lag = 1
+  # cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
 
   ### REWARDS
 
-  # cfg.rewards["is_terminated"] = RewardTermCfg(
-  #   func=mdp.is_terminated,
-  #   weight=-200.0
-  # )
+  cfg.rewards["is_terminated"] = RewardTermCfg(
+    func=mdp.is_terminated,
+    weight=-100.0
+  )
 
   ### EVENTS
 
-  cfg.events["push_robot"] = EventTermCfg(
-    func=mdp.push_by_setting_velocity,
-    mode="interval",
-    interval_range_s=(1.0, 3.0),
-    params={
-      "velocity_range": {
-        "x": (-0.2, 0.2),
-        "y": (-0.2, 0.2),
-        "z": (-0.2, 0.2),
-        "roll": (-0.1, 0.1),
-        "pitch": (-0.1, 0.1),
-        "yaw": (-0.2, 0.2),
-      }
-    }
-  )
+  # cfg.events["push_robot"] = EventTermCfg(
+  #   func=mdp.push_by_setting_velocity,
+  #   mode="interval",
+  #   interval_range_s=(1.0, 3.0),
+  #   params={
+  #     "velocity_range": {
+  #       "x": (-0.2, 0.2),
+  #       "y": (-0.2, 0.2),
+  #       "z": (-0.2, 0.2),
+  #       "roll": (-0.1, 0.1),
+  #       "pitch": (-0.1, 0.1),
+  #       "yaw": (-0.2, 0.2),
+  #     }
+  #   }
+  # )
 
   ### CURRICULUM
 
@@ -542,7 +561,7 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
           "step": 10000 * 24,
           "lin_vel_x": (-0.4, 0.4),
           "ang_vel_z": (-0.25, 0.25),
-          "lin_vel_y": (-0.1, 0.1),
+          "lin_vel_y": (-0.15, 0.15),
         },
         {
           "step": 20000 * 24,
@@ -586,8 +605,9 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "reward_name": "track_angular_velocity",
       "param_stages": [
         {"step": 0, "params": {"std": math.sqrt(0.5)}},
-        {"step": 10000 * 24, "params": {"std": math.sqrt(0.4)}},
-        {"step": 20000 * 24, "params": {"std": math.sqrt(0.25)}},
+        {"step": 5000 * 24, "params": {"std": math.sqrt(0.4)}},
+        {"step": 10000 * 24, "params": {"std": math.sqrt(0.25)}},
+        {"step": 20000 * 24, "params": {"std": math.sqrt(0.15)}},
       ],
     },
   )
