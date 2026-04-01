@@ -451,25 +451,26 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### OBSERVATIONS
 
+  # HISTORY
   # The default is 0, not 1
-  cfg.observations["actor"].history_length = 1
-  cfg.observations["critic"].history_length = 1
+  # cfg.observations["actor"].history_length = 1
+  # cfg.observations["critic"].history_length = 1
 
-  # Unitree just doesn't use it anywhere
-  del cfg.observations["actor"].terms["base_lin_acc"]
-  del cfg.observations["critic"].terms["base_lin_acc"]
+  # LIN ACC (Unitree just doesn't use it anywhere)
+  # del cfg.observations["actor"].terms["base_lin_acc"]
+  # del cfg.observations["critic"].terms["base_lin_acc"]
 
-  # Add a soft phasing obs
+  # PHASING
   # cfg.observations["actor"].terms["phase"] = ObservationTermCfg(
   #   func=mdp.phase,
   #   params={"period": 0.6, "command_name": "twist"},
   # )
-
   # cfg.observations["critic"].terms["phase"] = ObservationTermCfg(
   #   func=mdp.phase,
   #   params={"period": 0.6, "command_name": "twist"},
   # )
 
+  # OBSERVATION LAG (sensor lag)
   # cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
   # cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 3
   # cfg.observations["actor"].terms["base_lin_acc"].delay_min_lag = 0
@@ -481,39 +482,83 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
   # cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
 
+  ### COMMANDS
+
+  # Start with a small forward-only cmd range
+  # twist_cmd = cfg.commands["twist"]
+  # assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+  # twist_cmd.ranges.lin_vel_x = (-0.15, 0.15)
+  # twist_cmd.ranges.lin_vel_y = (-0.0, 0.0)
+  # twist_cmd.ranges.ang_vel_z = (-0.0, 0.0)
+
+  cfg.commands["twist"] = UniformVelocityCommandWithProgressTrackingCfg(
+    entity_name="robot",
+    resampling_time_range=(3.0, 8.0),
+    rel_standing_envs=0.1,
+    rel_heading_envs=0.3,
+    heading_command=True,
+    heading_control_stiffness=0.5,
+    debug_vis=True,
+    ranges=UniformVelocityCommandCfg.Ranges(
+      lin_vel_x=(-0.2, 0.2),
+      lin_vel_y=(-0.0, 0.0),
+      ang_vel_z=(-0.0, 0.0),
+      heading=(-math.pi, math.pi),
+    ),
+    progress_min_speed=0.1,
+    include_standing_in_progress=False,
+    include_heading_in_progress=True,
+    allow_backward_progress=False,
+    cap_step_progress_to_desired=True,
+  )
+
   ### REWARDS
 
+  # Experimentally, this reward just makes the robot learn upright faster
   cfg.rewards["is_terminated"] = RewardTermCfg(
     func=mdp.is_terminated,
     weight=-100.0
   )
 
+  # Higher tracking weight
+  # cfg.rewards["track_linear_velocity"].weight = 3.0
+  # cfg.rewards["track_angular_velocity"].weight = 3.0
+
   ### EVENTS
 
-  # cfg.events["push_robot"] = EventTermCfg(
-  #   func=mdp.push_by_setting_velocity,
-  #   mode="interval",
-  #   interval_range_s=(1.0, 3.0),
-  #   params={
-  #     "velocity_range": {
-  #       "x": (-0.2, 0.2),
-  #       "y": (-0.2, 0.2),
-  #       "z": (-0.2, 0.2),
-  #       "roll": (-0.1, 0.1),
-  #       "pitch": (-0.1, 0.1),
-  #       "yaw": (-0.2, 0.2),
-  #     }
-  #   }
-  # )
+  # PUSHING
+  cfg.events["push_robot"] = EventTermCfg(
+    func=mdp.push_by_setting_velocity,
+    mode="interval",
+    interval_range_s=(2.0, 6.0),
+    params={
+      "velocity_range": {
+        "x": (-0.10, 0.10),
+        "y": (-0.05, 0.05),
+        "z": (0.0, 0.0),
+        "roll": (0.0, 0.0),
+        "pitch": (0.0, 0.0),
+        "yaw": (-0.10, 0.10),
+      }
+    }
+  )
+
+  # Safter spawning close to the center (to avoid directly spawning unbalanced most of the time)
+  cfg.events["reset_base"].params["pose_range"] = {
+    "x": (-0.2, 0.2),
+    "y": (-0.2, 0.2),
+    "z": (0.01, 0.05),
+    "yaw": (-3.14, 3.14),
+  }
 
   ### CURRICULUM
 
-  # Terrain
+  # TERRAIN
   assert cfg.scene.terrain is not None
   assert cfg.scene.terrain.terrain_generator is not None
   cfg.scene.terrain.terrain_type = "generator"
   cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
-    size=(6.0, 6.0),
+    size=(5.0, 5.0),
     num_rows=12,
     num_cols=10,
     border_width=20.0,
@@ -526,54 +571,53 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         box_width_range=(0.02, 0.05),
         box_length_range=(0.02, 0.05),
         box_height_range=(0.02, 0.05),
-        platform_width=1.5,
-        border_width=0.5,
+        platform_width=0.6,
+        border_width=0.2,
       ),
       "random_obstacles": BoxRandomSpreadTerrainCfg(
         proportion=0.2,
         num_boxes=50,
-        box_width_range=(0.4, 1.5),
-        box_length_range=(0.4, 1.5),
+        box_width_range=(0.2, 0.6),
+        box_length_range=(0.2, 0.6),
         box_height_range=(0.02, 0.05),
-        platform_width=1.5,
-        border_width=0.5,
+        platform_width=0.6,
+        border_width=0.2,
       ),
       "pyramid_stairs_inv": BoxInvertedPyramidStairsTerrainCfg(
-          proportion=0.2,
-          step_height_range=(0.02, 0.05),
-          step_width=0.3,
-          platform_width=1.5,
-          border_width=0.5,
-        ),
+        proportion=0.2,
+        step_height_range=(0.02, 0.05),
+        step_width=0.3,
+        platform_width=0.6,
+        border_width=0.2,
+      ),
     },
   )
   cfg.scene.terrain.max_init_terrain_level = 1
 
-  # Commanded velocity
+  # VELOCITY COMMAND
+  # Without y for the moment
   cfg.curriculum["command_vel"] = CurriculumTermCfg(
     func=mdp.commands_vel,
     params={
       "command_name": "twist",
       "velocity_stages": [
-        {"step": 0, "lin_vel_x": (-0.15, 0.15)},
+        {"step": 0, "lin_vel_x": (-0.2, 0.2)},
         {"step": 5000 * 24, "lin_vel_x": (-0.25, 0.25), "ang_vel_z": (-0.15, 0.15)},
         {
           "step": 10000 * 24,
           "lin_vel_x": (-0.4, 0.4),
           "ang_vel_z": (-0.25, 0.25),
-          "lin_vel_y": (-0.15, 0.15),
         },
         {
           "step": 20000 * 24,
           "lin_vel_x": (-0.6, 0.6),
           "ang_vel_z": (-0.4, 0.4),
-          "lin_vel_y": (-0.3, 0.3)
         },
       ],
     },
   )
 
-  # Rewards curriculum
+  # REWARDS PARAMS
   cfg.curriculum["track_linear_velocity_params"] = CurriculumTermCfg(
     func=mdp.reward_params,
     params={
@@ -587,39 +631,97 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
-  cfg.curriculum["track_linear_velocity_weight"] = CurriculumTermCfg(
-    func=mdp.reward_weight,
-    params={
-      "reward_name": "track_linear_velocity",
-      "weight_stages": [
-        {"step": 0, "weight": 2.5},
-        {"step": 10000 * 24, "weight": 3.0},
-        {"step": 20000 * 24, "weight": 3.5},
-      ],
-    },
-  )
-
   cfg.curriculum["track_angular_velocity_params"] = CurriculumTermCfg(
     func=mdp.reward_params,
     params={
       "reward_name": "track_angular_velocity",
       "param_stages": [
-        {"step": 0, "params": {"std": math.sqrt(0.5)}},
-        {"step": 5000 * 24, "params": {"std": math.sqrt(0.4)}},
-        {"step": 10000 * 24, "params": {"std": math.sqrt(0.25)}},
-        {"step": 20000 * 24, "params": {"std": math.sqrt(0.15)}},
+        {"step": 0, "params": {"std": math.sqrt(0.25)}},
+        {"step": 5000 * 24, "params": {"std": math.sqrt(0.2)}},
+        {"step": 10000 * 24, "params": {"std": math.sqrt(0.15)}},
+        {"step": 20000 * 24, "params": {"std": math.sqrt(0.1)}},
       ],
     },
   )
 
-  cfg.curriculum["track_angular_velocity_weight"] = CurriculumTermCfg(
-    func=mdp.reward_weight,
+  # REWARDS CONFIG
+
+  # cfg.curriculum["track_linear_velocity_weight"] = CurriculumTermCfg(
+  #   func=mdp.reward_weight,
+  #   params={
+  #     "reward_name": "track_linear_velocity",
+  #     "weight_stages": [
+  #       {"step": 0, "weight": 2.5},
+  #       {"step": 10000 * 24, "weight": 3.0},
+  #       {"step": 20000 * 24, "weight": 3.5},
+  #     ],
+  #   },
+  # )
+
+  # cfg.curriculum["track_angular_velocity_weight"] = CurriculumTermCfg(
+  #   func=mdp.reward_weight,
+  #   params={
+  #     "reward_name": "track_angular_velocity",
+  #     "weight_stages": [
+  #       {"step": 0, "weight": 2.5},
+  #       {"step": 10000 * 24, "weight": 2.7},
+  #       {"step": 20000 * 24, "weight": 3.0},
+  #     ],
+  #   },
+  # )
+
+  # EVENTS PARAMS
+
+  cfg.curriculum["push_robot_params"] = CurriculumTermCfg(
+    func=mdp.event_params,
     params={
-      "reward_name": "track_angular_velocity",
-      "weight_stages": [
-        {"step": 0, "weight": 2.5},
-        {"step": 10000 * 24, "weight": 2.7},
-        {"step": 20000 * 24, "weight": 3.0},
+      "event_name": "push_robot",
+      "param_stages": [
+        {
+          "step": 0,
+          "params": {
+            "velocity_range": {
+              "x": (-0.10, 0.10),
+              "y": (-0.05, 0.05),
+              "z": (0.0, 0.0),
+              "roll": (0.0, 0.0),
+              "pitch": (0.0, 0.0),
+              "yaw": (-0.10, 0.10),
+            },
+          },
+        },
+        {
+          "step": 5000 * 24,
+          "params": {
+            "velocity_range": {
+              "x": (-0.18, 0.18),
+              "y": (-0.10, 0.10),
+              "yaw": (-0.15, 0.15),
+            },
+          },
+        },
+        {
+          "step": 10000 * 24,
+          "params": {
+            "velocity_range": {
+              "x": (-0.28, 0.28),
+              "y": (-0.18, 0.18),
+              "yaw": (-0.25, 0.25),
+            },
+          },
+        },
+        {
+          "step": 20000 * 24,
+          "params": {
+            "velocity_range": {
+              "x": (-0.40, 0.40),
+              "y": (-0.25, 0.25),
+              "yaw": (-0.40, 0.40),
+              "roll": (-0.15, 0.15),
+              "pitch": (-0.15, 0.15),
+            },
+          },
+        },
       ],
     },
   )
