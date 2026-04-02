@@ -505,15 +505,15 @@ def feet_air_time(
   threshold_max: float = 0.5,
   command_name: str | None = None,
   command_threshold: float = 0.5,
-  overshoot_decay: float = 5.0,
+  overshoot_decay: float = 2.0,
 ) -> torch.Tensor:
   """Reward feet air time with penalty for exceeding threshold_max.
 
   For each foot:
     - air_time < threshold_min: reward = 0
     - threshold_min <= air_time <= threshold_max: reward = 1
-    - air_time > threshold_max: reward = -exp(overshoot_decay * (air_time - threshold_max)) + 1
-      This smoothly decays from 0 toward -inf as air time exceeds the max,
+    - air_time > threshold_max: reward = -tanh(overshoot_decay * (air_time - threshold_max))
+      This smoothly decays from 0 toward -1 as air time exceeds the max,
       providing a gradient to reduce excessively long flight phases.
   """
   sensor: ContactSensor = env.scene[sensor_name]
@@ -525,8 +525,8 @@ def feet_air_time(
   in_range = (current_air_time >= threshold_min) & (current_air_time <= threshold_max)
   over_max = current_air_time > threshold_max
   overshoot = current_air_time - threshold_max
-  # Exponential penalty: starts at 0 when air_time == threshold_max, grows negative
-  over_max_penalty = -(torch.exp(overshoot_decay * overshoot) - 1.0) * over_max.float()
+  # Tanh penalty: starts at 0 when air_time == threshold_max, smoothly saturates at -1
+  over_max_penalty = -torch.tanh(overshoot_decay * overshoot) * over_max.float()
 
   per_foot_reward = in_range.float() + over_max_penalty
   reward = torch.sum(per_foot_reward, dim=1)

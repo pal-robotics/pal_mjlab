@@ -215,7 +215,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         "threshold_max": 0.4,
         "command_name": "twist",
         "command_threshold": 0.1,
-        "overshoot_decay": 5.0,
+        "overshoot_decay": 2.0,
       },
     )
   cfg.rewards["self_collisions"] = RewardTermCfg(
