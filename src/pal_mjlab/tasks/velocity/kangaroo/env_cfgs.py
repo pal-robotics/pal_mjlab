@@ -18,6 +18,7 @@ from mjlab.sensor import (
   TerrainHeightSensorCfg,
 )
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
+from pal_mjlab.tasks.velocity.mdp import UniformVelocityCommandWithProgressTracking, UniformVelocityCommandWithProgressTrackingCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.terrains import TerrainGeneratorCfg, BoxFlatTerrainCfg, BoxRandomSpreadTerrainCfg, BoxInvertedPyramidStairsTerrainCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
@@ -554,6 +555,9 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   ### CURRICULUM
 
   # TERRAIN
+  
+  # Use a better progess ratio based promotion function
+  cfg.curriculum["terrain_levels"].func = mdp.rough_terrain_levels_vel
   assert cfg.scene.terrain is not None
   assert cfg.scene.terrain.terrain_generator is not None
   cfg.scene.terrain.terrain_type = "generator"
@@ -592,7 +596,6 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
     },
   )
-  cfg.scene.terrain.max_init_terrain_level = 1
 
   # VELOCITY COMMAND
   # Without y for the moment
@@ -733,8 +736,8 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.ranges.lin_vel_x = (-1.5, 2.0)
-    twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
+    twist_cmd.ranges.lin_vel_x = (-0.6, 0.6)
+    twist_cmd.ranges.ang_vel_z = (-0.4, 0.4)
 
     if cfg.scene.terrain is not None:
       if cfg.scene.terrain.terrain_generator is not None:
