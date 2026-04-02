@@ -174,7 +174,7 @@ KANGAROO_LEG_ACTUATORS = (
         ),
         delay_target="position",
         delay_min_lag=1,  # Minimum 1 physics steps
-        delay_max_lag=3,  # Maximum 3 physics steps
+        delay_max_lag=2,  # Maximum 2 physics steps
         delay_hold_prob=0.75,  # 75% chance to hold previous lag
     ),
   DelayedActuatorCfg(
@@ -184,7 +184,7 @@ KANGAROO_LEG_ACTUATORS = (
         ),
         delay_target="position",
         delay_min_lag=1,  # Minimum 1 physics steps
-        delay_max_lag=3,  # Maximum 3 physics steps
+        delay_max_lag=2,  # Maximum 2 physics steps
         delay_hold_prob=0.75,  # 75% chance to hold previous lag
     ),
   DelayedActuatorCfg(
@@ -194,7 +194,7 @@ KANGAROO_LEG_ACTUATORS = (
         ),
         delay_target="position",
         delay_min_lag=1,  # Minimum 1 physics steps
-        delay_max_lag=3,  # Maximum 3 physics steps
+        delay_max_lag=2,  # Maximum 2 physics steps
         delay_hold_prob=0.75,  # 75% chance to hold previous lag
     ),
   DelayedActuatorCfg(
@@ -204,7 +204,7 @@ KANGAROO_LEG_ACTUATORS = (
         ),
         delay_target="position",
         delay_min_lag=1,  # Minimum 1 physics steps
-        delay_max_lag=3,  # Maximum 3 physics steps
+        delay_max_lag=2,  # Maximum 2 physics steps
         delay_hold_prob=0.75,  # 75% chance to hold previous lag
     ),
   DelayedActuatorCfg(
@@ -214,7 +214,7 @@ KANGAROO_LEG_ACTUATORS = (
         ),
         delay_target="position",
         delay_min_lag=1,  # Minimum 1 physics steps
-        delay_max_lag=3,  # Maximum 3 physics steps
+        delay_max_lag=2,  # Maximum 2 physics steps
         delay_hold_prob=0.75,  # 75% chance to hold previous lag
     ),
   DelayedActuatorCfg(
@@ -224,7 +224,7 @@ KANGAROO_LEG_ACTUATORS = (
         ),
         delay_target="position",
         delay_min_lag=1,  # Minimum 1 physics steps
-        delay_max_lag=3,  # Maximum 3 physics steps
+        delay_max_lag=2,  # Maximum 2 physics steps
         delay_hold_prob=0.75,  # 75% chance to hold previous lag
     ),
 )
