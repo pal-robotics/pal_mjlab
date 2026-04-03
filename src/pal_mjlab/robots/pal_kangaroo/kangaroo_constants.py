@@ -167,66 +167,24 @@ def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
 # Legs
 
 KANGAROO_LEG_ACTUATORS = (
-  DelayedActuatorCfg(
-        base_cfg=
-        BuiltinPositionActuatorCfg(
-          target_names_expr=("leg_.*_1_joint",),  **_calc_leg_params(100.0, 80.0)
-        ),
-        delay_target="position",
-        delay_min_lag=1,  # Minimum 1 physics steps
-        delay_max_lag=2,  # Maximum 2 physics steps
-        delay_hold_prob=0.75,  # 75% chance to hold previous lag
-    ),
-  DelayedActuatorCfg(
-        base_cfg=
-        BuiltinPositionActuatorCfg(
-          target_names_expr=("leg_.*_2_joint",),  **_calc_leg_params(100.0, 230.0)
-        ),
-        delay_target="position",
-        delay_min_lag=1,  # Minimum 1 physics steps
-        delay_max_lag=2,  # Maximum 2 physics steps
-        delay_hold_prob=0.75,  # 75% chance to hold previous lag
-    ),
-  DelayedActuatorCfg(
-        base_cfg=
-        BuiltinPositionActuatorCfg(
-          target_names_expr=("leg_.*_3_joint",), **_calc_leg_params(100.0, 139.0)
-        ),
-        delay_target="position",
-        delay_min_lag=1,  # Minimum 1 physics steps
-        delay_max_lag=2,  # Maximum 2 physics steps
-        delay_hold_prob=0.75,  # 75% chance to hold previous lag
-    ),
-  DelayedActuatorCfg(
-        base_cfg=
-        BuiltinPositionActuatorCfg(
-          target_names_expr=("leg_.*_4_joint",), **_calc_leg_params(30.0, 140.0)
-        ),
-        delay_target="position",
-        delay_min_lag=1,  # Minimum 1 physics steps
-        delay_max_lag=2,  # Maximum 2 physics steps
-        delay_hold_prob=0.75,  # 75% chance to hold previous lag
-    ),
-  DelayedActuatorCfg(
-        base_cfg=
-        BuiltinPositionActuatorCfg(
-          target_names_expr=("leg_.*_5_joint",), **_calc_leg_params(30.0, 82.0)
-        ),
-        delay_target="position",
-        delay_min_lag=1,  # Minimum 1 physics steps
-        delay_max_lag=2,  # Maximum 2 physics steps
-        delay_hold_prob=0.75,  # 75% chance to hold previous lag
-    ),
-  DelayedActuatorCfg(
-        base_cfg=
-        BuiltinPositionActuatorCfg(
-          target_names_expr=("leg_.*_length_joint",), **_calc_leg_params(1600.0, 1100.0)
-        ),
-        delay_target="position",
-        delay_min_lag=1,  # Minimum 1 physics steps
-        delay_max_lag=2,  # Maximum 2 physics steps
-        delay_hold_prob=0.75,  # 75% chance to hold previous lag
-    ),
+  BuiltinPositionActuatorCfg(
+    target_names_expr=("leg_.*_1_joint",), **_calc_leg_params(100.0, 80.0)
+  ),
+  BuiltinPositionActuatorCfg(
+    target_names_expr=("leg_.*_2_joint",), **_calc_leg_params(100.0, 230.0)
+  ),
+  BuiltinPositionActuatorCfg(
+    target_names_expr=("leg_.*_3_joint",), **_calc_leg_params(100.0, 139.0)
+  ),
+  BuiltinPositionActuatorCfg(
+    target_names_expr=("leg_.*_4_joint",), **_calc_leg_params(30.0, 140.0)
+  ),
+  BuiltinPositionActuatorCfg(
+    target_names_expr=("leg_.*_5_joint",), **_calc_leg_params(30.0, 82.0)
+  ),
+  BuiltinPositionActuatorCfg(
+    target_names_expr=("leg_.*_length_joint",), **_calc_leg_params(1600.0, 1100.0)
+  ),
 )
 
 # Arms & Torso
