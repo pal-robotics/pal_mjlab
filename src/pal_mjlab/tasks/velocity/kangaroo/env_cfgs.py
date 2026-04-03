@@ -563,18 +563,21 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   #     ],
   #   },
   # )
-  cfg.curriculum["foot_swing_height"] = CurriculumTermCfg(
-    func=mdp.reward_weight,
-    params={
-      "reward_name": "foot_swing_height",
-      "weight_stages": [
-        {"step": 0, "weight": -0.25},
-        {"step": 5000 * 24, "weight": -0.27},
-        {"step": 10000 * 24, "weight": -0.35},
-        {"step": 20000 * 24, "weight": -0.37},
-      ],
-    },
-  )
+  # cfg.rewards["air_time"].weight = 0.25
+  # cfg.rewards["air_time"].params["command_threshold"] = 0.05
+
+  # cfg.curriculum["foot_swing_height"] = CurriculumTermCfg(
+  #   func=mdp.reward_weight,
+  #   params={
+  #     "reward_name": "foot_swing_height",
+  #     "weight_stages": [
+  #       {"step": 0, "weight": -0.25},
+  #       {"step": 5000 * 24, "weight": -0.27},
+  #       {"step": 10000 * 24, "weight": -0.35},
+  #       {"step": 20000 * 24, "weight": -0.37},
+  #     ],
+  #   },
+  # )
 
 
   ### END
