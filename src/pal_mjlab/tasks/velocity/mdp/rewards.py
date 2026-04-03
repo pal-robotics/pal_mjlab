@@ -505,45 +505,39 @@ def feet_air_time(
   threshold_max: float = 0.5,
   command_name: str | None = None,
   command_threshold: float = 0.5,
-  overshoot_decay: float = 2.0,
 ) -> torch.Tensor:
-  """Reward feet air time with penalty for exceeding threshold_max.
+  """Reward feet air time, evaluated once at the moment of landing.
 
-  For each foot:
-    - air_time < threshold_min: reward = 0
-    - threshold_min <= air_time <= threshold_max: reward = 1
-    - air_time > threshold_max: reward = -tanh(overshoot_decay * (air_time - threshold_max))
-      This smoothly decays from 0 toward -1 as air time exceeds the max,
-      providing a gradient to reduce excessively long flight phases.
+  At touchdown the last air time is compared against the desired window:
+    - last_air_time < threshold_min  -> negative (step too short)
+    - threshold_min <= t <= threshold_max -> positive, linear in t
+    - last_air_time > threshold_max  -> clamped at threshold_max value
+
+  Giving the reward only at first_contact (not continuously while in the air)
+  prevents the robot from earning reward by lifting feet without a command.
   """
   sensor: ContactSensor = env.scene[sensor_name]
   sensor_data = sensor.data
-  current_air_time = sensor_data.current_air_time
-  assert current_air_time is not None
 
-  # Per-foot reward components
-  in_range = (current_air_time >= threshold_min) & (current_air_time <= threshold_max)
-  over_max = current_air_time > threshold_max
-  overshoot = current_air_time - threshold_max
-  # Tanh penalty: starts at 0 when air_time == threshold_max, smoothly saturates at -1
-  over_max_penalty = -torch.tanh(overshoot_decay * overshoot) * over_max.float()
+  first_contact = sensor.compute_first_contact(dt=env.step_dt)  # [B, N] bool
+  last_air_time = sensor_data.last_air_time                      # [B, N]
 
-  per_foot_reward = in_range.float() + over_max_penalty
-  reward = torch.sum(per_foot_reward, dim=1)
+  # Clamp so very long flights don't receive extra credit
+  clamped = torch.clamp(last_air_time, 0.0, threshold_max)
+  # Linear: negative below threshold_min, positive above, zero at threshold_min
+  per_foot = (clamped - threshold_min) * first_contact.float()
+  reward = torch.sum(per_foot, dim=1)
 
-  in_air = current_air_time > 0
-  num_in_air = torch.sum(in_air.float())
-  mean_air_time = torch.sum(current_air_time * in_air.float()) / torch.clamp(
-    num_in_air, min=1
-  )
+  in_air = sensor_data.current_air_time > 0
+  num_in_air = torch.sum(in_air.float()).clamp(min=1)
+  mean_air_time = torch.sum(sensor_data.current_air_time * in_air.float()) / num_in_air
   env.extras["log"]["Metrics/air_time_mean"] = mean_air_time
+
   if command_name is not None:
     command = env.command_manager.get_command(command_name)
     if command is not None:
-      linear_norm = torch.norm(command[:, :2], dim=1)
-      angular_norm = torch.abs(command[:, 2])
-      total_command = linear_norm + angular_norm
-      scale = (total_command > command_threshold).float()
-      reward *= scale
+      total_command = torch.norm(command[:, :2], dim=1) + torch.abs(command[:, 2])
+      reward *= (total_command > command_threshold).float()
+
   return reward
 
