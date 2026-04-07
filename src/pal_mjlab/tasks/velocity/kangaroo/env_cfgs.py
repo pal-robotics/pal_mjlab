@@ -260,11 +260,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={
       "sensor_name": "feet_ground_contact",
       "threshold_min": 0.2,
-      "threshold_max": 1.0,
+      "threshold_max": 0.8,
       "command_name": "twist",
       "command_threshold": 0.05,
       "desired_air_time": 0.5,
-      "sigma": 0.2,
+      "sigma": 0.4,
     },
   )
   cfg.rewards["self_collisions"] = RewardTermCfg(
