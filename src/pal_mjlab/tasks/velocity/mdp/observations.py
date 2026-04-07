@@ -39,4 +39,5 @@ def imu_projected_gravity(
   # asset: Entity = env.scene[_DEFAULT_ASSET_CFG.name]
   # print(f"proj{asset.data.projected_gravity_b}")
   # Project to IMU frame (same as your C++ code)
-  return quat_apply_inverse(imu_quat, gravity_w)
+  projected = quat_apply_inverse(imu_quat, gravity_w)
+  return projected / projected.norm(dim=-1, keepdim=True)
