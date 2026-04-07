@@ -39,8 +39,8 @@ def imu_projected_gravity(
   # asset: Entity = env.scene[_DEFAULT_ASSET_CFG.name]
   # print(f"proj{asset.data.projected_gravity_b}")
   # Project to IMU frame (same as your C++ code)
-  return quat_apply_inverse(imu_quat, gravity_w)
-
+  projected = quat_apply_inverse(imu_quat, gravity_w)
+  return projected / projected.norm(dim=-1, keepdim=True)
 
 def phase(env: ManagerBasedRlEnv, period: float, command_name: str) -> torch.Tensor:
   global_phase = (env.episode_length_buf * env.step_dt) % period / period
