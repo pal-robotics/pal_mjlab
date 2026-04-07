@@ -4,7 +4,7 @@ from pathlib import Path
 
 import mujoco
 import torch
-from mjlab.actuator import BuiltinPositionActuatorCfg
+from mjlab.actuator import BuiltinPositionActuatorCfg, DelayedActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.spec_config import CollisionCfg
 from pal_mjlab import PAL_MJLAB_SRC_PATH
@@ -162,43 +162,88 @@ def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
 
 # Legs
 KANGAROO_LEG_ACTUATORS = (
-  BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_1_joint",), **_calc_leg_params(100.0, 80.0)
+  DelayedActuatorCfg(
+    base_cfg = BuiltinPositionActuatorCfg(
+      target_names_expr=("leg_.*_1_joint",), **_calc_leg_params(100.0, 80.0),
+      ),
+      delay_target="position",
+      delay_min_lag=0,
+      delay_max_lag=3,
   ),
-  BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_2_joint",), **_calc_leg_params(100.0, 230.0)
+  DelayedActuatorCfg(
+    base_cfg = BuiltinPositionActuatorCfg(
+      target_names_expr=("leg_.*_2_joint",), **_calc_leg_params(100.0, 230.0),
+        ),
+      delay_target="position",
+      delay_min_lag=0,
+      delay_max_lag=3,
   ),
-  BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_3_joint",), **_calc_leg_params(100.0, 139.0)
+  DelayedActuatorCfg(
+    base_cfg = BuiltinPositionActuatorCfg(
+      target_names_expr=("leg_.*_3_joint",), **_calc_leg_params(100.0, 139.0),
+      ),
+      delay_target="position",
+      delay_min_lag=0,
+      delay_max_lag=3,
   ),
-  BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_4_joint",), **_calc_leg_params(30.0, 140.0)
+  DelayedActuatorCfg(
+    base_cfg = BuiltinPositionActuatorCfg(
+      target_names_expr=("leg_.*_4_joint",), **_calc_leg_params(30.0, 140.0),
+      ),
+      delay_target="position",
+      delay_min_lag=0,
+      delay_max_lag=3,
   ),
-  BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_5_joint",), **_calc_leg_params(30.0, 82.0)
+  DelayedActuatorCfg(
+    base_cfg = BuiltinPositionActuatorCfg(
+      target_names_expr=("leg_.*_5_joint",), **_calc_leg_params(30.0, 82.0),
+      ),
+      delay_target="position",
+      delay_min_lag=0,
+      delay_max_lag=3,
   ),
-  BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_length_joint",), **_calc_leg_params(1600.0, 1100.0)
+  DelayedActuatorCfg(
+    base_cfg = BuiltinPositionActuatorCfg(
+      target_names_expr=("leg_.*_length_joint",), **_calc_leg_params(1600.0, 1100.0),
+      ),
+      delay_target="position",
+      delay_min_lag=0,
+      delay_max_lag=3,
   ),
 )
 
 # Arms & Torso
-KANGAROO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(
-    "arm_.*_1_joint",
-    "arm_.*_2_joint",
-    "pelvis_1_joint",
-    "pelvis_2_joint",
+KANGAROO_S_PLUS_ACTUATOR_CFG = DelayedActuatorCfg(
+  base_cfg=BuiltinPositionActuatorCfg(
+    target_names_expr=(
+      "arm_.*_1_joint",
+      "arm_.*_2_joint",
+      "pelvis_1_joint",
+      "pelvis_2_joint",
+    ),
+    **S_PLUS,
   ),
-  **S_PLUS,
+  delay_target="position",
+  delay_min_lag=0,
+  delay_max_lag=3,
 )
-KANGAROO_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
-  **S_MINUS,
+KANGAROO_S_MINUS_ACTUATOR_CFG = DelayedActuatorCfg(
+  base_cfg=BuiltinPositionActuatorCfg(
+    target_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
+    **S_MINUS,
+  ),
+  delay_target="position",
+  delay_min_lag=0,
+  delay_max_lag=3,
 )
-KANGAROO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
-  **XS,
+KANGAROO_XS_ACTUATOR_CFG = DelayedActuatorCfg(
+  base_cfg=BuiltinPositionActuatorCfg(
+    target_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
+    **XS,
+  ),
+  delay_target="position",
+  delay_min_lag=0,
+  delay_max_lag=3,
 )
 
 COMMON_ACTUATORS = KANGAROO_LEG_ACTUATORS + (
@@ -323,15 +368,16 @@ def _build_action_scales(
   """Build action scale dict and actuator names from articulation config."""
   scales, names = {}, []
   for a in articulation.actuators:
+    cfg = a.base_cfg if isinstance(a, DelayedActuatorCfg) else a
     e = (
-      a.effort_limit
-      if isinstance(a.effort_limit, dict)
-      else {n: a.effort_limit for n in a.target_names_expr}
+      cfg.effort_limit
+      if isinstance(cfg.effort_limit, dict)
+      else {n: cfg.effort_limit for n in a.target_names_expr}
     )
     s = (
-      a.stiffness
-      if isinstance(a.stiffness, dict)
-      else {n: a.stiffness for n in a.target_names_expr}
+      cfg.stiffness
+      if isinstance(cfg.stiffness, dict)
+      else {n: cfg.stiffness for n in a.target_names_expr}
     )
     for n in a.target_names_expr:
       if n in e and n in s and s[n] and n not in exclude:
