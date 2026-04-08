@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 # from mjlab.tests.test_runner import env
@@ -8,6 +9,7 @@ from mjlab.entity import Entity
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor.contact_sensor import ContactSensor
+from mjlab.utils.lab_api.math import quat_apply_inverse
 from mjlab.utils.lab_api.string import (
   resolve_matching_names_values,
 )
@@ -496,6 +498,48 @@ class sound_suppression:
 
     # return the squared sum of change in velocity along the projected gravity direction
     return cost
+  
+def penalize_inclined_base_tracking_velocities(
+    env: ManagerBasedRlEnv,
+    command_name: str,
+    asset_cfg: SceneEntityCfg,
+    command_threshold: float = 0.05,
+  )  -> torch.Tensor:
+    asset: Entity = env.scene[asset_cfg.name]
+
+    if asset_cfg.body_ids:
+      body_quat_w = asset.data.body_link_quat_w[:, asset_cfg.body_ids, :]  # [B, N, 4]
+      body_quat_w = body_quat_w.squeeze(1)  # [B, 4]
+    else:
+      body_quat_w = asset.data.root_link_quat_w  # [B, 4]
+
+    command = env.command_manager.get_command(command_name)
+    assert command is not None, f"Command '{command_name}' not found."
+    linear_norm = torch.norm(command[:, :2], dim=1)  # [B]
+    angular_norm = torch.abs(command[:, 2])           # [B]
+
+    # Per-sample mask: only penalize when a velocity command is active
+    cmd_active = ((linear_norm + angular_norm) > command_threshold).float()  # [B]
+
+    # Use actual base velocity magnitude as scale so penalty grows with real motion
+    actual_vel_b = asset.data.root_link_lin_vel_b  # [B, 3]
+    actual_lin_norm = torch.norm(actual_vel_b[:, :2], dim=1)  # [B], XY planar speed
+
+    # Project gravity (world -Z) into body frame to measure tilt
+    gravity_w = torch.zeros(body_quat_w.shape[0], 3, device=body_quat_w.device)
+    gravity_w[:, 2] = -1.0  # [B, 3] = (0, 0, -1)
+    gravity_b = quat_apply_inverse(body_quat_w, gravity_w)  # [B, 3]
+
+    # Tilt angle from upright: 0 when vertical, grows with inclination
+    # gravity_b[:, 2] = -1 when upright, so angle = arccos(-gravity_b_z)
+    tilt_angle = torch.acos((-gravity_b[:, 2]).clamp(-1.0, 1.0))  # [B], radians
+
+    # Dead zone < 10 deg, ramp linearly to max at 45 deg, clamp beyond
+    dead_zone = math.radians(10)
+    max_angle = math.radians(45)
+    tilt_penalty = ((tilt_angle - dead_zone) / (max_angle - dead_zone)).clamp(0.0, 1.0)  # [B]
+
+    return cmd_active * actual_lin_norm * tilt_penalty
 
 
 def feet_air_time(
