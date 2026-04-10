@@ -247,6 +247,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     r"arm_.*_4_.*": 0.35,
     r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
   }
+  cfg.rewards["pose"].params["walking_threshold"] = 0.01
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["foot_swing_height"].params["target_height"] = 0.07
@@ -255,16 +256,14 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["body_ang_vel"].weight = -0.05
   cfg.rewards["angular_momentum"].weight = -0.02
   cfg.rewards["air_time"] = RewardTermCfg(
-    func=mdp.feet_air_time_scaled,
-    weight=0.35,
+    func=mdp.feet_air_time,
+    weight=0.25,
     params={
       "sensor_name": "feet_ground_contact",
       "threshold_min": 0.2,
       "threshold_max": 0.8,
       "command_name": "twist",
-      "command_threshold": 0.05,
-      "desired_air_time": 0.5,
-      "sigma": 0.4,
+      "command_threshold": 0.01,
     },
   )
   cfg.rewards["self_collisions"] = RewardTermCfg(
@@ -322,6 +321,18 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_LEG_LENGTH_JOINTS_ONLY,)),
       "velocity_limits": {REGEX_LEG_LENGTH_JOINTS_ONLY: (-1.6, 1.6)},
+    },
+  )
+
+  cfg.rewards["feet_gait"] = RewardTermCfg(
+    func=mdp.feet_gait,
+    weight= 0.5,
+    params={
+      "period": 0.6,
+      "offset": [0.0, 0.5],
+      "sensor_name": "feet_ground_contact",
+      "threshold": 0.555,
+      "command_name": "twist",
     },
   )
 

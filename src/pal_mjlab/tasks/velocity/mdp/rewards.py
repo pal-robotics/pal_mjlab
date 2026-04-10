@@ -586,3 +586,33 @@ def feet_air_time_scaled(
       scale = (total_command > command_threshold).float().detach()
       reward *= scale
   return reward
+
+def feet_gait(
+    env: ManagerBasedRlEnv,
+    period: float,
+    offset: list[float],
+    sensor_name: str,
+    threshold: float = 0.5,
+    command_name=None,
+) -> torch.Tensor:
+    sensor: ContactSensor = env.scene[sensor_name]
+    sensor_data = sensor.data
+    is_contact = sensor_data.current_air_time > 0
+
+    global_phase = ((env.episode_length_buf * env.step_dt) % period / period).unsqueeze(1)
+    phases = []
+    for offset_ in offset:
+        phase = (global_phase + offset_) % 1.0
+        phases.append(phase)
+    leg_phase = torch.cat(phases, dim=-1)
+
+    reward = torch.zeros(env.num_envs, dtype=torch.float, device=env.device)
+    for i in range(is_contact.shape[1]):
+        is_stance = leg_phase[:, i] < threshold
+        reward += ~(is_stance ^ is_contact[:, i])
+
+    if command_name is not None:
+        cmd_norm = torch.norm(env.command_manager.get_command(command_name), dim=1)
+        reward *= cmd_norm > 0.1
+    return reward
+
