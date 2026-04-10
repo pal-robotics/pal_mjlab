@@ -130,8 +130,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     ranges=mdp.commands.PiecewiseVelocityCommandCfg.Ranges(
       lin_vel_x_ranges=[(-0.3, 0.0), (0.0, 0.3), (0.3, 0.5), (0.5, 0.8)],
       lin_vel_x_weights=[0.25, 0.4, 0.25, 0.1],
-      lin_vel_y_ranges=[(-0.8, -0.5), (-0.5, -0.2), (-0.2, 0.0), (0.0, 0.2), (0.2, 0.5), (0.5, 0.8)],
-      lin_vel_y_weights=[0.1, 0.15, 0.25, 0.25, 0.15, 0.1],
+      lin_vel_y_ranges=[(-0.5, -0.2), (-0.2, 0.0), (0.0, 0.2), (0.2, 0.5)],
+      lin_vel_y_weights=[0.3, 0.7, 0.7, 0.3],
       ang_vel_z_ranges=[(-0.4, -0.3), (-0.3, -0.15), (-0.15, 0.0), (0.0, 0.15), (0.15, 0.3), (0.3, 0.4)],
       ang_vel_z_weights=[0.1, 0.15, 0.25, 0.25, 0.15, 0.1],
       heading=(-math.pi, math.pi),
@@ -266,6 +266,12 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "command_threshold": 0.01,
     },
   )
+  cfg.rewards["body_lin_vel"] = RewardTermCfg(
+    func=mdp.body_linear_velocity_penalty,
+    weight= -0.05,
+    params={"asset_cfg": SceneEntityCfg("robot", body_names=("pelvis_2_link",))},
+  )
+
   cfg.rewards["self_collisions"] = RewardTermCfg(
     func=mdp.self_collision_cost,
     weight=-1.0,

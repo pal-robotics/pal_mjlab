@@ -616,3 +616,17 @@ def feet_gait(
         reward *= cmd_norm > 0.1
     return reward
 
+def body_linear_velocity_penalty(
+  env: ManagerBasedRlEnv,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Penalize excessive linear angular velocities."""
+  asset: Entity = env.scene[asset_cfg.name]
+  lin_vel = asset.data.body_link_lin_vel_w[:, asset_cfg.body_ids, :]
+  lin_vel = lin_vel.squeeze(1)
+  lin_vel_z = lin_vel[:, 2]  # Don't penalize xy-linear velocity.
+  return torch.square(lin_vel_z)
+
+
+
+
