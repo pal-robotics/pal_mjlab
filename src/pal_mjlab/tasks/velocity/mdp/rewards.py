@@ -552,41 +552,6 @@ def track_normalized_angular_velocity(
   weight = torch.exp(-((speed - target_speed) ** 2) / (2 * sigma**2))
   return weight * torch.exp(-error / std**2)
 
-def feet_air_time_scaled(
-  env: ManagerBasedRlEnv,
-  sensor_name: str,
-  threshold_min: float = 0.05,
-  threshold_max: float = 0.5,
-  command_name: str | None = None,
-  command_threshold: float = 0.5,
-  desired_air_time: float = 0.3,
-  sigma: float = 0.2,
-) -> torch.Tensor:
-  """Reward feet air time."""
-  sensor: ContactSensor = env.scene[sensor_name]
-  sensor_data = sensor.data
-  current_air_time = sensor_data.current_air_time
-  assert current_air_time is not None
-  air_time_error = torch.square(current_air_time - desired_air_time)
-  air_time_error = torch.mean(air_time_error, dim=1)
-  in_range = (current_air_time > threshold_min) & (current_air_time < threshold_max)
-  reward = torch.mean(in_range.float(), dim=1) * torch.exp(-air_time_error / (2 * sigma**2))
-  in_air = current_air_time > 0
-  num_in_air = torch.sum(in_air.float())
-  mean_air_time = torch.sum(current_air_time * in_air.float()) / torch.clamp(
-    num_in_air, min=1
-  )
-  env.extras["log"]["Metrics/air_time_mean"] = mean_air_time
-  if command_name is not None:
-    command = env.command_manager.get_command(command_name)
-    if command is not None:
-      linear_norm = torch.norm(command[:, :2], dim=1)
-      angular_norm = torch.abs(command[:, 2])
-      total_command = linear_norm + angular_norm
-      scale = (total_command > command_threshold).float().detach()
-      reward *= scale
-  return reward
-
 def feet_gait(
     env: ManagerBasedRlEnv,
     period: float,
