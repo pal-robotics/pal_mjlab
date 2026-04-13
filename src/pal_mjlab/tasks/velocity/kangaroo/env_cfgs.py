@@ -335,11 +335,12 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.feet_gait,
     weight= 0.5,
     params={
-      "period": 0.6,
+      "period": 0.8,
       "offset": [0.0, 0.5],
       "sensor_name": "feet_ground_contact",
       "threshold": 0.555,
       "command_name": "twist",
+      "command_threshold": 0.01,
     },
   )
 
