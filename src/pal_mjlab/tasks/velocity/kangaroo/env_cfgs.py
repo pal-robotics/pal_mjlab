@@ -472,16 +472,16 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # )
 
   # OBSERVATION LAG (sensor lag)
-  cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
-  cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 2
-  cfg.observations["actor"].terms["base_lin_acc"].delay_min_lag = 0
-  cfg.observations["actor"].terms["base_lin_acc"].delay_max_lag = 1
-  cfg.observations["actor"].terms["imu_projected_gravity"].delay_min_lag = 0
-  cfg.observations["actor"].terms["imu_projected_gravity"].delay_max_lag = 2
-  cfg.observations["actor"].terms["joint_pos"].delay_min_lag = 0
-  cfg.observations["actor"].terms["joint_pos"].delay_max_lag = 1
-  cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
-  cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
+  # cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 2
+  # cfg.observations["actor"].terms["base_lin_acc"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["base_lin_acc"].delay_max_lag = 1
+  # cfg.observations["actor"].terms["imu_projected_gravity"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["imu_projected_gravity"].delay_max_lag = 2
+  # cfg.observations["actor"].terms["joint_pos"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["joint_pos"].delay_max_lag = 1
+  # cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
+  # cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
 
   # OBSERVATION history (to better infer dynamics)
   # Only applied to the most important observations
@@ -633,18 +633,18 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
-  # cfg.curriculum["track_angular_velocity_params"] = CurriculumTermCfg(
-  #   func=mdp.reward_params,
-  #   params={
-  #     "reward_name": "track_angular_velocity",
-  #     "param_stages": [
-  #       {"step": 0, "params": {"std": math.sqrt(0.25)}},
-  #       {"step": 5000 * 24, "params": {"std": math.sqrt(0.2)}},
-  #       {"step": 10000 * 24, "params": {"std": math.sqrt(0.15)}},
-  #       {"step": 20000 * 24, "params": {"std": math.sqrt(0.1)}},
-  #     ],
-  #   },
-  # )
+  cfg.curriculum["track_angular_velocity_params"] = CurriculumTermCfg(
+    func=mdp.reward_params,
+    params={
+      "reward_name": "track_angular_velocity",
+      "param_stages": [
+        {"step": 0, "params": {"std": math.sqrt(0.25)}},
+        {"step": 5000 * 24, "params": {"std": math.sqrt(0.2)}},
+        {"step": 10000 * 24, "params": {"std": math.sqrt(0.15)}},
+        {"step": 20000 * 24, "params": {"std": math.sqrt(0.1)}},
+      ],
+    },
+  )
 
   # REWARDS CONFIG
 
