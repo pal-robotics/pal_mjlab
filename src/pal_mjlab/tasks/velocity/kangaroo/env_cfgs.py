@@ -496,19 +496,18 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     entity_name="robot",
     resampling_time_range=(3.0, 8.0),
     rel_standing_envs=0.1,
-    rel_heading_envs=0.3,
-    heading_command=True,
+    rel_heading_envs=0.0,
+    heading_command=False,
     heading_control_stiffness=0.5,
     debug_vis=True,
     ranges=UniformVelocityCommandCfg.Ranges(
       lin_vel_x=(-0.2, 0.2),
       lin_vel_y=(-0.0, 0.0),
       ang_vel_z=(-0.0, 0.0),
-      heading=(-math.pi, math.pi),
     ),
     progress_min_speed=0.1,
     include_standing_in_progress=False,
-    include_heading_in_progress=True,
+    include_heading_in_progress=False,
     allow_backward_progress=False,
     cap_step_progress_to_desired=True,
   )
@@ -534,12 +533,12 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     interval_range_s=(2.0, 6.0),
     params={
       "velocity_range": {
-        "x": (-0.10, 0.10),
-        "y": (-0.05, 0.05),
+        "x": (-0.06, 0.06),
+        "y": (-0.03, 0.03),
         "z": (0.0, 0.0),
         "roll": (0.0, 0.0),
         "pitch": (0.0, 0.0),
-        "yaw": (-0.10, 0.10),
+        "yaw": (-0.05, 0.05),
       }
     }
   )
@@ -605,17 +604,9 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "command_name": "twist",
       "velocity_stages": [
         {"step": 0, "lin_vel_x": (-0.2, 0.2)},
-        {"step": 5000 * 24, "lin_vel_x": (-0.25, 0.25), "ang_vel_z": (-0.15, 0.15)},
-        {
-          "step": 10000 * 24,
-          "lin_vel_x": (-0.4, 0.4),
-          "ang_vel_z": (-0.25, 0.25),
-        },
-        {
-          "step": 20000 * 24,
-          "lin_vel_x": (-0.6, 0.6),
-          "ang_vel_z": (-0.4, 0.4),
-        },
+        {"step": 5000 * 24, "lin_vel_x": (-0.25, 0.25)},
+        {"step": 10000 * 24, "lin_vel_x": (-0.4, 0.4)},
+        {"step": 20000 * 24, "lin_vel_x": (-0.6, 0.6)}
       ],
     },
   )
@@ -634,18 +625,18 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
-  cfg.curriculum["track_angular_velocity_params"] = CurriculumTermCfg(
-    func=mdp.reward_params,
-    params={
-      "reward_name": "track_angular_velocity",
-      "param_stages": [
-        {"step": 0, "params": {"std": math.sqrt(0.25)}},
-        {"step": 5000 * 24, "params": {"std": math.sqrt(0.2)}},
-        {"step": 10000 * 24, "params": {"std": math.sqrt(0.15)}},
-        {"step": 20000 * 24, "params": {"std": math.sqrt(0.1)}},
-      ],
-    },
-  )
+  # cfg.curriculum["track_angular_velocity_params"] = CurriculumTermCfg(
+  #   func=mdp.reward_params,
+  #   params={
+  #     "reward_name": "track_angular_velocity",
+  #     "param_stages": [
+  #       {"step": 0, "params": {"std": math.sqrt(0.25)}},
+  #       {"step": 5000 * 24, "params": {"std": math.sqrt(0.2)}},
+  #       {"step": 10000 * 24, "params": {"std": math.sqrt(0.15)}},
+  #       {"step": 20000 * 24, "params": {"std": math.sqrt(0.1)}},
+  #     ],
+  #   },
+  # )
 
   # REWARDS CONFIG
 
@@ -684,12 +675,12 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
           "step": 0,
           "params": {
             "velocity_range": {
-              "x": (-0.10, 0.10),
-              "y": (-0.05, 0.05),
+              "x": (-0.06, 0.06),
+              "y": (-0.03, 0.03),
               "z": (0.0, 0.0),
               "roll": (0.0, 0.0),
               "pitch": (0.0, 0.0),
-              "yaw": (-0.10, 0.10),
+              "yaw": (-0.05, 0.05),
             },
           },
         },
@@ -697,9 +688,12 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
           "step": 5000 * 24,
           "params": {
             "velocity_range": {
-              "x": (-0.18, 0.18),
-              "y": (-0.10, 0.10),
-              "yaw": (-0.15, 0.15),
+              "x": (-0.10, 0.10),
+              "y": (-0.05, 0.05),
+              "z": (0.0, 0.0),
+              "roll": (0.0, 0.0),
+              "pitch": (0.0, 0.0),
+              "yaw": (-0.08, 0.08),
             },
           },
         },
@@ -707,9 +701,12 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
           "step": 10000 * 24,
           "params": {
             "velocity_range": {
-              "x": (-0.28, 0.28),
-              "y": (-0.18, 0.18),
-              "yaw": (-0.25, 0.25),
+              "x": (-0.16, 0.16),
+              "y": (-0.07, 0.07),
+              "z": (0.0, 0.0),
+              "roll": (0.0, 0.0),
+              "pitch": (0.0, 0.0),
+              "yaw": (-0.12, 0.12),
             },
           },
         },
@@ -717,11 +714,12 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
           "step": 20000 * 24,
           "params": {
             "velocity_range": {
-              "x": (-0.40, 0.40),
-              "y": (-0.25, 0.25),
-              "yaw": (-0.40, 0.40),
-              "roll": (-0.15, 0.15),
-              "pitch": (-0.15, 0.15),
+              "x": (-0.24, 0.24),
+              "y": (-0.10, 0.10),
+              "z": (0.0, 0.0),
+              "roll": (0.0, 0.0),
+              "pitch": (0.0, 0.0),
+              "yaw": (-0.16, 0.16),
             },
           },
         },
