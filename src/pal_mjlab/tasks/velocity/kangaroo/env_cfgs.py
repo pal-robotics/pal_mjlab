@@ -472,16 +472,16 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # )
 
   # OBSERVATION LAG (sensor lag)
-  # cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
-  # cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 2
-  # cfg.observations["actor"].terms["base_lin_acc"].delay_min_lag = 0
-  # cfg.observations["actor"].terms["base_lin_acc"].delay_max_lag = 1
-  # cfg.observations["actor"].terms["imu_projected_gravity"].delay_min_lag = 0
-  # cfg.observations["actor"].terms["imu_projected_gravity"].delay_max_lag = 2
-  # cfg.observations["actor"].terms["joint_pos"].delay_min_lag = 0
-  # cfg.observations["actor"].terms["joint_pos"].delay_max_lag = 1
-  # cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
-  # cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
+  cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
+  cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 2
+  cfg.observations["actor"].terms["base_lin_acc"].delay_min_lag = 0
+  cfg.observations["actor"].terms["base_lin_acc"].delay_max_lag = 1
+  cfg.observations["actor"].terms["imu_projected_gravity"].delay_min_lag = 0
+  cfg.observations["actor"].terms["imu_projected_gravity"].delay_max_lag = 2
+  cfg.observations["actor"].terms["joint_pos"].delay_min_lag = 0
+  cfg.observations["actor"].terms["joint_pos"].delay_max_lag = 1
+  cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
+  cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
 
   # OBSERVATION history (to better infer dynamics)
   # Only applied to the most important observations
@@ -647,6 +647,9 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
 
   # REWARDS CONFIG
+
+  # Simplify as per https://arxiv.org/html/2404.19173v2
+  cfg.rewards["pose"].weight = 0.1  # Far weaker
 
   # cfg.curriculum["track_linear_velocity_weight"] = CurriculumTermCfg(
   #   func=mdp.reward_weight,
