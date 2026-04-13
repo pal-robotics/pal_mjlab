@@ -633,23 +633,26 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
-  cfg.curriculum["track_angular_velocity_params"] = CurriculumTermCfg(
-    func=mdp.reward_params,
-    params={
-      "reward_name": "track_angular_velocity",
-      "param_stages": [
-        {"step": 0, "params": {"std": math.sqrt(0.25)}},
-        {"step": 5000 * 24, "params": {"std": math.sqrt(0.2)}},
-        {"step": 10000 * 24, "params": {"std": math.sqrt(0.15)}},
-        {"step": 20000 * 24, "params": {"std": math.sqrt(0.1)}},
-      ],
-    },
-  )
+  # cfg.curriculum["track_angular_velocity_params"] = CurriculumTermCfg(
+  #   func=mdp.reward_params,
+  #   params={
+  #     "reward_name": "track_angular_velocity",
+  #     "param_stages": [
+  #       {"step": 0, "params": {"std": math.sqrt(0.25)}},
+  #       {"step": 5000 * 24, "params": {"std": math.sqrt(0.2)}},
+  #       {"step": 10000 * 24, "params": {"std": math.sqrt(0.15)}},
+  #       {"step": 20000 * 24, "params": {"std": math.sqrt(0.1)}},
+  #     ],
+  #   },
+  # )
 
   # REWARDS CONFIG
 
   # Simplify as per https://arxiv.org/html/2404.19173v2
   cfg.rewards["pose"].weight = 0.1  # Far weaker
+  del cfg.rewards["foot_clearance"]
+  del cfg.rewards["foot_swing_height"]
+  del cfg.rewards["track_angular_velocity"]  # Penalizing angular velocity is enough
 
   # cfg.curriculum["track_linear_velocity_weight"] = CurriculumTermCfg(
   #   func=mdp.reward_weight,
@@ -746,7 +749,7 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.ranges.lin_vel_x = (-0.6, 0.6)
-    twist_cmd.ranges.ang_vel_z = (-0.4, 0.4)
+    # twist_cmd.ranges.ang_vel_z = (-0.4, 0.4)
 
     if cfg.scene.terrain is not None:
       if cfg.scene.terrain.terrain_generator is not None:
