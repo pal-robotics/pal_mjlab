@@ -115,11 +115,15 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={"sensor_name": "robot/imu_quat"},
     noise=Unoise(n_min=-0.05, n_max=0.05),
   )
+  # The RMS error in acceleration should be about RMS Noise=100 ug/sqrt(Hz)​
+  # We have a bandwidth of 400 Hz, so RMS noise is about 100 * sqrt(400) = 2000 ug = 2mg = 0.002 * 9.81 m/s² = 0.01962 m/s²
+  # We set the uniform noise to be within +/- 0.15 m/s² to account for higher frequency components.
   cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
     params={"sensor_name": "robot/imu_lin_acc"},
-    noise=Unoise(n_min=-0.5, n_max=0.5),
+    noise=Unoise(n_min=-0.15, n_max=0.15),
   )
+  cfg.observations["actor"].terms["base_ang_vel"].noise = Unoise(n_min=-0.05, n_max=0.05)
   cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
