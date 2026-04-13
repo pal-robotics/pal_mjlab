@@ -483,6 +483,14 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
   cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
 
+  # OBSERVATION history (to better infer dynamics)
+  # Only applied to the most important observations
+  cfg.observations["actor"].terms["base_ang_vel"].history_length = 3
+  cfg.observations["actor"].terms["base_lin_acc"].history_length = 3
+  cfg.observations["actor"].terms["imu_projected_gravity"].history_length = 3
+  cfg.observations["actor"].terms["joint_pos"].history_length = 3
+  cfg.observations["actor"].terms["joint_vel"].history_length = 3
+
   ### COMMANDS
 
   # Start with a small forward-only cmd range
