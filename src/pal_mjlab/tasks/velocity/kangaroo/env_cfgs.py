@@ -265,7 +265,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
   cfg.rewards["body_lin_vel"] = RewardTermCfg(
     func=mdp.body_linear_velocity_penalty,
-    weight= -0.05,
+    weight= -0.1,
     params={"asset_cfg": SceneEntityCfg("robot", body_names=("pelvis_2_link",))},
   )
 
