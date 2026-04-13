@@ -289,6 +289,12 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     ),
   }
 
+  # Penalize terminations
+  cfg.rewards["termination_penalization"] = RewardTermCfg(
+    func=is_terminated,
+    weight=0.0,
+  )
+
   # # All except leg length joints
   # cfg.rewards["joint_accel"] = RewardTermCfg(
   #     func=mdp.joint_acc_l2,
@@ -307,6 +313,17 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   #           ],
   #   },
   # )
+
+  cfg.curriculum["termination_penalization_weight"] = CurriculumTermCfg(
+    func=mdp.reward_weight,
+    params={
+      "reward_name": "termination_penalization",
+      "weight_stages": [
+        {"step": 0, "weight": 0.0},
+        {"step": 2000 * 24, "weight": -100.0},
+      ],
+    },
+  )
 
   cfg.curriculum["command_vel"] = CurriculumTermCfg(
     func=mdp.commands_vel,
