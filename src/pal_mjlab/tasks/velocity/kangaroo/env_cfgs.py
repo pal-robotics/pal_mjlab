@@ -165,6 +165,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={"sensor_name": "robot/imu_lin_acc"},
     noise=Unoise(n_min=-0.075, n_max=0.075),
   )
+  # cfg.observations["actor"].terms["base_ang_vel"].scale = 0.2
+  # cfg.observations["critic"].terms["base_ang_vel"].scale = 0.2
+  # cfg.observations["actor"].terms["joint_vel"].scale = 0.05
+  # cfg.observations["critic"].terms["joint_vel"].scale = 0.05
   cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
@@ -177,8 +181,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### Disabling the use of history length as we haven't seen much improvements with it
   ### Moreover, our best policy #62 doesn't use any history length
-  # cfg.observations["actor"].history_length = 5  # Keep last 5 frames
-  # cfg.observations["critic"].history_length = 5  # Keep last 5 frames
+  cfg.observations["actor"].history_length = 5  # Keep last 5 frames
+  cfg.observations["critic"].history_length = 5  # Keep last 5 frames
 
   # -- Events
 
