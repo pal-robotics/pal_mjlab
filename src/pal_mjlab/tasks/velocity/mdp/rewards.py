@@ -539,7 +539,7 @@ def penalize_inclined_base_tracking_velocities(
     max_angle = math.radians(45)
     tilt_penalty = ((tilt_angle - dead_zone) / (max_angle - dead_zone)).clamp(0.0, 1.0)  # [B]
 
-    return cmd_active * actual_lin_norm * tilt_penalty
+    return cmd_active * tilt_penalty
 
 
 def feet_air_time(
