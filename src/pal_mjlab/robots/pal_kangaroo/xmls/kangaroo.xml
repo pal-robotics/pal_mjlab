@@ -51,17 +51,17 @@
 
   <worldbody>
     <body name="base_link" pos="0 0 0.9" childclass="kangaroo">
-      <inertial pos="-0.0913441 -0.0013598 0.00676412" quat="0.5 0.5 -0.5 0.5" mass="7.038" diaginertia="0.0600103 0.0509711 0.0269078" />
+      <inertial pos="-0.109992 -0.00005 -0.016543" quat="0.5 0.5 -0.5 0.5" mass="5.2275" diaginertia="0.03749 0.024529 0.052276" />
       <joint name="origin" type="free" />
       <geom class="visual" mesh="base_link_with_pelvis" />
       <geom class="visual" mesh="handle" />
       <geom pos="-0.0918 0 -0.0455" quat="1 0 0 0" class="visual" mesh="pelvis_base_link" />
       <body name="pelvis_1_link" pos="-0.0918 0 0.0065" quat="0.707105 0 0.707108 0">
-        <inertial pos="-0.02593 -1e-06 0.001466" quat="0.99984 0 -0.0179004 0" mass="0.533" diaginertia="0.00539676 0.004808 0.00324424" />
+        <inertial pos="-0.019996 -2e-06 0.003623" quat="0.99984 0 -0.0179004 0" mass="1.6106" diaginertia="0.006767 0.006367 0.003838" />
         <joint name="pelvis_1_joint" axis="0 0 -1" range="-0.349066 0.349066" />
         <geom class="visual" mesh="pelvis_1_link" />
         <body name="pelvis_2_link" pos="-0.0591 0 0" quat="0.707105 0 -0.707108 0">
-          <inertial pos="-0.0096298 -0.000857135 0.220739" quat="0.999875 0.0105643 0.00161433 -0.0116448" mass="14.664" diaginertia="0.312791 0.291456 0.113386" />
+          <inertial pos="-0.009089 0.001579 0.230178" quat="0.999875 0.0105643 0.00161433 -0.0116448" mass="15.1027" diaginertia="0.341751 0.310401 0.128932" />
           <joint name="pelvis_2_joint" axis="0 0 -1" range="-1.309 1.309" />
           <geom class="visual" mesh="pelvis_2_link" />
           <geom pos="0 0 0.0061" quat="1 0 0 0" class="visual" mesh="torso_link" />
