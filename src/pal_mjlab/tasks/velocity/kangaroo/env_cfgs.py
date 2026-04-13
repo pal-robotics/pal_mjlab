@@ -267,16 +267,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
-  cfg.rewards["penalize_inclined_base_tracking_velocities"] = RewardTermCfg(
-    func=mdp.penalize_inclined_base_tracking_velocities,
-    weight=-5.0,
-    params={
-      "asset_cfg": SceneEntityCfg("robot", body_names=("pelvis_2_link",)),
-      "command_threshold": 0.05,
-      "command_name": "twist",
-    }
-  )
-
   ## Metrics
   cfg.metrics = {
     "joint_vel_mag": MetricsTermCfg(
