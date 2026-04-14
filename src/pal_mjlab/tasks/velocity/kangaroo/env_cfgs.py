@@ -174,13 +174,14 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
   cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
+  cfg.rewards["pose"].params["walking_threshold"] = 0.02
   cfg.rewards["pose"].params["std_walking"] = {
     # Lower body.
     r"leg_.*_1_.*": 0.15,
-    r"leg_.*_2_.*": 0.3,  # pitch
+    r"leg_.*_2_.*": 0.4,  # pitch
     r"leg_.*_3_.*": 0.15,
     r"leg_.*_length_.*": 0.1,  # length
-    r"leg_.*_4_.*": 0.25,
+    r"leg_.*_4_.*": 0.27,
     r"leg_.*_5_.*": 0.1,
     # Waist.
     r"pelvis_1.*": 0.08,
