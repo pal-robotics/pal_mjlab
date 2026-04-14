@@ -258,11 +258,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["angular_momentum"].weight = -0.02
   cfg.rewards["air_time"] = RewardTermCfg(
     func=mdp.feet_air_time,
-    weight=0.25,
+    weight=0.5,
     params={
       "sensor_name": "feet_ground_contact",
       "threshold_min": 0.3,
-      "threshold_max": 0.9,
+      "threshold_max": 0.5,
       "command_name": "twist",
       "command_threshold": 0.01,
     },
@@ -341,7 +341,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.feet_gait,
     weight= 0.5,
     params={
-      "period": 0.7,
+      "period": 0.8,
       "offset": [0.0, 0.5],
       "sensor_name": "feet_ground_contact",
       "threshold": 0.55,
