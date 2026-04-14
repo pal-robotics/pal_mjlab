@@ -278,19 +278,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     weight=-1.0,
     params={"sensor_name": self_collision_cfg.name},
   )
-  cfg.rewards["track_linear_velocity"] = None
-  cfg.rewards["track_angular_velocity"] = None
-  cfg.rewards["track_normalized_linear_velocity"] = RewardTermCfg(
-    func=mdp.track_normalized_linear_velocity,
-    weight=2.0,
-    params={"command_name": "twist", "std": math.sqrt(0.25)},
-  )
-  cfg.rewards["track_normalized_angular_velocity"] = RewardTermCfg(
-    func=mdp.track_normalized_angular_velocity,
-    weight=2.0,
-    params={"command_name": "twist", "std": math.sqrt(0.5)},
-  )
-
+  
   # The hull points should correspond to the respective joints defined in the joint_names_group order
   # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
   cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
