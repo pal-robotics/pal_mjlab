@@ -4,6 +4,7 @@ import math
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
+from mjlab.envs.mdp.rewards import is_terminated
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import MetricsTermCfg
 from mjlab.managers.curriculum_manager import CurriculumTermCfg
