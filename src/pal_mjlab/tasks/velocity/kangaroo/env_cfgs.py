@@ -68,11 +68,14 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     num_slots=1,
     track_air_time=True,
   )
+  REGEX_FEMUR_AND_KNEE_LINK_WITH_ARM_4_LINKS = (
+    r"^(leg_left_femur_link|leg_right_femur_link|leg_left_knee_link|leg_right_knee_link|arm_left_4_link|arm_right_4_link)$"
+  )
   body_ground_cfg = ContactSensorCfg(
     name="body_ground_contact",
     primary=ContactMatch(
       mode="body",
-      pattern=REGEX_FEMUR_AND_KNEE_LINKS,
+      pattern=REGEX_FEMUR_AND_KNEE_LINK_WITH_ARM_4_LINKS,
       entity="robot",
     ),
     secondary=ContactMatch(mode="body", pattern="terrain"),
