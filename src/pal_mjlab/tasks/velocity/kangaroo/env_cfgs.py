@@ -128,11 +128,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     heading_control_stiffness=0.5,
     debug_vis=True,
     ranges=mdp.commands.PiecewiseVelocityCommandCfg.Ranges(
-      lin_vel_x_ranges=[(-0.3, 0.0), (0.0, 0.3), (0.3, 0.5), (0.5, 0.8)],
-      lin_vel_x_weights=[0.25, 0.4, 0.25, 0.1],
-      lin_vel_y_ranges=[(-0.5, -0.2), (-0.2, 0.0), (0.0, 0.2), (0.2, 0.5)],
-      lin_vel_y_weights=[0.3, 0.7, 0.7, 0.3],
-      ang_vel_z_ranges=[(-0.4, -0.3), (-0.3, -0.15), (-0.15, 0.0), (0.0, 0.15), (0.15, 0.3), (0.3, 0.4)],
+      lin_vel_x_ranges=[(-0.5, -0.3), (-0.3, 0.0), (0.0, 0.3), (0.3, 0.6), (0.6, 1.0)],
+      lin_vel_x_weights=[0.15, 0.2, 0.25, 0.25, 0.15],
+      lin_vel_y_ranges=[(-0.4, -0.2), (-0.2, 0.0), (0.0, 0.2), (0.2, 0.4)],
+      lin_vel_y_weights=[0.4, 0.6, 0.6, 0.4],
+      ang_vel_z_ranges=[(-0.5, -0.3), (-0.3, -0.15), (-0.15, 0.0), (0.0, 0.15), (0.15, 0.3), (0.3, 0.5)],
       ang_vel_z_weights=[0.1, 0.15, 0.25, 0.25, 0.15, 0.1],
       heading=(-math.pi, math.pi),
     ),
@@ -181,8 +181,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### Disabling the use of history length as we haven't seen much improvements with it
   ### Moreover, our best policy #62 doesn't use any history length
-  cfg.observations["actor"].history_length = 5  # Keep last 5 frames
-  cfg.observations["critic"].history_length = 5  # Keep last 5 frames
+  # cfg.observations["actor"].history_length = 5  # Keep last 5 frames
+  # cfg.observations["critic"].history_length = 5  # Keep last 5 frames
 
   # -- Events
 
@@ -251,7 +251,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["pose"].params["walking_threshold"] = 0.01
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-  cfg.rewards["foot_swing_height"].params["target_height"] = 0.07
+  cfg.rewards["foot_swing_height"].params["target_height"] = 0.08
   for reward_name in ["foot_clearance", "foot_swing_height", "foot_slip"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
   cfg.rewards["body_ang_vel"].weight = -0.05
@@ -261,15 +261,15 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     weight=0.25,
     params={
       "sensor_name": "feet_ground_contact",
-      "threshold_min": 0.2,
-      "threshold_max": 0.8,
+      "threshold_min": 0.3,
+      "threshold_max": 0.9,
       "command_name": "twist",
       "command_threshold": 0.01,
     },
   )
   cfg.rewards["body_lin_vel"] = RewardTermCfg(
     func=mdp.body_linear_velocity_penalty,
-    weight= -0.1,
+    weight= -2.0,
     params={"asset_cfg": SceneEntityCfg("robot", body_names=("pelvis_2_link",))},
   )
 
@@ -277,18 +277,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.self_collision_cost,
     weight=-1.0,
     params={"sensor_name": self_collision_cfg.name},
-  )
-  cfg.rewards["track_linear_velocity"] = None
-  cfg.rewards["track_angular_velocity"] = None
-  cfg.rewards["track_normalized_linear_velocity"] = RewardTermCfg(
-    func=mdp.track_normalized_linear_velocity,
-    weight=2.0,
-    params={"command_name": "twist", "std": math.sqrt(0.25)},
-  )
-  cfg.rewards["track_normalized_angular_velocity"] = RewardTermCfg(
-    func=mdp.track_normalized_angular_velocity,
-    weight=2.0,
-    params={"command_name": "twist", "std": math.sqrt(0.5)},
   )
 
   # The hull points should correspond to the respective joints defined in the joint_names_group order
@@ -322,12 +310,18 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "hull_points": ANKLE_XY_CONVEX_HULL_POINTS,
     },
   )
+
+  REGEX_ALL_ACTUATED_JOINTS_EXCEPT_HIP_Z = r"^(?!leg_.*_femur_joint$|leg_.*_knee_joint$|leg_.*_1_joint$).*$"
   cfg.rewards["joint_vel_limits"] = RewardTermCfg(
     func=mdp.joint_vel_limits,
     weight=-10.0,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_LEG_LENGTH_JOINTS_ONLY,)),
-      "velocity_limits": {REGEX_LEG_LENGTH_JOINTS_ONLY: (-1.6, 1.6)},
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_ALL_ACTUATED_JOINTS_EXCEPT_HIP_Z)),
+      "velocity_limits": {REGEX_LEG_LENGTH_JOINTS_ONLY: (-1.6, 1.6),
+                          r"leg_.*_4_joint": (-3.5, 3.5),
+                          r"leg_.*_5_joint": (-3.5, 3.5),
+                          r"leg_.*_2_joint": (-3.5, 3.5),
+                          r"leg_.*_3_joint": (-3.5, 3.5)},
     },
   )
 
@@ -335,10 +329,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.feet_gait,
     weight= 0.5,
     params={
-      "period": 0.8,
+      "period": 0.7,
       "offset": [0.0, 0.5],
       "sensor_name": "feet_ground_contact",
-      "threshold": 0.555,
+      "threshold": 0.55,
       "command_name": "twist",
       "command_threshold": 0.01,
     },

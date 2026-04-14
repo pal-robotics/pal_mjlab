@@ -390,16 +390,18 @@ class joint_vel_limits:
 
   def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
     asset: Entity = env.scene[cfg.params["asset_cfg"].name]
-    _, resolved_names = asset.find_joints(
+    joint_ids, resolved_names = asset.find_joints(
       cfg.params["asset_cfg"].joint_names,
     )
 
-    _, _, limits = resolve_matching_names_values(
+    indices, _, limits = resolve_matching_names_values(
       data=cfg.params["velocity_limits"],
       list_of_strings=resolved_names,
     )
     limits = torch.tensor(limits, device=env.device, dtype=torch.float32)
     self._soft_vel_limits = 0.9 * limits
+    # Only the joints that have velocity limits defined.
+    self._joint_ids = [joint_ids[i] for i in indices]
 
   def __call__(
     self,
@@ -409,7 +411,7 @@ class joint_vel_limits:
   ) -> torch.Tensor:
     del velocity_limits  # Resolved in __init__.
     asset: Entity = env.scene[asset_cfg.name]
-    joint_vel = asset.data.joint_vel[:, asset_cfg.joint_ids]
+    joint_vel = asset.data.joint_vel[:, self._joint_ids]
 
     out_of_limits = -(joint_vel - self._soft_vel_limits[:, 0]).clip(max=0.0)
     out_of_limits += (joint_vel - self._soft_vel_limits[:, 1]).clip(min=0.0)
@@ -559,6 +561,7 @@ def feet_gait(
     sensor_name: str,
     threshold: float = 0.5,
     command_name=None,
+    command_threshold: float = 0.1,
 ) -> torch.Tensor:
     sensor: ContactSensor = env.scene[sensor_name]
     sensor_data = sensor.data
@@ -578,7 +581,7 @@ def feet_gait(
 
     if command_name is not None:
         cmd_norm = torch.norm(env.command_manager.get_command(command_name), dim=1)
-        reward *= cmd_norm > 0.1
+        reward *= cmd_norm > command_threshold
     return reward
 
 def body_linear_velocity_penalty(
@@ -587,10 +590,7 @@ def body_linear_velocity_penalty(
 ) -> torch.Tensor:
   """Penalize excessive linear angular velocities."""
   asset: Entity = env.scene[asset_cfg.name]
-  lin_vel = asset.data.body_link_lin_vel_w[:, asset_cfg.body_ids, :]
-  lin_vel = lin_vel.squeeze(1)
-  lin_vel_z = lin_vel[:, 2]  # Don't penalize xy-linear velocity.
-  return torch.square(lin_vel_z)
+  return torch.square(asset.data.root_link_lin_vel_b[:,2])
 
 
 
