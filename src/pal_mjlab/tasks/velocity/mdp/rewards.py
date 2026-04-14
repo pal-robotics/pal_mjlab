@@ -502,15 +502,19 @@ def track_normalized_linear_velocity(
   env: ManagerBasedRlEnv,
   std: float,
   command_name: str,
-  target_speed: float = 0.2,
+  target_speed_x: float = 0.3,
+  target_speed_y: float = 0.15,
   eps: float = 0.05,
-  sigma: float = 0.2,
+  sigma_x: float = 0.5,
+  sigma_y: float = 0.5,
   abs_rel_weight: float = 0.5,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
   """Reward for tracking the commanded base linear velocity.
 
   The commanded z velocity is assumed to be zero.
+  Separate Gaussian weights are applied per axis using target_speed_x/sigma_x
+  and target_speed_y/sigma_y.
   """
   asset: Entity = env.scene[asset_cfg.name]
   command = env.command_manager.get_command(command_name)
@@ -522,8 +526,11 @@ def track_normalized_linear_velocity(
   abs_error = torch.square(vel_error)
   z_error = torch.abs(actual[:, 2])
   error = abs_rel_weight * torch.sum(rel_error, dim=1) + (1 - abs_rel_weight) * torch.sum(abs_error, dim=1) + z_error
-  speed = torch.norm(command[:, :2], dim=1)
-  weight = torch.exp(-((speed - target_speed) ** 2) / (2 * sigma**2))
+  speed_x = torch.abs(command[:, 0])
+  speed_y = torch.abs(command[:, 1])
+  weight_x = torch.exp(-((speed_x - target_speed_x) ** 2) / (2 * sigma_x**2))
+  weight_y = torch.exp(-((speed_y - target_speed_y) ** 2) / (2 * sigma_y**2))
+  weight = weight_x + weight_y
   return weight * torch.exp(-error / std**2)
 
 def track_normalized_angular_velocity(
@@ -532,7 +539,7 @@ def track_normalized_angular_velocity(
   command_name: str,
   target_speed: float = 0.1,
   eps: float = 0.05,
-  sigma: float = 0.2,
+  sigma: float = 0.5,
   abs_rel_weight: float = 0.5,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
