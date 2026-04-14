@@ -251,7 +251,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["pose"].params["walking_threshold"] = 0.01
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-  cfg.rewards["foot_swing_height"].params["target_height"] = 0.08
+  cfg.rewards["foot_swing_height"].params["target_height"] = 0.1
   for reward_name in ["foot_clearance", "foot_swing_height", "foot_slip"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
   cfg.rewards["body_ang_vel"].weight = -0.05
@@ -336,6 +336,12 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "command_name": "twist",
       "command_threshold": 0.01,
     },
+  )
+
+  cfg.rewards["contact_switch_penalty"] = RewardTermCfg(
+    func=mdp.contact_switch_penalty,
+    weight=-0.1,
+    params={"sensor_name": "feet_ground_contact"},
   )
 
   cfg.rewards["is_alive"] = RewardTermCfg(

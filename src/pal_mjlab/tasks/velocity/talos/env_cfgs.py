@@ -165,6 +165,12 @@ def pal_talos_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["angular_momentum"].weight = -0.02
   cfg.rewards["air_time"].weight = 0.0
 
+  cfg.rewards["contact_switch_penalty"] = RewardTermCfg(
+    func=mdp.contact_switch_penalty,
+    weight=-0.1,
+    params={"sensor_name": "feet_ground_contact"},
+  )
+
   cfg.rewards["self_collisions"] = RewardTermCfg(
     func=mdp.self_collision_cost,
     weight=-1.0,

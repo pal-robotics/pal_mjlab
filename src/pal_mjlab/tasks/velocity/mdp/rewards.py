@@ -599,6 +599,42 @@ def body_linear_velocity_penalty(
   asset: Entity = env.scene[asset_cfg.name]
   return torch.square(asset.data.root_link_lin_vel_b[:,2])
 
+def contact_switch_penalty(
+    env: ManagerBasedRLEnv,
+    sensor_name: str,
+    min_switch_interval: float = 0.1,  # seconds
+) -> torch.Tensor:
+    """Penalize rapid contact switching — only switches that occur within
+    min_switch_interval seconds of the previous switch are penalized."""
+    contact_sensor: ContactSensor = env.scene[sensor_name]
 
+    forces = contact_sensor.data.force  # [B, N, 3]
+    current = (torch.norm(forces, dim=-1) > 1.0).float()  # [B, N]
 
+    prev = env.extras.get("prev_contact", torch.zeros_like(current))
+    # Initialise to min_switch_interval so the very first switch is never penalized
+    time_since_switch = env.extras.get(
+        "contact_switch_time", torch.full_like(current, min_switch_interval)
+    )
 
+    # Zero out state for environments that just started a new episode
+    reset_ids = (env.episode_length_buf == 1).nonzero(as_tuple=False).flatten()
+    if reset_ids.numel() > 0:
+        prev[reset_ids] = 0.0
+        time_since_switch[reset_ids] = min_switch_interval
+
+    switched = current != prev  # [B, N]
+    rapid_switch = switched & (time_since_switch < min_switch_interval)
+    penalty = torch.sum(rapid_switch.float(), dim=1)
+
+    # Reset timer on switch, otherwise accumulate
+    time_since_switch = torch.where(
+        switched,
+        torch.zeros_like(time_since_switch),
+        time_since_switch + env.step_dt,
+    )
+
+    env.extras["prev_contact"] = current.clone()
+    env.extras["contact_switch_time"] = time_since_switch
+
+    return penalty
