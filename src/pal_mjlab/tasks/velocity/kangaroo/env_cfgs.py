@@ -536,8 +536,8 @@ def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.ranges.lin_vel_x = (-0.8, 0.8)
-    twist_cmd.ranges.lin_vel_y = (-0.01, 0.01)
-    twist_cmd.ranges.ang_vel_z = (-0.04, 0.04)
+    twist_cmd.ranges.lin_vel_y = (-0.1, 0.1)
+    twist_cmd.ranges.ang_vel_z = (-0.4, 0.4)
 
   return cfg
 
