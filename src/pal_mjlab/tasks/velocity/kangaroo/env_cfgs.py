@@ -278,7 +278,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     weight=-1.0,
     params={"sensor_name": self_collision_cfg.name},
   )
-  
+
   # The hull points should correspond to the respective joints defined in the joint_names_group order
   # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
   cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
@@ -337,6 +337,13 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "command_threshold": 0.01,
     },
   )
+
+  cfg.rewards["is_alive"] = RewardTermCfg(
+    func=mdp.is_alive,
+    weight=0.15,
+  )
+
+  cfg.rewards["foot_slip"].params["command_threshold"] = 0.01
 
   ## Metrics
   cfg.metrics = {
