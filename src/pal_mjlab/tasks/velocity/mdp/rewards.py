@@ -534,10 +534,11 @@ def penalize_inclined_base_tracking_velocities(
     # gravity_b[:, 2] = -1 when upright, so angle = arccos(-gravity_b_z)
     tilt_angle = torch.acos((-gravity_b[:, 2]).clamp(-1.0, 1.0))  # [B], radians
 
-    # Dead zone < 10 deg, ramp linearly to max at 45 deg, clamp beyond
+    # Dead zone < 10 deg, ramp exponentially to max at 45 deg, clamp beyond
     dead_zone = math.radians(10)
     max_angle = math.radians(45)
-    tilt_penalty = ((tilt_angle - dead_zone) / (max_angle - dead_zone)).clamp(0.0, 1.0)  # [B]
+    linear = ((tilt_angle - dead_zone) / (max_angle - dead_zone)).clamp(0.0, 1.0)  # [B]
+    tilt_penalty = (torch.exp(linear) - 1.0) / (math.e - 1.0)  # [B], exponential in [0, 1]
 
     return cmd_active * tilt_penalty
 
