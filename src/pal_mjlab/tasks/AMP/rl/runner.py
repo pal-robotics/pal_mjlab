@@ -15,7 +15,7 @@ from mjlab.rl.exporter_utils import (
   get_base_metadata,
 )
 from mjlab.rl.runner import MjlabOnPolicyRunner
-from mjlab.tasks.AMP.rl.networks import Discriminator, DiscriminatorCfg
+from pal_mjlab.tasks.AMP.rl.networks import Discriminator, DiscriminatorCfg
 from mjlab.utils.spaces import Dict as DictSpace
 
 ##

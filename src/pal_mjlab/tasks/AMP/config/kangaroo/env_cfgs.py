@@ -1,7 +1,20 @@
 """Kangaroo amp environment configurations."""
 
+
 from pal_mjlab.robots import (
+  ANKLE_XY_CONVEX_HULL_POINTS,
+  HIP_XY_CONVEX_HULL_POINTS,
   KANGAROO_ACTION_SCALE,
+  KANGAROO_ACTUATOR_NAMES,
+  KANGAROO_GRIPPERS_ACTION_SCALE,
+  KANGAROO_GRIPPERS_ACTUATOR_NAMES,
+  KANGAROO_HANDS_ACTION_SCALE,
+  KANGAROO_HANDS_ACTUATOR_NAMES,
+  REGEX_ALL_ACTUATED_JOINTS,
+  REGEX_FEMUR_AND_KNEE_LINKS,
+  REGEX_LEG_LENGTH_JOINTS_ONLY,
+  get_kangaroo_grippers_robot_cfg,
+  get_kangaroo_hands_robot_cfg,
   get_kangaroo_robot_cfg,
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
@@ -40,14 +53,17 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   site_names = ("left_foot", "right_foot")
   geom_names = tuple(
-    f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(1, 8)
+    f"{side}_foot{i}_collision"
+    for side in ("left", "right")
+    for i in [0, 2, 4, 6, 8, 10]
   )
+  actuated_joints = REGEX_ALL_ACTUATED_JOINTS  # Exclude femur and knee joints.
 
   feet_ground_cfg = ContactSensorCfg(
     name="feet_ground_contact",
     primary=ContactMatch(
       mode="subtree",
-      pattern=r"^(left_ankle_roll_link|right_ankle_roll_link)$",
+      pattern=r"^(leg_left_5_link|leg_right_5_link)$",  # subtree so foot link is included
       entity="robot",
     ),
     secondary=ContactMatch(mode="body", pattern="terrain"),
@@ -56,19 +72,27 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     num_slots=1,
     track_air_time=True,
   )
-  self_collision_cfg = ContactSensorCfg(
-    name="self_collision",
-    primary=ContactMatch(mode="subtree", pattern="pelvis", entity="robot"),
-    secondary=ContactMatch(mode="subtree", pattern="pelvis", entity="robot"),
-    fields=("found", "force"),
+  body_ground_cfg = ContactSensorCfg(
+    name="body_ground_contact",
+    primary=ContactMatch(
+      mode="body",
+      pattern=REGEX_FEMUR_AND_KNEE_LINKS,
+      entity="robot",
+    ),
+    secondary=ContactMatch(mode="body", pattern="terrain"),
+    fields=("found",),
     reduce="none",
     num_slots=1,
-    history_length=4,
   )
-  cfg.scene.sensors = (cfg.scene.sensors or ()) + (
-    feet_ground_cfg,
-    self_collision_cfg,
+  self_collision_cfg = ContactSensorCfg(
+    name="self_collision",
+    primary=ContactMatch(mode="subtree", pattern="base_link", entity="robot"),
+    secondary=ContactMatch(mode="subtree", pattern="base_link", entity="robot"),
+    fields=("found",),
+    reduce="none",
+    num_slots=1,
   )
+  cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
 
   if cfg.scene.terrain is not None and cfg.scene.terrain.terrain_generator is not None:
     cfg.scene.terrain.terrain_generator.curriculum = True
@@ -77,7 +101,7 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   assert isinstance(joint_pos_action, JointPositionActionCfg)
   joint_pos_action.scale = KANGAROO_ACTION_SCALE
 
-  cfg.viewer.body_name = "torso_link"
+  cfg.viewer.body_name = "pelvis_2_link"
 
   twist_cmd = cfg.commands["twist"]
   assert isinstance(twist_cmd, UniformVelocityCommandCfg)
@@ -88,7 +112,7 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   ].site_names = site_names
 
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
-  cfg.events["base_com"].params["asset_cfg"].body_names = ("torso_link",)
+  cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
   _JOINT_NAMES_FOR_DISCRIM_REGEX = (
       "pelvis_1_joint",
@@ -124,8 +148,8 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   ] = SceneEntityCfg("robot", joint_names=_JOINT_NAMES_FOR_DISCRIM_REGEX)
 
 
-  cfg.rewards["upright"].params["asset_cfg"].body_names = ("torso_link",)
-  cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("torso_link",)
+  cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
+  cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
 
   cfg.rewards["body_ang_vel"].weight = -0.05
