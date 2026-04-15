@@ -247,7 +247,7 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
 
   # Stability
   cfg.rewards["upright"] = RewardTermCfg(
-    func=loco_mdp.flat_orientation,
+    func=loco_mdp.flat_orientation_l2,
     weight=1.0,
     params={
       "std": math.sqrt(0.2),
