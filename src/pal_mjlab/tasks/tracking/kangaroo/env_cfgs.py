@@ -18,6 +18,7 @@ from pal_mjlab.robots import (
   KANGAROO_ACTUATOR_NAMES,
   get_kangaroo_robot_cfg,
 )
+from pal_mjlab.tasks.tracking import mdp as tracking_mdp
 from pal_mjlab.tasks.velocity import mdp
 
 
@@ -135,6 +136,23 @@ def pal_kangaroo_flat_tracking_env_cfg(
 
   cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
+  cfg.events["control_delay"] = EventTermCfg(
+    mode="startup",
+    func=tracking_mdp.control_delay,
+    params={
+      "delay_range": (0.0, 0.04),  # 0–40 ms
+      "asset_cfg": SceneEntityCfg("robot"),
+    },
+  )
+  cfg.events["p_gain"] = EventTermCfg(
+    mode="startup",
+    func=tracking_mdp.p_gain,
+    params={
+      "kp_range": (0.925, 1.05),
+      "asset_cfg": SceneEntityCfg("robot"),
+    },
+  )
+
   cfg.terminations["ee_body_pos"].params["body_names"] = (
     "leg_left_5_link",
     "leg_right_5_link",
@@ -167,6 +185,8 @@ def pal_kangaroo_flat_tracking_env_cfg(
 
     cfg.observations["actor"].enable_corruption = False
     cfg.events.pop("push_robot", None)
+    cfg.events.pop("control_delay", None)
+    cfg.events.pop("p_gain", None)
 
     # Disable RSI randomization.
     motion_cmd.pose_range = {}
