@@ -218,30 +218,30 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
   ## --------------------------------------------------------
   curriculum = {
     "action_rate_curr": CurriculumTermCfg(
-      func=mdp.reward_weight,
+      func=mdp.reward_curriculum,
       params={
         "reward_name": "action_rate_l2",
-        "weight_stages": [
+        "stages": [
           {"step": 0, "weight": -0.003},
           {"step": 5_000 * 24, "weight": -0.01},
         ],
       },
     ),
     "orientation_curr_right": CurriculumTermCfg(
-      func=mdp.reward_weight,
+      func=mdp.reward_curriculum,
       params={
         "reward_name": "ee_right_orientation",
-        "weight_stages": [
+        "stages": [
           {"step": 0, "weight": -0.3},
           {"step": 7_500 * 24, "weight": -0.6},
         ],
       },
     ),
     "orientation_curr_left": CurriculumTermCfg(
-      func=mdp.reward_weight,
+      func=mdp.reward_curriculum,
       params={
         "reward_name": "ee_left_orientation",
-        "weight_stages": [
+        "stages": [
           {"step": 0, "weight": -0.3},
           {"step": 7_500 * 24, "weight": -0.6},
         ],

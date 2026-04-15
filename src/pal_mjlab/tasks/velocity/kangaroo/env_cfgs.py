@@ -281,9 +281,9 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # )
 
   # cfg.curriculum["joint_accel"] = CurriculumTermCfg(
-  #   func=mdp.reward_weight,
+  #   func=mdp.reward_curriculum,
   #   params={"reward_name": "joint_accel",
-  #           "weight_stages": [
+  #           "stages": [
   #               {"step": 0, "weight": 0.0 },
   #               {"step": 2000 * 24, "weight": -1.0e-8},
   #               {"step": 8000 * 24, "weight": -1.0e-7},
