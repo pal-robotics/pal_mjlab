@@ -6,7 +6,6 @@ import mujoco
 import torch
 from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
-from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
 from pal_mjlab import PAL_MJLAB_SRC_PATH
 
@@ -135,16 +134,8 @@ XS = _calc_actuator_params(101, 1.3e-5, 25)
 # MJCF & Assets
 ##
 
-
-def get_assets(meshdir: str) -> dict[str, bytes]:
-  assets = {}
-  update_assets(assets, KANGAROO_PATH / "assets", meshdir)
-  return assets
-
-
 def _load_spec(xml_path: Path) -> mujoco.MjSpec:
   spec = mujoco.MjSpec.from_file(str(xml_path))
-  spec.assets = get_assets(spec.meshdir)
   return spec
 
 
