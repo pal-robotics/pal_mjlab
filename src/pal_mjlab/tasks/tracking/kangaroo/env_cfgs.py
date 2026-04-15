@@ -152,6 +152,39 @@ def pal_kangaroo_flat_tracking_env_cfg(
       "asset_cfg": SceneEntityCfg("robot"),
     },
   )
+  cfg.events["joint_friction"] = EventTermCfg(
+    mode="startup",
+    func=dr.dof_frictionloss,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+      "operation": "add",
+      "ranges": (-0.008, 0.008),
+      "shared_random": False,
+    },
+  )
+#   cfg.events["body_inertia"] = EventTermCfg(
+#   mode="startup",
+#   func=dr.pseudo_inertia,
+#   params={
+#     # Replace ".*" with the specific bodies that have mass
+#     "asset_cfg": SceneEntityCfg("robot", body_names=(
+#         "pelvis_2_link",
+#         "leg_left_3_link",
+#         "leg_left_4_link",
+#         "leg_left_5_link",
+#         "leg_right_3_link",
+#         "leg_right_4_link",
+#         "leg_right_5_link",
+#         "arm_left_2_link",
+#         "arm_left_3_link",
+#         "arm_left_tip_link",
+#         "arm_right_2_link",
+#         "arm_right_3_link",
+#         "arm_right_tip_link",
+#     )),
+#     "alpha_range": (-0.05, 0.05),
+#   },
+# )
 
   cfg.terminations["ee_body_pos"].params["body_names"] = (
     "leg_left_5_link",
@@ -161,6 +194,10 @@ def pal_kangaroo_flat_tracking_env_cfg(
   )
 
   cfg.viewer.body_name = "base_link"
+
+  # Uncomment to enable 5-step observation history for latency compensation:
+  # cfg.observations["actor"].history_length = 5
+  # cfg.observations["critic"].history_length = 5
 
   # Modify observations if we don't have state estimation.
   if not has_state_estimation:

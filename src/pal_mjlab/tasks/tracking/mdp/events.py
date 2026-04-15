@@ -18,7 +18,7 @@ if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
 
 
-@requires_model_fields("actuator_delayprm")
+@requires_model_fields("actuator_dynprm")
 def control_delay(
   env: ManagerBasedRlEnv,
   env_ids: torch.Tensor | None,
@@ -61,8 +61,8 @@ def control_delay(
       env.device,
     )
 
-    # In MuJoCo, delayprm[0] represents the delay time constant.
-    env.sim.model.actuator_delayprm[env_ids[:, None], ctrl_ids, 0] = delay_samples
+    # actuator_dynprm[..., 0] represents the filter time constant.
+    env.sim.model.actuator_dynprm[env_ids[:, None], ctrl_ids, 0] = delay_samples
 
 
 @requires_model_fields("actuator_gainprm", "actuator_biasprm")
