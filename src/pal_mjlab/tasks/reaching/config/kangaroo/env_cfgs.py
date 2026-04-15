@@ -14,7 +14,13 @@ from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
-from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.sensor import (
+  ContactMatch,
+  ContactSensorCfg,
+  ObjRef,
+  RingPatternCfg,
+  TerrainHeightSensorCfg,
+)
 from mjlab.tasks.velocity import mdp as loco_mdp
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
@@ -103,7 +109,27 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     reduce="none",
     num_slots=1,
   )
-  cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
+
+  foot_height_scan = TerrainHeightSensorCfg(
+    name="foot_height_scan",
+    frame=(),  # Set per-robot: frame and pattern.
+    ray_alignment="yaw",
+    max_distance=1.0,
+    exclude_parent_body=True,
+    include_geom_groups=(0,),  # Terrain only.
+    debug_vis=True,
+    viz=TerrainHeightSensorCfg.VizCfg(
+      show_rays=True,
+      hit_color=(1.0, 0.0, 1.0, 0.8),  # Magenta rays.
+      hit_sphere_color=(1.0, 0.0, 1.0, 1.0),
+    ),
+  )
+  cfg.scene.sensors = (
+    feet_ground_cfg,
+    self_collision_cfg,
+    body_ground_cfg,
+    foot_height_scan,
+  )
 
   # -----------------------------------------------------------------
   # Actions
@@ -173,10 +199,6 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     func=loco_mdp.generated_commands,
     params={"command_name": "twist"},
   )
-  cfg.observations["critic"].terms["foot_height"] = ObservationTermCfg(
-    func=loco_mdp.foot_height,
-    params={"asset_cfg": SceneEntityCfg("robot", site_names=site_names)},
-  )
   cfg.observations["critic"].terms["foot_air_time"] = ObservationTermCfg(
     func=loco_mdp.foot_air_time,
     params={"sensor_name": "feet_ground_contact"},
@@ -189,6 +211,15 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     func=loco_mdp.foot_contact_forces,
     params={"sensor_name": "feet_ground_contact"},
   )
+
+  # Wire foot height scan to per-foot sites.
+  for sensor in cfg.scene.sensors or ():
+    if sensor.name == "foot_height_scan":
+      assert isinstance(sensor, TerrainHeightSensorCfg)
+      sensor.frame = tuple(
+        ObjRef(type="site", name=s, entity="robot") for s in site_names
+      )
+      sensor.pattern = RingPatternCfg.single_ring(radius=0.03, num_samples=6)
 
   # -----------------------------------------------------------------
   # Events: add locomotion events
@@ -247,7 +278,7 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
 
   # Stability
   cfg.rewards["upright"] = RewardTermCfg(
-    func=loco_mdp.flat_orientation_l2,
+    func=loco_mdp.upright,
     weight=1.0,
     params={
       "std": math.sqrt(0.2),
@@ -323,6 +354,7 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     weight=-2.0,
     params={
       "target_height": 0.1,
+      "height_sensor_name": "foot_height_scan",
       "command_name": "twist",
       "command_threshold": 0.05,
       "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
@@ -333,10 +365,10 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     weight=-0.25,
     params={
       "sensor_name": "feet_ground_contact",
+      "height_sensor_name": "foot_height_scan",
       "target_height": 0.1,
       "command_name": "twist",
       "command_threshold": 0.05,
-      "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
     },
   )
   cfg.rewards["foot_slip"] = RewardTermCfg(
