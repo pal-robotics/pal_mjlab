@@ -2,9 +2,7 @@
   
 To launch training with Adversarial Motion Prior on G1 (training environment is provided) :
   
-'''bash
-uv run train Mjlab-AMP-Flat-Unitree-G1 --motion-file-amp {filename}.csv --amp-weight {value} --resample {source_FPS} --{other options}
-'''
+    uv run train_amp Mjlab-AMP-Flat-Unitree-G1 --motion-file-amp {filename}.csv --amp-weight {value} --resample {source_FPS} --{other options}
   
 (required) motion file amp csv file containing motion data (each row is observation for a single frame)
   
@@ -16,9 +14,7 @@ Important : Observations in csv should match with observations specified in amp 
   
 To launch inference it is done as usual :
   
-'''bash
-un run play Mjlab-AMP-Flat-Unitree-G1 --checkpoint-file {checkpoint path}
-'''
+    uv run play Mjlab-AMP-Flat-Unitree-G1 --checkpoint-file {checkpoint path}
   
 In a few words, an amp environment describes high level objectives (velocity, stability, ...) while using a discriminator to reward motion style using a reference motion.
   
