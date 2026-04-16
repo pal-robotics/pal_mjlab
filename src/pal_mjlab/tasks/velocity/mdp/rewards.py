@@ -597,7 +597,10 @@ def body_linear_velocity_penalty(
 ) -> torch.Tensor:
   """Penalize excessive linear angular velocities."""
   asset: Entity = env.scene[asset_cfg.name]
-  return torch.square(asset.data.root_link_lin_vel_b[:,2])
+  lin_vel = asset.data.body_link_lin_vel_w[:, asset_cfg.body_ids, :]
+  lin_vel = lin_vel.squeeze(1)
+  lin_vel_z = lin_vel[:, 2]  # Don't penalize xy-linear velocity.
+  return torch.square(lin_vel_z)
 
 def contact_switch_penalty(
     env: ManagerBasedRLEnv,
