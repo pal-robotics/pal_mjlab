@@ -174,6 +174,9 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     "asset_cfg"
   ] = SceneEntityCfg("robot", joint_names=_JOINT_NAMES_FOR_DISCRIM_REGEX)
 
+  cfg.observations["discriminator"].terms["joint_vel"].params[
+    "asset_cfg"
+  ] = SceneEntityCfg("robot", joint_names=_JOINT_NAMES_FOR_DISCRIM_REGEX)
 
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
@@ -247,7 +250,8 @@ def kangaroo_flat_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   if play:
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.ranges.lin_vel_x = (0.5, 2.0)
+    twist_cmd.ranges.lin_vel_x = (0.5, 0.5)
+    twist_cmd.ranges.lin_vel_y = (0.0, 0.0)
     twist_cmd.ranges.ang_vel_z = (0.0, 0.0)
 
   return cfg
