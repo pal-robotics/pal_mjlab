@@ -23,6 +23,8 @@ from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.observation_manager import ObservationTermCfg
+from mjlab.managers.termination_manager import TerminationTermCfg
+
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import (
   ContactMatch,
@@ -185,6 +187,13 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.self_collision_cost,
     weight=-1.0,
     params={"sensor_name": self_collision_cfg.name, "force_threshold": 10.0},
+  )
+
+  ## Terminations ##################
+
+  cfg.terminations["illegal_contacts"] = TerminationTermCfg(
+    func=mdp.illegal_contact,
+    params={"sensor_name": "body_ground_contact"},
   )
 
   # Apply play mode overrides.
