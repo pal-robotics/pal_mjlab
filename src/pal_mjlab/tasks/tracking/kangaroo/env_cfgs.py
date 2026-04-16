@@ -4,7 +4,7 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
-from mjlab.managers.observation_manager import ObservationGroupCfg
+from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
@@ -89,6 +89,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     "arm_right_3_link",
     "arm_right_tip_link",
   )
+  motion_cmd.joint_position_range = (-0.2, 0.2)
 
   # motion_cmd.joint_position_range = (-0.2, 0.2)
   # The hull points should correspond to the respective joints defined in the joint_names_group order
@@ -200,21 +201,34 @@ def pal_kangaroo_flat_tracking_env_cfg(
   # cfg.observations["actor"].history_length = 5
   # cfg.observations["critic"].history_length = 5
 
+  # Add periodic motion phase and restructure actor/critic observations
+  for group_name in ["actor", "critic"]:
+    cfg.observations[group_name].terms["motion_phase"] = ObservationTermCfg(
+      func=tracking_mdp.motion_phase,
+      params={"command_name": "motion"},
+    )
+
+  # Move reference anchor tracking (spatial error) to the critic only
+  cfg.observations["actor"].terms.pop("motion_anchor_pos_b", None)
+  cfg.observations["actor"].terms.pop("motion_anchor_ori_b", None)
+
   # Modify observations if we don't have state estimation.
   if not has_state_estimation:
-    new_actor_terms = {
-      k: v
-      for k, v in cfg.observations["actor"].terms.items()
-      # I added motion_anchor_ori_b but might not be necessary,
-      # and i wonder if i should add lin acc when state
-      # estimation is false
-      if k not in ["motion_anchor_pos_b", "motion_anchor_ori_b", "base_lin_vel"]
-    }
-    cfg.observations["actor"] = ObservationGroupCfg(
-      terms=new_actor_terms,
-      concatenate_terms=True,
-      enable_corruption=True,
-    )
+    # Base linear velocity requires state estimation. Anchors are already removed from actor.
+    cfg.observations["actor"].terms.pop("base_lin_vel", None)
+
+  # --- Old Observation Logic (Commented Out) ---
+  # if not has_state_estimation:
+  #   new_actor_terms = {
+  #     k: v
+  #     for k, v in cfg.observations["actor"].terms.items()
+  #     if k not in ["motion_anchor_pos_b", "motion_anchor_ori_b", "base_lin_vel"]
+  #   }
+  #   cfg.observations["actor"] = ObservationGroupCfg(
+  #     terms=new_actor_terms,
+  #     concatenate_terms=True,
+  #     enable_corruption=True,
+  #   )
 
   # Apply play mode overrides.
   if play:
