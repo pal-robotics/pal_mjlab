@@ -5,7 +5,6 @@ from pathlib import Path
 import mujoco
 from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
-from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
 from pal_mjlab import PAL_MJLAB_SRC_PATH
 
@@ -17,15 +16,8 @@ TALOS_XML: Path = PAL_MJLAB_SRC_PATH / "robots" / "pal_talos" / "xmls" / "talos.
 assert TALOS_XML.exists()
 
 
-def get_assets(meshdir: str) -> dict[str, bytes]:
-  assets: dict[str, bytes] = {}
-  update_assets(assets, TALOS_XML.parent / "assets", meshdir)
-  return assets
-
-
 def get_spec() -> mujoco.MjSpec:
   spec = mujoco.MjSpec.from_file(str(TALOS_XML))
-  spec.assets = get_assets(spec.meshdir)
   return spec
 
 
