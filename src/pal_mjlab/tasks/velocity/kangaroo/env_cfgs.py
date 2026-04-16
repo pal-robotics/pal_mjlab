@@ -332,11 +332,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
-  #cfg.rewards["contact_switch_penalty"] = RewardTermCfg(
-  #  func=mdp.contact_switch_penalty,
-  #  weight=-0.1,
-  #  params={"sensor_name": "feet_ground_contact"},
-  #)
+  cfg.rewards["contact_switch_penalty"] = RewardTermCfg(
+   func=mdp.contact_switch_penalty,
+   weight=-0.1,
+   params={"sensor_name": "feet_ground_contact"},
+  )
 
   #cfg.rewards["is_alive"] = RewardTermCfg(
   #  func=mdp.is_alive,
