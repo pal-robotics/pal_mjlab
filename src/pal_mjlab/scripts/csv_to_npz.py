@@ -394,11 +394,17 @@ def run_sim(
         logged_artifact = run.log_artifact(
           artifact_or_path="/tmp/motion.npz", name=COLLECTION, type=REGISTRY
         )
-        run.link_artifact(
-          artifact=logged_artifact,
-          target_path=f"wandb-registry-{REGISTRY}/{COLLECTION}",
-        )
-        print(f"[INFO]: Motion saved to wandb registry: {REGISTRY}/{COLLECTION}")
+        try:
+          run.link_artifact(
+            artifact=logged_artifact,
+            target_path=f"wandb-registry-{REGISTRY}/{COLLECTION}",
+          )
+          print(f"[INFO]: Motion saved to wandb registry: {REGISTRY}/{COLLECTION}")
+        except Exception as e:
+          print(
+            f"[WARN]: Could not link artifact to registry '{REGISTRY}': {e}\n"
+            f"        Create the registry first at https://wandb.ai/registry/{REGISTRY}"
+          )
 
         if render:
           from moviepy import ImageSequenceClip
@@ -468,6 +474,7 @@ def main(
       height=480,
       width=640,
       origin_type=ViewerConfig.OriginType.ASSET_ROOT,
+      entity_name="robot",
       distance=2.0,
       elevation=-5.0,
       azimuth=20,
