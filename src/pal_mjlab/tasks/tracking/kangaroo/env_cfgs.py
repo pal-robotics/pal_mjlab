@@ -90,6 +90,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     "arm_right_tip_link",
   )
 
+  # motion_cmd.joint_position_range = (-0.2, 0.2)
   # The hull points should correspond to the respective joints defined in the joint_names_group order
   # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
   cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(

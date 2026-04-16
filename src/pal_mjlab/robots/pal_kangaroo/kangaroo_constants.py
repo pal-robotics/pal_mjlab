@@ -207,27 +207,68 @@ COMMON_ACTUATORS = KANGAROO_LEG_ACTUATORS + (
 ##
 
 INIT_STATE = EntityCfg.InitialStateCfg(
-  pos=(0.0, 0.0, 0.9),
-  joint_pos={
-    "leg_left_1_joint": -0.012,
-    "leg_right_1_joint": 0.012,
-    "leg_.*_2_joint": 0.054,
-    "leg_left_3_joint": 0.04,
-    "leg_right_3_joint": -0.04,
-    "leg_.*_length_joint": 0.6,
-    "leg_.*_4_joint": -0.053,
-    "leg_.*_5_joint": 0.0,
-    "leg_.*_femur_joint": 0.9,
-    "leg_.*_knee_joint": 1.8,
-    "arm_left_1_joint": 0.24,
-    "arm_right_1_joint": -0.24,
-    "arm_.*_2_joint": 1.32,
-    "arm_left_3_joint": 1.57,
-    "arm_right_3_joint": -1.57,
-    "arm_.*_4_joint": 0.8,
-    "pelvis_1_joint": 0.0,
-    "pelvis_2_joint": 0.0,
-  },
+  # pos=(0.0, 0.0, 0.9),
+  # joint_pos={
+  #   "leg_left_1_joint": -0.012,
+  #   "leg_right_1_joint": 0.012,
+  #   "leg_.*_2_joint": 0.054,
+  #   "leg_left_3_joint": 0.04,
+  #   "leg_right_3_joint": -0.04,
+  #   "leg_.*_length_joint": 0.6,
+  #   "leg_.*_4_joint": -0.053,
+  #   "leg_.*_5_joint": 0.0,
+  #   "leg_.*_femur_joint": 0.9,
+  #   "leg_.*_knee_joint": 1.8,
+  #   # "arm_left_1_joint": 0.24,
+  #   # "arm_right_1_joint": -0.24,
+  #   # "arm_.*_2_joint": 1.32,
+  #   # "arm_left_3_joint": 1.57,
+  #   # "arm_right_3_joint": -1.57,
+  #   # "arm_.*_4_joint": 0.8,
+  #   "arm_left_1_joint": 0.0,
+  #   "arm_right_1_joint": -0.0,
+  #   "arm_.*_2_joint": 0.0,
+  #   "arm_left_3_joint": 0.0,
+  #   "arm_right_3_joint": 0.0,
+  #   "arm_.*_4_joint": 0.0,
+  #   "pelvis_1_joint": 0.0,
+  #   "pelvis_2_joint": 0.0,
+
+    pos=(0.0, 0.0, 0.9),  # Updated Z-height from your Base Position
+    # Note: Your file had XY at (1.94, 5.79), but usually you want to start at origin (0,0)
+    
+    joint_pos={
+        # Pelvis
+        "pelvis_1_joint": -0.0196,
+        "pelvis_2_joint": 0.0270,
+
+        # Legs - Hip / Yaw / Roll
+        "leg_left_1_joint": 0.0,
+        "leg_right_1_joint": -0.0,
+        "leg_left_2_joint": -0.0,
+        "leg_right_2_joint": -0.0,
+        "leg_left_3_joint": -0.0,
+        "leg_right_3_joint": 0.0,
+
+        # Legs - Actuators & Knees
+        "leg_.*_length_joint": 0.616,  # Average of 0.618 and 0.613
+        "leg_left_4_joint": 0.0126,
+        "leg_right_4_joint": -0.0283,
+        "leg_left_5_joint": 0.0,      # Value was -4.2e-06
+        "leg_right_5_joint": -0.0147,
+        "leg_.*_femur_joint": 0.9,   # Average of 0.946 and 0.936
+        "leg_.*_knee_joint": 1.8,    # Average of 1.894 and 1.872
+
+        # Arms
+        "arm_left_1_joint": -0.2305,
+        "arm_right_1_joint": 0.2949,
+        "arm_left_2_joint": -0.2621,
+        "arm_right_2_joint": -0.2578,
+        "arm_left_3_joint": 1.5993,
+        "arm_right_3_joint": -1.5552,
+        "arm_left_4_joint": 0.0667,
+        "arm_right_4_joint": 0.0254,
+    },
   joint_vel={".*": 0.0},
 )
 
