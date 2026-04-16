@@ -64,3 +64,14 @@ def imu_projected_gravity(
   # print(f"proj{asset.data.projected_gravity_b}")
   # Project to IMU frame (same as your C++ code)
   return quat_apply_inverse(imu_quat, gravity_w)
+
+
+def joint_pos_abs(
+  env: ManagerBasedRlEnv,
+  biased: bool = False,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  asset: Entity = env.scene[asset_cfg.name]
+  jnt_ids = asset_cfg.joint_ids
+  joint_pos = asset.data.joint_pos_biased if biased else asset.data.joint_pos
+  return joint_pos[:, jnt_ids]

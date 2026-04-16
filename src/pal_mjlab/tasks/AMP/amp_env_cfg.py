@@ -116,7 +116,12 @@ def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
 
   discriminator_terms = {
     "joint_pos": ObservationTermCfg(
-      func=mdp.joint_pos_rel,
+      func=mdp.joint_pos_abs,
+      noise=Unoise(n_min=-0.01, n_max=0.01),
+      params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*"))} # Set per-robot
+    ),
+    "joint_vel": ObservationTermCfg(
+      func=mdp.joint_vel_rel,
       noise=Unoise(n_min=-0.01, n_max=0.01),
       params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*"))} # Set per-robot
     ),
@@ -322,7 +327,7 @@ def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "command_name": "twist",
         "velocity_stages": [
-          {"step": 0, "lin_vel_x": (-0.5, 0.5)},
+          {"step": 0, "lin_vel_x": (0.0, 0.5)},
         ],
       },
     ),
