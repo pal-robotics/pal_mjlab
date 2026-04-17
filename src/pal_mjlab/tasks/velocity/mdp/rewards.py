@@ -15,6 +15,8 @@ from mjlab.utils.lab_api.string import (
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import ConvexHull
