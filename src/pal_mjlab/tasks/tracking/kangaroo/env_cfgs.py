@@ -31,6 +31,9 @@ def pal_kangaroo_flat_tracking_env_cfg(
 
   cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
   cfg.sim.mujoco.timestep = 0.002
+  # cfg.sim.njmax = 450
+  # cfg.sim.nconmax = 100
+  # cfg.sim.contact_sensor_maxmatch = 128
   cfg.decimation = 10
 
   geom_names = tuple(
@@ -89,7 +92,6 @@ def pal_kangaroo_flat_tracking_env_cfg(
     "arm_right_3_link",
     "arm_right_tip_link",
   )
-  motion_cmd.joint_position_range = (-0.2, 0.2)
 
   # motion_cmd.joint_position_range = (-0.2, 0.2)
   # The hull points should correspond to the respective joints defined in the joint_names_group order
@@ -198,8 +200,8 @@ def pal_kangaroo_flat_tracking_env_cfg(
   cfg.viewer.body_name = "base_link"
 
   # Uncomment to enable 5-step observation history for latency compensation:
-  # cfg.observations["actor"].history_length = 5
-  # cfg.observations["critic"].history_length = 5
+  cfg.observations["actor"].history_length = 5
+  cfg.observations["critic"].history_length = 5
 
   # Add periodic motion phase and restructure actor/critic observations
   for group_name in ["actor", "critic"]:
