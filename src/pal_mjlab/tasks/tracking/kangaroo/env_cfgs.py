@@ -93,6 +93,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     "arm_right_tip_link",
   )
 
+
   # motion_cmd.joint_position_range = (-0.2, 0.2)
   # The hull points should correspond to the respective joints defined in the joint_names_group order
   # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
@@ -166,29 +167,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
       "shared_random": False,
     },
   )
-#   cfg.events["body_inertia"] = EventTermCfg(
-#   mode="startup",
-#   func=dr.pseudo_inertia,
-#   params={
-#     # Replace ".*" with the specific bodies that have mass
-#     "asset_cfg": SceneEntityCfg("robot", body_names=(
-#         "pelvis_2_link",
-#         "leg_left_3_link",
-#         "leg_left_4_link",
-#         "leg_left_5_link",
-#         "leg_right_3_link",
-#         "leg_right_4_link",
-#         "leg_right_5_link",
-#         "arm_left_2_link",
-#         "arm_left_3_link",
-#         "arm_left_tip_link",
-#         "arm_right_2_link",
-#         "arm_right_3_link",
-#         "arm_right_tip_link",
-#     )),
-#     "alpha_range": (-0.05, 0.05),
-#   },
-# )
+
 
   cfg.terminations["ee_body_pos"].params["body_names"] = (
     "leg_left_5_link",
@@ -210,14 +189,22 @@ def pal_kangaroo_flat_tracking_env_cfg(
       params={"command_name": "motion"},
     )
 
-  # Move reference anchor tracking (spatial error) to the critic only
-  cfg.observations["actor"].terms.pop("motion_anchor_pos_b", None)
-  cfg.observations["actor"].terms.pop("motion_anchor_ori_b", None)
+
+  # Reduce IMU noise
+  cfg.observations["actor"].terms["base_lin_vel"].noise.n_min = -0.05
+  cfg.observations["actor"].terms["base_lin_vel"].noise.n_max = 0.05
+  cfg.observations["actor"].terms["base_ang_vel"].noise.n_min = -0.04
+  cfg.observations["actor"].terms["base_ang_vel"].noise.n_max = 0.04
+
 
   # Modify observations if we don't have state estimation.
   if not has_state_estimation:
     # Base linear velocity requires state estimation. Anchors are already removed from actor.
     cfg.observations["actor"].terms.pop("base_lin_vel", None)
+
+  # Move reference anchor tracking (spatial error) to the critic only
+  cfg.observations["actor"].terms.pop("motion_anchor_pos_b", None)
+  cfg.observations["actor"].terms.pop("motion_anchor_ori_b", None)
 
   # --- Old Observation Logic (Commented Out) ---
   # if not has_state_estimation:
