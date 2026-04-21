@@ -1,5 +1,7 @@
 """PAL Robotics Kangaroo Flat terrain tracking configuration."""
 
+import copy
+
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -376,6 +378,19 @@ def pal_kangaroo_flat_tracking_env_cfg(
     #     concatenate_terms=True,
     #     enable_corruption=True,
     #   )
+
+    # -------------------------------------------------------------------------
+    # History Encoder Groups
+    # -------------------------------------------------------------------------
+    # Create explicit history buffers for our custom TCN Encoder.
+    # We maintain the normal actor/critic groups to represent the current 1-step obs.
+    cfg.observations["actor_history"] = copy.deepcopy(cfg.observations["actor"])
+    cfg.observations["actor_history"].history_length = 15
+    cfg.observations["actor_history"].flatten_history_dim = False
+    
+    cfg.observations["critic_history"] = copy.deepcopy(cfg.observations["critic"])
+    cfg.observations["critic_history"].history_length = 15
+    cfg.observations["critic_history"].flatten_history_dim = False
 
     # =========================================================================
     # 9. PLAY MODE OVERRIDES

@@ -11,6 +11,7 @@ def pal_kangaroo_tracking_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
   """Create RL runner configuration for PAL Kangaroo tracking task."""
   return RslRlOnPolicyRunnerCfg(
     actor=RslRlModelCfg(
+      class_name="pal_mjlab.tasks.tracking.kangaroo.custom_models:HistoryEncoderModel",
       hidden_dims=(512, 256, 128),
       activation="elu",
       obs_normalization=True,
@@ -21,6 +22,7 @@ def pal_kangaroo_tracking_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
       },
     ),
     critic=RslRlModelCfg(
+      class_name="pal_mjlab.tasks.tracking.kangaroo.custom_models:HistoryEncoderModel",
       hidden_dims=(512, 256, 128),
       activation="elu",
       obs_normalization=True,
