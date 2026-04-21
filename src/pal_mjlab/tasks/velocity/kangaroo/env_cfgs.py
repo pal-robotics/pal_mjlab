@@ -1,5 +1,6 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
+from dataclasses import replace
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -17,12 +18,14 @@ from mjlab.sensor import (
   RingPatternCfg,
   TerrainHeightSensorCfg,
 )
+from mjlab.terrains.config import STAIRS_TERRAINS_CFG
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from pal_mjlab.tasks.velocity.mdp import UniformVelocityCommandWithProgressTracking, UniformVelocityCommandWithProgressTrackingCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.terrains import TerrainGeneratorCfg, BoxFlatTerrainCfg, BoxRandomSpreadTerrainCfg, BoxInvertedPyramidStairsTerrainCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 import math
+from mjlab.sensor import RayCastSensorCfg
 
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
@@ -101,7 +104,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
 
   # Remove the default terrain scan sensor
-  cfg.scene.sensors = tuple(s for s in cfg.scene.sensors if s.name != "terrain_scan")
+  # cfg.scene.sensors = tuple(s for s in cfg.scene.sensors if s.name != "terrain_scan")
 
   cfg.scene.sensors = (cfg.scene.sensors or ()) + (
     feet_ground_cfg,
@@ -483,7 +486,7 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
   cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
 
-  # OBSERVATION history (to better infer dynamics)
+  # # OBSERVATION history (to better infer dynamics)
   # Only applied to the most important observations
   cfg.observations["actor"].terms["base_ang_vel"].history_length = 3
   cfg.observations["actor"].terms["base_lin_acc"].history_length = 3
@@ -494,31 +497,31 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   ### COMMANDS
 
   # Start with a small forward-only cmd range
-  # twist_cmd = cfg.commands["twist"]
-  # assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-  # twist_cmd.ranges.lin_vel_x = (-0.15, 0.15)
-  # twist_cmd.ranges.lin_vel_y = (-0.0, 0.0)
-  # twist_cmd.ranges.ang_vel_z = (-0.0, 0.0)
+  twist_cmd = cfg.commands["twist"]
+  assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+  twist_cmd.ranges.lin_vel_x = (-0.2, 0.2)
+  twist_cmd.ranges.lin_vel_y = (-0.0, 0.0)
+  twist_cmd.ranges.ang_vel_z = (-0.0, 0.0)
 
-  cfg.commands["twist"] = UniformVelocityCommandWithProgressTrackingCfg(
-    entity_name="robot",
-    resampling_time_range=(3.0, 8.0),
-    rel_standing_envs=0.1,
-    rel_heading_envs=0.0,
-    heading_command=False,
-    heading_control_stiffness=0.5,
-    debug_vis=True,
-    ranges=UniformVelocityCommandCfg.Ranges(
-      lin_vel_x=(-0.2, 0.2),
-      lin_vel_y=(-0.0, 0.0),
-      ang_vel_z=(-0.0, 0.0),
-    ),
-    progress_min_speed=0.1,
-    include_standing_in_progress=False,
-    include_heading_in_progress=False,
-    allow_backward_progress=False,
-    cap_step_progress_to_desired=True,
-  )
+  # cfg.commands["twist"] = UniformVelocityCommandWithProgressTrackingCfg(
+  #   entity_name="robot",
+  #   resampling_time_range=(3.0, 8.0),
+  #   rel_standing_envs=0.1,
+  #   rel_heading_envs=0.0,
+  #   heading_command=False,
+  #   heading_control_stiffness=0.5,
+  #   debug_vis=True,
+  #   ranges=UniformVelocityCommandCfg.Ranges(
+  #     lin_vel_x=(-0.2, 0.2),
+  #     lin_vel_y=(-0.0, 0.0),
+  #     ang_vel_z=(-0.0, 0.0),
+  #   ),
+  #   progress_min_speed=0.1,
+  #   include_standing_in_progress=False,
+  #   include_heading_in_progress=False,
+  #   allow_backward_progress=False,
+  #   cap_step_progress_to_desired=True,
+  # )
 
   ### REWARDS
 
@@ -528,6 +531,15 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     weight=-100.0
   )
 
+  # Configure the terrain scan with the pelvis
+  for sensor in cfg.scene.sensors or ():
+    if sensor.name == "terrain_scan":
+      assert isinstance(sensor, RayCastSensorCfg)
+      sensor.frame = ObjRef(type="body", name="pelvis_2_link", entity="robot")
+  
+  # With ``terrain_sensor_names``, penalizes tilt relative to the terrain surface normal.
+  cfg.rewards["upright"].params["terrain_sensor_names"] = ("terrain_scan",)
+
   # Higher tracking weight
   # cfg.rewards["track_linear_velocity"].weight = 3.0
   # cfg.rewards["track_angular_velocity"].weight = 3.0
@@ -535,91 +547,106 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   ### EVENTS
 
   # PUSHING
-  cfg.events["push_robot"] = EventTermCfg(
-    func=mdp.push_by_setting_velocity,
-    mode="interval",
-    interval_range_s=(2.0, 6.0),
-    params={
-      "velocity_range": {
-        "x": (-0.06, 0.06),
-        "y": (-0.03, 0.03),
-        "z": (0.0, 0.0),
-        "roll": (0.0, 0.0),
-        "pitch": (0.0, 0.0),
-        "yaw": (-0.05, 0.05),
-      }
-    }
-  )
+  # cfg.events["push_robot"] = EventTermCfg(
+  #   func=mdp.push_by_setting_velocity,
+  #   mode="interval",
+  #   interval_range_s=(2.0, 6.0),
+  #   params={
+  #     "velocity_range": {
+  #       "x": (-0.06, 0.06),
+  #       "y": (-0.03, 0.03),
+  #       "z": (0.0, 0.0),
+  #       "roll": (0.0, 0.0),
+  #       "pitch": (0.0, 0.0),
+  #       "yaw": (-0.05, 0.05),
+  #     }
+  #   }
+  # )
 
   # Safter spawning close to the center (to avoid directly spawning unbalanced most of the time)
-  cfg.events["reset_base"].params["pose_range"] = {
-    "x": (-0.2, 0.2),
-    "y": (-0.2, 0.2),
-    "z": (0.01, 0.05),
-    "yaw": (-3.14, 3.14),
-  }
+  # cfg.events["reset_base"].params["pose_range"] = {
+  #   "x": (-0.2, 0.2),
+  #   "y": (-0.2, 0.2),
+  #   "z": (0.01, 0.05),
+  #   "yaw": (-3.14, 3.14),
+  # }
 
   ### CURRICULUM
 
   # TERRAIN
   
   # Use a better progess ratio based promotion function
-  cfg.curriculum["terrain_levels"].func = mdp.rough_terrain_levels_vel
+  cfg.curriculum["terrain_levels"].func = mdp.terrain_levels_vel
   assert cfg.scene.terrain is not None
   assert cfg.scene.terrain.terrain_generator is not None
   cfg.scene.terrain.terrain_type = "generator"
-  cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
-    size=(5.0, 5.0),
-    num_rows=12,
-    num_cols=10,
-    border_width=20.0,
-    curriculum=True,
-    sub_terrains={
-      "flat": BoxFlatTerrainCfg(proportion=0.4),
-      "pebbles": BoxRandomSpreadTerrainCfg(
-        proportion=0.2,
-        num_boxes=350,
-        box_width_range=(0.02, 0.05),
-        box_length_range=(0.02, 0.05),
-        box_height_range=(0.02, 0.05),
-        platform_width=0.6,
-        border_width=0.2,
-      ),
-      "random_obstacles": BoxRandomSpreadTerrainCfg(
-        proportion=0.2,
-        num_boxes=50,
-        box_width_range=(0.2, 0.6),
-        box_length_range=(0.2, 0.6),
-        box_height_range=(0.02, 0.05),
-        platform_width=0.6,
-        border_width=0.2,
-      ),
-      "pyramid_stairs_inv": BoxInvertedPyramidStairsTerrainCfg(
-        proportion=0.2,
-        step_height_range=(0.02, 0.05),
-        step_width=0.3,
-        platform_width=0.6,
-        border_width=0.2,
-      ),
-    },
-  )
+  cfg.scene.terrain.terrain_generator = replace(STAIRS_TERRAINS_CFG, size=(6.0, 6.0))
+  # cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
+  #   size=(5.0, 5.0),
+  #   num_rows=12,
+  #   num_cols=10,
+  #   border_width=20.0,
+  #   curriculum=True,
+  #   sub_terrains={
+  #     "flat": BoxFlatTerrainCfg(proportion=0.4),
+  #     "pebbles": BoxRandomSpreadTerrainCfg(
+  #       proportion=0.2,
+  #       num_boxes=350,
+  #       box_width_range=(0.02, 0.05),
+  #       box_length_range=(0.02, 0.05),
+  #       box_height_range=(0.02, 0.05),
+  #       platform_width=0.6,
+  #       border_width=0.2,
+  #     ),
+  #     "random_obstacles": BoxRandomSpreadTerrainCfg(
+  #       proportion=0.2,
+  #       num_boxes=50,
+  #       box_width_range=(0.2, 0.6),
+  #       box_length_range=(0.2, 0.6),
+  #       box_height_range=(0.02, 0.05),
+  #       platform_width=0.6,
+  #       border_width=0.2,
+  #     ),
+  #     "pyramid_stairs_inv": BoxInvertedPyramidStairsTerrainCfg(
+  #       proportion=0.2,
+  #       step_height_range=(0.02, 0.05),
+  #       step_width=0.3,
+  #       platform_width=0.6,
+  #       border_width=0.2,
+  #     ),
+  #   },
+  # )
 
   # VELOCITY COMMAND
   # Without y for the moment
+  # cfg.curriculum["command_vel"] = CurriculumTermCfg(
+  #   func=mdp.commands_vel,
+  #   params={
+  #     "command_name": "twist",
+  #     "velocity_stages": [
+  #       {"step": 0, "lin_vel_x": (-0.2, 0.2)},
+  #       {"step": 5000 * 24, "lin_vel_x": (-0.25, 0.25)},
+  #       {"step": 10000 * 24, "lin_vel_x": (-0.4, 0.4)},
+  #       {"step": 20000 * 24, "lin_vel_x": (-0.6, 0.6)}
+  #     ],
+  #   },
+  # )
+
   cfg.curriculum["command_vel"] = CurriculumTermCfg(
     func=mdp.commands_vel,
     params={
       "command_name": "twist",
       "velocity_stages": [
-        {"step": 0, "lin_vel_x": (-0.2, 0.2)},
-        {"step": 5000 * 24, "lin_vel_x": (-0.25, 0.25)},
-        {"step": 10000 * 24, "lin_vel_x": (-0.4, 0.4)},
-        {"step": 20000 * 24, "lin_vel_x": (-0.6, 0.6)}
+        {"step": 0, "lin_vel_x": (-0.2, 0.2), "ang_vel_z": (-0.0, 0.0)},
+        {"step": 5000 * 24, "lin_vel_x": (-0.4, 0.4), "ang_vel_z": (-0.1, 0.1)},
+        {"step": 10000 * 24, "lin_vel_x": (-0.6, 0.6)},
+        {"step": 15000 * 24, "lin_vel_y": (-0.1, 0.1), "ang_vel_z": (-0.2, 0.2)},
+        {"step": 20000 * 24, "lin_vel_y": (-0.2, 0.2)}
       ],
     },
   )
 
-  # REWARDS PARAMS
+  # # REWARDS PARAMS
   cfg.curriculum["track_linear_velocity_params"] = CurriculumTermCfg(
     func=mdp.reward_params,
     params={
@@ -633,26 +660,26 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
-  # cfg.curriculum["track_angular_velocity_params"] = CurriculumTermCfg(
-  #   func=mdp.reward_params,
-  #   params={
-  #     "reward_name": "track_angular_velocity",
-  #     "param_stages": [
-  #       {"step": 0, "params": {"std": math.sqrt(0.25)}},
-  #       {"step": 5000 * 24, "params": {"std": math.sqrt(0.2)}},
-  #       {"step": 10000 * 24, "params": {"std": math.sqrt(0.15)}},
-  #       {"step": 20000 * 24, "params": {"std": math.sqrt(0.1)}},
-  #     ],
-  #   },
-  # )
+  cfg.curriculum["track_angular_velocity_params"] = CurriculumTermCfg(
+    func=mdp.reward_params,
+    params={
+      "reward_name": "track_angular_velocity",
+      "param_stages": [
+        {"step": 0, "params": {"std": math.sqrt(0.25)}},
+        {"step": 5000 * 24, "params": {"std": math.sqrt(0.2)}},
+        {"step": 10000 * 24, "params": {"std": math.sqrt(0.15)}},
+        {"step": 20000 * 24, "params": {"std": math.sqrt(0.1)}},
+      ],
+    },
+  )
 
   # REWARDS CONFIG
 
   # Simplify as per https://arxiv.org/html/2404.19173v2
-  cfg.rewards["pose"].weight = 0.1  # Far weaker
-  del cfg.rewards["foot_clearance"]
-  del cfg.rewards["foot_swing_height"]
-  del cfg.rewards["track_angular_velocity"]  # Penalizing angular velocity is enough
+  # cfg.rewards["pose"].weight = 0.1  # Far weaker
+  # del cfg.rewards["foot_clearance"]
+  # del cfg.rewards["foot_swing_height"]
+  # del cfg.rewards["track_angular_velocity"]  # Penalizing angular velocity is enough
 
   # cfg.curriculum["track_linear_velocity_weight"] = CurriculumTermCfg(
   #   func=mdp.reward_weight,
@@ -680,66 +707,66 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # EVENTS PARAMS
 
-  cfg.curriculum["push_robot_params"] = CurriculumTermCfg(
-    func=mdp.event_params,
-    params={
-      "event_name": "push_robot",
-      "param_stages": [
-        {
-          "step": 0,
-          "params": {
-            "velocity_range": {
-              "x": (-0.06, 0.06),
-              "y": (-0.03, 0.03),
-              "z": (0.0, 0.0),
-              "roll": (0.0, 0.0),
-              "pitch": (0.0, 0.0),
-              "yaw": (-0.05, 0.05),
-            },
-          },
-        },
-        {
-          "step": 5000 * 24,
-          "params": {
-            "velocity_range": {
-              "x": (-0.10, 0.10),
-              "y": (-0.05, 0.05),
-              "z": (0.0, 0.0),
-              "roll": (0.0, 0.0),
-              "pitch": (0.0, 0.0),
-              "yaw": (-0.08, 0.08),
-            },
-          },
-        },
-        {
-          "step": 10000 * 24,
-          "params": {
-            "velocity_range": {
-              "x": (-0.16, 0.16),
-              "y": (-0.07, 0.07),
-              "z": (0.0, 0.0),
-              "roll": (0.0, 0.0),
-              "pitch": (0.0, 0.0),
-              "yaw": (-0.12, 0.12),
-            },
-          },
-        },
-        {
-          "step": 20000 * 24,
-          "params": {
-            "velocity_range": {
-              "x": (-0.24, 0.24),
-              "y": (-0.10, 0.10),
-              "z": (0.0, 0.0),
-              "roll": (0.0, 0.0),
-              "pitch": (0.0, 0.0),
-              "yaw": (-0.16, 0.16),
-            },
-          },
-        },
-      ],
-    },
-  )
+  # cfg.curriculum["push_robot_params"] = CurriculumTermCfg(
+  #   func=mdp.event_params,
+  #   params={
+  #     "event_name": "push_robot",
+  #     "param_stages": [
+  #       {
+  #         "step": 0,
+  #         "params": {
+  #           "velocity_range": {
+  #             "x": (-0.06, 0.06),
+  #             "y": (-0.03, 0.03),
+  #             "z": (0.0, 0.0),
+  #             "roll": (0.0, 0.0),
+  #             "pitch": (0.0, 0.0),
+  #             "yaw": (-0.05, 0.05),
+  #           },
+  #         },
+  #       },
+  #       {
+  #         "step": 5000 * 24,
+  #         "params": {
+  #           "velocity_range": {
+  #             "x": (-0.10, 0.10),
+  #             "y": (-0.05, 0.05),
+  #             "z": (0.0, 0.0),
+  #             "roll": (0.0, 0.0),
+  #             "pitch": (0.0, 0.0),
+  #             "yaw": (-0.08, 0.08),
+  #           },
+  #         },
+  #       },
+  #       {
+  #         "step": 10000 * 24,
+  #         "params": {
+  #           "velocity_range": {
+  #             "x": (-0.16, 0.16),
+  #             "y": (-0.07, 0.07),
+  #             "z": (0.0, 0.0),
+  #             "roll": (0.0, 0.0),
+  #             "pitch": (0.0, 0.0),
+  #             "yaw": (-0.12, 0.12),
+  #           },
+  #         },
+  #       },
+  #       {
+  #         "step": 20000 * 24,
+  #         "params": {
+  #           "velocity_range": {
+  #             "x": (-0.24, 0.24),
+  #             "y": (-0.10, 0.10),
+  #             "z": (0.0, 0.0),
+  #             "roll": (0.0, 0.0),
+  #             "pitch": (0.0, 0.0),
+  #             "yaw": (-0.16, 0.16),
+  #           },
+  #         },
+  #       },
+  #     ],
+  #   },
+  # )
 
   if play:
     # Disable command curriculum.
@@ -749,7 +776,7 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.ranges.lin_vel_x = (-0.6, 0.6)
-    # twist_cmd.ranges.ang_vel_z = (-0.4, 0.4)
+    twist_cmd.ranges.ang_vel_z = (-0.4, 0.4)
 
     if cfg.scene.terrain is not None:
       if cfg.scene.terrain.terrain_generator is not None:
