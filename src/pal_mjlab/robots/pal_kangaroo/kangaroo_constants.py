@@ -238,10 +238,6 @@ INIT_STATE = EntityCfg.InitialStateCfg(
     # Note: Your file had XY at (1.94, 5.79), but usually you want to start at origin (0,0)
     
     joint_pos={
-        # Pelvis
-        "pelvis_1_joint": -0.0196,
-        "pelvis_2_joint": 0.0270,
-
         # Legs - Hip / Yaw / Roll
         "leg_left_1_joint": 0.0,
         "leg_right_1_joint": -0.0,
@@ -268,6 +264,10 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         "arm_right_3_joint": -1.5552,
         "arm_left_4_joint": 0.0667,
         "arm_right_4_joint": 0.0254,
+
+        # Pelvis
+        "pelvis_1_joint": -0.0196,
+        "pelvis_2_joint": 0.0270,
     },
   joint_vel={".*": 0.0},
 )
