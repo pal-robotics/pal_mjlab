@@ -29,7 +29,6 @@ def pal_kangaroo_tracking_ppo_runner_cfg(
 
   if use_history_encoder:
     actor_kwargs["class_name"] = "pal_mjlab.tasks.tracking.kangaroo.custom_models:HistoryEncoderModel"
-    critic_kwargs["class_name"] = "pal_mjlab.tasks.tracking.kangaroo.custom_models:HistoryEncoderModel"
 
   return RslRlOnPolicyRunnerCfg(
     actor=RslRlModelCfg(**actor_kwargs),

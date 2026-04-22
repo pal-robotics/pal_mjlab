@@ -384,15 +384,12 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # History Encoder Groups
     # -------------------------------------------------------------------------
     if use_history:
-        # Create explicit history buffers for our custom TCN Encoder.
-        # We maintain the normal actor/critic groups to represent the current 1-step obs.
+        # Note: We keep the Critic memoryless to save VRAM on GPUs with limited memory (< 8GB).
+        # The Critic has access to privileged information (e.g. ground truth velocity) 
+        # that makes temporal history less critical for evaluation.
         cfg.observations["actor_history"] = copy.deepcopy(cfg.observations["actor"])
         cfg.observations["actor_history"].history_length = 30
         cfg.observations["actor_history"].flatten_history_dim = False
-        
-        cfg.observations["critic_history"] = copy.deepcopy(cfg.observations["critic"])
-        cfg.observations["critic_history"].history_length = 30
-        cfg.observations["critic_history"].flatten_history_dim = False
 
     # =========================================================================
     # 9. PLAY MODE OVERRIDES
