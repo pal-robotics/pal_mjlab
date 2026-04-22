@@ -32,17 +32,52 @@ def pal_kangaroo_flat_tracking_env_cfg(
     play: bool = False,
     use_history: bool = False,
 ) -> ManagerBasedRlEnvCfg:
-    """Create PAL Robotics Talos flat terrain tracking configuration."""
+    """Create PAL Robotics Kangaroo flat terrain tracking configuration."""
     cfg = make_tracking_env_cfg()
+
+    # =========================================================================
+    # 0. DATA DEFINITIONS
+    # =========================================================================
+    body_names = (
+        "base_link",
+        "pelvis_2_link",
+        "leg_left_3_link",
+        "leg_left_4_link",
+        "leg_left_5_link",
+        "leg_right_3_link",
+        "leg_right_4_link",
+        "leg_right_5_link",
+        "arm_left_2_link",
+        "arm_left_3_link",
+        "arm_left_tip_link",
+        "arm_right_2_link",
+        "arm_right_3_link",
+        "arm_right_tip_link",
+    )
+
+    geom_names = tuple(
+        f"{side}_foot{i}_collision"
+        for side in ("left", "right")
+        for i in [0, 2, 4, 6, 8, 10]
+    )
+
+    body_geoms = (
+        "leg_left_femur_collision",
+        "leg_right_femur_collision",
+        "leg_left_knee_collision",
+        "leg_left_knee_bar_collision",
+        "leg_right_knee_collision",
+        "leg_right_knee_bar_collision",
+        "arm_left_4_collision",
+        "arm_right_4_collision",
+        "pelvis_2_collision",
+    )
 
     # =========================================================================
     # 1. SCENE & SIMULATION SETUP
     # =========================================================================
     cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
     cfg.sim.mujoco.timestep = 0.002
-    # cfg.sim.njmax = 450
-    # cfg.sim.nconmax = 100
-    # cfg.sim.contact_sensor_maxmatch = 128
     cfg.decimation = 10
 
     # Self-collision configuration
@@ -64,163 +99,18 @@ def pal_kangaroo_flat_tracking_env_cfg(
     joint_pos_action.scale = KANGAROO_ACTION_SCALE
     joint_pos_action.actuator_names = KANGAROO_ACTUATOR_NAMES
 
-    assert cfg.commands is not None
+    # =========================================================================
+    # 3. COMMANDS
+    # =========================================================================
     motion_cmd = cfg.commands["motion"]
     assert isinstance(motion_cmd, MotionCommandCfg)
     motion_cmd.anchor_body_name = "base_link"
-    motion_cmd.body_names = (
-        "base_link",
-        "pelvis_2_link",
-        "leg_left_3_link",
-        "leg_left_4_link",
-        "leg_left_5_link",
-        "leg_right_3_link",
-        "leg_right_4_link",
-        "leg_right_5_link",
-        "arm_left_2_link",
-        "arm_left_3_link",
-        "arm_left_tip_link",
-        "arm_right_2_link",
-        "arm_right_3_link",
-        "arm_right_tip_link",
-    )
-
-
-    # motion_cmd.joint_position_range = (-0.2, 0.2)
-    # The hull points should correspond to the respective joints defined in the joint_names_group order
-    # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
-    cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
-        func=mdp.joint_limits_convex_hull,
-        weight=-10.0,
-        params={
-        "asset_cfg": SceneEntityCfg("robot", joint_names=(r".*",)),
-        "metrics_suffix": "hipXY",
-        "joint_names_group": [
-            [r"leg_left_2_joint", r"leg_left_3_joint"],
-            [r"leg_right_2_joint", r"leg_right_3_joint"],
-        ],
-        "margin": 0.02,
-        "hull_points": HIP_XY_CONVEX_HULL_POINTS,
-        },
-    )
-
-    cfg.rewards["convex_hull_joint_limits_ankle"] = RewardTermCfg(
-        func=mdp.joint_limits_convex_hull,
-        weight=-10.0,
-        params={
-        "asset_cfg": SceneEntityCfg("robot", joint_names=(r".*",)),
-        "margin": 0.02,
-        "metrics_suffix": "ankleXY",
-        "joint_names_group": [
-            [r"leg_left_4_joint", r"leg_left_5_joint"],
-            [r"leg_right_4_joint", r"leg_right_5_joint"],
-        ],
-        "hull_points": ANKLE_XY_CONVEX_HULL_POINTS,
-        },
-    )
-
-    cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
-    cfg.events["body_friction"] = EventTermCfg(
-        mode="startup",
-        func=dr.geom_friction,
-        params={
-        "asset_cfg": SceneEntityCfg("robot", geom_names=body_geoms),  # Set per-robot.
-        "operation": "abs",
-        "ranges": (0.3, 2.0),
-        "shared_random": False,  # All body geoms share the same friction.
-        },
-    )
-
-    cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-
-    cfg.events["control_delay"] = EventTermCfg(
-        mode="startup",
-        func=tracking_mdp.control_delay,
-        params={
-        "delay_range": (0.0, 0.04),  # 0–40 ms
-        "asset_cfg": SceneEntityCfg("robot"),
-        },
-    )
-    cfg.events["p_gain"] = EventTermCfg(
-        mode="startup",
-        func=tracking_mdp.p_gain,
-        params={
-        "kp_range": (0.925, 1.05),
-        "asset_cfg": SceneEntityCfg("robot"),
-        },
-    )
-    cfg.events["joint_friction"] = EventTermCfg(
-        mode="startup",
-        func=dr.dof_frictionloss,
-        params={
-        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-        "operation": "add",
-        "ranges": (-0.008, 0.008),
-        "shared_random": False,
-        },
-    )
-
-
-    cfg.terminations["ee_body_pos"].params["body_names"] = (
-        "leg_left_5_link",
-        "leg_right_5_link",
-        "arm_left_5_link",
-        "arm_right_5_link",
-    )
-
-    cfg.viewer.body_name = "base_link"
-
-    # Uncomment to enable 5-step observation history for latency compensation:
-    cfg.observations["actor"].history_length = 5
-    cfg.observations["critic"].history_length = 5
-
-    # Add periodic motion phase and restructure actor/critic observations
-    for group_name in ["actor", "critic"]:
-        cfg.observations[group_name].terms["motion_phase"] = ObservationTermCfg(
-        func=tracking_mdp.motion_phase,
-        params={"command_name": "motion"},
-
-
-        # =========================================================================
-        # 3. COMMANDS
-        # =========================================================================
-
-        # --- Original Command Configuration (Commented Out) ---
-        motion_cmd = cfg.commands["motion"]
-        assert isinstance(motion_cmd, MotionCommandCfg)
-        motion_cmd.anchor_body_name = "base_link"
-        motion_cmd.body_names = body_names
-
-    # --- New Per-Joint Randomized Command ---
-    # old_motion_cmd = cfg.commands["motion"]
-    # cfg.commands["motion"] = PalMotionCommandCfg(
-    #     entity_name=old_motion_cmd.entity_name,
-    #     motion_file=old_motion_cmd.motion_file,
-    #     anchor_body_name="base_link",
-    #     body_names=body_names,
-    #     resampling_time_range=old_motion_cmd.resampling_time_range,
-    #     pose_range=old_motion_cmd.pose_range,
-    #     velocity_range=old_motion_cmd.velocity_range,
-    #     sampling_mode=old_motion_cmd.sampling_mode,
-    #     debug_vis=old_motion_cmd.debug_vis,
-    #     joint_position_range=old_motion_cmd.joint_position_range,  # Default fallback
-    #     joint_position_ranges={
-    #         r"arm_.*_joint": (-0.5, 0.5),
-    #         r"leg_.*_length_joint|leg_.*_femur_joint|leg_.*_knee_joint": (-0.1, 0.1),
-    #         r"leg_.*_joint": (-0.3, 0.3),
-    #         r"pelvis_.*_joint": (-0.3, 0.3),
-    #     },
-    # )
-    # motion_cmd = cfg.commands["motion"]
-    # motion_cmd.joint_position_range = (-0.2, 0.2)
-    # motion_cmd.joint_position_range = (-0.2, 0.2)
+    motion_cmd.body_names = body_names
 
     # =========================================================================
     # 4. REWARDS
     # =========================================================================
-    # The hull points correspond to the respective joints defined in the joint_names_group order.
-    # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip Roll.
-    # Convex Hull limits
+    # Convex Hull limits for Hip
     cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
         func=mdp.joint_limits_convex_hull,
         weight=-10.0,
@@ -236,6 +126,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
         },
     )
 
+    # Convex Hull limits for Ankle
     cfg.rewards["convex_hull_joint_limits_ankle"] = RewardTermCfg(
         func=mdp.joint_limits_convex_hull,
         weight=-10.0,
@@ -258,22 +149,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 5. EVENTS (Domain Randomization)
     # =========================================================================
-    geom_names = tuple(
-        f"{side}_foot{i}_collision"
-        for side in ("left", "right")
-        for i in [0, 2, 4, 6, 8, 10]
-    )
-    
-    body_geoms = (
-        "leg_left_femur_collision", "leg_right_femur_collision",
-        "leg_left_knee_collision", "leg_left_knee_bar_collision",
-        "leg_right_knee_collision", "leg_right_knee_bar_collision",
-        "arm_left_4_collision", "arm_right_4_collision",
-        "pelvis_2_collision",
-    )
-
     cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
-    
     cfg.events["body_friction"] = EventTermCfg(
         mode="startup",
         func=dr.geom_friction,
@@ -295,7 +171,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
             "asset_cfg": SceneEntityCfg("robot"),
         },
     )
-    
+
     cfg.events["p_gain"] = EventTermCfg(
         mode="startup",
         func=tracking_mdp.p_gain,
@@ -304,7 +180,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
             "asset_cfg": SceneEntityCfg("robot"),
         },
     )
-    
+
     cfg.events["joint_friction"] = EventTermCfg(
         mode="startup",
         func=dr.dof_frictionloss,
@@ -334,16 +210,12 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 8. OBSERVATIONS
     # =========================================================================
-    # Latency compensation history
-    # cfg.observations["actor"].history_length = 5
-    # cfg.observations["critic"].history_length = 5
-
-    # Add IMU observations
     for group_name in ["actor", "critic"]:
         cfg.observations[group_name].terms["motion_phase"] = ObservationTermCfg(
             func=tracking_mdp.motion_phase,
             params={"command_name": "motion"},
         )
+        # Add IMU observations
         cfg.observations[group_name].terms["base_lin_acc"] = ObservationTermCfg(
             func=mdp.builtin_sensor,
             params={"sensor_name": "robot/imu_lin_acc"},
@@ -355,50 +227,33 @@ def pal_kangaroo_flat_tracking_env_cfg(
             noise=Unoise(n_min=-0.05, n_max=0.05),
         )
 
-    # Reduce IMU noise for existing terms
+    # Reduce IMU noise for existing terms in actor
     cfg.observations["actor"].terms["base_ang_vel"].noise.n_min = -0.04
     cfg.observations["actor"].terms["base_ang_vel"].noise.n_max = 0.04
 
-    # Modify observations based on state estimation and actor requirements
-    # Note: base_lin_acc and imu_projected_gravity are used instead of world-frame velocity in actor.
+    # Remove world-frame velocity and reference anchor from actor (spatial tracking strictly in critic)
     cfg.observations["actor"].terms.pop("base_lin_vel", None)
-
-    # Move reference anchor tracking (spatial error) to the critic only
     cfg.observations["actor"].terms.pop("motion_anchor_pos_b", None)
     cfg.observations["actor"].terms.pop("motion_anchor_ori_b", None)
 
-    # --- Old Observation Logic (Commented Out) ---
-    # if not has_state_estimation:
-    #   new_actor_terms = {
-    #     k: v
-    #     for k, v in cfg.observations["actor"].terms.items()
-    #     if k not in ["motion_anchor_pos_b", "motion_anchor_ori_b", "base_lin_vel"]
-    #   }
-    #   cfg.observations["actor"] = ObservationGroupCfg(
-    #     terms=new_actor_terms,
-    #     concatenate_terms=True,
-    #     enable_corruption=True,
-    #   )
-
     # -------------------------------------------------------------------------
-    # History Encoder Groups
+    # History Groups
     # -------------------------------------------------------------------------
     if use_history:
         # Note: We keep the Critic memoryless to save VRAM on GPUs with limited memory (< 8GB).
-        # The Critic has access to privileged information (e.g. ground truth velocity) 
-        # that makes temporal history less critical for evaluation.
         cfg.observations["actor_history"] = copy.deepcopy(cfg.observations["actor"])
         cfg.observations["actor_history"].history_length = 30
         cfg.observations["actor_history"].flatten_history_dim = False
+    # else:
+        # Latency compensation history (standard 5-step window)
+        # cfg.observations["actor"].history_length = 5
+        # cfg.observations["critic"].history_length = 5
 
     # =========================================================================
     # 9. PLAY MODE OVERRIDES
     # =========================================================================
     if play:
-        # Effectively infinite episode length.
         cfg.episode_length_s = int(1e9)
-
-        # Disable noise and specific events
         cfg.observations["actor"].enable_corruption = False
         cfg.events.pop("push_robot", None)
         cfg.events.pop("control_delay", None)
