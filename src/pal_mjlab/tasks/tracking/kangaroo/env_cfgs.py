@@ -387,11 +387,11 @@ def pal_kangaroo_flat_tracking_env_cfg(
         # Create explicit history buffers for our custom TCN Encoder.
         # We maintain the normal actor/critic groups to represent the current 1-step obs.
         cfg.observations["actor_history"] = copy.deepcopy(cfg.observations["actor"])
-        cfg.observations["actor_history"].history_length = 15
+        cfg.observations["actor_history"].history_length = 30
         cfg.observations["actor_history"].flatten_history_dim = False
         
         cfg.observations["critic_history"] = copy.deepcopy(cfg.observations["critic"])
-        cfg.observations["critic_history"].history_length = 15
+        cfg.observations["critic_history"].history_length = 30
         cfg.observations["critic_history"].flatten_history_dim = False
 
     # =========================================================================

@@ -104,6 +104,71 @@ class PalMotionCommand(MotionCommand):
 
     self.robot.clear_state(env_ids=env_ids)
 
+    # Pre-seed history buffers with actual reference motion data [t-H, ..., t]
+    self._prime_history_buffers(env_ids)
+
+  def _prime_history_buffers(self, env_ids: torch.Tensor):
+    """Pre-seed actor_history circular buffers with reference motion data.
+
+    After RSI resets the robot to timestep t, this fills each term's
+    CircularBuffer with frames [t - history_length, ..., t] from the
+    reference motion file.
+
+    If the 'actor_history' group doesn't exist (standard task), this is a
+    no-op — switching between task IDs requires no code changes.
+    """
+    obs_mgr = self._env.observation_manager
+    history_group = "actor_history"
+
+    if history_group not in obs_mgr._group_obs_term_history_buffer:
+      return  # Standard task — nothing to do
+
+    history_buffers = obs_mgr._group_obs_term_history_buffer[history_group]
+    if not history_buffers:
+      return
+
+    # Determine history length from any buffer in the group
+    any_buf = next(iter(history_buffers.values()))
+    history_length = any_buf.max_length
+
+    # Save and temporarily shift time_steps to pull ref frames without
+    # touching simulation state.
+    original_time_steps = self.time_steps.clone()
+
+    # Iterate oldest-to-newest: [t-history_length, ..., t-1, t]
+    for lag in range(history_length, -1, -1):
+      lagged_t = torch.clamp(self.time_steps[env_ids] - lag, min=0)
+      self.time_steps[env_ids] = lagged_t
+
+      for term_name, buf in history_buffers.items():
+        group_term_names = obs_mgr._group_obs_term_names[history_group]
+        group_term_cfgs = obs_mgr._group_obs_term_cfgs[history_group]
+        if term_name not in group_term_names:
+          continue
+        idx = group_term_names.index(term_name)
+        term_cfg = group_term_cfgs[idx]
+
+        # Compute raw obs value; skip noise so we inject clean reference data
+        obs_val = term_cfg.func(self._env, **term_cfg.params)
+        if term_cfg.scale is not None:
+          obs_val = obs_val * term_cfg.scale
+
+        # On the oldest lag, zero-out the env_ids slots so the next append
+        # triggers the CircularBuffer's backfill logic properly
+        if lag == history_length:
+          buf.reset(batch_ids=env_ids.tolist())
+
+        # Build a full-batch tensor; only env_ids rows matter
+        if not buf.is_initialized:
+          buf.append(obs_val)
+        else:
+          full_batch = buf.buffer[:, -1].clone()  # (batch, ...)
+          full_batch[env_ids] = obs_val[env_ids]
+          buf.append(full_batch)
+
+    # Restore time_steps
+    self.time_steps.copy_(original_time_steps)
+
 
 @dataclass(kw_only=True)
 class PalMotionCommandCfg(MotionCommandCfg):
