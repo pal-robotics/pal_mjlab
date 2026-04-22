@@ -84,14 +84,17 @@ class HistoryEncoderModel(MLPModel):
         print(f"[{self.main_obs_set.upper()}] Configured HistoryEncoderModel (TCN). "
               f"Input: {self.actor_obs_dim}, Hist latent: {self.latent_hist_dim}.")
 
-    def forward(self, obs):
-        """Override forward to handle dictionary obs and bypass base MLPModel normalization."""
+    def forward(self, obs, stochastic_output=False):
+        """Override forward to handle dictionary obs and distribution sampling."""
         latent = self.get_latent(obs)
         out = self.mlp(latent)
         
-        # If the model has a distribution (standard in RSL-RL), return deterministic output
+        # Handle RSL-RL distribution (sampling during training, deterministic otherwise)
         if hasattr(self, "distribution") and self.distribution is not None:
-            return self.distribution.deterministic_output(out)
+            if stochastic_output:
+                return self.distribution.sample(out)
+            else:
+                return self.distribution.deterministic_output(out)
         return out
 
     def as_onnx(self, verbose=False):
