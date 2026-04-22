@@ -30,6 +30,7 @@ from pal_mjlab.tasks.velocity import mdp
 def pal_kangaroo_flat_tracking_env_cfg(
     has_state_estimation: bool = True,
     play: bool = False,
+    use_history: bool = False,
 ) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics Talos flat terrain tracking configuration."""
     cfg = make_tracking_env_cfg()
@@ -382,15 +383,16 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # -------------------------------------------------------------------------
     # History Encoder Groups
     # -------------------------------------------------------------------------
-    # Create explicit history buffers for our custom TCN Encoder.
-    # We maintain the normal actor/critic groups to represent the current 1-step obs.
-    cfg.observations["actor_history"] = copy.deepcopy(cfg.observations["actor"])
-    cfg.observations["actor_history"].history_length = 15
-    cfg.observations["actor_history"].flatten_history_dim = False
-    
-    cfg.observations["critic_history"] = copy.deepcopy(cfg.observations["critic"])
-    cfg.observations["critic_history"].history_length = 15
-    cfg.observations["critic_history"].flatten_history_dim = False
+    if use_history:
+        # Create explicit history buffers for our custom TCN Encoder.
+        # We maintain the normal actor/critic groups to represent the current 1-step obs.
+        cfg.observations["actor_history"] = copy.deepcopy(cfg.observations["actor"])
+        cfg.observations["actor_history"].history_length = 15
+        cfg.observations["actor_history"].flatten_history_dim = False
+        
+        cfg.observations["critic_history"] = copy.deepcopy(cfg.observations["critic"])
+        cfg.observations["critic_history"].history_length = 15
+        cfg.observations["critic_history"].flatten_history_dim = False
 
     # =========================================================================
     # 9. PLAY MODE OVERRIDES

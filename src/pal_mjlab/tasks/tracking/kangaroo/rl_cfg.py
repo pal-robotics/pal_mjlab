@@ -7,26 +7,33 @@ from mjlab.rl import (
 )
 
 
-def pal_kangaroo_tracking_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+def pal_kangaroo_tracking_ppo_runner_cfg(
+  use_history_encoder: bool = False,
+) -> RslRlOnPolicyRunnerCfg:
   """Create RL runner configuration for PAL Kangaroo tracking task."""
-  return RslRlOnPolicyRunnerCfg(
-    actor=RslRlModelCfg(
-      class_name="pal_mjlab.tasks.tracking.kangaroo.custom_models:HistoryEncoderModel",
-      hidden_dims=(512, 256, 128),
-      activation="elu",
-      obs_normalization=True,
-      distribution_cfg={
-        "class_name": "GaussianDistribution",
-        "init_std": 1.0,
-        "std_type": "scalar",
+  actor_kwargs = {
+      "hidden_dims": (512, 256, 128),
+      "activation": "elu",
+      "obs_normalization": True,
+      "distribution_cfg": {
+          "class_name": "GaussianDistribution",
+          "init_std": 1.0,
+          "std_type": "scalar",
       },
-    ),
-    critic=RslRlModelCfg(
-      class_name="pal_mjlab.tasks.tracking.kangaroo.custom_models:HistoryEncoderModel",
-      hidden_dims=(512, 256, 128),
-      activation="elu",
-      obs_normalization=True,
-    ),
+  }
+  critic_kwargs = {
+      "hidden_dims": (512, 256, 128),
+      "activation": "elu",
+      "obs_normalization": True,
+  }
+
+  if use_history_encoder:
+    actor_kwargs["class_name"] = "pal_mjlab.tasks.tracking.kangaroo.custom_models:HistoryEncoderModel"
+    critic_kwargs["class_name"] = "pal_mjlab.tasks.tracking.kangaroo.custom_models:HistoryEncoderModel"
+
+  return RslRlOnPolicyRunnerCfg(
+    actor=RslRlModelCfg(**actor_kwargs),
+    critic=RslRlModelCfg(**critic_kwargs),
     algorithm=RslRlPpoAlgorithmCfg(
       value_loss_coef=1.0,
       use_clipped_value_loss=True,
