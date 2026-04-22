@@ -73,6 +73,10 @@ class PalMotionTrackingOnPolicyRunner(MotionTrackingOnPolicyRunner):
             cmd = cast(MotionCommand, self.env.unwrapped.command_manager.get_term("motion"))
             
             # Use custom multi-input wrapper
+            # IMPORTANT: Capture the original device so we can restore it after export.
+            # onnx_wrapper.to("cpu") moves the underlying model in-place.
+            original_device = next(model.parameters()).device
+            
             onnx_wrapper = _PalOnnxMotionHistoryModel(
                 model, 
                 cmd.motion,
@@ -116,6 +120,10 @@ class PalMotionTrackingOnPolicyRunner(MotionTrackingOnPolicyRunner):
                 dynamic_axes={},
                 dynamo=False,
             )
+            
+            # Restore original device and training mode
+            model.to(original_device)
+            model.train()
             
             # Attach metadata (mandatory for C++ deployment)
             try:
