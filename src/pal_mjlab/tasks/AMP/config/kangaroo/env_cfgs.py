@@ -30,7 +30,8 @@ from mjlab.sensor import (
   ContactMatch,
   ContactSensorCfg,
   ObjRef,
-  RayCastSensorCfg,
+  RingPatternCfg,
+  TerrainHeightSensorCfg,
 )
 from pal_mjlab.tasks.AMP import mdp
 from pal_mjlab.tasks.AMP.mdp import UniformVelocityCommandCfg
@@ -49,12 +50,6 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
 
-  # Set raycast sensor frame to kangaroo pelvis.
-  for sensor in cfg.scene.sensors or ():
-    if sensor.name == "terrain_scan":
-      assert isinstance(sensor, RayCastSensorCfg)
-      assert isinstance(sensor.frame, ObjRef)
-      sensor.frame.name = "pelvis"
 
   site_names = ("left_foot", "right_foot")
   geom_names = tuple(
@@ -97,7 +92,14 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     reduce="none",
     num_slots=1,
   )
-  cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
+  # Remove the default terrain scan sensor
+  cfg.scene.sensors = tuple(s for s in cfg.scene.sensors if s.name != "terrain_scan")
+
+  cfg.scene.sensors = (cfg.scene.sensors or ()) + (
+    feet_ground_cfg,
+    self_collision_cfg,
+    body_ground_cfg,
+  )
 
   if cfg.scene.terrain is not None and cfg.scene.terrain.terrain_generator is not None:
     cfg.scene.terrain.terrain_generator.curriculum = True
@@ -111,6 +113,15 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd = cfg.commands["twist"]
   assert isinstance(twist_cmd, UniformVelocityCommandCfg)
   twist_cmd.viz.z_offset = 1.15
+
+  # Wire foot height scan to per-foot sites.
+  for sensor in cfg.scene.sensors or ():
+    if sensor.name == "foot_height_scan":
+      assert isinstance(sensor, TerrainHeightSensorCfg)
+      sensor.frame = tuple(
+        ObjRef(type="site", name=s, entity="robot") for s in site_names
+      )
+      sensor.pattern = RingPatternCfg.single_ring(radius=0.03, num_samples=6)
 
   cfg.observations["actor"].terms["height_scan"] = None
   cfg.observations["critic"].terms["height_scan"] = None
@@ -134,9 +145,6 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.builtin_sensor,
     params={"sensor_name": "robot/imu_lin_acc"},
   )
-  cfg.observations["critic"].terms["foot_height"].params[
-    "asset_cfg"
-  ].site_names = site_names
 
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
   cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)

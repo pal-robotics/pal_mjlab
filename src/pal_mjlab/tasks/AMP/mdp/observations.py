@@ -6,7 +6,7 @@ import torch
 
 from mjlab.entity import Entity
 from mjlab.managers.scene_entity_config import SceneEntityCfg
-from mjlab.sensor import ContactSensor, BuiltinSensor
+from mjlab.sensor import ContactSensor, BuiltinSensor, TerrainHeightSensor
 from mjlab.utils.lab_api.math import quat_apply_inverse
 
 if TYPE_CHECKING:
@@ -15,13 +15,17 @@ if TYPE_CHECKING:
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
 
-def foot_height(
-  env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
-) -> torch.Tensor:
-  asset: Entity = env.scene[asset_cfg.name]
-  return asset.data.site_pos_w[:, asset_cfg.site_ids, 2]  # (num_envs, num_sites)
+def foot_height(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tensor:
+  """Per-foot vertical clearance above terrain.
 
-
+  Returns:
+    Tensor of shape [B, F] where F is the number of frames (feet).
+  """
+  sensor = env.scene[sensor_name]
+  assert isinstance(sensor, TerrainHeightSensor), (
+    f"foot_height requires a TerrainHeightSensor, got {type(sensor).__name__}"
+  )
+  return sensor.data.heights
 def foot_air_time(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tensor:
   sensor: ContactSensor = env.scene[sensor_name]
   sensor_data = sensor.data
