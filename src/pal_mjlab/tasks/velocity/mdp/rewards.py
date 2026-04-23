@@ -502,11 +502,12 @@ class dynamics_prior_accuracy:
   def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
 
     path = cfg.params["path"]
+    seq_len = cfg.params["tokens"]
 
     self.n_act = 22
     self.n_obs = env.observation_manager.group_obs_dim["dynamics_prior"][0] - 22
 
-    self.seq_len = 10
+    self.seq_len = seq_len
     self.embed_dim = 256
     self.n_layers = 4
     self.num_heads = 8
@@ -542,9 +543,10 @@ class dynamics_prior_accuracy:
     self,
     env: ManagerBasedRlEnv,
     path,
+    tokens,
     std : float,
   ) -> torch.Tensor :
-    del path # unused here
+    del path, tokens # unused here
     
 
     # ___ Initialize 0 reward ___________________________________________________________________________________

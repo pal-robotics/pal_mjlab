@@ -314,6 +314,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     weight=0.5,
     params={
       "path": str(PAL_MJLAB_SRC_PATH / "dp_models" / "good_10.pt"),
+      "tokens": 10,
       "std" : math.sqrt(0.25),
       },
   )
