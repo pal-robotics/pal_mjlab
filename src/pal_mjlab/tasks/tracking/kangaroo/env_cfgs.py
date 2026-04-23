@@ -80,7 +80,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     cfg.sim.mujoco.timestep = 0.002
     cfg.decimation = 10
 
-    # Self-collision configuration
+    # Contact sensors
     self_collision_cfg = ContactSensorCfg(
         name="self_collision",
         primary=ContactMatch(mode="subtree", pattern="base_link", entity="robot"),
@@ -89,7 +89,21 @@ def pal_kangaroo_flat_tracking_env_cfg(
         reduce="none",
         num_slots=1,
     )
-    cfg.scene.sensors = (self_collision_cfg,)
+    feet_ground_cfg = ContactSensorCfg(
+        name="feet_ground_contact",
+        primary=ContactMatch(
+            # Link pattern matches leg_left_5_link and leg_right_5_link
+            mode="subtree",
+            pattern=r"^(leg_left_5_link|leg_right_5_link)$",
+            entity="robot",
+        ),
+        secondary=ContactMatch(mode="body", pattern="terrain"),
+        fields=("found", "force"),
+        reduce="netforce",
+        num_slots=1,
+        track_air_time=True,
+    )
+    cfg.scene.sensors = (self_collision_cfg, feet_ground_cfg)
 
     # =========================================================================
     # 2. ACTIONS
@@ -110,6 +124,52 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 4. REWARDS
     # =========================================================================
+    # Split tracking rewards into Legs and Upper Body/Arms
+    leg_bodies = (
+        "leg_left_3_link", "leg_left_4_link", "leg_left_5_link",
+        "leg_right_3_link", "leg_right_4_link", "leg_right_5_link"
+    )
+    other_bodies = (
+        "base_link", "pelvis_2_link", 
+        "arm_left_2_link", "arm_left_3_link", "arm_left_tip_link",
+        "arm_right_2_link", "arm_right_3_link", "arm_right_tip_link"
+    )
+
+    # 1. Position tracking (High precision for legs, more slack for arms)
+    cfg.rewards["motion_body_pos"].params["std"] = 0.15 
+    cfg.rewards["motion_body_pos"].params["body_names"] = leg_bodies
+    
+    cfg.rewards["motion_body_pos_other"] = RewardTermCfg(
+        func=tracking_mdp.motion_relative_body_position_error_exp,
+        weight=0.5, # Lower weight for arms
+        params={"command_name": "motion", "std": 0.4, "body_names": other_bodies},
+    )
+
+    # 2. Orientation tracking
+    cfg.rewards["motion_body_ori"].params["std"] = 0.2
+    cfg.rewards["motion_body_ori"].params["body_names"] = leg_bodies
+    
+    cfg.rewards["motion_body_ori_other"] = RewardTermCfg(
+        func=tracking_mdp.motion_relative_body_orientation_error_exp,
+        weight=0.5,
+        params={"command_name": "motion", "std": 0.5, "body_names": other_bodies},
+    )
+
+    # 3. Soft Landing (Penalize high-impact forces in the feet)
+    cfg.rewards["soft_landing"] = RewardTermCfg(
+        func=mdp.soft_landing,
+        weight=-1e-4, 
+        params={
+            "sensor_name": "feet_ground_contact",
+            "command_name": "motion",
+            "command_threshold": 0.05,
+        },
+    )
+
+    # Tighten tracking precision for velocities
+    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.5
+    cfg.rewards["motion_body_ang_vel"].params["std"] = 1.0
+
     # Convex Hull limits for Hip
     cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
         func=mdp.joint_limits_convex_hull,
@@ -141,10 +201,6 @@ def pal_kangaroo_flat_tracking_env_cfg(
             "hull_points": ANKLE_XY_CONVEX_HULL_POINTS,
         },
     )
-
-    # Tighten tracking precision for velocities
-    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.5
-    cfg.rewards["motion_body_ang_vel"].params["std"] = 1.0
 
     # =========================================================================
     # 5. EVENTS (Domain Randomization)
@@ -211,6 +267,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # 8. OBSERVATIONS
     # =========================================================================
     for group_name in ["actor", "critic"]:
+        cfg.observations[group_name].nan_policy = "sanitize"
         cfg.observations[group_name].terms["motion_phase"] = ObservationTermCfg(
             func=tracking_mdp.motion_phase,
             params={"command_name": "motion"},
@@ -226,6 +283,11 @@ def pal_kangaroo_flat_tracking_env_cfg(
             params={"sensor_name": "robot/imu_quat"},
             noise=Unoise(n_min=-0.05, n_max=0.05),
         )
+        if group_name == "critic":
+            cfg.observations["critic"].terms["foot_contact_forces"] = ObservationTermCfg(
+                func=mdp.foot_contact_forces,
+                params={"sensor_name": "feet_ground_contact"},
+            )
 
     # Reduce IMU noise for existing terms in actor
     cfg.observations["actor"].terms["base_ang_vel"].noise.n_min = -0.04
@@ -244,10 +306,6 @@ def pal_kangaroo_flat_tracking_env_cfg(
         cfg.observations["actor_history"] = copy.deepcopy(cfg.observations["actor"])
         cfg.observations["actor_history"].history_length = 30
         cfg.observations["actor_history"].flatten_history_dim = False
-    # else:
-        # Latency compensation history (standard 5-step window)
-        # cfg.observations["actor"].history_length = 5
-        # cfg.observations["critic"].history_length = 5
 
     # =========================================================================
     # 9. PLAY MODE OVERRIDES

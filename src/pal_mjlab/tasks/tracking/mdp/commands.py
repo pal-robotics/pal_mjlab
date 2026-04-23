@@ -97,12 +97,15 @@ class PalMotionCommand(MotionCommand):
       )
 
     # Write reference state to simulation
-    self.robot.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
-
-    root_state = torch.cat([root_pos, root_ori, root_lin_vel, root_ang_vel], dim=-1)
-    self.robot.write_root_state_to_sim(root_state, env_ids=env_ids)
-
-    self.robot.clear_state(env_ids=env_ids)
+    self._write_reference_state_to_sim(
+      env_ids,
+      root_pos,
+      root_ori,
+      root_lin_vel,
+      root_ang_vel,
+      joint_pos,
+      joint_vel,
+    )
 
     # Pre-seed history buffers with actual reference motion data [t-H, ..., t]
     self._prime_history_buffers(env_ids)
