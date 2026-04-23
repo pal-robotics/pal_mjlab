@@ -1,11 +1,12 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
+import math
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import MetricsTermCfg
 from mjlab.managers.event_manager import EventTermCfg
-from mjlab.managers.observation_manager import ObservationTermCfg
+from mjlab.managers.observation_manager import ObservationTermCfg, ObservationGroupCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
@@ -41,6 +42,7 @@ from pal_mjlab.robots import (
 )
 from pal_mjlab.tasks.velocity import mdp
 
+from pal_mjlab import PAL_MJLAB_SRC_PATH
 
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO rough terrain velocity configuration."""
@@ -141,7 +143,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
     params={"sensor_name": "robot/imu_lin_acc"},
-    noise=Unoise(n_min=-0.5, n_max=0.5),
+    noise=Unoise(n_min=-0.1, n_max=0.1),
   )
   cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
@@ -153,10 +155,42 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
   cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.5, n_max=0.5)
 
+  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.5, n_max=0.5)
+
   ### Disabling the use of history length as we haven't seen much improvements with it
   ### Moreover, our best policy #62 doesn't use any history length
   # cfg.observations["actor"].history_length = 5  # Keep last 5 frames
   # cfg.observations["critic"].history_length = 5  # Keep last 5 frames
+
+
+  dp_terms = {
+    "base_ang_vel": ObservationTermCfg(
+      func=mdp.builtin_sensor,
+      params={"sensor_name": "robot/imu_ang_vel"},
+      noise=Unoise(n_min=-0.2, n_max=0.2),
+    ),
+    "joint_pos": ObservationTermCfg(
+      func=mdp.joint_pos_rel,
+      noise=Unoise(n_min=-0.01, n_max=0.01),
+    ),
+    "joint_vel": ObservationTermCfg(
+      func=mdp.joint_vel_rel,
+      noise=Unoise(n_min=-1.5, n_max=1.5),
+    ),
+    "actions": ObservationTermCfg(func=mdp.last_action),
+    "base_lin_acc" : ObservationTermCfg(
+        func=mdp.builtin_sensor,
+        params={"sensor_name": "robot/imu_lin_acc"},
+        noise=Unoise(n_min=-0.5, n_max=0.5),
+    ),
+    "Action": ObservationTermCfg(func=mdp.last_action),
+  }
+
+  cfg.observations["dynamics_prior"] = ObservationGroupCfg(
+      terms=dp_terms,
+      concatenate_terms=True,
+      enable_corruption=False,
+    )
 
   # -- Events
 
@@ -274,6 +308,17 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "velocity_limits": {REGEX_LEG_LENGTH_JOINTS_ONLY: (-1.6, 1.6)},
     },
   )
+
+  cfg.rewards["dynamics_prior_accuracy"] = RewardTermCfg(
+    func=mdp.dynamics_prior_accuracy,
+    weight=0.5,
+    params={
+      "path": str(PAL_MJLAB_SRC_PATH / "dp_models" / "good_10.pt"),
+      "std" : math.sqrt(0.25),
+      },
+  )
+
+
 
   ## Metrics
   cfg.metrics = {

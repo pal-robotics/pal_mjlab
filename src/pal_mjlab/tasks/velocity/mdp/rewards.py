@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 # from mjlab.tests.test_runner import env
 import torch
+import torch.nn as nn
 from mjlab.entity import Entity
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
@@ -18,6 +19,8 @@ if TYPE_CHECKING:
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import ConvexHull
+
+from pal_mjlab.tasks.velocity.mdp.dynamics_prior import DynamicsModel
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
@@ -494,3 +497,103 @@ class sound_suppression:
 
     # return the squared sum of change in velocity along the projected gravity direction
     return cost
+
+class dynamics_prior_accuracy:
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+
+    path = cfg.params["path"]
+
+    self.n_act = 22
+    self.n_obs = env.observation_manager.group_obs_dim["dynamics_prior"][0] - 22
+
+    self.seq_len = 10
+    self.embed_dim = 256
+    self.n_layers = 4
+    self.num_heads = 8
+    self.out_dim = self.n_obs
+
+    self.model = DynamicsModel(
+            n_in=self.n_obs + self.n_act,
+            embed_dim=self.embed_dim,
+            n_layers=self.n_layers,
+            max_len=self.seq_len,
+            out_dim=self.out_dim,
+            num_heads=self.num_heads
+        )
+    
+    checkpoint = torch.load(path, map_location=env.device)
+    self.model.load_state_dict(checkpoint["model_state_dict"])
+    self.model.to(env.device)
+    self.model.eval()
+
+    stats = checkpoint["norm_stats"]
+
+    self.model.x_mean.copy_(stats["x_mean"])
+    self.model.x_std.copy_(stats["x_std"])
+
+    self.y_mean = stats["y_mean"].to(env.device)
+    self.y_std = stats["y_std"].to(env.device)
+
+    self.obs_memory_buffer = torch.zeros((env.scene.num_envs, self.seq_len, self.n_obs + self.n_act), device = env.device)
+    self.obs_valid_buffer = torch.zeros((env.scene.num_envs, self.seq_len), device = env.device)
+
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    path,
+    std : float,
+  ) -> torch.Tensor :
+    del path # unused here
+    
+
+    # ___ Initialize 0 reward ___________________________________________________________________________________
+
+    reward = torch.zeros((env.scene.num_envs,), device = env.device)
+
+
+    # ___ Compute model required observations ___________________________________________________________________
+
+    obs = env.observation_manager.compute_group("dynamics_prior")                  # (num_envs, n_obs)
+    
+
+    # ___ Prepare valid envs masks ______________________________________________________________________________
+
+    valid_mask = (env.episode_length_buf > 0)
+    invalid_mask = ((env.episode_length_buf > 0) == 0)
+
+
+    # ___ Compute invalid envs (resets) _________________________________________________________________________
+
+    n_invalid = torch.count_nonzero(invalid_mask)
+    self.obs_memory_buffer[invalid_mask] = torch.zeros((n_invalid, self.seq_len, self.n_obs + self.n_act), device = env.device)
+    self.obs_valid_buffer[invalid_mask] = torch.zeros((n_invalid, self.seq_len ), device = env.device)
+
+
+    # ___ Compute valid envs ____________________________________________________________________________________
+
+    # Shift obs memory buffer
+    self.obs_memory_buffer[valid_mask, 1:] = self.obs_memory_buffer[valid_mask, :-1].clone()
+    self.obs_memory_buffer[:, 0] = obs.clone()
+
+    # Shift valid mask buffer
+    self.obs_valid_buffer[valid_mask, 1:] = self.obs_valid_buffer[valid_mask, :-1].clone()
+    self.obs_valid_buffer[:, 0] = 1.0
+
+
+    # ___ Compute predictions ___________________________________________________________________________________
+
+    enough_context_mask = self.obs_valid_buffer.sum(dim=-1) >= 3
+    inference_mask = (valid_mask & enough_context_mask)
+    if inference_mask.any():
+      predictions = self.model(self.obs_memory_buffer[inference_mask], self.obs_valid_buffer[inference_mask])                # (num_envs, n_obs)
+      predictions = predictions * self.y_std + self.y_mean
+
+
+    # ___ Compute reward ________________________________________________________________________________________
+
+      sq_error = (torch.square(predictions - obs[inference_mask,:-22])).mean(dim=-1)
+
+      reward[inference_mask] = torch.exp(-sq_error / std**2)
+
+    return reward
