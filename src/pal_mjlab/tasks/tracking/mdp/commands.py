@@ -22,6 +22,21 @@ class PalMotionCommand(MotionCommand):
 
   cfg: PalMotionCommandCfg
 
+#  INSTEAD OF ABSOLUTE JOINT VALUES WE COMMAND RELATIVE JOINT VALUES
+  @property
+  def command(self) -> torch.Tensor:
+    """Returns the reference state as a concatenation of:
+    - Target Joint Positions relative to the default pose
+    - Target Joint Velocities
+    """
+    # Subtract the robot's default joint positions from the NPZ targets
+    # to ensure the policy receives relative goals.
+    joint_pos_rel = self.joint_pos - self.robot.data.default_joint_pos
+    return torch.cat([joint_pos_rel, self.joint_vel], dim=1)
+
+
+
+
   def _resample_command(self, env_ids: torch.Tensor):
     if self.cfg.sampling_mode == "start":
       self.time_steps[env_ids] = 0

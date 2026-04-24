@@ -1,49 +1,84 @@
 import numpy as np
+import sys
+import torch
+import yaml
+import os
 
-# Load the file
-data = np.load('/home/lorenzobarbieri/Downloads/motion(1).npz')
-# 1. Internal Joint Angles
-initial_joints = data['joint_pos'][0]
+# Script to extract the first pose from an MJLab NPZ motion file and generate a PAL trajectory YAML
+# Usage: python npz_starting_pose.py <path_to_npz>
 
-# 2. Base Position (usually the first entry in body_pos_w if it's the root)
-# Note: Check the shape. If it's [frames, num_bodies, 3], 
-# the root is usually index 0.
-base_pos = data['body_pos_w'][0, 0] 
+if len(sys.argv) < 2:
+    print("Usage: python npz_starting_pose.py <path_to_motion_file>")
+    sys.exit(1)
 
-# 3. Base Orientation (Quaternion)
-base_quat = data['body_quat_w'][0, 0]
+path = sys.argv[1]
 
-print(f"--- Starting Configuration ---")
-print(f"Base Position: {base_pos}")
-print(f"Base Quat:     {base_quat}")
-print(f"Joint Angles:  {initial_joints}")
+# Load data based on file extension
+if path.endswith(".npz"):
+    data = np.load(path)
+    # Extract first frame
+    joint_pos_all = data['joint_pos'][0]
+elif path.endswith(".csv"):
+    data = np.loadtxt(path, delimiter=",")
+    # CSV format: root_pos(3), root_quat(4), joint_pos(N)
+    # So joint_pos starts from index 7
+    if data.ndim == 1:
+        joint_pos_all = data[7:]
+    else:
+        joint_pos_all = data[0, 7:]
+else:
+    print(f"ERROR: Unsupported file format '{path}'. Use .npz or .csv")
+    sys.exit(1)
+JOINT_NAMES_ALL = [
+    "pelvis_1_joint", "pelvis_2_joint",
+    "arm_left_1_joint", "arm_left_2_joint", "arm_left_3_joint", "arm_left_4_joint",
+    "arm_right_1_joint", "arm_right_2_joint", "arm_right_3_joint", "arm_right_4_joint",
+    "leg_left_1_joint", "leg_left_2_joint", "leg_left_3_joint", "leg_left_length_joint", 
+    "leg_left_4_joint", "leg_left_5_joint", "leg_left_femur_joint", "leg_left_knee_joint",
+    "leg_right_1_joint", "leg_right_2_joint", "leg_right_3_joint", "leg_right_length_joint", 
+    "leg_right_4_joint", "leg_right_5_joint", "leg_right_femur_joint", "leg_right_knee_joint"
+]
 
-import mujoco
-import numpy as np
+# Identify actuated joints (exclude closed-chain passive joints)
+ACTUATED_NAMES = [
+    name for name in JOINT_NAMES_ALL 
+    if "femur" not in name and "knee" not in name
+]
 
-# Change this path to the actual MJCF/XML file used by your task
-# It is usually located in your mjlab assets folder
-model_path = "/home/lorenzobarbieri/pal_mjlab/src/pal_mjlab/robots/pal_kangaroo/xmls/kangaroo.xml" 
+print(f"Motion: {path}")
+print("-" * 40)
 
-try:
-    model = mujoco.MjModel.from_xml_path(model_path)
-    print(f"{'Index':<8} | {'Joint Name':<25}")
-    print("-" * 35)
-    
-    # joint_names starts from the floating base usually, 
-    # but your npz 'joint_pos' only has the 26 controllable joints.
-    # We skip the "freejoint" (the first 7 qpos slots)
-    
-    # In MuJoCo, model.jnt_qposadr gives the starting address of each joint
-    # We want the names of the joints that correspond to the 26 positions.
-    joint_names = [model.joint(i).name for i in range(model.njnt)]
-    
-    # Most mjlab robots have a 'root' or 'freejoint' at index 0.
-    # If joint_pos has 26, it's likely everything AFTER the freejoint.
-    controllable_joints = [name for name in joint_names if name != 'root' and name != 'freejoint']
 
-    for i, name in enumerate(controllable_joints):
-        print(f"{i:<8} | {name:<25}")
+# Map values to actuated joints
+actuated_values = []
+print("INITIAL ACTUATED POSE:")
+for name in ACTUATED_NAMES:
+    idx = JOINT_NAMES_ALL.index(name)
+    val = float(joint_pos_all[idx])
+    actuated_values.append(val)
+    print(f"  {name:25}: {val:8.4f}")
 
-except Exception as e:
-    print(f"Error loading model: {e}")
+# Generate YAML in PAL play_motion format
+yaml_data = {
+    "play_motion": {
+        "motions": {
+            "goto_initial_pose": {
+                "joints": ACTUATED_NAMES,
+                "points": [
+                    {
+                        "positions": actuated_values,
+                        "time_from_start": 5.0
+                    }
+                ]
+            }
+        }
+    }
+}
+
+output_yaml = "goto_initial_pose.yaml"
+with open(output_yaml, "w") as f:
+    yaml.dump(yaml_data, f, default_flow_style=False, sort_keys=False)
+
+print("-" * 40)
+print(f"SUCCESS: Trajectory YAML saved to '{output_yaml}'")
+print("This trajectory will take 5 seconds to align the robot to the MJLab start pose.")

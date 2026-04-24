@@ -113,7 +113,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     joint_pos_action.scale = KANGAROO_ACTION_SCALE
     joint_pos_action.actuator_names = KANGAROO_ACTUATOR_NAMES
 
-    # =========================================================================
+    # = =========================================================================
     # 3. COMMANDS
     # =========================================================================
     motion_cmd = cfg.commands["motion"]
@@ -158,7 +158,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # 3. Soft Landing (Penalize high-impact forces in the feet)
     cfg.rewards["soft_landing"] = RewardTermCfg(
         func=mdp.soft_landing,
-        weight=-1e-4, 
+        weight=-5e-5, 
         params={
             "sensor_name": "feet_ground_contact",
             "command_name": "motion",
@@ -167,8 +167,8 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # Tighten tracking precision for velocities
-    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.5
-    cfg.rewards["motion_body_ang_vel"].params["std"] = 1.0
+    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.3
+    cfg.rewards["motion_body_ang_vel"].params["std"] = 0.7
 
     # Convex Hull limits for Hip
     cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
@@ -205,7 +205,24 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 5. EVENTS (Domain Randomization)
     # =========================================================================
-    cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
+    cfg.events["foot_friction"] = EventTermCfg(
+        mode="startup",
+        func=dr.geom_friction,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", geom_names=geom_names),
+            "operation": "abs",
+            "ranges": (0.3, 1.8),
+            "shared_random": True,
+        },
+    )
+    cfg.events["encoder_bias"] = EventTermCfg(
+        mode="startup",
+        func=dr.encoder_bias,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+            "bias_range": (-0.015, 0.015),
+        },
+    )
     cfg.events["body_friction"] = EventTermCfg(
         mode="startup",
         func=dr.geom_friction,
@@ -266,28 +283,33 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 8. OBSERVATIONS
     # =========================================================================
+    # Add IMU observations and motion phase to both Actor and Critic
     for group_name in ["actor", "critic"]:
         cfg.observations[group_name].nan_policy = "sanitize"
         cfg.observations[group_name].terms["motion_phase"] = ObservationTermCfg(
             func=tracking_mdp.motion_phase,
             params={"command_name": "motion"},
         )
-        # Add IMU observations
+        # Add IMU observations (Noiseless for Critic)
         cfg.observations[group_name].terms["base_lin_acc"] = ObservationTermCfg(
             func=mdp.builtin_sensor,
             params={"sensor_name": "robot/imu_lin_acc"},
-            noise=Unoise(n_min=-0.05, n_max=0.05),
+            noise=Unoise(n_min=-0.05, n_max=0.05) if group_name == "actor" else None,
         )
         cfg.observations[group_name].terms["imu_projected_gravity"] = ObservationTermCfg(
             func=mdp.imu_projected_gravity,
             params={"sensor_name": "robot/imu_quat"},
-            noise=Unoise(n_min=-0.05, n_max=0.05),
+            noise=Unoise(n_min=-0.05, n_max=0.05) if group_name == "actor" else None,
         )
         if group_name == "critic":
             cfg.observations["critic"].terms["foot_contact_forces"] = ObservationTermCfg(
                 func=mdp.foot_contact_forces,
                 params={"sensor_name": "feet_ground_contact"},
             )
+
+    # Safety: Explicitly ensure ALL critic terms are noiseless
+    for term in cfg.observations["critic"].terms.values():
+        term.noise = None
 
     # Reduce IMU noise for existing terms in actor
     cfg.observations["actor"].terms["base_ang_vel"].noise.n_min = -0.04
