@@ -283,7 +283,7 @@ def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
     "track_linear_velocity": RewardTermCfg(
       func=mdp.track_linear_velocity,
       weight=1.0,
-      params={"command_name": "twist", "std": math.sqrt(0.75)},
+      params={"command_name": "twist", "std": math.sqrt(0.1)},
     ),
     "track_angular_velocity": RewardTermCfg(
       func=mdp.track_angular_velocity,
