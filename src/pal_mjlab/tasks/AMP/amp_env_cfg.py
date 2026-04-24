@@ -319,6 +319,8 @@ def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
         "command_threshold": 0.05,
       },
     ),
+
+    "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1),
   }
 
   ##
@@ -347,7 +349,7 @@ def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "command_name": "twist",
         "velocity_stages": [
-          {"step": 0, "lin_vel_x": (0.0, 0.5)},
+          {"step": 0, "lin_vel_x": (0.0, 0.6)},
         ],
       },
     ),
