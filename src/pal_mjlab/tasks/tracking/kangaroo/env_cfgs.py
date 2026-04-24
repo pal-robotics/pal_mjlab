@@ -30,7 +30,6 @@ from pal_mjlab.tasks.velocity import mdp
 def pal_kangaroo_flat_tracking_env_cfg(
     has_state_estimation: bool = True,
     play: bool = False,
-    use_history: bool = False,
 ) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics Kangaroo flat terrain tracking configuration."""
     cfg = make_tracking_env_cfg()
@@ -205,11 +204,21 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 5. EVENTS (Domain Randomization)
     # =========================================================================
-    cfg.events["foot_friction"] = EventTermCfg(
+    cfg.events["left_foot_friction"] = EventTermCfg(
         mode="startup",
         func=dr.geom_friction,
         params={
-            "asset_cfg": SceneEntityCfg("robot", geom_names=geom_names),
+            "asset_cfg": SceneEntityCfg("robot", geom_names=tuple(f"left_foot{i}_collision" for i in [0, 2, 4, 6, 8, 10])),
+            "operation": "abs",
+            "ranges": (0.3, 1.8),
+            "shared_random": True,
+        },
+    )
+    cfg.events["right_foot_friction"] = EventTermCfg(
+        mode="startup",
+        func=dr.geom_friction,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", geom_names=tuple(f"right_foot{i}_collision" for i in [0, 2, 4, 6, 8, 10])),
             "operation": "abs",
             "ranges": (0.3, 1.8),
             "shared_random": True,
@@ -223,18 +232,8 @@ def pal_kangaroo_flat_tracking_env_cfg(
             "bias_range": (-0.015, 0.015),
         },
     )
-    cfg.events["body_friction"] = EventTermCfg(
-        mode="startup",
-        func=dr.geom_friction,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", geom_names=body_geoms),
-            "operation": "abs",
-            "ranges": (0.3, 2.0),
-            "shared_random": False,
-        },
-    )
-
     cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
+
 
     cfg.events["control_delay"] = EventTermCfg(
         mode="startup",
@@ -265,6 +264,49 @@ def pal_kangaroo_flat_tracking_env_cfg(
         },
     )
 
+    # Added randomizations for A-RMA
+    arma_bodies = (
+        "base_link", "pelvis_1_link", "pelvis_2_link",
+        "leg_left_1_link", "leg_right_1_link",
+        "leg_left_3_link", "leg_right_3_link",
+        "leg_left_femur_link", "leg_right_femur_link",
+        "leg_left_knee_link", "leg_right_knee_link"
+    )
+    cfg.events["link_mass"] = EventTermCfg(
+        mode="startup",
+        func=dr.body_mass,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=arma_bodies),
+            "operation": "scale",
+            "ranges": (0.7, 1.3),
+            "shared_random": False,
+        },
+    )
+    cfg.events["link_com"] = EventTermCfg(
+        mode="startup",
+        func=dr.body_ipos,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=arma_bodies),
+            "operation": "add",
+            "ranges": {i: (-0.03, 0.03) for i in range(3)},
+            "shared_random": False,
+        },
+    )
+
+    cfg.events["joint_damping"] = EventTermCfg(
+
+        mode="startup",
+        func=dr.joint_damping,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+            "operation": "scale",
+            "ranges": (0.3, 4.0),
+            "shared_random": False,
+        },
+    )
+
+
+
     # =========================================================================
     # 6. TERMINATIONS
     # =========================================================================
@@ -283,6 +325,10 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 8. OBSERVATIONS
     # =========================================================================
+    # A-RMA Phase 0: History Buffer Enabled for Actor (50 frames = 1s context)
+    cfg.observations["actor"].history_length = 50
+    cfg.observations["actor"].flatten_history_dim = False
+
     # Add IMU observations and motion phase to both Actor and Critic
     for group_name in ["actor", "critic"]:
         cfg.observations[group_name].nan_policy = "sanitize"
@@ -307,6 +353,20 @@ def pal_kangaroo_flat_tracking_env_cfg(
                 params={"sensor_name": "feet_ground_contact"},
             )
 
+    # Privileged Observation Group (e_t)
+    cfg.observations["privileged"] = ObservationGroupCfg(
+        terms={
+            "external_parameters": ObservationTermCfg(
+                func=tracking_mdp.external_parameters,
+            ),
+        }
+    )
+
+    # Ensure Critic includes privileged information
+    cfg.observations["critic"].terms["privileged_info"] = ObservationTermCfg(
+        func=tracking_mdp.external_parameters,
+    )
+
     # Safety: Explicitly ensure ALL critic terms are noiseless
     for term in cfg.observations["critic"].terms.values():
         term.noise = None
@@ -320,15 +380,6 @@ def pal_kangaroo_flat_tracking_env_cfg(
     cfg.observations["actor"].terms.pop("motion_anchor_pos_b", None)
     cfg.observations["actor"].terms.pop("motion_anchor_ori_b", None)
 
-    # -------------------------------------------------------------------------
-    # History Groups
-    # -------------------------------------------------------------------------
-    if use_history:
-        # Note: We keep the Critic memoryless to save VRAM on GPUs with limited memory (< 8GB).
-        cfg.observations["actor_history"] = copy.deepcopy(cfg.observations["actor"])
-        cfg.observations["actor_history"].history_length = 30
-        cfg.observations["actor_history"].flatten_history_dim = False
-
     # =========================================================================
     # 9. PLAY MODE OVERRIDES
     # =========================================================================
@@ -338,6 +389,9 @@ def pal_kangaroo_flat_tracking_env_cfg(
         cfg.events.pop("push_robot", None)
         cfg.events.pop("control_delay", None)
         cfg.events.pop("p_gain", None)
+        cfg.events.pop("link_mass", None)
+        cfg.events.pop("link_com", None)
+        cfg.events.pop("joint_damping", None)
 
         # Disable RSI randomization
         motion_cmd.pose_range = {}

@@ -1,4 +1,4 @@
-"""Custom RL Model Architectures for Kangaroo Tracking."""
+"""Custom RL Model Architectures for Kangaroo Tracking with A-RMA."""
 
 import torch
 import torch.nn as nn
@@ -7,89 +7,87 @@ from rsl_rl.modules.mlp import MLP
 from rsl_rl.modules.normalization import EmpiricalNormalization
 
 
-class HistoryEncoderModel(MLPModel):
-    """Custom model that extracts a history observation group and parses it through a 1D Conv."""
+class PrivilegedEncoder(nn.Module):
+    """MLP Encoder to compress privileged information (e_t) into a latent (z_t).
+    
+    Architecture: 1 hidden layer of size 256.
+    """
+
+    def __init__(self, input_dim: int, latent_dim: int):
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(input_dim, 256),
+            nn.ELU(),
+            nn.Linear(256, latent_dim),
+        )
+
+    def forward(self, e_t: torch.Tensor):
+        return self.encoder(e_t)
+
+
+class ArmaActorModel(MLPModel):
+    """Actor Model for A-RMA Phase 1.
+    
+    Inputs:
+    - o_t (from 'actor' group, last frame): Current observation.
+    - z_t (from 'privileged' group via encoder): 8D extrinsics.
+    """
 
     def __init__(self, obs, obs_groups, obs_set, output_dim, **kwargs):
-        """Initialize the HistoryEncoderModel.
+        self.main_obs_set = obs_set  # 'actor'
+        self.priv_obs_set = "privileged"
         
-        It assumes the environment observation dictionary contains:
-        - `{obs_set}`: Main group (current observation, e.g., 'actor')
-        - `{obs_set}_history`: History group (e.g., 'actor_history') with shape [Batch, History, ObsDim]
-        """
-        # Save a reference to the main set
-        self.main_obs_set = obs_set
-        self.history_obs_set = f"{obs_set}_history"
+        # Dimensions
+        # In history-enabled envs, obs[obs_set] is [Batch, History, Dim]
+        self.obs_dim = obs[self.main_obs_set].shape[-1]
+        self.priv_dim = 167 
+        self.z_dim = 8
         
-        # Validate that the history group is available
-        if self.history_obs_set not in obs:
-            raise ValueError(
-                f"HistoryEncoderModel requires '{self.history_obs_set}' observation group to be "
-                f"present in the environment. Found: {list(obs.keys())}"
-            )
-            
-        current_obs = obs[self.main_obs_set]
-        history_obs = obs[self.history_obs_set]
-
-        # Extract dimensions
-        self.actor_obs_dim = current_obs.shape[-1]
-        self.history_obs_dim = history_obs.shape[-1] # From [Batch, History, ObsDim]
-        self.latent_hist_dim = 64
-        
-        # Override parent initialization so it doesn't crash configuring rsl_rl defaults.
-        # rsl_rl's MLPModel tries to create self.obs_normalizer for the dimension of self.obs_groups.
-        # It thinks we only have 'actor', which is fine. The normalizer will handle the current frame.
         super().__init__(obs, obs_groups, obs_set, output_dim, **kwargs)
         
-        # Optional: A separate normalizer for the incoming history buffer.
-        # We share the same dimension as current_obs normalizer, but handle it explicitly.
-        self.history_normalizer = None
-        if self.obs_normalizer is not None:
-            # Create a separate normalizer for the history terms to track rolling mean/std.
-            self.history_normalizer = EmpiricalNormalization(
-                shape=[self.history_obs_dim],
-            )
-            self.history_normalizer.to(current_obs.device)
+        # Separate normalizer for privileged info
+        self.priv_normalizer = EmpiricalNormalization(shape=[self.priv_dim]).to(obs[self.main_obs_set].device)
 
-        # 1. Temporal Convolutional History Encoder (Dilated TCN)
-        # Sequence of dilations [1, 2, 4, 8] with kernel_size=3 gives a receptive field of 31 steps.
-        self.history_encoder = nn.Sequential(
-            # Layer 1: Dilation 1. Field: 3
-            nn.Conv1d(self.history_obs_dim, 32, kernel_size=3, padding=1, dilation=1),
-            nn.ELU(),
-            # Layer 2: Dilation 2. Field: 7
-            nn.Conv1d(32, 32, kernel_size=3, padding=2, dilation=2),
-            nn.ELU(),
-            # Layer 3: Dilation 4. Field: 15
-            nn.Conv1d(32, 64, kernel_size=3, padding=4, dilation=4),
-            nn.ELU(),
-            # Layer 4: Dilation 8. Field: 31
-            nn.Conv1d(64, 64, kernel_size=3, padding=8, dilation=8),
-            nn.ELU(),
-            nn.AdaptiveMaxPool1d(1), # Auto-pool across time: [Batch, 64, 1]
-            nn.Flatten(),            # [Batch, 64]
-            nn.Linear(64, self.latent_hist_dim),
-            nn.ELU(),
-        )
+        # Privileged Encoder
+        self.privileged_encoder = PrivilegedEncoder(self.priv_dim, self.z_dim).to(obs[self.main_obs_set].device)
         
-        # 2. Main Actor Policy
-        actor_input_dim = self.actor_obs_dim + self.latent_hist_dim
+        # Policy MLP
+        # Input: [o_t, z_t]
+        actor_input_dim = self.obs_dim + self.z_dim
         hidden_dims = kwargs.get("hidden_dims", (512, 256, 128))
         activation = kwargs.get("activation", "elu")
         
-        # We completely replace the MLP instantiated by the superclass
-        self.mlp = MLP(actor_input_dim, output_dim, hidden_dims, activation)
-        self.mlp.to(current_obs.device)
-        self.history_encoder.to(current_obs.device)
-        print(f"[{self.main_obs_set.upper()}] Configured HistoryEncoderModel (TCN). "
-              f"Input: {self.actor_obs_dim}, Hist latent: {self.latent_hist_dim}.")
+        self.mlp = MLP(actor_input_dim, output_dim, hidden_dims, activation).to(obs[self.main_obs_set].device)
+
+    def _get_obs_dim(self, obs, obs_groups, obs_set):
+        """Override to allow history-based 3D observations."""
+        active_obs_groups = obs_groups[obs_set]
+        obs_dim = 0
+        for obs_group in active_obs_groups:
+            obs_dim += obs[obs_group].shape[-1]
+        return active_obs_groups, obs_dim
+
+    def get_latent(self, obs, masks=None, hidden_state=None):
+        h_t = obs[self.main_obs_set] # [Batch, 50, Dim]
+        e_t = obs[self.priv_obs_set] # [Batch, 167]
+        
+        # Use only the CURRENT frame (o_t) for the policy in Phase 1
+        o_t = h_t[:, -1, :] 
+        
+        # Normalization
+        # Note: self.obs_normalizer is calibrated to [Dim] which matches o_t
+        if self.obs_normalizer is not None:
+            o_t = self.obs_normalizer(o_t)
+        e_t = self.priv_normalizer(e_t)
+        
+        # Encoding
+        z_t = self.privileged_encoder(e_t)
+        
+        return torch.cat([o_t, z_t], dim=-1)
 
     def forward(self, obs, stochastic_output=False, **kwargs):
-        """Override forward to handle dictionary obs and distribution sampling."""
         latent = self.get_latent(obs)
         out = self.mlp(latent)
-        
-        # Handle RSL-RL distribution (sampling during training, deterministic otherwise)
         if hasattr(self, "distribution") and self.distribution is not None:
             if stochastic_output:
                 self.distribution.update(out)
@@ -98,50 +96,53 @@ class HistoryEncoderModel(MLPModel):
                 return self.distribution.deterministic_output(out)
         return out
 
-    def as_onnx(self, verbose=False):
-        """Return the model itself for ONNX export, as it's already dict-aware."""
-        self.eval()
-        return self
 
-    def as_jit(self):
-        """Return the model itself for JIT export, as it's already dict-aware."""
-        self.eval()
-        return self
+class ArmaCriticModel(MLPModel):
+    """Critic Model for A-RMA Phase 1.
+    
+    Inputs:
+    - o_t (from 'critic' group, last frame): Current observation.
+    - e_t (from 'privileged' group): 167D raw environment vector.
+    """
+
+    def __init__(self, obs, obs_groups, obs_set, output_dim, **kwargs):
+        self.main_obs_set = obs_set  # 'critic'
+        self.priv_obs_set = "privileged"
+        
+        self.obs_dim = obs[self.main_obs_set].shape[-1]
+        self.priv_dim = 167
+        
+        super().__init__(obs, obs_groups, obs_set, output_dim, **kwargs)
+        self.priv_normalizer = EmpiricalNormalization(shape=[self.priv_dim]).to(obs[self.main_obs_set].device)
+        
+        # Value MLP
+        # Input: [o_t, e_t]
+        critic_input_dim = self.obs_dim + self.priv_dim
+        hidden_dims = kwargs.get("hidden_dims", (512, 256, 128))
+        activation = kwargs.get("activation", "elu")
+        
+        self.mlp = MLP(critic_input_dim, output_dim, hidden_dims, activation).to(obs[self.main_obs_set].device)
+
+    def _get_obs_dim(self, obs, obs_groups, obs_set):
+        """Override to allow history-based 3D observations."""
+        active_obs_groups = obs_groups[obs_set]
+        obs_dim = 0
+        for obs_group in active_obs_groups:
+            obs_dim += obs[obs_group].shape[-1]
+        return active_obs_groups, obs_dim
 
     def get_latent(self, obs, masks=None, hidden_state=None):
-        """Build the model latent by explicitly processing history and current state."""
-        # 1. Process Current Observation
-        current_obs = obs[self.main_obs_set]
+        h_t = obs[self.main_obs_set]
+        e_t = obs[self.priv_obs_set]
+        
+        o_t = h_t[:, -1, :]
+        
         if self.obs_normalizer is not None:
-            current_obs = self.obs_normalizer(current_obs)
-            
-        # 2. Process History Observation
-        history_obs = obs[self.history_obs_set]
-        if self.history_normalizer is not None:
-            history_obs = self.history_normalizer(history_obs)
-            
-        # PyTorch Conv1d expects shape [Batch, Channels, SequenceLength].
-        # Environment provides [Batch, SequenceLength, Channels].
-        # We transpose the spatial and temporal dimensions.
-        history_obs = history_obs.transpose(-1, -2)
+            o_t = self.obs_normalizer(o_t)
+        e_t = self.priv_normalizer(e_t)
         
-        # 3. Encode history
-        encoded_hist = self.history_encoder(history_obs)
-        
-        # 4. Concatenate
-        latent = torch.cat([current_obs, encoded_hist], dim=-1)
-        
-        return latent
+        return torch.cat([o_t, e_t], dim=-1)
 
-    def eval(self):
-        super().eval()
-        if self.history_normalizer is not None:
-            self.history_normalizer.eval()
-            
-    def train(self, mode=True):
-        super().train(mode)
-        if self.history_normalizer is not None:
-            if mode:
-                self.history_normalizer.train()
-            else:
-                self.history_normalizer.eval()
+    def forward(self, obs, **kwargs):
+        latent = self.get_latent(obs)
+        return self.mlp(latent)

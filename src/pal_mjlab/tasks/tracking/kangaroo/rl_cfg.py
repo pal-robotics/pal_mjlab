@@ -7,11 +7,10 @@ from mjlab.rl import (
 )
 
 
-def pal_kangaroo_tracking_ppo_runner_cfg(
-  use_history_encoder: bool = False,
-) -> RslRlOnPolicyRunnerCfg:
+def pal_kangaroo_tracking_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
   """Create RL runner configuration for PAL Kangaroo tracking task."""
   actor_kwargs = {
+      "class_name": "pal_mjlab.tasks.tracking.kangaroo.custom_models:ArmaActorModel",
       "hidden_dims": (512, 256, 128),
       "activation": "elu",
       "obs_normalization": True,
@@ -22,13 +21,11 @@ def pal_kangaroo_tracking_ppo_runner_cfg(
       },
   }
   critic_kwargs = {
+      "class_name": "pal_mjlab.tasks.tracking.kangaroo.custom_models:ArmaCriticModel",
       "hidden_dims": (512, 256, 128),
       "activation": "elu",
       "obs_normalization": True,
   }
-
-  if use_history_encoder:
-    actor_kwargs["class_name"] = "pal_mjlab.tasks.tracking.kangaroo.custom_models:HistoryEncoderModel"
 
   return RslRlOnPolicyRunnerCfg(
     actor=RslRlModelCfg(**actor_kwargs),
@@ -52,3 +49,5 @@ def pal_kangaroo_tracking_ppo_runner_cfg(
     num_steps_per_env=24,
     max_iterations=30_000,
   )
+
+
