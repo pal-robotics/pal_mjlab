@@ -3,6 +3,7 @@
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers import MetricsTermCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationTermCfg
@@ -266,12 +267,31 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "hull_points": ANKLE_XY_CONVEX_HULL_POINTS,
     },
   )
+  # It was observed during the experiments that the leg  left 4,5 joints saturate the current
+  # limits at around 6.5rad/sec and 4.5 rad/sec. Using lower velocity limits for these joints 
+  # seems to help with training stability and sim-to-real transfer.
+  # Adding the limit capping to 3.5 to HIP XY joints as well (no easy to get experimental proof).
+  REGEX_ALL_ACTUATED_JOINTS_EXCEPT_HIP_Z = r"^(?!leg_.*_femur_joint$|leg_.*_knee_joint$|leg_.*_1_joint$).*$"
   cfg.rewards["joint_vel_limits"] = RewardTermCfg(
     func=mdp.joint_vel_limits,
     weight=-10.0,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_LEG_LENGTH_JOINTS_ONLY,)),
-      "velocity_limits": {REGEX_LEG_LENGTH_JOINTS_ONLY: (-1.6, 1.6)},
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_ALL_ACTUATED_JOINTS_EXCEPT_HIP_Z)),
+      "velocity_limits": {REGEX_LEG_LENGTH_JOINTS_ONLY: (-1.6, 1.6),
+                          r"leg_.*_4_joint": (-4.5, 4.5),
+                          r"leg_.*_5_joint": (-4.5, 4.5),
+                          r"leg_.*_2_joint": (-4.5, 4.5),
+                          r"leg_.*_3_joint": (-4.5, 4.5)},
+    },
+  )
+  cfg.curriculum["joint_vel_limits_weights"] = CurriculumTermCfg(
+    func=mdp.reward_curriculum,
+     params={
+      "reward_name": "joint_vel_limits",
+      "stages": [
+        {"step": 0, "weight": 0.0},
+        {"step": 5000 * 24, "weight": -10.0},
+      ],
     },
   )
 
