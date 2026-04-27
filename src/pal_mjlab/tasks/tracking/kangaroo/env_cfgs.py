@@ -202,6 +202,16 @@ def pal_kangaroo_flat_tracking_env_cfg(
         },
     )
 
+    # 14. Foot slip penalty (penalize horizontal velocity of feet in contact)
+    cfg.rewards["foot_slip"] = RewardTermCfg(
+        func=mdp.feet_slip,
+        weight=-0.05,
+        params={
+            "sensor_name": "feet_ground_contact",
+            "asset_cfg": SceneEntityCfg("robot", site_names=("left_foot", "right_foot")),
+        },
+    )
+
     # =========================================================================
     # 5. EVENTS (Domain Randomization)
     # =========================================================================

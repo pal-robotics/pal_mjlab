@@ -496,3 +496,28 @@ class sound_suppression:
 
     # return the squared sum of change in velocity along the projected gravity direction
     return cost
+
+
+def feet_slip(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Penalize foot sliding (xy velocity while in contact)."""
+  asset: Entity = env.scene[asset_cfg.name]
+  contact_sensor: ContactSensor = env.scene[sensor_name]
+
+  in_contact = (contact_sensor.data.found > 0).float()  # [B, N]
+  foot_vel_xy = asset.data.site_lin_vel_w[:, asset_cfg.site_ids, :2]  # [B, N, 2]
+  vel_xy_norm_sq = torch.sum(torch.square(foot_vel_xy), dim=-1)  # [B, N]
+
+  # Penalty is the squared velocity of feet in contact
+  cost = torch.sum(vel_xy_norm_sq * in_contact, dim=1)
+
+  # Logging metrics for debugging
+  mean_slip_vel = torch.sum(torch.norm(foot_vel_xy, dim=-1) * in_contact) / torch.clamp(
+    torch.sum(in_contact), min=1.0
+  )
+  env.extras["log"]["Metrics/slip_velocity_mean"] = mean_slip_vel
+
+  return cost
