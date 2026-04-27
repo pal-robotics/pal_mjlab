@@ -325,8 +325,8 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 8. OBSERVATIONS
     # =========================================================================
-    # A-RMA Phase 0: History Buffer Enabled for Actor (50 frames = 1s context)
-    cfg.observations["actor"].history_length = 50
+    # A-RMA Phase 0: History Buffer Enabled for Actor (75 frames = 1.5s context)
+    cfg.observations["actor"].history_length = 75
     cfg.observations["actor"].flatten_history_dim = False
 
     # Add IMU observations and motion phase to both Actor and Critic
@@ -355,6 +355,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
 
     # Privileged Observation Group (e_t)
     cfg.observations["privileged"] = ObservationGroupCfg(
+        nan_policy="sanitize",
         terms={
             "external_parameters": ObservationTermCfg(
                 func=tracking_mdp.external_parameters,
@@ -362,10 +363,9 @@ def pal_kangaroo_flat_tracking_env_cfg(
         }
     )
 
-    # Ensure Critic includes privileged information
-    cfg.observations["critic"].terms["privileged_info"] = ObservationTermCfg(
-        func=tracking_mdp.external_parameters,
-    )
+    # NOTE: Critic does NOT include e_t directly in its obs group.
+    # ArmaCriticModel reads obs["privileged"] separately and concatenates
+    # [o_t || e_t] internally. Adding it here would double-count e_t.
 
     # Safety: Explicitly ensure ALL critic terms are noiseless
     for term in cfg.observations["critic"].terms.values():

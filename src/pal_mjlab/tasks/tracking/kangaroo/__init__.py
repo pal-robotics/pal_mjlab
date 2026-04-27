@@ -1,8 +1,6 @@
 from mjlab.tasks.registry import register_mjlab_task
-from pal_mjlab.tasks.tracking.rl.encoder_history import (
-    PalMotionTrackingOnPolicyRunner,
-    PalStandardOnPolicyRunner,
-)
+from pal_mjlab.tasks.tracking.rl.encoder_history import PalStandardOnPolicyRunner
+from pal_mjlab.tasks.tracking.rl.arma_runner import ArmaOnPolicyRunner
 
 from .env_cfgs import pal_kangaroo_flat_tracking_env_cfg
 from .rl_cfg import pal_kangaroo_tracking_ppo_runner_cfg
@@ -13,7 +11,7 @@ register_mjlab_task(
   env_cfg=pal_kangaroo_flat_tracking_env_cfg(),
   play_env_cfg=pal_kangaroo_flat_tracking_env_cfg(play=True),
   rl_cfg=pal_kangaroo_tracking_ppo_runner_cfg(),
-  runner_cls=PalStandardOnPolicyRunner,
+  runner_cls=ArmaOnPolicyRunner,
 )
 
 # --- No State Estimation ---

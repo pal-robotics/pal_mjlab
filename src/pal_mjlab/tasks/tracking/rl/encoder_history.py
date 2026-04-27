@@ -40,13 +40,17 @@ class _PalOnnxMotionHistoryModel(nn.Module):
         
         # Package into dictionary for the HistoryEncoderModel
         # The actor_critic.as_onnx() wrapper's forward expects a dict if the model does
-        obs_dict = {
-            self.main_obs_set: obs,
-            self.history_obs_set: obs_history
-        }
+        if self.policy.__class__.__name__ == "_OnnxArmaActorModel":
+            action_out = self.policy(obs_history)
+        else:
+            obs_dict = {
+                self.main_obs_set: obs,
+                self.history_obs_set: obs_history
+            }
+            action_out = self.policy(obs_dict)
         
         return (
-            self.policy(obs_dict),
+            action_out,
             self.joint_pos[time_step_clamped],
             self.joint_vel[time_step_clamped],
             self.body_pos_w[time_step_clamped],
@@ -76,13 +80,13 @@ class PalMotionTrackingOnPolicyRunner(MotionTrackingOnPolicyRunner):
     def export_policy_to_onnx(
         self, path: str, filename: str = "policy.onnx", verbose: bool = False
     ) -> None:
-        from pal_mjlab.tasks.tracking.kangaroo.custom_models import HistoryEncoderModel
+        from pal_mjlab.tasks.tracking.kangaroo.custom_models import ArmaActorModel
         
         # In this RSL-RL version, get_policy() returns the actor model directly
         model = self.alg.get_policy()
         
-        if isinstance(model, HistoryEncoderModel):
-            print(f"[INFO] HistoryEncoderModel detected. Using multi-input ONNX export logic.")
+        if isinstance(model, ArmaActorModel):
+            print(f"[INFO] ArmaActorModel detected. Using multi-input ONNX export logic.")
             os.makedirs(path, exist_ok=True)
             cmd = cast(MotionCommand, self.env.unwrapped.command_manager.get_term("motion"))
             
@@ -94,22 +98,24 @@ class PalMotionTrackingOnPolicyRunner(MotionTrackingOnPolicyRunner):
             onnx_wrapper = _PalOnnxMotionHistoryModel(
                 model, 
                 cmd.motion,
-                main_obs_set=model.main_obs_set,
-                history_obs_set=model.history_obs_set
+                main_obs_set=getattr(model, "main_obs_set", "actor"),
+                history_obs_set=getattr(model, "history_obs_set", "actor")
             )
             onnx_wrapper.to("cpu")
             onnx_wrapper.eval()
             
             # Create dummy inputs for tracing
             # current frame: [1, obs_dim]
-            obs = torch.zeros(1, model.actor_obs_dim)
+            c_obs_dim = getattr(model, "obs_dim", getattr(model, "num_obs", 0))
+            obs = torch.zeros(1, c_obs_dim)
             
             # Get history length from the environment group configuration
             obs_mgr = self.env.unwrapped.observation_manager
-            group_cfg = obs_mgr.cfg.get(model.history_obs_set)
+            group_cfg = obs_mgr.cfg.get(getattr(model, "history_obs_set", "actor"))
             history_length = group_cfg.history_length if group_cfg and group_cfg.history_length else 15
             
-            obs_history = torch.zeros(1, history_length, model.history_obs_dim)
+            c_hist_dim = getattr(model, "history_obs_dim", c_obs_dim)
+            obs_history = torch.zeros(1, history_length, c_hist_dim)
             
             time_step = torch.zeros(1, 1)
             

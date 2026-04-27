@@ -27,5 +27,8 @@ src = ["pal_mjlab"]
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I", "B"]
 
+[project.scripts]
+train-arma = "pal_mjlab.tasks.tracking.kangaroo.train_arma:main"
+
 [project.entry-points."mjlab.tasks"]
 pal_mjlab = "pal_mjlab.tasks"

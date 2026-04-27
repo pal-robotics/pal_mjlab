@@ -1,5 +1,7 @@
 """RL configuration for PAL Robotics' Kangaroo motion imitation task."""
 
+import os
+
 from mjlab.rl import (
   RslRlModelCfg,
   RslRlOnPolicyRunnerCfg,
@@ -7,7 +9,24 @@ from mjlab.rl import (
 )
 
 
-def pal_kangaroo_tracking_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+from dataclasses import dataclass
+
+@dataclass
+class ArmaOnPolicyRunnerCfg(RslRlOnPolicyRunnerCfg):
+    """Configuration specific to the A-RMA 3-phase training process."""
+    p1_iterations: int = 25000
+    """Total iterations for Phase 1 (privileged PPO)."""
+    p2_iterations: int = 5000
+    """Total iterations for Phase 2 (DAgger TCN)."""
+    p3_iterations: int = 10000
+    """Total iterations for Phase 3 (PPO finetune)."""
+    p2_batch_size: int = 8192
+    """Batch size for TCN supervised learning."""
+    p2_learning_rate: float = 1e-3
+    """Learning rate for TCN parameter updates."""
+
+
+def pal_kangaroo_tracking_ppo_runner_cfg() -> ArmaOnPolicyRunnerCfg:
   """Create RL runner configuration for PAL Kangaroo tracking task."""
   actor_kwargs = {
       "class_name": "pal_mjlab.tasks.tracking.kangaroo.custom_models:ArmaActorModel",
@@ -27,7 +46,7 @@ def pal_kangaroo_tracking_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
       "obs_normalization": True,
   }
 
-  return RslRlOnPolicyRunnerCfg(
+  return ArmaOnPolicyRunnerCfg(
     actor=RslRlModelCfg(**actor_kwargs),
     critic=RslRlModelCfg(**critic_kwargs),
     algorithm=RslRlPpoAlgorithmCfg(
@@ -47,7 +66,8 @@ def pal_kangaroo_tracking_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
     experiment_name="kangaroo_tracking",
     save_interval=500,
     num_steps_per_env=24,
-    max_iterations=30_000,
+    # max_iterations becomes the fallback/meta metric. We'll use p1,p2,p3 in the runner.
+    max_iterations=30_000, 
   )
 
 

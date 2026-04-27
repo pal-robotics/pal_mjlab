@@ -63,7 +63,7 @@ def external_parameters(env: ManagerBasedRlEnv) -> torch.Tensor:
   # 4. P Gain Scale (22D)
   curr_gain = sim.model.actuator_gainprm[:, :, 0]
   def_gain = sim.get_default_field("actuator_gainprm")[:, 0]
-  p_gain_scale = (curr_gain / def_gain).reshape(env.num_envs, -1) # (N, 22)
+  p_gain_scale = (curr_gain / (def_gain + 1e-6)).reshape(env.num_envs, -1) # (N, 22)
 
   # 5. Encoder Bias (22D) - Placeholder (zeros for now)
   encoder_bias = torch.zeros((env.num_envs, 22), device=env.device)
@@ -84,7 +84,7 @@ def external_parameters(env: ManagerBasedRlEnv) -> torch.Tensor:
   arma_body_ids = robot.find_bodies(arma_bodies)[0]
   curr_mass = sim.model.body_mass[:, arma_body_ids]
   def_mass = sim.get_default_field("body_mass")[arma_body_ids]
-  link_mass_scale = (curr_mass / def_mass).reshape(env.num_envs, -1) # (N, 11)
+  link_mass_scale = (curr_mass / (def_mass + 1e-6)).reshape(env.num_envs, -1) # (N, 11)
 
   # 8. Link COM Offset (33D)
   curr_ipos_all = sim.model.body_ipos[:, arma_body_ids]
@@ -94,7 +94,7 @@ def external_parameters(env: ManagerBasedRlEnv) -> torch.Tensor:
   # 9. Joint Damping Scale (26D)
   curr_damp = sim.model.dof_damping
   def_damp = sim.get_default_field("dof_damping")
-  joint_damping_scale = (curr_damp / def_damp).reshape(env.num_envs, -1) # (N, 26)
+  joint_damping_scale = (curr_damp / (def_damp + 1e-6)).reshape(env.num_envs, -1) # (N, 26)
 
   return torch.cat([
       base_com,                # 3
