@@ -22,7 +22,9 @@ from mjlab.terrains.config import STAIRS_TERRAINS_CFG
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from pal_mjlab.tasks.velocity.mdp import UniformVelocityCommandWithProgressTracking, UniformVelocityCommandWithProgressTrackingCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
-from mjlab.terrains import TerrainGeneratorCfg, BoxFlatTerrainCfg, BoxRandomSpreadTerrainCfg, BoxInvertedPyramidStairsTerrainCfg
+from mjlab.terrains.config import pyramid_stairs, pyramid_stairs_inv, flat, random_spread_boxes
+from mjlab.terrains.terrain_generator import SubTerrainCfg, TerrainGeneratorCfg
+
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 import math
 from mjlab.sensor import RayCastSensorCfg
@@ -494,14 +496,18 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].terms["joint_pos"].history_length = 3
   cfg.observations["actor"].terms["joint_vel"].history_length = 3
 
+  # Reduce the joint vel obs noise
+  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.2, n_max=0.2)
+  cfg.observations["critic"].terms["joint_vel"].noise = Unoise(n_min=-0.2, n_max=0.2)
+
   ### COMMANDS
 
   # Start with a small forward-only cmd range
-  twist_cmd = cfg.commands["twist"]
-  assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-  twist_cmd.ranges.lin_vel_x = (-0.2, 0.2)
-  twist_cmd.ranges.lin_vel_y = (-0.0, 0.0)
-  twist_cmd.ranges.ang_vel_z = (-0.0, 0.0)
+  # twist_cmd = cfg.commands["twist"]
+  # assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+  # twist_cmd.ranges.lin_vel_x = (-0.2, 0.2)
+  # twist_cmd.ranges.lin_vel_y = (-0.0, 0.0)
+  # twist_cmd.ranges.ang_vel_z = (-0.0, 0.0)
 
   # cfg.commands["twist"] = UniformVelocityCommandWithProgressTrackingCfg(
   #   entity_name="robot",
@@ -539,6 +545,13 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   
   # With ``terrain_sensor_names``, penalizes tilt relative to the terrain surface normal.
   cfg.rewards["upright"].params["terrain_sensor_names"] = ("terrain_scan",)
+
+  # Extra clearance to go over steps
+  cfg.rewards["foot_clearance"].params["target_height"] = 0.2
+  cfg.rewards["foot_swing_height"].params["target_height"] = 0.2
+  cfg.rewards["air_time"].params["threshold_min"] = 0.1
+  cfg.rewards["air_time"].params["threshold_max"] = 1.0
+  cfg.rewards["air_time"].params["command_threshold"] = 0.1
 
   # Higher tracking weight
   # cfg.rewards["track_linear_velocity"].weight = 3.0
@@ -580,57 +593,79 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   assert cfg.scene.terrain is not None
   assert cfg.scene.terrain.terrain_generator is not None
   cfg.scene.terrain.terrain_type = "generator"
-  cfg.scene.terrain.terrain_generator = replace(STAIRS_TERRAINS_CFG, size=(6.0, 6.0))
-  # cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
-  #   size=(5.0, 5.0),
-  #   num_rows=12,
-  #   num_cols=10,
-  #   border_width=20.0,
-  #   curriculum=True,
-  #   sub_terrains={
-  #     "flat": BoxFlatTerrainCfg(proportion=0.4),
-  #     "pebbles": BoxRandomSpreadTerrainCfg(
-  #       proportion=0.2,
-  #       num_boxes=350,
-  #       box_width_range=(0.02, 0.05),
-  #       box_length_range=(0.02, 0.05),
-  #       box_height_range=(0.02, 0.05),
-  #       platform_width=0.6,
-  #       border_width=0.2,
-  #     ),
-  #     "random_obstacles": BoxRandomSpreadTerrainCfg(
-  #       proportion=0.2,
-  #       num_boxes=50,
-  #       box_width_range=(0.2, 0.6),
-  #       box_length_range=(0.2, 0.6),
-  #       box_height_range=(0.02, 0.05),
-  #       platform_width=0.6,
-  #       border_width=0.2,
-  #     ),
-  #     "pyramid_stairs_inv": BoxInvertedPyramidStairsTerrainCfg(
-  #       proportion=0.2,
-  #       step_height_range=(0.02, 0.05),
-  #       step_width=0.3,
-  #       platform_width=0.6,
-  #       border_width=0.2,
-  #     ),
-  #   },
-  # )
+  # cfg.scene.terrain.terrain_generator = replace(STAIRS_TERRAINS_CFG, size=(6.0, 6.0))
+  cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
+    size=(5.0, 5.0),
+    num_rows=12,
+    num_cols=9,
+    border_width=20.0,
+    curriculum=True,
+    sub_terrains={
+      "flat": flat(proportion=0.2),
+      "pebbles": random_spread_boxes(
+        proportion=0.1,
+        num_boxes=350,
+        box_width_range=(0.02, 0.05),
+        box_length_range=(0.02, 0.05),
+        box_height_range=(0.02, 0.05),
+        platform_width=0.8,
+        border_width=0.2,
+      ),
+      "random_obstacles": random_spread_boxes(
+        proportion=0.1,
+        num_boxes=50,
+        box_width_range=(0.2, 0.6),
+        box_length_range=(0.2, 0.6),
+        box_height_range=(0.02, 0.05),
+        platform_width=0.8,
+        border_width=0.2,
+      ),
+      "easy_stairs": pyramid_stairs(
+        proportion=0.1,
+        step_height_range=(0.02, 0.05),
+        step_width=0.3,
+        platform_width=0.8,
+        border_width=0.2,
+      ),
+      "easy_stairs_inv": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.02, 0.05),
+        step_width=0.3,
+        platform_width=0.8,
+        border_width=0.2,
+      ),
+      "moderate_stairs": pyramid_stairs(
+        proportion=0.1,
+        step_height_range=(0.05, 0.1),
+        step_width=0.3,
+        platform_width=0.8,
+        border_width=0.2,
+      ),
+      "moderate_stairs_inv": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.05, 0.1),
+        step_width=0.3,
+        platform_width=0.8,
+        border_width=0.2,
+      ),
+      "challenging_stairs": pyramid_stairs(
+        proportion=0.1,
+        step_height_range=(0.1, 0.15),
+        step_width=0.3,
+        platform_width=0.8,
+        border_width=0.2,
+      ),
+      "challenging_stairs_inv": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.1, 0.15),
+        step_width=0.3,
+        platform_width=0.8,
+        border_width=0.2,
+      ),
+    },
+  )
 
   # VELOCITY COMMAND
-  # Without y for the moment
-  # cfg.curriculum["command_vel"] = CurriculumTermCfg(
-  #   func=mdp.commands_vel,
-  #   params={
-  #     "command_name": "twist",
-  #     "velocity_stages": [
-  #       {"step": 0, "lin_vel_x": (-0.2, 0.2)},
-  #       {"step": 5000 * 24, "lin_vel_x": (-0.25, 0.25)},
-  #       {"step": 10000 * 24, "lin_vel_x": (-0.4, 0.4)},
-  #       {"step": 20000 * 24, "lin_vel_x": (-0.6, 0.6)}
-  #     ],
-  #   },
-  # )
 
   cfg.curriculum["command_vel"] = CurriculumTermCfg(
     func=mdp.commands_vel,
@@ -775,13 +810,14 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.ranges.lin_vel_x = (-0.6, 0.6)
-    twist_cmd.ranges.ang_vel_z = (-0.4, 0.4)
+    twist_cmd.ranges.lin_vel_x = (-1.0, 1.0)
+    twist_cmd.ranges.ang_vel_z = (-0.2, 0.2)
+    twist_cmd.ranges.lin_vel_y = (-0.4, 0.4)
 
-    if cfg.scene.terrain is not None:
-      if cfg.scene.terrain.terrain_generator is not None:
-        cfg.scene.terrain.terrain_generator.num_cols = 5
-        cfg.scene.terrain.terrain_generator.num_rows = 5
-        cfg.scene.terrain.terrain_generator.border_width = 10.0
+    # if cfg.scene.terrain is not None:
+    #   if cfg.scene.terrain.terrain_generator is not None:
+    #     cfg.scene.terrain.terrain_generator.num_cols = 5
+    #     cfg.scene.terrain.terrain_generator.num_rows = 5
+    #     cfg.scene.terrain.terrain_generator.border_width = 10.0
 
   return cfg
