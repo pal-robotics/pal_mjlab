@@ -4,10 +4,11 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
-from mjlab.managers.observation_manager import ObservationGroupCfg
+from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
 from mjlab.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
 
@@ -121,6 +122,9 @@ def pal_kangaroo_flat_tracking_env_cfg(
     },
   )
 
+  cfg.rewards["joint_acc"] = RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7)
+  cfg.rewards["joint_torque"] = RewardTermCfg(func=mdp.joint_torques_l2, weight=-1e-5)
+
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
   cfg.events["body_friction"] = EventTermCfg(
     mode="startup",
@@ -143,6 +147,25 @@ def pal_kangaroo_flat_tracking_env_cfg(
   )
 
   cfg.viewer.body_name = "base_link"
+
+  cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
+    func=mdp.imu_projected_gravity,
+    params={"sensor_name": "robot/imu_quat"},
+    noise=Unoise(n_min=-0.05, n_max=0.05),
+  )
+  cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
+    func=mdp.builtin_sensor,
+    params={"sensor_name": "robot/imu_lin_acc"},
+    noise=Unoise(n_min=-0.075, n_max=0.075),
+  )
+  cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
+    func=mdp.imu_projected_gravity,
+    params={"sensor_name": "robot/imu_quat"},
+  )
+  cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
+    func=mdp.builtin_sensor,
+    params={"sensor_name": "robot/imu_lin_acc"},
+  )
 
   # Modify observations if we don't have state estimation.
   if not has_state_estimation:
