@@ -17,6 +17,8 @@ from mjlab.sensor import (
   ObjRef,
   RingPatternCfg,
   TerrainHeightSensorCfg,
+  RayCastSensorCfg,
+  PinholeCameraPatternCfg
 )
 from mjlab.terrains.config import STAIRS_TERRAINS_CFG
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
@@ -455,6 +457,32 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO easy rough terrain velocity configuration."""
   cfg = pal_kangaroo_rough_env_cfg(play=play)
 
+  ### SENSORS
+
+  depth_scan = RayCastSensorCfg(
+    name="d435_raycast",
+    frame=ObjRef(type="site", name="front_down_camera_depth_optical_site", entity="robot"),
+    pattern=PinholeCameraPatternCfg(
+      width=16,
+      height=16,
+      fovy=58.0,
+    ),
+    exclude_parent_body=True,
+    ray_alignment="base",
+    include_geom_groups=(0,3),
+    max_distance=2.0,
+    debug_vis=True,
+    viz=RayCastSensorCfg.VizCfg(
+      show_rays=True,
+      hit_color=(1.0, 0.0, 1.0, 0.8),
+      hit_sphere_color=(1.0, 0.0, 1.0, 1.0),
+    ),
+  )
+  
+  cfg.scene.sensors = (cfg.scene.sensors or ()) + (
+    depth_scan,
+  )
+
   ### OBSERVATIONS
 
   # HISTORY
@@ -476,6 +504,19 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   #   params={"period": 0.6, "command_name": "twist"},
   # )
 
+  cfg.observations["actor"].terms["front_camera_ray"] = ObservationTermCfg(
+    func=mdp.height_scan,
+    params={"sensor_name": "d435_raycast"},
+    noise=Unoise(n_min=-0.15, n_max=0.15),
+    scale=1 / depth_scan.max_distance,
+  )
+
+  cfg.observations["critic"].terms["front_camera_ray"] = ObservationTermCfg(
+    func=mdp.height_scan,
+    params={"sensor_name": "d435_raycast"},
+    scale=1 / depth_scan.max_distance,
+  )
+
   # OBSERVATION LAG (sensor lag)
   cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
   cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 2
@@ -487,18 +528,33 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].terms["joint_pos"].delay_max_lag = 1
   cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
   cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
+  cfg.observations["actor"].terms["front_camera_ray"].delay_min_lag = 0
+  cfg.observations["actor"].terms["front_camera_ray"].delay_max_lag = 4
 
-  # # OBSERVATION history (to better infer dynamics)
+  # OBSERVATION history (to better infer dynamics)
+
   # Only applied to the most important observations
   cfg.observations["actor"].terms["base_ang_vel"].history_length = 3
+  cfg.observations["critic"].terms["base_ang_vel"].history_length = 3
+
   cfg.observations["actor"].terms["base_lin_acc"].history_length = 3
+  cfg.observations["critic"].terms["base_lin_acc"].history_length = 3
+
   cfg.observations["actor"].terms["imu_projected_gravity"].history_length = 3
+  cfg.observations["critic"].terms["imu_projected_gravity"].history_length = 3
+
   cfg.observations["actor"].terms["joint_pos"].history_length = 3
+  cfg.observations["critic"].terms["joint_pos"].history_length = 3
+
   cfg.observations["actor"].terms["joint_vel"].history_length = 3
+  cfg.observations["critic"].terms["joint_vel"].history_length = 3
+
+  cfg.observations["actor"].terms["front_camera_ray"].history_length = 5
+  cfg.observations["critic"].terms["front_camera_ray"].history_length = 5
 
   # Reduce the joint vel obs noise
   cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.2, n_max=0.2)
-  cfg.observations["critic"].terms["joint_vel"].noise = Unoise(n_min=-0.2, n_max=0.2)
+  del cfg.observations["critic"].terms["joint_vel"].noise
 
   ### COMMANDS
 
@@ -810,9 +866,9 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.ranges.lin_vel_x = (-1.0, 1.0)
-    twist_cmd.ranges.ang_vel_z = (-0.2, 0.2)
-    twist_cmd.ranges.lin_vel_y = (-0.4, 0.4)
+    twist_cmd.ranges.lin_vel_x = (0.5, 0.5)
+    twist_cmd.ranges.ang_vel_z = (0.0, 0.0)
+    twist_cmd.ranges.lin_vel_y = (0.0, 0.0)
 
     # if cfg.scene.terrain is not None:
     #   if cfg.scene.terrain.terrain_generator is not None:
