@@ -508,9 +508,9 @@ class dynamics_prior_accuracy:
     self.n_obs = env.observation_manager.group_obs_dim["dynamics_prior"][0] - 22
 
     self.seq_len = seq_len
-    self.embed_dim = 256
-    self.n_layers = 4
-    self.num_heads = 8
+    self.embed_dim = 128
+    self.n_layers = 3
+    self.num_heads = 4
     self.out_dim = self.n_obs
 
     self.model = DynamicsModel(
