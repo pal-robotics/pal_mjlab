@@ -175,7 +175,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     ),
     "joint_vel": ObservationTermCfg(
       func=mdp.joint_vel_rel,
-      noise=Unoise(n_min=-1.5, n_max=1.5),
+      noise=Unoise(n_min=-0.5, n_max=0.5),
     ),
     "actions": ObservationTermCfg(func=mdp.last_action),
     "base_lin_acc" : ObservationTermCfg(
@@ -313,7 +313,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.dynamics_prior_accuracy,
     weight=0.5,
     params={
-      "path": str(PAL_MJLAB_SRC_PATH / "dp_models" / "good_10.pt"),
+      "path": str(PAL_MJLAB_SRC_PATH / "dp_models" / "Good_Complete.pt"),
       "tokens": 10,
       "std" : math.sqrt(0.25),
       },
