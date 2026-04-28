@@ -1,6 +1,7 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
 import math
+import re
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -41,6 +42,7 @@ from pal_mjlab.robots import (
   get_kangaroo_robot_cfg,
 )
 from pal_mjlab.tasks.velocity import mdp
+from pal_mjlab.tasks.velocity.mdp.observations import _JOINT_NAMES_FOR_DP, _JOINT_NAMES_FOR_DP_2
 
 from pal_mjlab import PAL_MJLAB_SRC_PATH
 
@@ -110,8 +112,27 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
-  joint_pos_action.scale = KANGAROO_ACTION_SCALE
-  joint_pos_action.actuator_names = KANGAROO_ACTUATOR_NAMES
+
+  scales_dict = KANGAROO_ACTION_SCALE  # regex -> scale
+
+  ordered_scales = {}
+  ordered_names = []
+
+  for name in _JOINT_NAMES_FOR_DP_2:
+      matched = False
+
+      for pattern, scale in scales_dict.items():
+          if re.fullmatch(pattern, name):
+              ordered_scales[name] = scale
+              ordered_names.append(name)
+              matched = True
+              break
+
+      if not matched:
+          raise ValueError(f"No scale found for joint: {name}")
+
+  joint_pos_action.scale = ordered_scales
+  joint_pos_action.actuator_names = tuple(ordered_names)
 
   cfg.viewer.body_name = "pelvis_2_link"
 
@@ -170,12 +191,14 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       noise=Unoise(n_min=-0.2, n_max=0.2),
     ),
     "joint_pos": ObservationTermCfg(
-      func=mdp.joint_pos_rel,
+      func=mdp.joint_pos_dp,
       noise=Unoise(n_min=-0.01, n_max=0.01),
+      params={"asset_cfg" : SceneEntityCfg("robot", joint_names=_JOINT_NAMES_FOR_DP)},
     ),
     "joint_vel": ObservationTermCfg(
-      func=mdp.joint_vel_rel,
+      func=mdp.joint_vel_dp,
       noise=Unoise(n_min=-0.5, n_max=0.5),
+      params={"asset_cfg" : SceneEntityCfg("robot", joint_names=_JOINT_NAMES_FOR_DP)},
     ),
     "actions": ObservationTermCfg(func=mdp.last_action),
     "base_lin_acc" : ObservationTermCfg(
