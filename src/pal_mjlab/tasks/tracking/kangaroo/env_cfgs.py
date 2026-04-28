@@ -11,6 +11,7 @@ from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
 from mjlab.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
+from pal_mjlab.tasks.tracking import mdp as tracking_mdp
 
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
@@ -62,7 +63,19 @@ def pal_kangaroo_flat_tracking_env_cfg(
     reduce="none",
     num_slots=1,
   )
-  cfg.scene.sensors = (self_collision_cfg,)
+  feet_ground_contact_cfg = ContactSensorCfg(
+    name="feet_ground_contact",
+    primary=ContactMatch(
+      mode="subtree",
+      pattern=r"^(leg_left_5_link|leg_right_5_link)$",
+      entity="robot",
+    ),
+    secondary=ContactMatch(mode="body", pattern="terrain"),
+    fields=("found",),
+    reduce="none",
+    num_slots=1,
+  )
+  cfg.scene.sensors = (self_collision_cfg, feet_ground_contact_cfg)
 
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
@@ -124,6 +137,19 @@ def pal_kangaroo_flat_tracking_env_cfg(
 
   cfg.rewards["joint_acc"] = RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7)
   cfg.rewards["joint_torque"] = RewardTermCfg(func=mdp.joint_torques_l2, weight=-1e-5)
+
+  cfg.rewards["foot_contact"] = RewardTermCfg(
+    func=tracking_mdp.motion_foot_contact,
+    weight=0.5,
+    params={
+      "command_name": "motion",
+      "sensor_name": "feet_ground_contact",
+      "foot_body_names": ("leg_left_5_link", "leg_right_5_link"),
+      "height_threshold": 0.04,
+    },
+  )
+
+  cfg.rewards["action_rate_l2"].weight = 1.e-2
 
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
   cfg.events["body_friction"] = EventTermCfg(
