@@ -65,8 +65,8 @@ def external_parameters(env: ManagerBasedRlEnv) -> torch.Tensor:
   def_gain = sim.get_default_field("actuator_gainprm")[:, 0]
   p_gain_scale = (curr_gain / (def_gain + 1e-6)).reshape(env.num_envs, -1) # (N, 22)
 
-  # 5. Encoder Bias (22D) - Placeholder (zeros for now)
-  encoder_bias = torch.zeros((env.num_envs, 22), device=env.device)
+  # 5. Encoder Bias (22D)
+  encoder_bias = robot.data.encoder_bias.reshape(env.num_envs, -1)
 
   # 6. Joint Friction Offset (26D)
   curr_f_loss = sim.model.dof_frictionloss

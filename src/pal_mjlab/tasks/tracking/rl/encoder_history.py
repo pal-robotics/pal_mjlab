@@ -63,7 +63,7 @@ class _PalOnnxMotionHistoryModel(nn.Module):
 class PalStandardOnPolicyRunner(MotionTrackingOnPolicyRunner):
     """Standard tracking runner that logs the environment summary to WandB."""
 
-    def __init__(self, env, runner_cfg, log_dir, device="cuda:0", **kwargs):
+    def __init__(self, env, runner_cfg, log_dir=None, device="cpu", **kwargs):
         super().__init__(env, runner_cfg, log_dir, device, **kwargs)
         from pal_mjlab.utils.wandb_utils import log_summary_as_artifact
         log_summary_as_artifact(self.env.unwrapped.cfg, self.cfg)
@@ -72,7 +72,7 @@ class PalStandardOnPolicyRunner(MotionTrackingOnPolicyRunner):
 class PalMotionTrackingOnPolicyRunner(MotionTrackingOnPolicyRunner):
     """Tracking runner with dynamic ONNX export and WandB summary support."""
 
-    def __init__(self, env, runner_cfg, log_dir, device="cuda:0", **kwargs):
+    def __init__(self, env, runner_cfg, log_dir=None, device="cpu", **kwargs):
         super().__init__(env, runner_cfg, log_dir, device, **kwargs)
         from pal_mjlab.utils.wandb_utils import log_summary_as_artifact
         log_summary_as_artifact(self.env.unwrapped.cfg, self.cfg)

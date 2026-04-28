@@ -135,23 +135,23 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # 1. Position tracking (High precision for legs, more slack for arms)
-    cfg.rewards["motion_body_pos"].params["std"] = 0.15 
+    cfg.rewards["motion_body_pos"].params["std"] = 0.4 
     cfg.rewards["motion_body_pos"].params["body_names"] = leg_bodies
     
     cfg.rewards["motion_body_pos_other"] = RewardTermCfg(
         func=tracking_mdp.motion_relative_body_position_error_exp,
         weight=0.5, # Lower weight for arms
-        params={"command_name": "motion", "std": 0.4, "body_names": other_bodies},
+        params={"command_name": "motion", "std": 0.6, "body_names": other_bodies},
     )
 
     # 2. Orientation tracking
-    cfg.rewards["motion_body_ori"].params["std"] = 0.2
+    cfg.rewards["motion_body_ori"].params["std"] = 0.4
     cfg.rewards["motion_body_ori"].params["body_names"] = leg_bodies
     
     cfg.rewards["motion_body_ori_other"] = RewardTermCfg(
         func=tracking_mdp.motion_relative_body_orientation_error_exp,
         weight=0.5,
-        params={"command_name": "motion", "std": 0.5, "body_names": other_bodies},
+        params={"command_name": "motion", "std": 0.6, "body_names": other_bodies},
     )
 
     # 3. Soft Landing (Penalize high-impact forces in the feet)
@@ -166,7 +166,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # Tighten tracking precision for velocities
-    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.3
+    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.7
     cfg.rewards["motion_body_ang_vel"].params["std"] = 0.7
 
     # Convex Hull limits for Hip
@@ -300,7 +300,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
             "operation": "scale",
-            "ranges": (0.3, 4.0),
+            "ranges": (0.3, 3.0),
             "shared_random": False,
         },
     )
@@ -392,6 +392,11 @@ def pal_kangaroo_flat_tracking_env_cfg(
         cfg.events.pop("link_mass", None)
         cfg.events.pop("link_com", None)
         cfg.events.pop("joint_damping", None)
+        cfg.events.pop("left_foot_friction", None)
+        cfg.events.pop("right_foot_friction", None)
+        cfg.events.pop("encoder_bias", None)
+        cfg.events.pop("base_com", None)
+        cfg.events.pop("joint_friction", None)
 
         # Disable RSI randomization
         motion_cmd.pose_range = {}
