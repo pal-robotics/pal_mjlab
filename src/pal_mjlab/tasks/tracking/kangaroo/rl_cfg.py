@@ -14,7 +14,7 @@ from dataclasses import dataclass
 @dataclass
 class ArmaOnPolicyRunnerCfg(RslRlOnPolicyRunnerCfg):
     """Configuration specific to the A-RMA 3-phase training process."""
-    p1_iterations: int = 25000
+    p1_iterations: int = 10000
     """Total iterations for Phase 1 (privileged PPO)."""
     p2_iterations: int = 5000
     """Total iterations for Phase 2 (DAgger TCN)."""

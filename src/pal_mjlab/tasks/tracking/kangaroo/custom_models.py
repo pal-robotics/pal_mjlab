@@ -133,10 +133,15 @@ class ArmaActorModel(MLPModel):
         
         # STATIC START TILING (Phase 2 & Phase 3)
         # If the oldest frame in history is all zeros, we just reset.
-        # We tile the current observation (which inherently has v=0 thanks to disable_rsi)
-        # back across the buffer to avoid the zero-teleportation shock for the TCN.
+        # We tile the current observation back across the buffer to avoid the zero-teleportation shock.
+        # HARDO-CODED COLD START: We force all velocities and accelerations to zero in the history.
         if h_t.ndim == 3 and h_t[:, 0, :].abs().max() < 1e-4:
-            h_t = h_t[:, -1, :].unsqueeze(1).repeat(1, h_t.shape[1], 1)
+            h_fill = h_t[:, -1, :].clone()
+            h_fill[:, 3:6] = 0.0   # base_ang_vel
+            h_fill[:, 32:58] = 0.0  # joint_vel
+            h_fill[:, 58:84] = 0.0  # last_actions
+            h_fill[:, 86:89] = 0.0  # base_lin_acc
+            h_t = h_fill.unsqueeze(1).repeat(1, h_t.shape[1], 1)
             
         # Use only the CURRENT frame (o_t) for the policy in Phase 1
         o_t = h_t[:, -1, :] if h_t.ndim == 3 else h_t        
@@ -210,9 +215,15 @@ class _OnnxArmaActorModel(nn.Module):
             # STATIC START TILING (Hardware Deployment Parity)
             # If the oldest frame is zeros, repeat the current frame across the history
             # mask out everything else. This handles "cold starts" cleanly in C++.
+            # HARDO-CODED COLD START: We force all velocities and accelerations to zero in the history.
             history_is_empty = history[:, 0, :].abs().max() < 1e-4
             if history_is_empty:
-                history = history[:, -1, :].unsqueeze(1).repeat(1, history.shape[1], 1)
+                h_fill = history[:, -1, :].clone()
+                h_fill[:, 3:6] = 0.0   # base_ang_vel
+                h_fill[:, 32:58] = 0.0  # joint_vel
+                h_fill[:, 58:84] = 0.0  # last_actions
+                h_fill[:, 86:89] = 0.0  # base_lin_acc
+                history = h_fill.unsqueeze(1).repeat(1, history.shape[1], 1)
             o_t = history[:, -1, :]
         else:
             o_t = history

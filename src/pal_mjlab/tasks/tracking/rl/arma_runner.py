@@ -19,13 +19,16 @@ class ArmaOnPolicyRunner(PalMotionTrackingOnPolicyRunner):
     def learn(self, num_learning_iterations: int, init_at_random_ep_len: bool = False) -> None:
         """Run the full 3-phase A-RMA curriculum."""
         # Use custom config properties if available, fallback to defaults
-        p1_iters = self.cfg.get("p1_iterations", 25000)
+        p1_iters = self.cfg.get("p1_iterations", 10000)
         p2_iters = self.cfg.get("p2_iterations", 5000)
         p3_iters = self.cfg.get("p3_iterations", 10000)
 
         # Prevent RSL-RL from closing WandB at the end of Phase 1 or 3
         # We manually manage the closure after all phases complete.
+        # Also prevent re-initialization of the logger which crashes WandB
         original_stop = self.logger.stop_logging_writer
+        original_init = self.logger.init_logging_writer
+        
         self.logger.stop_logging_writer = lambda: None
 
         # ---------------------------------------------------------------------
@@ -36,6 +39,10 @@ class ArmaOnPolicyRunner(PalMotionTrackingOnPolicyRunner):
         print("=" * 80 + "\n")
         
         super().learn(num_learning_iterations=p1_iters, init_at_random_ep_len=init_at_random_ep_len)
+        
+        # Prevent re-initialization for subsequent phases (Phase 3)
+        # This avoids WandB "Attempted to change value of key 'env_cfg'" error.
+        self.logger.init_logging_writer = lambda: None
         
         # Explicit intermediate save to protect progress if later phases crash
         intermediate_p1_path = os.path.join(self.logger.log_dir, f"model_phase1_end.pt")
@@ -64,6 +71,7 @@ class ArmaOnPolicyRunner(PalMotionTrackingOnPolicyRunner):
         print("=" * 80 + "\n")
         
         self._inject_tcn()
+        self._disable_rsi() # Enforce static starts (v=0) for final polish
         super().learn(num_learning_iterations=p3_iters, init_at_random_ep_len=False)
         
         # Save final policy
@@ -76,6 +84,7 @@ class ArmaOnPolicyRunner(PalMotionTrackingOnPolicyRunner):
         
         # Cleanly shut down logging
         self.logger.stop_logging_writer = original_stop
+        self.logger.init_logging_writer = original_init
         if getattr(self.logger, "writer", None) is not None:
             self.logger.stop_logging_writer()
 
@@ -84,8 +93,8 @@ class ArmaOnPolicyRunner(PalMotionTrackingOnPolicyRunner):
         """Train the TCN using Supervised Learning against the Privileged Encoder."""
         from pal_mjlab.tasks.tracking.kangaroo.custom_models import AdaptationModule
         
-        # Phase 2 & 3: Disable RSI and force static starts (v=0)
-        self._disable_rsi()
+        # RSI remains ENABLED for Phase 2 to ensure the TCN sees the whole motion gait.
+        # We handle history "cold-starts" by masking out the first few frames below.
         
         # Gather environment geometry
         obs = self.env.get_observations()
@@ -126,6 +135,10 @@ class ArmaOnPolicyRunner(PalMotionTrackingOnPolicyRunner):
             latents_gt = []
             obs = self.env.get_observations()
 
+            # Track steps since reset to handle history warm-up.
+            if not hasattr(self, "_p2_env_steps"):
+                self._p2_env_steps = torch.zeros(self.env.num_envs, device=self.device)
+
             for _ in range(num_steps_per_rollout):
                 with torch.inference_mode():
                     history_t = obs["actor"]
@@ -140,11 +153,18 @@ class ArmaOnPolicyRunner(PalMotionTrackingOnPolicyRunner):
                     obs = {k: v.to(self.device) for k, v in obs.items()}
                     dones = dones.to(self.device)
 
-                    # Filter terminal frames
-                    active_mask = ~dones.bool()
+                    self._p2_env_steps += 1
+                    
+                    # Warm-up Slacking: Only record data if history buffer is 'clean'
+                    # (Robot has been alive for > history_length steps)
+                    active_mask = (~dones.bool()) & (self._p2_env_steps > history_length)
+                    
                     if active_mask.any():
                         histories.append(history_t[active_mask])
                         latents_gt.append(z_gt_t[active_mask])
+                    
+                    # Reset counters for environments that finished
+                    self._p2_env_steps[dones.bool()] = 0
 
             # --- Update ---
             if not histories:
