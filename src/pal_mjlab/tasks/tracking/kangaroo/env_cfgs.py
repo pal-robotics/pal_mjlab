@@ -275,6 +275,47 @@ def pal_kangaroo_flat_tracking_env_cfg(
         },
     )
 
+
+    arma_bodies = (
+        "base_link", "pelvis_1_link", "pelvis_2_link",
+        "leg_left_1_link", "leg_right_1_link",
+        "leg_left_3_link", "leg_right_3_link",
+        "leg_left_femur_link", "leg_right_femur_link",
+        "leg_left_knee_link", "leg_right_knee_link"
+    )
+    cfg.events["link_mass"] = EventTermCfg(
+        mode="startup",
+        func=dr.body_mass,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=arma_bodies),
+            "operation": "scale",
+            "ranges": (0.7, 1.3),
+            "shared_random": False,
+        },
+    )
+    cfg.events["link_com"] = EventTermCfg(
+        mode="startup",
+        func=dr.body_ipos,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=arma_bodies),
+            "operation": "add",
+            "ranges": {i: (-0.03, 0.03) for i in range(3)},
+            "shared_random": False,
+        },
+    )
+
+    cfg.events["joint_damping"] = EventTermCfg(
+
+        mode="startup",
+        func=dr.joint_damping,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+            "operation": "scale",
+            "ranges": (0.3, 3.0),
+            "shared_random": False,
+        },
+    )
+
     # =========================================================================
     # 6. TERMINATIONS
     # =========================================================================
