@@ -8,6 +8,7 @@ from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import MetricsTermCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationTermCfg, ObservationGroupCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
@@ -390,6 +391,18 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.terminations["illegal_contacts"] = TerminationTermCfg(
     func=mdp.illegal_contact,
     params={"sensor_name": "body_ground_contact"},
+  )
+
+  # -- Curriculums
+
+  cfg.curriculum["command_vel"] = CurriculumTermCfg(
+    func=mdp.commands_vel,
+    params={
+      "command_name": "twist",
+      "velocity_stages": [
+        {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.6, 0.6)},
+      ],
+    },
   )
 
   # Apply play mode overrides.
