@@ -1,13 +1,8 @@
-import os
-
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
-import pandas as pd
-import matplotlib.pyplot as plt
 import math
-import random
+
+
 
     
 class PositionalEncoding(nn.Module):
@@ -40,7 +35,7 @@ class MultiHeadSelfAttention(nn.Module):
 
         self.out_proj = nn.Linear(d_model, d_model)
 
-        self.dropout = nn.Dropout(0.1)
+        self.dropout = nn.Dropout(0.2)
 
     def forward(self, x, mask=None):
         B, T, D = x.shape
@@ -102,7 +97,7 @@ class EncoderLayer(nn.Module):
             nn.Linear(4 * embed_dim, embed_dim)
         )
 
-        self.dropout = nn.Dropout(0.1)
+        self.dropout = nn.Dropout(0.2)
 
     def forward(self, x, mask=None):
 
@@ -165,6 +160,10 @@ class DynamicsModel(nn.Module):
     def forward(self, x, mask=None):
 
         x = (x - self.x_mean) / self.x_std
+
+        if self.training :
+            noise_std = 0.01
+            x = x + torch.randn_like(x) * noise_std
 
         # x: (B, T, D)
         x = self.embed(x)
