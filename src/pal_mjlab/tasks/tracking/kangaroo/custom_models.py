@@ -1,5 +1,6 @@
 """Custom RL Model Architectures for Kangaroo Tracking with A-RMA."""
 
+import os
 import torch
 import torch.nn as nn
 import copy
@@ -105,9 +106,39 @@ class ArmaActorModel(MLPModel):
         
         self.mlp = MLP(actor_input_dim, output_dim, hidden_dims, activation).to(obs[self.main_obs_set].device)
 
-        # Adaptation Module (TCN) - Initialized as None for Phase 1
-        # Will be injected/assigned for Phase 3 training and Deployment.
-        self.adaptation_module = None
+        # Adaptation Module (TCN) - Always instantiated to ensure state_dict loading works
+        # and to allow seamless export to ONNX. 
+        self.adaptation_module = AdaptationModule(self.obs_dim, 75, self.z_dim).to(obs[self.main_obs_set].device)
+        
+        # Buffer to track if the TCN has been activated (Phase 3).
+        # This is saved in the state_dict.
+        self.register_buffer("tcn_active", torch.tensor(False))
+
+    def load_state_dict(self, state_dict, strict=True):
+        """Custom load_state_dict to handle Phase 1 checkpoints gracefully."""
+        # If tcn_active is missing, we assume it's a Phase 1 checkpoint (False)
+        if "tcn_active" not in state_dict:
+            state_dict["tcn_active"] = torch.tensor(False)
+            
+        # Standard load, but we temporarily allow missing adaptation_module keys 
+        # if tcn_active is False.
+        missing_keys, unexpected_keys = super().load_state_dict(state_dict, strict=False)
+        
+        if strict:
+            # Filter out adaptation_module keys from missing_keys if we are in Phase 1
+            is_phase_1 = not state_dict.get("tcn_active", torch.tensor(False)).item()
+            if is_phase_1:
+                missing_keys = [k for k in missing_keys if not k.startswith("adaptation_module")]
+            
+            if missing_keys or unexpected_keys:
+                error_msg = 'Error(s) in loading state_dict for {}:\n'.format(self.__class__.__name__)
+                if missing_keys:
+                    error_msg += '\tMissing key(s) in state_dict: {}. '.format(', '.join('"{}"'.format(k) for k in missing_keys))
+                if unexpected_keys:
+                    error_msg += '\tUnexpected key(s) in state_dict: {}. '.format(', '.join('"{}"'.format(k) for k in unexpected_keys))
+                raise RuntimeError(error_msg)
+        
+        return missing_keys, unexpected_keys
 
     def _get_obs_dim(self, obs, obs_groups, obs_set):
         """Override to allow history-based 3D observations."""
@@ -134,31 +165,39 @@ class ArmaActorModel(MLPModel):
         # STATIC START TILING (Phase 2 & Phase 3)
         # If the oldest frame in history is all zeros, we just reset.
         # We tile the current observation back across the buffer to avoid the zero-teleportation shock.
-        # HARDO-CODED COLD START: We force all velocities and accelerations to zero in the history.
+        # Indices are fixed for Kangaroo Tracking observation space (command dim = 52)
         if h_t.ndim == 3 and h_t[:, 0, :].abs().max() < 1e-4:
             h_fill = h_t[:, -1, :].clone()
-            h_fill[:, 3:6] = 0.0   # base_ang_vel
-            h_fill[:, 32:58] = 0.0  # joint_vel
-            h_fill[:, 58:84] = 0.0  # last_actions
-            h_fill[:, 86:89] = 0.0  # base_lin_acc
+            h_fill[:, 26:52] = 0.0   # command_joint_vel
+            h_fill[:, 52:55] = 0.0   # base_ang_vel
+            h_fill[:, 81:107] = 0.0  # joint_vel
+            h_fill[:, 107:129] = 0.0 # last_actions
+            h_fill[:, 131:134] = 0.0 # base_lin_acc
             h_t = h_fill.unsqueeze(1).repeat(1, h_t.shape[1], 1)
             
-        # Use only the CURRENT frame (o_t) for the policy in Phase 1
+        # Use only the CURRENT frame (o_t) for the policy
         o_t = h_t[:, -1, :] if h_t.ndim == 3 else h_t        
         # Normalization
-        # Note: self.obs_normalizer is calibrated to [Dim] which matches o_t
         if self.obs_normalizer is not None:
             o_t = self.obs_normalizer(o_t)
 
+        # Phase selection logic (Manual override via ARMA_PHASE env var)
+        phase_env = os.getenv("ARMA_PHASE")
+        
         if z_hat is not None:
             # Overridden z_hat (for Phase 2 DAgger or manual override)
             z_t = z_hat
-        elif self.adaptation_module is not None:
+        elif phase_env == "1":
+            # Force Phase 1: Use privileged encoder
+            e_t = obs[self.priv_obs_set]
+            e_t = self.priv_normalizer(e_t)
+            z_t = self.privileged_encoder(e_t)
+        elif phase_env == "3" or self.tcn_active:
             # Phase 3 / Deployment: Use TCN to estimate latent from history
             z_t = self.adaptation_module(h_t)
         else:
-            # Standard Phase 1: Use privileged encoder
-            e_t = obs[self.priv_obs_set] # [Batch, 167]
+            # Default Phase 1: Use privileged encoder
+            e_t = obs[self.priv_obs_set]
             e_t = self.priv_normalizer(e_t)
             z_t = self.privileged_encoder(e_t)
         
@@ -198,6 +237,7 @@ class _OnnxArmaActorModel(nn.Module):
         
         # Deployment uses the Adaptation Module (TCN)
         self.adaptation_module = copy.deepcopy(model.adaptation_module)
+        self.tcn_active = model.tcn_active.item()
         
         if model.distribution is not None:
             self.deterministic_output = model.distribution.as_deterministic_output_module()
@@ -219,10 +259,11 @@ class _OnnxArmaActorModel(nn.Module):
             history_is_empty = history[:, 0, :].abs().max() < 1e-4
             if history_is_empty:
                 h_fill = history[:, -1, :].clone()
-                h_fill[:, 3:6] = 0.0   # base_ang_vel
-                h_fill[:, 32:58] = 0.0  # joint_vel
-                h_fill[:, 58:84] = 0.0  # last_actions
-                h_fill[:, 86:89] = 0.0  # base_lin_acc
+                h_fill[:, 26:52] = 0.0   # command_joint_vel
+                h_fill[:, 52:55] = 0.0   # base_ang_vel
+                h_fill[:, 81:107] = 0.0  # joint_vel
+                h_fill[:, 107:129] = 0.0 # last_actions
+                h_fill[:, 131:134] = 0.0 # base_lin_acc
                 history = h_fill.unsqueeze(1).repeat(1, history.shape[1], 1)
             o_t = history[:, -1, :]
         else:
@@ -231,7 +272,7 @@ class _OnnxArmaActorModel(nn.Module):
         o_t = self.obs_normalizer(o_t)
         
         # 2. Get latent estimate (z_hat)
-        if self.adaptation_module is not None and history.ndim == 3:
+        if self.tcn_active and self.adaptation_module is not None and history.ndim == 3:
             # Phase 3 / Deployment: Use TCN to estimate latent from history
             z_hat = self.adaptation_module(history)
         else:

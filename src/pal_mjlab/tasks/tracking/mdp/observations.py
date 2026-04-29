@@ -27,18 +27,8 @@ def motion_phase(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
 def external_parameters(env: ManagerBasedRlEnv) -> torch.Tensor:
   """Collect privileged environment parameters (e_t) for A-RMA.
 
-  Total dimension: 167.
-
-  Breakdown:
-  - Base COM Offset (3D): 3
-  - Foot Friction (Left, Right): 2
-  - Control Delay (22 actuators): 22
-  - P Gain Scale (22 actuators): 22
-  - Encoder Bias (22 actuators): 22
-  - Joint Friction Offset (26 DOFs): 26
-  - Link Mass Scale (11 Bodies): 11
-  - Link COM Offset (11 Bodies * 3D): 33
-  - Joint Damping Scale (26 DOFs): 26
+  Dynamically detects dimensions to match the robot's DOF and Actuator counts.
+  For Kangaroo with 34 DOFs and 22 Actuators: Total = 183.
   """
   robot = env.scene["robot"]
   sim = env.sim
@@ -50,6 +40,7 @@ def external_parameters(env: ManagerBasedRlEnv) -> torch.Tensor:
   base_com = (current_ipos - default_ipos).reshape(env.num_envs, -1) # (N, 3)
 
   # 2. Foot Friction (2D) - Left and Right
+  # Note: Uses shared random friction so first geom is representative
   left_foot_id = robot.find_geoms("left_foot0_collision")[0]
   right_foot_id = robot.find_geoms("right_foot0_collision")[0]
   foot_friction = torch.cat([
@@ -57,21 +48,21 @@ def external_parameters(env: ManagerBasedRlEnv) -> torch.Tensor:
       sim.model.geom_friction[:, right_foot_id, 0:1]
   ], dim=-1).reshape(env.num_envs, -1) # (N, 2)
 
-  # 3. Control Delay (22D)
-  control_delay = sim.model.actuator_dynprm[:, :, 0].reshape(env.num_envs, -1) # (N, 22)
+  # 3. Control Delay (num_actuators)
+  control_delay = sim.model.actuator_dynprm[:, :, 0].reshape(env.num_envs, -1) 
 
-  # 4. P Gain Scale (22D)
+  # 4. P Gain Scale (num_actuators)
   curr_gain = sim.model.actuator_gainprm[:, :, 0]
   def_gain = sim.get_default_field("actuator_gainprm")[:, 0]
-  p_gain_scale = (curr_gain / (def_gain + 1e-6)).reshape(env.num_envs, -1) # (N, 22)
+  p_gain_scale = (curr_gain / (def_gain + 1e-6)).reshape(env.num_envs, -1)
 
-  # 5. Encoder Bias (22D)
+  # 5. Encoder Bias (num_actuators)
   encoder_bias = robot.data.encoder_bias.reshape(env.num_envs, -1)
 
-  # 6. Joint Friction Offset (26D)
+  # 6. Joint Friction Offset (num_dofs)
   curr_f_loss = sim.model.dof_frictionloss
   def_f_loss = sim.get_default_field("dof_frictionloss")
-  joint_friction_offset = (curr_f_loss - def_f_loss).reshape(env.num_envs, -1) # (N, 26)
+  joint_friction_offset = (curr_f_loss - def_f_loss).reshape(env.num_envs, -1)
 
   # 7. Link Mass Scale (11 Targeted Bodies)
   arma_bodies = (
@@ -86,31 +77,24 @@ def external_parameters(env: ManagerBasedRlEnv) -> torch.Tensor:
   def_mass = sim.get_default_field("body_mass")[arma_body_ids]
   link_mass_scale = (curr_mass / (def_mass + 1e-6)).reshape(env.num_envs, -1) # (N, 11)
 
-  # 8. Link COM Offset (33D)
+  # 8. Link COM Offset (11 Bodies * 3D = 33)
   curr_ipos_all = sim.model.body_ipos[:, arma_body_ids]
   def_ipos_all = sim.get_default_field("body_ipos")[arma_body_ids]
   link_com_offset = (curr_ipos_all - def_ipos_all).reshape(env.num_envs, -1) # (N, 33)
 
-  # 9. Joint Damping Scale (26D)
+  # 9. Joint Damping Scale (num_dofs)
   curr_damp = sim.model.dof_damping
   def_damp = sim.get_default_field("dof_damping")
-  joint_damping_scale = (curr_damp / (def_damp + 1e-6)).reshape(env.num_envs, -1) # (N, 26)
+  joint_damping_scale = (curr_damp / (def_damp + 1e-6)).reshape(env.num_envs, -1)
 
   return torch.cat([
       base_com,                # 3
       foot_friction,           # 2
-      control_delay,           # 22
-      p_gain_scale,            # 22
-      encoder_bias,            # 22
-      joint_friction_offset,   # 26
+      control_delay,           # nu
+      p_gain_scale,            # nu
+      encoder_bias,            # nu
+      joint_friction_offset,   # nv
       link_mass_scale,         # 11
       link_com_offset,         # 33
-      joint_damping_scale      # 26
-  ], dim=-1)                   # Total: 167
-
-
-
-
-
-
-
+      joint_damping_scale      # nv
+  ], dim=-1)

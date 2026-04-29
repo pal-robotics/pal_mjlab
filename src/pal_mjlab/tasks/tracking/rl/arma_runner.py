@@ -225,7 +225,8 @@ class ArmaOnPolicyRunner(PalMotionTrackingOnPolicyRunner):
             param.requires_grad = False
         self.tcn.eval()
         
-        self.alg.actor.adaptation_module = self.tcn
+        self.alg.actor.adaptation_module.load_state_dict(self.tcn.state_dict())
+        self.alg.actor.tcn_active.fill_(True)
 
         for param in self.alg.actor.parameters():
             param.requires_grad = True
@@ -234,6 +235,7 @@ class ArmaOnPolicyRunner(PalMotionTrackingOnPolicyRunner):
 
         self.alg.actor.train()
         self.alg.critic.train()
+
 
     def _disable_rsi(self):
         """Disable RSI and force stable static starts for Phase 2 and 3."""

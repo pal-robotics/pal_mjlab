@@ -32,7 +32,14 @@ class PalMotionCommand(MotionCommand):
     # Subtract the robot's default joint positions from the NPZ targets
     # to ensure the policy receives relative goals.
     joint_pos_rel = self.joint_pos - self.robot.data.default_joint_pos
-    return torch.cat([joint_pos_rel, self.joint_vel], dim=1)
+    joint_vel = self.joint_vel.clone()
+    
+    # Force zero velocity in the command if we are at the start and sampling mode is static
+    if self.cfg.sampling_mode == "start":
+      mask = (self.time_steps == 0)
+      joint_vel[mask] = 0.0
+      
+    return torch.cat([joint_pos_rel, joint_vel], dim=1)
 
 
 
@@ -111,6 +118,12 @@ class PalMotionCommand(MotionCommand):
         device=self.device,
       )
 
+    # Force true static start (zero velocities) if sampling mode is 'start'
+    if self.cfg.sampling_mode == "start":
+      root_lin_vel.zero_()
+      root_ang_vel.zero_()
+      joint_vel = torch.zeros_like(joint_vel)
+
     # Write reference state to simulation
     self._write_reference_state_to_sim(
       env_ids,
@@ -136,7 +149,7 @@ class PalMotionCommand(MotionCommand):
     no-op — switching between task IDs requires no code changes.
     """
     obs_mgr = self._env.observation_manager
-    history_group = "actor_history"
+    history_group = "actor"
 
     if history_group not in obs_mgr._group_obs_term_history_buffer:
       return  # Standard task — nothing to do
