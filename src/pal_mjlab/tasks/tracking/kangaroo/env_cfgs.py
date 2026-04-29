@@ -6,6 +6,7 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
@@ -24,6 +25,7 @@ from pal_mjlab.robots import (
     get_kangaroo_robot_cfg,
 )
 from pal_mjlab.tasks.tracking import mdp as tracking_mdp
+from pal_mjlab.tasks.tracking.mdp import sampling_curriculums as pal_curriculums
 from pal_mjlab.tasks.velocity import mdp
 
 
@@ -380,7 +382,29 @@ def pal_kangaroo_flat_tracking_env_cfg(
         cfg.observations["actor_history"].flatten_history_dim = False
 
     # =========================================================================
-    # 9. PLAY MODE OVERRIDES
+    # 9. CURRICULUM
+    # =========================================================================
+    cfg.curriculum["rsi_curriculum"] = CurriculumTermCfg(
+        func=pal_curriculums.command_curriculum,
+        params={
+            "command_name": "motion",
+            "stages": [
+                {
+                    "step": 0,
+                    "sampling_mode": "adaptive",
+                },
+                {
+                    "step": 5000,
+                    "sampling_mode": "start",
+                    "pose_range": {},
+                    "velocity_range": {},
+                },
+            ],
+        },
+    )
+
+    # =========================================================================
+    # 10. PLAY MODE OVERRIDES
     # =========================================================================
     if play:
         cfg.episode_length_s = int(1e9)
