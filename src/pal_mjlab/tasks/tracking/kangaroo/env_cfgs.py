@@ -205,7 +205,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # 14. Foot slip penalty (penalize horizontal velocity of feet in contact)
     cfg.rewards["foot_slip"] = RewardTermCfg(
         func=mdp.feet_slip,
-        weight=-0.05,
+        weight=-0.1,
         params={
             "sensor_name": "feet_ground_contact",
             "asset_cfg": SceneEntityCfg("robot", site_names=("left_foot", "right_foot")),
@@ -268,7 +268,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
         mode="startup",
         func=dr.dof_frictionloss,
         params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+            "asset_cfg": SceneEntityCfg("robot", joint_names=(".*_joint",)),
             "operation": "add",
             "ranges": (-0.008, 0.008),
             "shared_random": False,
@@ -289,7 +289,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=arma_bodies),
             "operation": "scale",
-            "ranges": (0.7, 1.3),
+            "ranges": (0.8, 1.2),
             "shared_random": False,
         },
     )
@@ -305,11 +305,10 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     cfg.events["joint_damping"] = EventTermCfg(
-
         mode="startup",
         func=dr.joint_damping,
         params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+            "asset_cfg": SceneEntityCfg("robot", joint_names=(".*_joint",)),
             "operation": "scale",
             "ranges": (0.3, 3.0),
             "shared_random": False,
