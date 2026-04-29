@@ -389,16 +389,10 @@ def pal_kangaroo_flat_tracking_env_cfg(
         params={
             "command_name": "motion",
             "stages": [
-                {
-                    "step": 0,
-                    "sampling_mode": "adaptive",
-                },
-                {
-                    "step": 5000,
-                    "sampling_mode": "start",
-                    "pose_range": {},
-                    "velocity_range": {},
-                },
+                {"step": 0, "rsi_prob": 1.0, "sampling_mode": "adaptive"},
+                {"step": 5000, "rsi_prob": 0.6},
+                {"step": 10000, "rsi_prob": 0.4},
+                {"step": 15000, "rsi_prob": 0.2},
             ],
         },
     )

@@ -42,9 +42,21 @@ class PalMotionCommand(MotionCommand):
       self.time_steps[env_ids] = 0
     elif self.cfg.sampling_mode == "uniform":
       self._uniform_sampling(env_ids)
-    else:
-      assert self.cfg.sampling_mode == "adaptive"
-      self._adaptive_sampling(env_ids)
+    elif self.cfg.sampling_mode == "adaptive":
+      if self.cfg.rsi_prob < 1.0:
+        # Probabilistically choose between RSI and static start
+        use_rsi = (
+          torch.rand(len(env_ids), device=self.device) < self.cfg.rsi_prob
+        )
+        rsi_env_ids = env_ids[use_rsi]
+        start_env_ids = env_ids[~use_rsi]
+
+        if len(rsi_env_ids) > 0:
+          self._adaptive_sampling(rsi_env_ids)
+        if len(start_env_ids) > 0:
+          self.time_steps[start_env_ids] = 0
+      else:
+        self._adaptive_sampling(env_ids)
 
     root_pos = self.body_pos_w[env_ids, 0].clone()
     root_ori = self.body_quat_w[env_ids, 0].clone()
@@ -194,6 +206,11 @@ class PalMotionCommandCfg(MotionCommandCfg):
 
   joint_position_ranges: dict[str, tuple[float, float]] = field(default_factory=dict)
   """Dictionary mapping joint name regex patterns to randomization ranges."""
+
+  rsi_prob: float = 1.0
+  """Probability of using Reference State Initialization (RSI) when sampling_mode is 'adaptive'.
+  If < 1.0, the remaining probability will start episodes from t=0.
+  Useful for curriculum learning to gradually phase out RSI."""
 
   def build(self, env: ManagerBasedRlEnv) -> PalMotionCommand:
     return PalMotionCommand(self, env)
