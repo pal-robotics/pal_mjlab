@@ -212,6 +212,9 @@ def pal_kangaroo_flat_tracking_env_cfg(
     params={"sensor_name": "robot/imu_lin_acc"},
   )
 
+  cfg.observations["actor"].history_length = 5  # Keep last 5 frames
+  cfg.observations["critic"].history_length = 5  # Keep last 5 frames
+
   # Modify observations if we don't have state estimation.
   if not has_state_estimation:
     new_actor_terms = {
