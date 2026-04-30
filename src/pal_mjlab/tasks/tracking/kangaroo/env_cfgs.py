@@ -145,23 +145,23 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # 1. Position tracking (High precision for legs, more slack for arms)
-    cfg.rewards["motion_body_pos"].params["std"] = 0.4 
+    cfg.rewards["motion_body_pos"].params["std"] = 0.3 
     cfg.rewards["motion_body_pos"].params["body_names"] = leg_bodies
     
     cfg.rewards["motion_body_pos_other"] = RewardTermCfg(
         func=tracking_mdp.motion_relative_body_position_error_exp,
-        weight=0.5, # Lower weight for arms
-        params={"command_name": "motion", "std": 0.6, "body_names": other_bodies},
+        weight=0.8, # Lower weight for arms
+        params={"command_name": "motion", "std": 0.4, "body_names": other_bodies},
     )
 
     # 2. Orientation tracking
-    cfg.rewards["motion_body_ori"].params["std"] = 0.4
+    cfg.rewards["motion_body_ori"].params["std"] = 0.3
     cfg.rewards["motion_body_ori"].params["body_names"] = leg_bodies
     
     cfg.rewards["motion_body_ori_other"] = RewardTermCfg(
         func=tracking_mdp.motion_relative_body_orientation_error_exp,
-        weight=0.5,
-        params={"command_name": "motion", "std": 0.6, "body_names": other_bodies},
+        weight=0.8,
+        params={"command_name": "motion", "std": 0.4, "body_names": other_bodies},
     )
 
     # 3. Soft Landing (Penalize high-impact forces in the feet)
@@ -271,7 +271,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
         mode="startup",
         func=tracking_mdp.control_delay,
         params={
-            "delay_range": (0.0, 0.04),  # 0–40 ms
+            "delay_range": (0.0, 0.02),  # 0–40 ms
             "asset_cfg": SceneEntityCfg("robot"),
         },
     )
@@ -391,19 +391,19 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 9. CURRICULUM
     # =========================================================================
-    cfg.curriculum["rsi_curriculum"] = CurriculumTermCfg(
-        func=tracking_mdp.command_curriculum,
-        params={
-            "command_name": "motion",
-            "num_steps_per_iteration": 24,
-            "stages": [
-                {"step": 0, "rsi_prob": 1.0, "sampling_mode": "adaptive"},
-                {"step": 5000, "rsi_prob": 0.6},
-                {"step": 10000, "rsi_prob": 0.4},
-                {"step": 15000, "rsi_prob": 0.2},
-            ],
-        },
-    )
+    # cfg.curriculum["rsi_curriculum"] = CurriculumTermCfg(
+    #     func=tracking_mdp.command_curriculum,
+    #     params={
+    #         "command_name": "motion",
+    #         "num_steps_per_iteration": 24,
+    #         "stages": [
+    #             {"step": 0, "rsi_prob": 1.0, "sampling_mode": "adaptive"},
+    #             {"step": 10000, "rsi_prob": 0.6},
+    #             {"step": 15000, "rsi_prob": 0.4},
+    #             {"step": 20000, "rsi_prob": 0.2},
+    #         ],
+    #     },
+    # )
 
     # =========================================================================
     # 10. PLAY MODE OVERRIDES
