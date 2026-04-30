@@ -25,7 +25,6 @@ from pal_mjlab.robots import (
     get_kangaroo_robot_cfg,
 )
 from pal_mjlab.tasks.tracking import mdp as tracking_mdp
-from pal_mjlab.tasks.tracking.mdp import sampling_curriculums as pal_curriculums
 from pal_mjlab.tasks.velocity import mdp
 
 
@@ -120,6 +119,13 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     motion_cmd = cfg.commands["motion"]
     assert isinstance(motion_cmd, MotionCommandCfg)
+
+    # Upgrade to PalMotionCommandCfg to support rsi_prob and other PAL-specific features
+    cfg.commands["motion"] = PalMotionCommandCfg(
+        **{k: v for k, v in motion_cmd.__dict__.items() if k != "rsi_prob"}
+    )
+    motion_cmd = cfg.commands["motion"]
+
     motion_cmd.anchor_body_name = "base_link"
     motion_cmd.body_names = body_names
 
@@ -385,7 +391,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # 9. CURRICULUM
     # =========================================================================
     cfg.curriculum["rsi_curriculum"] = CurriculumTermCfg(
-        func=pal_curriculums.command_curriculum,
+        func=tracking_mdp.command_curriculum,
         params={
             "command_name": "motion",
             "stages": [

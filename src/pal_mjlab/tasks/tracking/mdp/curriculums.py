@@ -20,7 +20,23 @@ class command_curriculum:
     stages: list[Any] = cfg.params["stages"]
     self._term_cfg = env.command_manager.get_term_cfg(command_name)
     self._stages = stages
-    _validate_stages(self._term_cfg, command_name, self._stages)
+    self._validate_stages_safe(self._term_cfg, command_name, self._stages)
+
+  def _validate_stages_safe(self, term_cfg: Any, term_name: str, stages: list[Any]):
+    """Safe version of _validate_stages that handles configs without a 'params' dict."""
+    for i in range(1, len(stages)):
+      if stages[i]["step"] < stages[i - 1]["step"]:
+        raise ValueError(f"Stages must be in nondecreasing step order.")
+    for stage in stages:
+      for key in stage:
+        if key not in {"step", "params"} and not hasattr(term_cfg, key):
+          raise AttributeError(f"Field '{key}' does not exist on '{term_name}' config.")
+      if "params" in stage:
+        if not hasattr(term_cfg, "params"):
+          raise AttributeError(f"'{term_name}' config does not have a 'params' dict.")
+        unknown = stage["params"].keys() - term_cfg.params.keys()
+        if unknown:
+          raise KeyError(f"Unknown params: {unknown}")
 
   def __call__(
     self,
