@@ -165,6 +165,16 @@ def pal_kangaroo_flat_tracking_env_cfg(
         },
     )
 
+    # 4. Foot Slip (Penalize foot sliding while in contact)
+    cfg.rewards["foot_slip"] = RewardTermCfg(
+        func=tracking_mdp.feet_slip,
+        weight=-0.1,
+        params={
+            "sensor_name": "feet_ground_contact",
+            "asset_cfg": SceneEntityCfg("robot", site_names=("left_foot", "right_foot")),
+        },
+    )
+
     # Tighten tracking precision for velocities
     cfg.rewards["motion_body_lin_vel"].params["std"] = 0.7
     cfg.rewards["motion_body_ang_vel"].params["std"] = 0.7
