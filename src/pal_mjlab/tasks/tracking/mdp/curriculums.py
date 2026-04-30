@@ -51,3 +51,32 @@ class command_curriculum:
       counter = counter // self._steps_per_iteration
     return _apply_stages(self._term_cfg, counter, self._stages)
 
+
+class reward_curriculum:
+  """Update a reward term's weight and/or params based on training steps or iterations.
+
+  Each stage specifies a ``step`` threshold and optionally a ``weight``
+  and/or ``params`` dict.
+  If ``num_steps_per_iteration`` is provided in params, the counter is divided
+  by this value to treat the thresholds as iterations.
+  """
+
+  def __init__(self, cfg: CurriculumTermCfg, env: ManagerBasedRlEnv):
+    reward_name: str = cfg.params["reward_name"]
+    stages: list[Any] = cfg.params["stages"]
+    self._term_cfg = env.reward_manager.get_term_cfg(reward_name)
+    self._stages = stages
+    self._steps_per_iteration = cfg.params.get("num_steps_per_iteration", 1)
+    _validate_stages(self._term_cfg, reward_name, self._stages)
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    env_ids: torch.Tensor,
+    **kwargs,
+  ) -> dict[str, torch.Tensor]:
+    del env_ids, kwargs
+    counter = env.common_step_counter
+    if self._steps_per_iteration > 1:
+      counter = counter // self._steps_per_iteration
+    return _apply_stages(self._term_cfg, counter, self._stages)
