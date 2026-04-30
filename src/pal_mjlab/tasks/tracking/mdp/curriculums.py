@@ -43,10 +43,9 @@ class command_curriculum:
     self,
     env: ManagerBasedRlEnv,
     env_ids: torch.Tensor,
-    command_name: str,
-    stages: list[Any],
+    **kwargs,
   ) -> dict[str, torch.Tensor]:
-    del env_ids, command_name, stages
+    del env_ids, kwargs
     counter = env.common_step_counter
     if self._steps_per_iteration > 1:
       counter = counter // self._steps_per_iteration

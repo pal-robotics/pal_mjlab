@@ -223,7 +223,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # 15. Feet distance convex hull (workspace limits)
     cfg.rewards["feet_distance_convex_hull"] = RewardTermCfg(
         func=tracking_mdp.site_distance_convex_hull,
-        weight=-10.0,
+        weight=-1.0,
         params={
             "asset_cfg": SceneEntityCfg("robot"),
             "site_names": ["left_foot", "right_foot"],
@@ -414,6 +414,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
         cfg.events.pop("push_robot", None)
         cfg.events.pop("control_delay", None)
         cfg.events.pop("p_gain", None)
+        cfg.curriculum.pop("rsi_curriculum", None)
 
         # Disable RSI randomization
         motion_cmd.pose_range = {}
