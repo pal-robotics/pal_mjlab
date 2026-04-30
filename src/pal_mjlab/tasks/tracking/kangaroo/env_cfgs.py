@@ -176,8 +176,8 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # Tighten tracking precision for velocities
-    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.7
-    cfg.rewards["motion_body_ang_vel"].params["std"] = 0.7
+    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.5
+    cfg.rewards["motion_body_ang_vel"].params["std"] = 0.5
 
     # Convex Hull limits for Hip
     cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
@@ -254,16 +254,16 @@ def pal_kangaroo_flat_tracking_env_cfg(
             "bias_range": (-0.015, 0.015),
         },
     )
-    cfg.events["body_friction"] = EventTermCfg(
-        mode="startup",
-        func=dr.geom_friction,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", geom_names=body_geoms),
-            "operation": "abs",
-            "ranges": (0.3, 2.0),
-            "shared_random": False,
-        },
-    )
+    # cfg.events["body_friction"] = EventTermCfg(
+    #     mode="startup",
+    #     func=dr.geom_friction,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", geom_names=body_geoms),
+    #         "operation": "abs",
+    #         "ranges": (0.3, 2.0),
+    #         "shared_random": False,
+    #     },
+    # )
 
     cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
@@ -395,6 +395,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
         func=tracking_mdp.command_curriculum,
         params={
             "command_name": "motion",
+            "num_steps_per_iteration": 24,
             "stages": [
                 {"step": 0, "rsi_prob": 1.0, "sampling_mode": "adaptive"},
                 {"step": 5000, "rsi_prob": 0.6},

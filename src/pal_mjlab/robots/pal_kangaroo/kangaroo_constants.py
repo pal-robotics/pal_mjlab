@@ -100,8 +100,8 @@ ANKLE_XY_CONVEX_HULL_POINTS = torch.tensor(
 
 FEET_DISTANCE_CONVEX_HULL_POINTS = torch.tensor(
   [
-    [-0.4, 0.05],
-    [0.4, 0.05],
+    [-0.4, 0.03],
+    [0.4, 0.03],
     [0.4, 0.4],
     [-0.4, 0.4],
   ]

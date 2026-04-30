@@ -8,11 +8,11 @@ if TYPE_CHECKING:
     from mjlab.managers.curriculum_manager import CurriculumTermCfg
 
 class command_curriculum:
-  """Update a command term's params based on training steps.
+  """Update a command term's params based on training steps or iterations.
 
   Each stage specifies a ``step`` threshold and a dict of fields to update.
-  When ``env.common_step_counter`` reaches a stage's ``step``, the corresponding
-  values are applied to the command term config.
+  If ``num_steps_per_iteration`` is provided in params, the counter is divided
+  by this value to treat the thresholds as iterations.
   """
 
   def __init__(self, cfg: CurriculumTermCfg, env: ManagerBasedRlEnv):
@@ -20,6 +20,7 @@ class command_curriculum:
     stages: list[Any] = cfg.params["stages"]
     self._term_cfg = env.command_manager.get_term_cfg(command_name)
     self._stages = stages
+    self._steps_per_iteration = cfg.params.get("num_steps_per_iteration", 1)
     self._validate_stages_safe(self._term_cfg, command_name, self._stages)
 
   def _validate_stages_safe(self, term_cfg: Any, term_name: str, stages: list[Any]):
@@ -46,4 +47,8 @@ class command_curriculum:
     stages: list[Any],
   ) -> dict[str, torch.Tensor]:
     del env_ids, command_name, stages
-    return _apply_stages(self._term_cfg, env.common_step_counter, self._stages)
+    counter = env.common_step_counter
+    if self._steps_per_iteration > 1:
+      counter = counter // self._steps_per_iteration
+    return _apply_stages(self._term_cfg, counter, self._stages)
+
