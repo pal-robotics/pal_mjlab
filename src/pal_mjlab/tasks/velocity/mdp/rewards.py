@@ -595,7 +595,7 @@ class dynamics_prior_accuracy:
     # ___ Compute reward ________________________________________________________________________________________
 
       sq_error = (torch.square(predictions - obs[inference_mask,:-22])).mean(dim=-1)
-
+      #print("MSE : ", sq_error)
       reward[inference_mask] = torch.exp(-sq_error / std**2)
 
     return reward
