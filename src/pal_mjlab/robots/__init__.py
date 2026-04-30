@@ -1,5 +1,6 @@
 from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (  # noqa: F401
   ANKLE_XY_CONVEX_HULL_POINTS,
+  FEET_DISTANCE_CONVEX_HULL_POINTS,
   HIP_XY_CONVEX_HULL_POINTS,
   KANGAROO_ACTION_SCALE,
   KANGAROO_ACTUATOR_NAMES,

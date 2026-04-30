@@ -19,6 +19,7 @@ from pal_mjlab.tasks.tracking.mdp.commands import PalMotionCommandCfg
 
 from pal_mjlab.robots import (
     ANKLE_XY_CONVEX_HULL_POINTS,
+    FEET_DISTANCE_CONVEX_HULL_POINTS,
     HIP_XY_CONVEX_HULL_POINTS,
     KANGAROO_ACTION_SCALE,
     KANGAROO_ACTUATOR_NAMES,
@@ -213,10 +214,22 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # 14. Foot slip penalty (penalize horizontal velocity of feet in contact)
     cfg.rewards["foot_slip"] = RewardTermCfg(
         func=mdp.feet_slip,
-        weight=-0.1,
+        weight=-0.05,
         params={
             "sensor_name": "feet_ground_contact",
             "asset_cfg": SceneEntityCfg("robot", site_names=("left_foot", "right_foot")),
+        },
+    )
+    # 15. Feet distance convex hull (workspace limits)
+    cfg.rewards["feet_distance_convex_hull"] = RewardTermCfg(
+        func=tracking_mdp.site_distance_convex_hull,
+        weight=-10.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+            "site_names": ["left_foot", "right_foot"],
+            "hull_points": FEET_DISTANCE_CONVEX_HULL_POINTS,
+            "metrics_suffix": "feet",
+            "margin": 0.02,
         },
     )
 
@@ -272,18 +285,6 @@ def pal_kangaroo_flat_tracking_env_cfg(
         },
     )
 
-    cfg.events["joint_friction"] = EventTermCfg(
-        mode="startup",
-        func=dr.dof_frictionloss,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=(".*_joint",)),
-            "operation": "add",
-            "ranges": (-0.008, 0.008),
-            "shared_random": False,
-        },
-    )
-
-
     arma_bodies = (
         "base_link", "pelvis_1_link", "pelvis_2_link",
         "leg_left_1_link", "leg_right_1_link",
@@ -307,7 +308,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=arma_bodies),
             "operation": "add",
-            "ranges": {i: (-0.03, 0.03) for i in range(3)},
+            "ranges": {i: (-0.02, 0.02) for i in range(3)},
             "shared_random": False,
         },
     )

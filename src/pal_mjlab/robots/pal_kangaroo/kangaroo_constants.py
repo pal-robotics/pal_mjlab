@@ -98,6 +98,15 @@ ANKLE_XY_CONVEX_HULL_POINTS = torch.tensor(
   ]
 )
 
+FEET_DISTANCE_CONVEX_HULL_POINTS = torch.tensor(
+  [
+    [-0.4, 0.05],
+    [0.4, 0.05],
+    [0.4, 0.4],
+    [-0.4, 0.4],
+  ]
+)
+
 
 def _calc_actuator_params(
   gear_ratio: float, motor_inertia: float, effort: float
