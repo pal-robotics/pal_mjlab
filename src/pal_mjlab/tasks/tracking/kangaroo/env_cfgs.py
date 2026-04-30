@@ -6,6 +6,7 @@ from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
+from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
@@ -18,6 +19,7 @@ from pal_mjlab.robots import (
   HIP_XY_CONVEX_HULL_POINTS,
   KANGAROO_ACTION_SCALE,
   KANGAROO_ACTUATOR_NAMES,
+  REGEX_FEMUR_AND_KNEE_LINKS,
   get_kangaroo_robot_cfg,
 )
 from pal_mjlab.tasks.velocity import mdp
@@ -75,7 +77,19 @@ def pal_kangaroo_flat_tracking_env_cfg(
     reduce="none",
     num_slots=1,
   )
-  cfg.scene.sensors = (self_collision_cfg, feet_ground_contact_cfg)
+  body_ground_cfg = ContactSensorCfg(
+    name="body_ground_contact",
+    primary=ContactMatch(
+      mode="body",
+      pattern=REGEX_FEMUR_AND_KNEE_LINKS,
+      entity="robot",
+    ),
+    secondary=ContactMatch(mode="body", pattern="terrain"),
+    fields=("found",),
+    reduce="none",
+    num_slots=1,
+  )
+  cfg.scene.sensors = (self_collision_cfg, feet_ground_contact_cfg, body_ground_cfg)
 
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
@@ -164,6 +178,11 @@ def pal_kangaroo_flat_tracking_env_cfg(
   )
 
   cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
+
+  cfg.terminations["illegal_contacts"] = TerminationTermCfg(
+    func=mdp.illegal_contact,
+    params={"sensor_name": "body_ground_contact"},
+  )
 
   cfg.terminations["ee_body_pos"].params["body_names"] = (
     "leg_left_5_link",
