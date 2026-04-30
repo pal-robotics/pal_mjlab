@@ -152,16 +152,16 @@ def pal_kangaroo_flat_tracking_env_cfg(
   cfg.rewards["joint_acc"] = RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7)
   cfg.rewards["joint_torque"] = RewardTermCfg(func=mdp.joint_torques_l2, weight=-1e-5)
 
-  # cfg.rewards["foot_contact"] = RewardTermCfg(
-  #   func=tracking_mdp.motion_foot_contact,
-  #   weight=0.5,
-  #   params={
-  #     "command_name": "motion",
-  #     "sensor_name": "feet_ground_contact",
-  #     "foot_body_names": ("leg_left_5_link", "leg_right_5_link"),
-  #     "height_threshold": 0.04,
-  #   },
-  # )
+  cfg.rewards["foot_contact"] = RewardTermCfg(
+    func=tracking_mdp.motion_foot_contact,
+    weight=0.5,
+    params={
+      "command_name": "motion",
+      "sensor_name": "feet_ground_contact",
+      "foot_body_names": ("leg_left_5_link", "leg_right_5_link"),
+      "height_threshold": 0.05,
+    },
+  )
 
   # cfg.rewards["action_rate_l2"].weight = 1.e-2
 
