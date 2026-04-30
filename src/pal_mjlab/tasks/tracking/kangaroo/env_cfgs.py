@@ -149,7 +149,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
   #   },
   # )
 
-  cfg.rewards["action_rate_l2"].weight = 1.e-2
+  # cfg.rewards["action_rate_l2"].weight = 1.e-2
 
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
   cfg.events["body_friction"] = EventTermCfg(
