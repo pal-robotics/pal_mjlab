@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import re
 import torch
 from mjlab.entity import Entity
 from mjlab.managers.scene_entity_config import SceneEntityCfg
@@ -143,3 +144,41 @@ def joint_vel_dp(
     ordered_ids.append(name_to_idx[name])
 
   return joint_vel[:, ordered_ids]
+
+
+def last_action_dp(
+    env: ManagerBasedRlEnv,
+    action_name: str | None = None,
+    action_scales: dict | None = None,
+    action_offsets: dict | None = None
+) -> torch.Tensor:
+
+    joint_names = _JOINT_NAMES_FOR_DP_2
+
+    if action_name is None:
+        raw_action = env.action_manager.action
+    else:
+        term = env.action_manager.get_term(action_name)
+        raw_action = term.raw_action
+
+    if not isinstance(action_scales, dict): action_scales = None
+    if not isinstance(action_offsets, dict): action_offsets = None
+
+    if action_scales is None and action_offsets is None:
+        return raw_action
+
+    scale_vector = torch.ones(len(joint_names), device=raw_action.device)
+    offset_vector = torch.zeros(len(joint_names), device=raw_action.device)
+
+    for i, joint in enumerate(joint_names):
+        if action_scales is not None:
+            for pattern, scale in action_scales.items():
+                if re.fullmatch(pattern, joint):
+                    scale_vector[i] = scale
+                    break
+        if action_offsets is not None:
+            for pattern, offset in action_offsets.items():
+                if re.fullmatch(pattern, joint):
+                    offset_vector[i] = offset
+                    break
+    return raw_action * scale_vector + offset_vector

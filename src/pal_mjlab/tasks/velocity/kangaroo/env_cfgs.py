@@ -27,6 +27,7 @@ from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
   HIP_XY_CONVEX_HULL_POINTS,
   KANGAROO_ACTION_SCALE,
+  INIT_STATE,
   KANGAROO_ACTUATOR_NAMES,
   KANGAROO_GRIPPERS_ACTION_SCALE,
   KANGAROO_GRIPPERS_ACTUATOR_NAMES,
@@ -201,13 +202,25 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       noise=Unoise(n_min=-0.5, n_max=0.5),
       params={"asset_cfg" : SceneEntityCfg("robot", joint_names=_JOINT_NAMES_FOR_DP)},
     ),
-    "actions": ObservationTermCfg(func=mdp.last_action),
+    "actions": ObservationTermCfg(
+      func=mdp.last_action_dp,
+      params={
+        "action_scales" : KANGAROO_ACTION_SCALE,
+        "action_offsets" : INIT_STATE.joint_pos,
+        },
+    ),
     "base_lin_acc" : ObservationTermCfg(
         func=mdp.builtin_sensor,
         params={"sensor_name": "robot/imu_lin_acc"},
         noise=Unoise(n_min=-0.5, n_max=0.5),
     ),
-    "Action": ObservationTermCfg(func=mdp.last_action),
+    "Action": ObservationTermCfg(
+      func=mdp.last_action_dp,
+      params={
+        "action_scales" : KANGAROO_ACTION_SCALE,
+        "action_offsets" : INIT_STATE.joint_pos,
+        },
+    ),
   }
 
   cfg.observations["dynamics_prior"] = ObservationGroupCfg(
