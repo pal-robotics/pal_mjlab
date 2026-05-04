@@ -70,35 +70,19 @@
           <!-- <geom pos="0 0 0.0061" quat="1 0 0 0" class="visual" mesh="torso_link" /> -->
           <body name="torso_link" pos="0 0 0.0061" quat="1 0 0 0" >
             <geom class="visual" mesh="torso_link" />
-              <body name="front_down_camera" pos="0.095041 0 0.186487" quat="0.8660248 0 0.5 0">
-
-                <!-- URDF: ${name}_link_joint
-                    bottom_screw_frame -> camera_link
-                    xyz = [0.0106, 0.0175, 0.0125]
-                    rpy = [0, 0, 0]
+            <body name="front_down_camera" pos="0.095041 0 0.186487" quat="0.8660248 0 0.5 0">
+              <!-- bottom_screw_frame -> camera_link 
+                xyz = [0.0106, 0.0175, 0.0125] rpy = [0, 0, 0] 
+              -->
+              <body name="front_down_camera_link" pos="0.0106 0.0175 0.0125" quat="1 0 0 0">
+                <!-- camera_link -> depth_frame
+                  xyz = [0, 0, 0] rpy = [0, 0, 0] 
                 -->
-                <body name="front_down_camera_link" pos="0.0106 0.0175 0.0125" quat="1 0 0 0">
-
-                  <!-- Optional visual geom, depending on your mesh definition -->
-                  <!-- <geom class="visual" mesh="d435" /> -->
-
-                  <!-- URDF: ${name}_depth_joint
-                      camera_link -> depth_frame
-                      xyz = [0, 0, 0]
-                      rpy = [0, 0, 0]
-                  -->
-                  <body name="front_down_camera_depth_frame" pos="0 0 0" quat="1 0 0 0">
-
-                    <!-- URDF: ${name}_depth_optical_joint
-                        depth_frame -> depth_optical_frame
-                        xyz = [0, 0, 0]
-                        rpy = [-pi/2, 0, -pi/2]
+                <body name="front_down_camera_depth_frame" pos="0 0 0" quat="1 0 0 0">
+                    <!-- depth_frame -> depth_optical_frame
+                      xyz = [0, 0, 0] rpy = [-pi/2, 0, -pi/2]
                     -->
-                    <body
-                      name="front_down_camera_depth_optical_frame"
-                      pos="0 0 0"
-                      quat="0.5 -0.5 0.5 -0.5">
-
+                    <body name="front_down_camera_depth_optical_frame" pos="0 0 0" quat="0.5 -0.5 0.5 -0.5">
                         <!-- MuJoCo camera/site convention: rays along local -Z -->
                         <!-- This makes local -Z point along ROS optical +Z -->
                         <site
@@ -106,7 +90,6 @@
                           pos="0 0 0"
                           quat="0 1 0 0" 
                         />
-
                     </body>
                   </body>
                 </body>

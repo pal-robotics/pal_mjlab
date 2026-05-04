@@ -559,11 +559,11 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   ### COMMANDS
 
   # Start with a small forward-only cmd range
-  # twist_cmd = cfg.commands["twist"]
-  # assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-  # twist_cmd.ranges.lin_vel_x = (-0.2, 0.2)
-  # twist_cmd.ranges.lin_vel_y = (-0.0, 0.0)
-  # twist_cmd.ranges.ang_vel_z = (-0.0, 0.0)
+  twist_cmd = cfg.commands["twist"]
+  assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+  twist_cmd.ranges.lin_vel_x = (-0.2, 0.2)
+  twist_cmd.ranges.lin_vel_y = (-0.0, 0.0)
+  twist_cmd.ranges.ang_vel_z = (-0.0, 0.0)
 
   # cfg.commands["twist"] = UniformVelocityCommandWithProgressTrackingCfg(
   #   entity_name="robot",
@@ -651,7 +651,7 @@ def pal_kangaroo_easy_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.scene.terrain.terrain_type = "generator"
   # cfg.scene.terrain.terrain_generator = replace(STAIRS_TERRAINS_CFG, size=(6.0, 6.0))
   cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
-    size=(5.0, 5.0),
+    size=(4.0, 4.0),
     num_rows=12,
     num_cols=9,
     border_width=20.0,
