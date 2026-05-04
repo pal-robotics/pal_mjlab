@@ -349,7 +349,7 @@ def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "command_name": "twist",
         "velocity_stages": [
-          {"step": 0, "lin_vel_x": (0.0, 0.6)},
+          {"step": 0, "lin_vel_x": (0.0, 1.0)},
         ],
       },
     ),
