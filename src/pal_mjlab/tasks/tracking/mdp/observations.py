@@ -27,68 +27,76 @@ def motion_phase(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
 def external_parameters(env: ManagerBasedRlEnv) -> torch.Tensor:
   """Collect privileged environment parameters (e_t) for A-RMA.
 
-  Dynamically detects dimensions to match the robot's DOF and Actuator counts.
-  With joint_friction removed, for Kangaroo with 32 DOFs and 22 Actuators: Total = 151.
+  Automatically detects active 'startup' randomization events and collects
+  the corresponding parameters from the simulation.
   """
   robot = env.scene["robot"]
   sim = env.sim
+  obs = []
 
-  # 1. Base COM Offset (3D) - Using pelvis_2_link
-  pelvis_id = robot.find_bodies("pelvis_2_link")[0]
-  default_ipos = sim.get_default_field("body_ipos")[pelvis_id]
-  current_ipos = sim.model.body_ipos[:, pelvis_id]
-  base_com = (current_ipos - default_ipos).reshape(env.num_envs, -1) # (N, 3)
+  # Iterate through sorted events to ensure deterministic observation order
+  for event_name in sorted(env.cfg.events.keys()):
+    cfg = env.cfg.events[event_name]
+    if cfg.mode != "startup":
+      continue
 
-  # 2. Foot Friction (2D) - Left and Right
-  # Note: Uses shared random friction so first geom is representative
-  left_foot_id = robot.find_geoms("left_foot0_collision")[0]
-  right_foot_id = robot.find_geoms("right_foot0_collision")[0]
-  foot_friction = torch.cat([
-      sim.model.geom_friction[:, left_foot_id, 0:1],
-      sim.model.geom_friction[:, right_foot_id, 0:1]
-  ], dim=-1).reshape(env.num_envs, -1) # (N, 2)
+    func_name = cfg.func.__name__
+    params = cfg.params
+    asset_cfg = params.get("asset_cfg", None)
 
-  # 3. Control Delay (num_actuators)
-  control_delay = sim.model.actuator_dynprm[:, :, 0].reshape(env.num_envs, -1) 
+    if func_name == "geom_friction":
+      geom_ids = robot.find_geoms(asset_cfg.geom_names)[0]
+      if params.get("shared_random", False):
+        # If shared, all geoms have the same friction; take only the first
+        friction = sim.model.geom_friction[:, geom_ids[0:1], 0:1]
+      else:
+        friction = sim.model.geom_friction[:, geom_ids, 0:1]
+      obs.append(friction.reshape(env.num_envs, -1))
 
-  # 4. P Gain Scale (num_actuators)
-  curr_gain = sim.model.actuator_gainprm[:, :, 0]
-  def_gain = sim.get_default_field("actuator_gainprm")[:, 0]
-  p_gain_scale = (curr_gain / (def_gain + 1e-6)).reshape(env.num_envs, -1)
+    elif func_name in ["body_mass", "link_mass"]:
+      body_ids = robot.find_bodies(asset_cfg.body_names)[0]
+      curr_mass = sim.model.body_mass[:, body_ids]
+      def_mass = sim.get_default_field("body_mass")[body_ids]
+      link_mass_scale = (curr_mass / (def_mass + 1e-6)).reshape(env.num_envs, -1)
+      obs.append(link_mass_scale)
 
-  # 5. Encoder Bias (num_actuators)
-  encoder_bias = robot.data.encoder_bias.reshape(env.num_envs, -1)
+    elif func_name in ["body_ipos", "body_com_offset"]:
+      body_ids = robot.find_bodies(asset_cfg.body_names)[0]
+      curr_ipos = sim.model.body_ipos[:, body_ids]
+      def_ipos = sim.get_default_field("body_ipos")[body_ids]
+      link_com_offset = (curr_ipos - def_ipos).reshape(env.num_envs, -1)
+      obs.append(link_com_offset)
 
-  # 6. Link Mass Scale (11 Targeted Bodies)
-  arma_bodies = (
-      "base_link", "pelvis_1_link", "pelvis_2_link",
-      "leg_left_1_link", "leg_right_1_link",
-      "leg_left_3_link", "leg_right_3_link",
-      "leg_left_femur_link", "leg_right_femur_link",
-      "leg_left_knee_link", "leg_right_knee_link"
-  )
-  arma_body_ids = robot.find_bodies(arma_bodies)[0]
-  curr_mass = sim.model.body_mass[:, arma_body_ids]
-  def_mass = sim.get_default_field("body_mass")[arma_body_ids]
-  link_mass_scale = (curr_mass / (def_mass + 1e-6)).reshape(env.num_envs, -1) # (N, 11)
+    elif func_name in ["joint_damping", "dof_damping"]:
+      # damping is NV (num_dofs)
+      curr_damp = sim.model.dof_damping
+      def_damp = sim.get_default_field("dof_damping")
+      joint_damping_scale = (curr_damp / (def_damp + 1e-6)).reshape(env.num_envs, -1)
+      obs.append(joint_damping_scale)
 
-  # 7. Link COM Offset (11 Bodies * 3D = 33)
-  curr_ipos_all = sim.model.body_ipos[:, arma_body_ids]
-  def_ipos_all = sim.get_default_field("body_ipos")[arma_body_ids]
-  link_com_offset = (curr_ipos_all - def_ipos_all).reshape(env.num_envs, -1) # (N, 33)
+    elif func_name in ["joint_friction", "dof_frictionloss"]:
+      # frictionloss is NV (num_dofs)
+      curr_fric = sim.model.dof_frictionloss
+      obs.append(curr_fric.reshape(env.num_envs, -1))
 
-  # 8. Joint Damping Scale (num_dofs)
-  curr_damp = sim.model.dof_damping
-  def_damp = sim.get_default_field("dof_damping")
-  joint_damping_scale = (curr_damp / (def_damp + 1e-6)).reshape(env.num_envs, -1)
 
-  return torch.cat([
-      base_com,                # 3
-      foot_friction,           # 2
-      control_delay,           # nu
-      p_gain_scale,            # nu
-      encoder_bias,            # nu
-      link_mass_scale,         # 11
-      link_com_offset,         # 33
-      joint_damping_scale      # nv
-  ], dim=-1)
+    elif func_name == "encoder_bias":
+      encoder_bias = robot.data.encoder_bias.reshape(env.num_envs, -1)
+      obs.append(encoder_bias)
+
+    elif func_name == "control_delay":
+      # actuator_dynprm[..., 0] is the filter time constant used for delay
+      control_delay = sim.model.actuator_dynprm[:, :, 0].reshape(env.num_envs, -1)
+      obs.append(control_delay)
+
+    elif func_name == "p_gain":
+      curr_gain = sim.model.actuator_gainprm[:, :, 0]
+      def_gain = sim.get_default_field("actuator_gainprm")[:, 0]
+      p_gain_scale = (curr_gain / (def_gain + 1e-6)).reshape(env.num_envs, -1)
+      obs.append(p_gain_scale)
+
+  if not obs:
+    return torch.zeros(env.num_envs, 0, device=env.device)
+
+  return torch.cat(obs, dim=-1)
+
