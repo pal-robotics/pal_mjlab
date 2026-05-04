@@ -166,18 +166,18 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # 4. Foot Slip (Penalize foot sliding while in contact)
-    cfg.rewards["foot_slip"] = RewardTermCfg(
-        func=tracking_mdp.feet_slip,
-        weight=-0.1,
-        params={
-            "sensor_name": "feet_ground_contact",
-            "asset_cfg": SceneEntityCfg("robot", site_names=("left_foot", "right_foot")),
-        },
-    )
+    # cfg.rewards["foot_slip"] = RewardTermCfg(
+    #     func=tracking_mdp.feet_slip,
+    #     weight=-0.1,
+    #     params={
+    #         "sensor_name": "feet_ground_contact",
+    #         "asset_cfg": SceneEntityCfg("robot", site_names=("left_foot", "right_foot")),
+    #     },
+    # )
 
     # Tighten tracking precision for velocities
-    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.7
-    cfg.rewards["motion_body_ang_vel"].params["std"] = 0.7
+    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.5
+    cfg.rewards["motion_body_ang_vel"].params["std"] = 0.5
 
     # Convex Hull limits for Hip
     cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
@@ -245,34 +245,34 @@ def pal_kangaroo_flat_tracking_env_cfg(
     cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
 
-    cfg.events["control_delay"] = EventTermCfg(
-        mode="startup",
-        func=tracking_mdp.control_delay,
-        params={
-            "delay_range": (0.0, 0.04),  # 0–40 ms
-            "asset_cfg": SceneEntityCfg("robot"),
-        },
-    )
+    # cfg.events["control_delay"] = EventTermCfg(
+    #     mode="startup",
+    #     func=tracking_mdp.control_delay,
+    #     params={
+    #         "delay_range": (0.0, 0.04),  # 0–40 ms
+    #         "asset_cfg": SceneEntityCfg("robot"),
+    #     },
+    # )
 
-    cfg.events["p_gain"] = EventTermCfg(
-        mode="startup",
-        func=tracking_mdp.p_gain,
-        params={
-            "kp_range": (0.925, 1.05),
-            "asset_cfg": SceneEntityCfg("robot"),
-        },
-    )
+    # cfg.events["p_gain"] = EventTermCfg(
+    #     mode="startup",
+    #     func=tracking_mdp.p_gain,
+    #     params={
+    #         "kp_range": (0.925, 1.05),
+    #         "asset_cfg": SceneEntityCfg("robot"),
+    #     },
+    # )
 
-    cfg.events["joint_friction"] = EventTermCfg(
-        mode="startup",
-        func=dr.dof_frictionloss,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-            "operation": "add",
-            "ranges": (-0.008, 0.008),
-            "shared_random": False,
-        },
-    )
+    # cfg.events["joint_friction"] = EventTermCfg(
+    #     mode="startup",
+    #     func=dr.dof_frictionloss,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+    #         "operation": "add",
+    #         "ranges": (-0.008, 0.008),
+    #         "shared_random": False,
+    #     },
+    # )
 
     # Added randomizations for A-RMA
     arma_bodies = (
@@ -288,7 +288,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=arma_bodies),
             "operation": "scale",
-            "ranges": (0.7, 1.3),
+            "ranges": (0.8, 1.2),
             "shared_random": False,
         },
     )
