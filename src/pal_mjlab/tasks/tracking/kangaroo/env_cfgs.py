@@ -285,33 +285,33 @@ def pal_kangaroo_flat_tracking_env_cfg(
         },
     )
 
-    arma_bodies = (
-        "base_link", "pelvis_1_link", "pelvis_2_link",
-        "leg_left_1_link", "leg_right_1_link",
-        "leg_left_3_link", "leg_right_3_link",
-        "leg_left_femur_link", "leg_right_femur_link",
-        "leg_left_knee_link", "leg_right_knee_link"
-    )
-    cfg.events["link_mass"] = EventTermCfg(
-        mode="startup",
-        func=dr.body_mass,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=arma_bodies),
-            "operation": "scale",
-            "ranges": (0.8, 1.2),
-            "shared_random": False,
-        },
-    )
-    cfg.events["link_com"] = EventTermCfg(
-        mode="startup",
-        func=dr.body_ipos,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=arma_bodies),
-            "operation": "add",
-            "ranges": {i: (-0.02, 0.02) for i in range(3)},
-            "shared_random": False,
-        },
-    )
+    # arma_bodies = (
+    #     "base_link", "pelvis_1_link", "pelvis_2_link",
+    #     "leg_left_1_link", "leg_right_1_link",
+    #     "leg_left_3_link", "leg_right_3_link",
+    #     "leg_left_femur_link", "leg_right_femur_link",
+    #     "leg_left_knee_link", "leg_right_knee_link"
+    # )
+    # cfg.events["link_mass"] = EventTermCfg(
+    #     mode="startup",
+    #     func=dr.body_mass,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", body_names=arma_bodies),
+    #         "operation": "scale",
+    #         "ranges": (0.8, 1.2),
+    #         "shared_random": False,
+    #     },
+    # )
+    # cfg.events["link_com"] = EventTermCfg(
+    #     mode="startup",
+    #     func=dr.body_ipos,
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot", body_names=arma_bodies),
+    #         "operation": "add",
+    #         "ranges": {i: (-0.02, 0.02) for i in range(3)},
+    #         "shared_random": False,
+    #     },
+    # )
 
     cfg.events["joint_damping"] = EventTermCfg(
         mode="startup",
@@ -382,28 +382,28 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # -------------------------------------------------------------------------
     # History Groups
     # -------------------------------------------------------------------------
-    if use_history:
-        # Note: We keep the Critic memoryless to save VRAM on GPUs with limited memory (< 8GB).
-        cfg.observations["actor_history"] = copy.deepcopy(cfg.observations["actor"])
-        cfg.observations["actor_history"].history_length = 30
-        cfg.observations["actor_history"].flatten_history_dim = False
+    # if use_history:
+    #     # Note: We keep the Critic memoryless to save VRAM on GPUs with limited memory (< 8GB).
+    #     cfg.observations["actor_history"] = copy.deepcopy(cfg.observations["actor"])
+    #     cfg.observations["actor_history"].history_length = 30
+    #     cfg.observations["actor_history"].flatten_history_dim = False
 
     # =========================================================================
     # 9. CURRICULUM
     # =========================================================================
-    # cfg.curriculum["rsi_curriculum"] = CurriculumTermCfg(
-    #     func=tracking_mdp.command_curriculum,
-    #     params={
-    #         "command_name": "motion",
-    #         "num_steps_per_iteration": 24,
-    #         "stages": [
-    #             {"step": 0, "rsi_prob": 1.0, "sampling_mode": "adaptive"},
-    #             {"step": 10000, "rsi_prob": 0.6},
-    #             {"step": 15000, "rsi_prob": 0.4},
-    #             {"step": 20000, "rsi_prob": 0.2},
-    #         ],
-    #     },
-    # )
+    cfg.curriculum["rsi_curriculum"] = CurriculumTermCfg(
+        func=tracking_mdp.command_curriculum,
+        params={
+            "command_name": "motion",
+            "num_steps_per_iteration": 24,
+            "stages": [
+                {"step": 0, "rsi_prob": 0.8, "sampling_mode": "adaptive"},
+                {"step": 5000, "rsi_prob": 0.6},
+                {"step": 15000, "rsi_prob": 0.4},
+                {"step": 23000, "rsi_prob": 0.2},
+            ],
+        },
+    )
 
     # Tighten tracking precision over time
     for reward_name, start_std in [
@@ -420,9 +420,9 @@ def pal_kangaroo_flat_tracking_env_cfg(
                 "reward_name": reward_name,
                 "num_steps_per_iteration": 24,
                 "stages": [
-                    {"step": 5000, "params": {"std": round(start_std - 0.2, 2)}},
-                    {"step": 15000, "params": {"std": round(start_std - 0.4, 2)}},
-                    {"step": 25000, "params": {"std": max(0.05, round(start_std - 0.6, 2))}},
+                    {"step": 2000, "params": {"std": round(start_std - 0.2, 2)}},
+                    {"step": 10000, "params": {"std": round(start_std - 0.3, 2)}},
+                    {"step": 20000, "params": {"std": max(0.05, round(start_std - 0.4, 2))}},
                 ],
             },
         )

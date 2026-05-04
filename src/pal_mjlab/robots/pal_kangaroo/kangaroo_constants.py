@@ -243,40 +243,42 @@ INIT_STATE = EntityCfg.InitialStateCfg(
   #   "pelvis_1_joint": 0.0,
   #   "pelvis_2_joint": 0.0,
 
-    pos=(0.0, 0.0, 0.9),  # Updated Z-height from your Base Position
-    # Note: Your file had XY at (1.94, 5.79), but usually you want to start at origin (0,0)
+    pos=(0.0, 0.0, 0.873),  # Updated Z-height from dance base pos  #(0.0, 0.0, 0.9),  
     
     joint_pos={
         # Legs - Hip / Yaw / Roll
-        "leg_left_1_joint": 0.0,
-        "leg_right_1_joint": -0.0,
-        "leg_left_2_joint": -0.0,
-        "leg_right_2_joint": -0.0,
-        "leg_left_3_joint": -0.0,
-        "leg_right_3_joint": 0.0,
+        "leg_left_1_joint": -0.0228,
+        "leg_right_1_joint": -0.1159,
+        "leg_left_2_joint": 0.2413,
+        "leg_right_2_joint": 0.2426,
+        "leg_left_3_joint": -0.0697,
+        "leg_right_3_joint": 0.0257,
 
         # Legs - Actuators & Knees
-        "leg_.*_length_joint": 0.616,  # Average of 0.618 and 0.613
-        "leg_left_4_joint": 0.0126,
-        "leg_right_4_joint": -0.0283,
-        "leg_left_5_joint": 0.0,      # Value was -4.2e-06
-        "leg_right_5_joint": -0.0147,
-        "leg_.*_femur_joint": 0.9,   # Average of 0.946 and 0.936
-        "leg_.*_knee_joint": 1.8,    # Average of 1.894 and 1.872
+        "leg_left_length_joint": 0.5652,
+        "leg_right_length_joint": 0.5617,
+        "leg_left_4_joint": -0.1663,
+        "leg_right_4_joint": -0.1900,
+        "leg_left_5_joint": -0.0624,
+        "leg_right_5_joint": 0.0519,
+        "leg_left_femur_joint": 0.8385,
+        "leg_right_femur_joint": 0.8316,
+        "leg_left_knee_joint": 1.6770,
+        "leg_right_knee_joint": 1.6633,
 
         # Arms
-        "arm_left_1_joint": -0.2305,
-        "arm_right_1_joint": 0.2949,
-        "arm_left_2_joint": -0.2621,
-        "arm_right_2_joint": -0.2578,
-        "arm_left_3_joint": 1.5993,
-        "arm_right_3_joint": -1.5552,
-        "arm_left_4_joint": 0.0667,
-        "arm_right_4_joint": 0.0254,
+        "arm_left_1_joint": 0.1299,
+        "arm_right_1_joint": -0.2630,
+        "arm_left_2_joint": -0.0661,
+        "arm_right_2_joint": 0.0321,
+        "arm_left_3_joint": 1.3108,
+        "arm_right_3_joint": -1.2595,
+        "arm_left_4_joint": -0.0128,
+        "arm_right_4_joint": -0.0588,
 
         # Pelvis
-        "pelvis_1_joint": -0.0196,
-        "pelvis_2_joint": 0.0270,
+        "pelvis_1_joint": 0.0121,
+        "pelvis_2_joint": 0.0428,
     },
   joint_vel={".*": 0.0},
 )
