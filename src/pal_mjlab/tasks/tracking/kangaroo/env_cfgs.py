@@ -1,5 +1,7 @@
 """PAL Robotics Kangaroo Flat terrain tracking configuration."""
 
+import dataclasses
+
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -11,6 +13,8 @@ from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
+# from mjlab.managers.curriculum_manager import CurriculumTermCfg
+# from pal_mjlab.tasks.tracking.mdp.commands import PalMotionCommandCfg
 from mjlab.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
 from pal_mjlab.tasks.tracking import mdp as tracking_mdp
 
@@ -99,6 +103,11 @@ def pal_kangaroo_flat_tracking_env_cfg(
   assert cfg.commands is not None
   motion_cmd = cfg.commands["motion"]
   assert isinstance(motion_cmd, MotionCommandCfg)
+  # _base_motion_cmd = cfg.commands["motion"]
+  # motion_cmd = PalMotionCommandCfg(
+  #   **{f.name: getattr(_base_motion_cmd, f.name) for f in dataclasses.fields(_base_motion_cmd)}
+  # )
+  # cfg.commands["motion"] = motion_cmd
   motion_cmd.anchor_body_name = "base_link"
   motion_cmd.body_names = (
     "base_link",
@@ -149,21 +158,34 @@ def pal_kangaroo_flat_tracking_env_cfg(
     },
   )
 
-  cfg.rewards["joint_acc"] = RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7)
-  cfg.rewards["joint_torque"] = RewardTermCfg(func=mdp.joint_torques_l2, weight=-1e-5)
+  # cfg.rewards["joint_acc"] = RewardTermCfg(func=mdp.joint_acc_l2, weight=-2.5e-7)
 
-  cfg.rewards["foot_contact"] = RewardTermCfg(
-    func=tracking_mdp.motion_foot_contact,
-    weight=0.5,
-    params={
-      "command_name": "motion",
-      "sensor_name": "feet_ground_contact",
-      "foot_body_names": ("leg_left_5_link", "leg_right_5_link"),
-      "height_threshold": 0.05,
-    },
-  )
+  # cfg.rewards["foot_contact"] = RewardTermCfg(
+  #   func=tracking_mdp.motion_foot_contact,
+  #   weight=0.5,
+  #   params={
+  #     "command_name": "motion",
+  #     "sensor_name": "feet_ground_contact",
+  #     "foot_body_names": ("leg_left_5_link", "leg_right_5_link"),
+  #     "height_threshold": 0.03,
+  #   },
+  # )
+
+  # cfg.rewards["motion_global_root_pos"].weight = 1.0
 
   # cfg.rewards["action_rate_l2"].weight = 1.e-2
+
+  # cfg.curriculum["motion_trajectory_fraction"] = CurriculumTermCfg(
+  #   func=tracking_mdp.motion_trajectory_fraction,
+  #   params={
+  #     "command_name": "motion",
+  #     "fraction_stages": [
+  #       {"step": 0, "fraction": 0.25},
+  #       {"step": 10000 * 24, "fraction": 0.50},
+  #       {"step": 15000 * 24, "fraction": 1.0},
+  #     ],
+  #   },
+  # )
 
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
   cfg.events["body_friction"] = EventTermCfg(
@@ -190,13 +212,14 @@ def pal_kangaroo_flat_tracking_env_cfg(
     "arm_left_5_link",
     "arm_right_5_link",
   )
+ # cfg.terminations["ee_body_pos"].params["threshold"] = 0.5
 
   cfg.viewer.body_name = "base_link"
 
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
-    noise=Unoise(n_min=-0.05, n_max=0.05),
+    noise=Unoise(n_min=-0.035, n_max=0.035),
   )
   cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
@@ -212,8 +235,8 @@ def pal_kangaroo_flat_tracking_env_cfg(
     params={"sensor_name": "robot/imu_lin_acc"},
   )
 
-  cfg.observations["actor"].history_length = 5  # Keep last 5 frames
-  cfg.observations["critic"].history_length = 5  # Keep last 5 frames
+  # cfg.observations["actor"].history_length = 3  # Keep last 3 frames
+  # cfg.observations["critic"].history_length = 3  # Keep last 3 frames
 
   # Modify observations if we don't have state estimation.
   if not has_state_estimation:
