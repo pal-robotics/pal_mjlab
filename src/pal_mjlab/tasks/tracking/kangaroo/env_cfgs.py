@@ -149,7 +149,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # 1. Position tracking (High precision for legs, more slack for arms)
-    cfg.rewards["motion_body_pos"].params["std"] = 0.5 
+    cfg.rewards["motion_body_pos"].params["std"] = 0.55 
     cfg.rewards["motion_body_pos"].params["body_names"] = leg_bodies
     
     cfg.rewards["motion_body_pos_other"] = RewardTermCfg(
@@ -159,7 +159,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # 2. Orientation tracking
-    cfg.rewards["motion_body_ori"].params["std"] = 0.5
+    cfg.rewards["motion_body_ori"].params["std"] = 0.55
     cfg.rewards["motion_body_ori"].params["body_names"] = leg_bodies
     
     cfg.rewards["motion_body_ori_other"] = RewardTermCfg(
@@ -180,8 +180,8 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # Tighten tracking precision for velocities
-    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.6
-    cfg.rewards["motion_body_ang_vel"].params["std"] = 0.6
+    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.7
+    cfg.rewards["motion_body_ang_vel"].params["std"] = 0.7
 
     # Convex Hull limits for Hip
     cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
@@ -428,26 +428,26 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # Tighten tracking precision over time
-    for reward_name, start_std in [
-        ("motion_body_pos", 0.6),
-        ("motion_body_pos_other", 0.7),
-        ("motion_body_ori", 0.6),
-        ("motion_body_ori_other", 0.7),
-        ("motion_body_lin_vel", 0.8),
-        ("motion_body_ang_vel", 0.8),
-    ]:
-        cfg.curriculum[f"{reward_name}_std_curriculum"] = CurriculumTermCfg(
-            func=tracking_mdp.reward_curriculum,
-            params={
-                "reward_name": reward_name,
-                "num_steps_per_iteration": 24,
-                "stages": [
-                    {"step": 2000, "params": {"std": round(start_std - 0.2, 2)}},
-                    {"step": 10000, "params": {"std": round(start_std - 0.3, 2)}},
-                    {"step": 20000, "params": {"std": max(0.05, round(start_std - 0.4, 2))}},
-                ],
-            },
-        )
+    # for reward_name, start_std in [
+    #     ("motion_body_pos", 0.6),
+    #     ("motion_body_pos_other", 0.7),
+    #     ("motion_body_ori", 0.6),
+    #     ("motion_body_ori_other", 0.7),
+    #     ("motion_body_lin_vel", 0.8),
+    #     ("motion_body_ang_vel", 0.8),
+    # ]:
+    #     cfg.curriculum[f"{reward_name}_std_curriculum"] = CurriculumTermCfg(
+    #         func=tracking_mdp.reward_curriculum,
+    #         params={
+    #             "reward_name": reward_name,
+    #             "num_steps_per_iteration": 24,
+    #             "stages": [
+    #                 {"step": 2000, "params": {"std": round(start_std - 0.2, 2)}},
+    #                 {"step": 10000, "params": {"std": round(start_std - 0.3, 2)}},
+    #                 {"step": 20000, "params": {"std": max(0.05, round(start_std - 0.4, 2))}},
+    #             ],
+    #         },
+    #     )
 
     # =========================================================================
     # 10. PLAY MODE OVERRIDES

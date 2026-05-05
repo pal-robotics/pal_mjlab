@@ -108,47 +108,22 @@ def generate_env_summary(env_cfg: Any, rl_cfg: Any) -> str:
     
     return "\n".join(lines)
 
-def log_summary_as_artifact(env_cfg, rl_cfg, run_name: str = "run"):
-    """Starts a background thread to log the MD summary as a WandB Artifact.
+def log_summary_as_artifact(env_cfg, rl_cfg, log_dir: str = None):
+    """Generates and saves a Markdown summary of the environment configuration.
     
-    This avoids blocking if WandB is initialized later in the training loop.
+    If log_dir is provided, the summary is saved to log_dir/env_summary.md.
     """
-    import threading
-    import time
-    
-    def _deferred_log():
-        timeout = 30  # seconds
-        start_time = time.time()
-        print("[INFO] Summary artifact logger waiting for WandB to initialize...")
+    try:
+        summary_md = generate_env_summary(env_cfg, rl_cfg)
         
-        while time.time() - start_time < timeout:
-            import wandb
-            if wandb.run:
-                try:
-                    summary_md = generate_env_summary(env_cfg, rl_cfg)
-                    
-                    # Save locally for reference
-                    local_path = os.path.join(wandb.run.dir, "env_summary.md")
-                    os.makedirs(os.path.dirname(local_path), exist_ok=True)
-                    with open(local_path, "w") as f:
-                        f.write(summary_md)
-                        
-                    # Log as artifact
-                    artifact = wandb.Artifact(
-                        name=f"env_config_summary",
-                        type="documentation",
-                        description="Dynamically generated environment configuration summary"
-                    )
-                    artifact.add_file(local_path)
-                    wandb.run.log_artifact(artifact)
-                    print(f"[INFO] Environment summary successfully logged to WandB run: {wandb.run.name}")
-                    return
-                except Exception as e:
-                    print(f"[WARN] Failed to log summary artifact: {e}")
-                    return
-            time.sleep(1.0)
-        print("[WARN] Summary artifact logger timed out after 30s. No WandB run detected.")
-
-    thread = threading.Thread(target=_deferred_log, daemon=True)
-    thread.start()
-    print("[INFO] Summary artifact will be logged asynchronously once WandB starts.")
+        if log_dir:
+            local_path = os.path.join(log_dir, "env_summary.md")
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "w") as f:
+                f.write(summary_md)
+            print(f"[INFO] Environment summary successfully saved to: {local_path}")
+        else:
+            print("[WARN] log_summary_as_artifact called without log_dir. Summary not saved locally.")
+            
+    except Exception as e:
+        print(f"[WARN] Failed to generate or save environment summary: {e}")

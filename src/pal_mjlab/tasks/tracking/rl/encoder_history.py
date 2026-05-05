@@ -62,7 +62,7 @@ class PalStandardOnPolicyRunner(MotionTrackingOnPolicyRunner):
     def __init__(self, env, runner_cfg, log_dir=None, device="cuda:0", **kwargs):
         super().__init__(env, runner_cfg, log_dir, device, **kwargs)
         from pal_mjlab.utils.wandb_utils import log_summary_as_artifact
-        log_summary_as_artifact(self.env.unwrapped.cfg, self.cfg)
+        log_summary_as_artifact(self.env.unwrapped.cfg, self.cfg, log_dir=self.log_dir)
 
 
 class PalMotionTrackingOnPolicyRunner(MotionTrackingOnPolicyRunner):
@@ -71,7 +71,7 @@ class PalMotionTrackingOnPolicyRunner(MotionTrackingOnPolicyRunner):
     def __init__(self, env, runner_cfg, log_dir=None, device="cuda:0", **kwargs):
         super().__init__(env, runner_cfg, log_dir, device, **kwargs)
         from pal_mjlab.utils.wandb_utils import log_summary_as_artifact
-        log_summary_as_artifact(self.env.unwrapped.cfg, self.cfg)
+        log_summary_as_artifact(self.env.unwrapped.cfg, self.cfg, log_dir=self.log_dir)
 
     def export_policy_to_onnx(
         self, path: str, filename: str = "policy.onnx", verbose: bool = False
