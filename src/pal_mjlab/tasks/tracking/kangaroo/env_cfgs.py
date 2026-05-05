@@ -9,6 +9,7 @@ from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
 from mjlab.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
@@ -33,6 +34,9 @@ def pal_kangaroo_flat_tracking_env_cfg(
 ) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics Kangaroo flat terrain tracking configuration."""
     cfg = make_tracking_env_cfg()
+
+    # Disable fixed timeout in favor of adaptive motion duration timeout
+    cfg.episode_length_s = int(1e9)
 
     # =========================================================================
     # 0. DATA DEFINITIONS
@@ -320,6 +324,12 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 6. TERMINATIONS
     # =========================================================================
+    cfg.terminations["time_out"] = TerminationTermCfg(
+        func=tracking_mdp.motion_time_out,
+        time_out=True,
+        params={"command_name": "motion"}
+    )
+    
     cfg.terminations["ee_body_pos"].params["body_names"] = (
         "leg_left_5_link",
         "leg_right_5_link",
@@ -394,19 +404,41 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # 9. PLAY MODE OVERRIDES
     # =========================================================================
     if play:
-        cfg.episode_length_s = int(1e9)
         cfg.observations["actor"].enable_corruption = False
-        cfg.events.pop("push_robot", None)
-        cfg.events.pop("control_delay", None)
-        cfg.events.pop("p_gain", None)
-        cfg.events.pop("link_mass", None)
-        cfg.events.pop("link_com", None)
-        cfg.events.pop("joint_damping", None)
-        cfg.events.pop("left_foot_friction", None)
-        cfg.events.pop("right_foot_friction", None)
-        cfg.events.pop("encoder_bias", None)
-        cfg.events.pop("base_com", None)
-        cfg.events.pop("joint_friction", None)
+        
+        # In play mode, disable randomizations but DO NOT pop the events.
+        # The A-RMA actor checkpoint was trained with a specific privileged 
+        # observation vector size (e_t) generated from these events. Popping them 
+        # shrinks the vector, causing a state_dict size mismatch when loading the policy.
+        cfg.events.pop("push_robot", None)  # push_robot does not affect e_t vector size
+        
+        if "control_delay" in cfg.events:
+            cfg.events["control_delay"].params["delay_range"] = (0.0, 0.0)
+        if "p_gain" in cfg.events:
+            cfg.events["p_gain"].params["kp_range"] = (1.0, 1.0)
+        if "link_mass" in cfg.events:
+            cfg.events["link_mass"].params["operation"] = "scale"
+            cfg.events["link_mass"].params["ranges"] = (1.0, 1.0)
+        if "link_com" in cfg.events:
+            cfg.events["link_com"].params["operation"] = "add"
+            cfg.events["link_com"].params["ranges"] = {i: (0.0, 0.0) for i in range(3)}
+        if "joint_damping" in cfg.events:
+            cfg.events["joint_damping"].params["operation"] = "scale"
+            cfg.events["joint_damping"].params["ranges"] = (1.0, 1.0)
+        if "left_foot_friction" in cfg.events:
+            cfg.events["left_foot_friction"].params["operation"] = "scale"
+            cfg.events["left_foot_friction"].params["ranges"] = (1.0, 1.0)
+        if "right_foot_friction" in cfg.events:
+            cfg.events["right_foot_friction"].params["operation"] = "scale"
+            cfg.events["right_foot_friction"].params["ranges"] = (1.0, 1.0)
+        if "encoder_bias" in cfg.events:
+            cfg.events["encoder_bias"].params["bias_range"] = (0.0, 0.0)
+        if "base_com" in cfg.events:
+            cfg.events["base_com"].params["operation"] = "add"
+            cfg.events["base_com"].params["ranges"] = {i: (0.0, 0.0) for i in range(3)}
+        if "joint_friction" in cfg.events:
+            cfg.events["joint_friction"].params["operation"] = "add"
+            cfg.events["joint_friction"].params["ranges"] = (0.0, 0.0)
 
         # Disable RSI randomization
         motion_cmd.pose_range = {}
