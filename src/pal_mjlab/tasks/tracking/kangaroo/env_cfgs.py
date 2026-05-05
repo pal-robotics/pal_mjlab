@@ -10,6 +10,7 @@ from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
 from mjlab.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
@@ -36,6 +37,9 @@ def pal_kangaroo_flat_tracking_env_cfg(
 ) -> ManagerBasedRlEnvCfg:
     """Create PAL Robotics Kangaroo flat terrain tracking configuration."""
     cfg = make_tracking_env_cfg()
+
+    # Disable fixed timeout in favor of adaptive motion duration timeout
+    cfg.episode_length_s = int(1e9)
 
     # =========================================================================
     # 0. DATA DEFINITIONS
@@ -145,7 +149,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # 1. Position tracking (High precision for legs, more slack for arms)
-    cfg.rewards["motion_body_pos"].params["std"] = 0.6 
+    cfg.rewards["motion_body_pos"].params["std"] = 0.5 
     cfg.rewards["motion_body_pos"].params["body_names"] = leg_bodies
     
     cfg.rewards["motion_body_pos_other"] = RewardTermCfg(
@@ -155,7 +159,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # 2. Orientation tracking
-    cfg.rewards["motion_body_ori"].params["std"] = 0.6
+    cfg.rewards["motion_body_ori"].params["std"] = 0.5
     cfg.rewards["motion_body_ori"].params["body_names"] = leg_bodies
     
     cfg.rewards["motion_body_ori_other"] = RewardTermCfg(
@@ -167,7 +171,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # 3. Soft Landing (Penalize high-impact forces in the feet)
     cfg.rewards["soft_landing"] = RewardTermCfg(
         func=mdp.soft_landing,
-        weight=-5e-5, 
+        weight=-5e-4, 
         params={
             "sensor_name": "feet_ground_contact",
             "command_name": "motion",
@@ -176,8 +180,8 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # Tighten tracking precision for velocities
-    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.8
-    cfg.rewards["motion_body_ang_vel"].params["std"] = 0.8
+    cfg.rewards["motion_body_lin_vel"].params["std"] = 0.6
+    cfg.rewards["motion_body_ang_vel"].params["std"] = 0.6
 
     # Convex Hull limits for Hip
     cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
@@ -230,6 +234,18 @@ def pal_kangaroo_flat_tracking_env_cfg(
     #         "hull_points": FEET_DISTANCE_CONVEX_HULL_POINTS,
     #         "metrics_suffix": "feet",
     #         "margin": 0.02,
+    #     },
+    # )
+
+    # 16. Balance CoM Alignment (Repulsive)
+    # cfg.rewards["com_alignment_repulsive"] = RewardTermCfg(
+    #     func=tracking_mdp.com_alignment_with_feet,
+    #     weight=-10.0,
+    #     params={
+    #         "sensor_name": "feet_ground_contact",
+    #         "left_foot_site_name": "left_foot",
+    #         "right_foot_site_name": "right_foot",
+    #         "threshold": 0.03,
     #     },
     # )
 
@@ -327,6 +343,12 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 6. TERMINATIONS
     # =========================================================================
+    cfg.terminations["time_out"] = TerminationTermCfg(
+        func=tracking_mdp.motion_time_out,
+        time_out=True,
+        params={"command_name": "motion"}
+    )
+    
     cfg.terminations["ee_body_pos"].params["body_names"] = (
         "leg_left_5_link",
         "leg_right_5_link",
@@ -431,7 +453,6 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # 10. PLAY MODE OVERRIDES
     # =========================================================================
     if play:
-        cfg.episode_length_s = int(1e9)
         cfg.observations["actor"].enable_corruption = False
         cfg.events.pop("push_robot", None)
         cfg.events.pop("control_delay", None)
