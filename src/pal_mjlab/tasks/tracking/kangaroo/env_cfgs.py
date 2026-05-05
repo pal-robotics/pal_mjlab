@@ -38,8 +38,8 @@ def pal_kangaroo_flat_tracking_env_cfg(
     """Create PAL Robotics Kangaroo flat terrain tracking configuration."""
     cfg = make_tracking_env_cfg()
 
-    # Disable fixed timeout in favor of adaptive motion duration timeout
-    cfg.episode_length_s = int(1e9)
+    # Revert to fixed 10s timeout
+    cfg.episode_length_s = 10.0
 
     # =========================================================================
     # 0. DATA DEFINITIONS
@@ -149,23 +149,23 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # 1. Position tracking (High precision for legs, more slack for arms)
-    cfg.rewards["motion_body_pos"].params["std"] = 0.8 
+    cfg.rewards["motion_body_pos"].params["std"] = 0.7 
     cfg.rewards["motion_body_pos"].params["body_names"] = leg_bodies
     
     cfg.rewards["motion_body_pos_other"] = RewardTermCfg(
         func=tracking_mdp.motion_relative_body_position_error_exp,
         weight=0.8, # Lower weight for arms
-        params={"command_name": "motion", "std": 0.8, "body_names": other_bodies},
+        params={"command_name": "motion", "std": 0.7, "body_names": other_bodies},
     )
 
     # 2. Orientation tracking
-    cfg.rewards["motion_body_ori"].params["std"] = 0.8
+    cfg.rewards["motion_body_ori"].params["std"] = 0.7
     cfg.rewards["motion_body_ori"].params["body_names"] = leg_bodies
     
     cfg.rewards["motion_body_ori_other"] = RewardTermCfg(
         func=tracking_mdp.motion_relative_body_orientation_error_exp,
         weight=0.8,
-        params={"command_name": "motion", "std": 0.8, "body_names": other_bodies},
+        params={"command_name": "motion", "std": 0.7, "body_names": other_bodies},
     )
 
     # 3. Soft Landing (Penalize high-impact forces in the feet)
@@ -344,9 +344,8 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # 6. TERMINATIONS
     # =========================================================================
     cfg.terminations["time_out"] = TerminationTermCfg(
-        func=tracking_mdp.motion_time_out,
+        func=mdp.time_out,
         time_out=True,
-        params={"command_name": "motion"}
     )
     
     cfg.terminations["ee_body_pos"].params["body_names"] = (
@@ -413,19 +412,19 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 9. CURRICULUM
     # =========================================================================
-    cfg.curriculum["rsi_curriculum"] = CurriculumTermCfg(
-        func=tracking_mdp.command_curriculum,
-        params={
-            "command_name": "motion",
-            "num_steps_per_iteration": 24,
-            "stages": [
-                {"step": 0, "rsi_prob": 0.8, "sampling_mode": "adaptive"},
-                {"step": 5000, "rsi_prob": 0.6},
-                {"step": 15000, "rsi_prob": 0.4},
-                {"step": 23000, "rsi_prob": 0.2},
-            ],
-        },
-    )
+    # cfg.curriculum["rsi_curriculum"] = CurriculumTermCfg(
+    #     func=tracking_mdp.command_curriculum,
+    #     params={
+    #         "command_name": "motion",
+    #         "num_steps_per_iteration": 24,
+    #         "stages": [
+    #             {"step": 0, "rsi_prob": 0.8, "sampling_mode": "adaptive"},
+    #             {"step": 5000, "rsi_prob": 0.6},
+    #             {"step": 15000, "rsi_prob": 0.4},
+    #             {"step": 23000, "rsi_prob": 0.2},
+    #         ],
+    #     },
+    # )
 
     # Tighten tracking precision over time
     # for reward_name, start_std in [
