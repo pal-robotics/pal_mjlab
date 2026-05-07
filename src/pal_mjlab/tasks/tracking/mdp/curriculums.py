@@ -80,3 +80,32 @@ class reward_curriculum:
     if self._steps_per_iteration > 1:
       counter = counter // self._steps_per_iteration
     return _apply_stages(self._term_cfg, counter, self._stages)
+
+
+class termination_curriculum:
+  """Update a termination term's params based on training steps or iterations.
+
+  Each stage specifies a ``step`` threshold and a dict of fields to update.
+  If ``num_steps_per_iteration`` is provided in params, the counter is divided
+  by this value to treat the thresholds as iterations.
+  """
+
+  def __init__(self, cfg: CurriculumTermCfg, env: ManagerBasedRlEnv):
+    termination_name: str = cfg.params["termination_name"]
+    stages: list[Any] = cfg.params["stages"]
+    self._term_cfg = env.termination_manager.get_term_cfg(termination_name)
+    self._stages = stages
+    self._steps_per_iteration = cfg.params.get("num_steps_per_iteration", 1)
+    _validate_stages(self._term_cfg, termination_name, self._stages)
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    env_ids: torch.Tensor,
+    **kwargs,
+  ) -> dict[str, torch.Tensor]:
+    del env_ids, kwargs
+    counter = env.common_step_counter
+    if self._steps_per_iteration > 1:
+      counter = counter // self._steps_per_iteration
+    return _apply_stages(self._term_cfg, counter, self._stages)

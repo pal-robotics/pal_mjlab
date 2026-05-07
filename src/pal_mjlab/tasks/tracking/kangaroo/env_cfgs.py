@@ -151,10 +151,11 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # 1. Position tracking (High precision for legs, more slack for arms)
     cfg.rewards["motion_body_pos"].params["std"] = 0.7 
     cfg.rewards["motion_body_pos"].params["body_names"] = leg_bodies
+    cfg.rewards["motion_body_pos"].params["weight"] = 1.0
     
     cfg.rewards["motion_body_pos_other"] = RewardTermCfg(
         func=tracking_mdp.motion_relative_body_position_error_exp,
-        weight=0.8, # Lower weight for arms
+        weight=1.0, # Lower weight for arms
         params={"command_name": "motion", "std": 0.7, "body_names": other_bodies},
     )
 
@@ -164,7 +165,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     
     cfg.rewards["motion_body_ori_other"] = RewardTermCfg(
         func=tracking_mdp.motion_relative_body_orientation_error_exp,
-        weight=0.8,
+        weight=1.0,
         params={"command_name": "motion", "std": 0.7, "body_names": other_bodies},
     )
 
@@ -216,14 +217,14 @@ def pal_kangaroo_flat_tracking_env_cfg(
     )
 
     # 14. Foot slip penalty (penalize horizontal velocity of feet in contact)
-    cfg.rewards["foot_slip"] = RewardTermCfg(
-        func=mdp.feet_slip,
-        weight=-0.05,
-        params={
-            "sensor_name": "feet_ground_contact",
-            "asset_cfg": SceneEntityCfg("robot", site_names=("left_foot", "right_foot")),
-        },
-    )
+    # cfg.rewards["foot_slip"] = RewardTermCfg(
+    #     func=mdp.feet_slip,
+    #     weight=-0.05,
+    #     params={
+    #         "sensor_name": "feet_ground_contact",
+    #         "asset_cfg": SceneEntityCfg("robot", site_names=("left_foot", "right_foot")),
+    #     },
+    # )
     # 15. Feet distance convex hull (workspace limits)
     # cfg.rewards["feet_distance_convex_hull"] = RewardTermCfg(
     #     func=tracking_mdp.site_distance_convex_hull,
@@ -412,6 +413,19 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 9. CURRICULUM
     # =========================================================================
+    cfg.curriculum["ee_body_pos_termination_curriculum"] = CurriculumTermCfg(
+        func=tracking_mdp.termination_curriculum,
+        params={
+            "termination_name": "ee_body_pos",
+            "num_steps_per_iteration": 24,
+            "stages": [
+                {"step": 0, "params": {"threshold": 0.25}},
+                {"step": 5000, "params": {"threshold": 0.2}},
+                {"step": 15000, "params": {"threshold": 0.15}},
+            ],
+        },
+    )
+
     # cfg.curriculum["rsi_curriculum"] = CurriculumTermCfg(
     #     func=tracking_mdp.command_curriculum,
     #     params={
@@ -428,12 +442,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
 
     # Tighten tracking precision over time
     # for reward_name, start_std in [
-    #     ("motion_body_pos", 0.6),
-    #     ("motion_body_pos_other", 0.7),
-    #     ("motion_body_ori", 0.6),
-    #     ("motion_body_ori_other", 0.7),
-    #     ("motion_body_lin_vel", 0.8),
-    #     ("motion_body_ang_vel", 0.8),
+    #     ("motion_body_pos", 0.7),
     # ]:
     #     cfg.curriculum[f"{reward_name}_std_curriculum"] = CurriculumTermCfg(
     #         func=tracking_mdp.reward_curriculum,
@@ -441,9 +450,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     #             "reward_name": reward_name,
     #             "num_steps_per_iteration": 24,
     #             "stages": [
-    #                 {"step": 2000, "params": {"std": round(start_std - 0.2, 2)}},
-    #                 {"step": 10000, "params": {"std": round(start_std - 0.3, 2)}},
-    #                 {"step": 20000, "params": {"std": max(0.05, round(start_std - 0.4, 2))}},
+    #                 {"step": 5000, "params": {"std": round(start_std - 0.15, 2)}},
     #             ],
     #         },
     #     )

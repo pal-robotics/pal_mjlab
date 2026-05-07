@@ -34,7 +34,7 @@ class HistoryEncoderModel(MLPModel):
         # Extract dimensions
         self.actor_obs_dim = current_obs.shape[-1]
         self.history_obs_dim = history_obs.shape[-1] # From [Batch, History, ObsDim]
-        self.latent_hist_dim = 64
+        self.latent_hist_dim = 16
         
         # Override parent initialization so it doesn't crash configuring rsl_rl defaults.
         # rsl_rl's MLPModel tries to create self.obs_normalizer for the dimension of self.obs_groups.
