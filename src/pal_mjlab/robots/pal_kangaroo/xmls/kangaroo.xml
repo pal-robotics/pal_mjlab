@@ -87,8 +87,8 @@
                   <geom class="visual" mesh="fake_forearm_left_link" />
                   <geom name="arm_left_4_collision" size="0.054849 0.219217" pos="0.210246 -0.0167497 -0.0171982" quat="0.733112 0.0532001 0.678025 -2.2842e-07" class="collision"/>
                   <site name="ee_left" pos="0.45 -0.02 0.0"/>
-                  <body name="arm_left_tip_link" pos="0.4 -0.02 0.0">
-                    <inertial pos="0.00000752641 -0.000079317 -0.0000023427" quat="0.573967 0.373833 0.602191 0.410095" mass="0.143" diaginertia="0.0210305 0.0210101 0.00117153" />
+                  <body name="arm_left_tip_link" pos="0.4 -0.020508 -0.011036">
+                    <inertial pos="-0.020626 0.0 0.0" quat="0.587635 0.403174 0.536315 0.45222" mass="0.087207" diaginertia="0.000304227 0.000301511 2.92624e-05"/>
                   </body>
                 </body>
               </body>
@@ -112,8 +112,8 @@
                   <geom class="visual" mesh="fake_forearm_right_link" />
                   <geom name="arm_right_4_collision" size="0.0559132 0.220143" pos="0.210649 -0.0172373 -0.0265895" quat="0.717524 0.0513886 0.694636 -1.38234e-06" class="collision"/>
                   <site name="ee_right" pos="0.45 -0.02 0.0"/>
-                  <body name="arm_right_tip_link" pos="0.4 -0.02 0.0">
-                    <inertial pos="0.00000752641 -0.000079317 -0.0000023427" quat="0.573967 0.373833 0.602191 0.410095" mass="0.143" diaginertia="0.0210305 0.0210101 0.00117153" />
+                  <body name="arm_right_tip_link" pos="0.4 -0.020508 -0.041036">
+                    <inertial pos="-0.020626 0.0 0.0" quat="0.536315 0.45222 0.587635 0.403174" mass="0.087207" diaginertia="0.000304227 0.000301511 2.92624e-05"/>
                   </body>
                 </body>
               </body>
