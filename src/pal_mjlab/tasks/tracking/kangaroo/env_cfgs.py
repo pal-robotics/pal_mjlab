@@ -404,11 +404,11 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # -------------------------------------------------------------------------
     # History Groups
     # -------------------------------------------------------------------------
-    # if use_history:
-    #     # Note: We keep the Critic memoryless to save VRAM on GPUs with limited memory (< 8GB).
-    #     cfg.observations["actor_history"] = copy.deepcopy(cfg.observations["actor"])
-    #     cfg.observations["actor_history"].history_length = 30
-    #     cfg.observations["actor_history"].flatten_history_dim = False
+    if use_history:
+        # Note: We keep the Critic memoryless to save VRAM on GPUs with limited memory (< 8GB).
+        cfg.observations["actor_history"] = copy.deepcopy(cfg.observations["actor"])
+        cfg.observations["actor_history"].history_length = 45
+        cfg.observations["actor_history"].flatten_history_dim = False
 
     # =========================================================================
     # 9. CURRICULUM
