@@ -194,7 +194,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     # Lower body.
     r"leg_.*_1_.*": 0.15,
     r"leg_.*_2_.*": 0.3,  # pitch
-    r"leg_.*_3_.*": 0.1,
+    r"leg_.*_3_.*": 0.15,
     r"leg_.*_length_.*": 0.1,  # length
     r"leg_.*_4_.*": 0.25,
     r"leg_.*_5_.*": 0.1,
@@ -210,7 +210,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     # Lower body.
     r"leg_.*_1_.*": 0.2,
     r"leg_.*_2_.*": 0.5,
-    r"leg_.*_3_.*": 0.15,
+    r"leg_.*_3_.*": 0.2,
     r"leg_.*_length_.*": 0.15,
     r"leg_.*_4_.*": 0.35,
     r"leg_.*_5_.*": 0.15,
