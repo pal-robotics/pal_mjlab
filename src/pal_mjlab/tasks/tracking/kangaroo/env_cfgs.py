@@ -349,12 +349,17 @@ def pal_kangaroo_flat_tracking_env_cfg(
         time_out=True,
     )
     
-    cfg.terminations["ee_body_pos"].params["body_names"] = (
+    cfg.terminations["ee_feet_pos"] = copy.deepcopy(cfg.terminations["ee_body_pos"])
+    cfg.terminations["ee_feet_pos"].params["body_names"] = (
         "leg_left_5_link",
         "leg_right_5_link",
+    )
+    cfg.terminations["ee_arms_pos"] = copy.deepcopy(cfg.terminations["ee_body_pos"])
+    cfg.terminations["ee_arms_pos"].params["body_names"] = (
         "arm_left_5_link",
         "arm_right_5_link",
     )
+    cfg.terminations.pop("ee_body_pos")
 
     # =========================================================================
     # 7. VIEWER
@@ -413,15 +418,15 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # =========================================================================
     # 9. CURRICULUM
     # =========================================================================
-    cfg.curriculum["ee_body_pos_termination_curriculum"] = CurriculumTermCfg(
+    cfg.curriculum["ee_feet_pos_termination_curriculum"] = CurriculumTermCfg(
         func=tracking_mdp.termination_curriculum,
         params={
-            "termination_name": "ee_body_pos",
+            "termination_name": "ee_feet_pos",
             "num_steps_per_iteration": 24,
             "stages": [
-                {"step": 0, "params": {"threshold": 0.25}},
-                {"step": 5000, "params": {"threshold": 0.2}},
-                {"step": 15000, "params": {"threshold": 0.15}},
+                {"step": 0, "params": {"threshold": 0.15}},
+                {"step": 5000, "params": {"threshold": 0.10}},
+                {"step": 15000, "params": {"threshold": 0.05}},
             ],
         },
     )
