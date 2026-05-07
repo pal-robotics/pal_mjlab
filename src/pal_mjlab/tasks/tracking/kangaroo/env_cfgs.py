@@ -151,7 +151,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     # 1. Position tracking (High precision for legs, more slack for arms)
     cfg.rewards["motion_body_pos"].params["std"] = 0.7 
     cfg.rewards["motion_body_pos"].params["body_names"] = leg_bodies
-    cfg.rewards["motion_body_pos"].params["weight"] = 1.0
+    cfg.rewards["motion_body_pos"].weight = 1.0
     
     cfg.rewards["motion_body_pos_other"] = RewardTermCfg(
         func=tracking_mdp.motion_relative_body_position_error_exp,
