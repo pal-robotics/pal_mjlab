@@ -106,7 +106,7 @@
             <geom class="visual" material="white" mesh="head_2_link" />
             <geom class="visual" size="0.08641 0.05412 0.0025" pos="0.05584 -0.083935 0" quat="-1.29867e-06 0.707107 -1.29867e-06 0.707107" type="box" material="black" />
             <geom class="visual" pos="0.0565 -0.168 -4.59151e-08" quat="-1.29867e-06 0.707107 -1.29867e-06 0.707107" mesh="d435_simplified" />
-            <camera name="head_realsense_camera" pos="0.0565 -0.168 0" euler="0 -1.57 0" fovy="60"/>
+            <!-- <camera name="head_realsense_camera" pos="0.0565 -0.168 0" euler="0 -1.57 0" fovy="60"/> -->
           </body>
         </body>
         <body name="arm_right_1_link" pos="0.08976 -0.15918 -0.092008" quat="0.293338 -0.492879 0.703925 -0.418942">

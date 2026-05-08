@@ -15,7 +15,7 @@ class TiagoProRobot:
   fingertip_geom_pattern: str = "col_right_fingertip_.*"
   collision_link_pattern: str = "arm_right_.*_link"
   viewer_body: str = "base_footprint"
-  camera_name: str = "head_realsense_camera"
+  camera_name: str = "wrist_realsense_camera"
   wrist_camera_name: str = "wrist_realsense_camera"
 
   def arm_action_cfg(self) -> Any:

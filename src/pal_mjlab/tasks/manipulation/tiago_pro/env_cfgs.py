@@ -337,18 +337,12 @@ def lift_env_cfg(
       reduce="none",
       num_slots=1,
     ),
-    CameraSensorCfg(
-      name="head_realsense_camera",
-      height=128,
-      width=128,
-      data_types=("rgb", "depth"),
-      camera_name=f"robot/{robot.camera_name}",
-    ),
+
     CameraSensorCfg(
       name="wrist_realsense_camera",
       height=128,
       width=128,
-      data_types=("rgb", "depth"),
+      data_types=("depth",),
       camera_name=f"robot/{robot.wrist_camera_name}",
     ),
   )
