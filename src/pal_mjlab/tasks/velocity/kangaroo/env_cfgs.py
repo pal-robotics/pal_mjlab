@@ -161,7 +161,21 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # -- Events
 
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
-  cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
+
+  cfg.events["base_com"] = EventTermCfg(
+      mode="startup",
+      func=dr.body_com_offset,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", body_names=("pelvis_2_link",)),
+        "operation": "add",
+        "ranges": {
+          0: (-0.005, 0.005),
+          1: (-0.005, 0.005),
+          2: (-0.01, 0.01),
+        },
+      },
+    )
+  # cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
   # Domain Randomization for joint friction
   cfg.events["joint_friction"] = EventTermCfg(
