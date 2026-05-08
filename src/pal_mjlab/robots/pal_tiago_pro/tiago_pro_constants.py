@@ -27,7 +27,7 @@ def get_spec() -> mujoco.MjSpec:
 # Actuator Parameters (BeyondMimic methodology)
 ##
 
-NATURAL_FREQ = 40 * 2.0 * 3.1415926535  # 40Hz
+NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
 DAMPING_RATIO = 2.0
 FACTOR = 1.0
 
@@ -60,15 +60,15 @@ TORSO = {"armature": 0.1, "stiffness": 1500.0, "damping": 300.0, "effort_limit":
 
 # Arms
 TIAGO_PRO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"arm_.*_(1|2)_joint",),
+  target_names_expr=(r"arm_right_(1|2)_joint",),
   **S_PLUS,
 )
 TIAGO_PRO_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
+  target_names_expr=(r"arm_right_(?![1267]_joint)\d+_joint",),
   **S_MINUS,
 )
 TIAGO_PRO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
+  target_names_expr=(r"arm_right_(?![12345]_joint)\d+_joint",),
   **XS,
 )
 # Torso
@@ -78,7 +78,7 @@ TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 # Gripper
 TIAGO_PRO_GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"gripper_.*_joint",),
+  target_names_expr=(r"gripper_right_.*_joint",),
   **XS,
 )
 
@@ -90,13 +90,11 @@ INIT_STATE = EntityCfg.InitialStateCfg(
   pos=(-0.3, 0.0, 0.0),
   joint_pos={
     # "torso_lift_joint": 0.1,
-    "arm_left_1_joint": -0.3578,
     "arm_right_1_joint": -3.14,
-    "arm_.*_2_joint": -1.7,
-    "arm_left_3_joint": -0.4698,
+    "arm_right_2_joint": -1.7,
     "arm_right_3_joint": 0.71,
-    "arm_.*_4_joint": -1.14,
-    "arm_.*_6_joint": -1,
+    "arm_right_4_joint": -1.14,
+    "arm_right_6_joint": -1,
   },
   joint_vel={".*": 0.0},
 )
