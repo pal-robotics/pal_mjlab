@@ -77,9 +77,10 @@ def pal_kangaroo_flat_tracking_env_cfg(
       entity="robot",
     ),
     secondary=ContactMatch(mode="body", pattern="terrain"),
-    fields=("found",),
-    reduce="none",
+    fields=("found", "force"),
+    reduce="netforce",
     num_slots=1,
+    track_air_time=True,
   )
   body_ground_cfg = ContactSensorCfg(
     name="body_ground_contact",
@@ -233,6 +234,28 @@ def pal_kangaroo_flat_tracking_env_cfg(
   cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
     params={"sensor_name": "robot/imu_lin_acc"},
+  )
+  cfg.observations["critic"].terms["foot_air_time"] = ObservationTermCfg(
+    func=mdp.foot_air_time,
+    params={"sensor_name": "feet_ground_contact"},
+  )
+
+  cfg.rewards["motion_global_root_lin_vel_z"] = RewardTermCfg(
+    func=tracking_mdp.motion_global_anchor_velocity_z_error_exp,
+    weight=1.0,
+    params={
+      "command_name": "motion",
+      "std": 1.0,
+    },
+  )
+
+  cfg.rewards["foot_air"] = RewardTermCfg(
+    func=tracking_mdp.feet_air_time,
+    weight=10.0,
+    params={
+      "sensor_name": "feet_ground_contact",
+      "threshold": 0.1,
+    },
   )
 
   # cfg.observations["actor"].history_length = 3  # Keep last 3 frames

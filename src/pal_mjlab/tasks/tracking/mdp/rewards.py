@@ -41,3 +41,31 @@ def motion_foot_contact(
   in_contact = sensor.data.found[:, sensor_foot_idxs] > 0
 
   return (should_contact == in_contact).float().mean(dim=-1)
+
+def motion_global_anchor_velocity_z_error_exp(
+  env: ManagerBasedRlEnv, command_name: str, std: float
+) -> torch.Tensor:
+  command = cast(MotionCommand, env.command_manager.get_term(command_name))
+  error = torch.square(
+    command.anchor_lin_vel_w[:, 2] - command.robot_anchor_lin_vel_w[:, 2]
+  )
+  return torch.exp(-error / std**2)
+
+def feet_air_time(
+    env: ManagerBasedRlEnv,
+    sensor_name: str,
+    threshold: float = 0.02,
+) -> torch.Tensor:
+    sensor: ContactSensor = env.scene[sensor_name]
+    air_time = sensor.data.current_air_time  # [B, F]
+
+    # foot is considered airborne if it has been off contact long enough
+    in_air = air_time > threshold  # [B, F]
+
+    # both feet airborne → actual jump
+    all_feet_airborne = in_air.all(dim=1).float()  # [B]
+
+    # reward = average airtime only when fully airborne
+    mean_air_time = air_time.mean(dim=1)
+
+    return all_feet_airborne * mean_air_time
