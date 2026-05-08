@@ -92,7 +92,7 @@
       <geom class="visual" size="0.09 0.1 0.275" pos="-0.028 0 0.5562" type="box" material="dark_medium_gray" />
       <body name="torso_lift_link" pos="-0.0245 0 0.8457">
         <inertial pos="0.0129455 0 -0.0117188" quat="0.658139 0.658391 -0.258276 0.258201" mass="4.0175" diaginertia="0.0534327 0.0451869 0.0265871" />
-        <!-- <joint name="torso_lift_joint" type="slide" range="0 0.35" actuatorfrcrange="-2000 2000" /> -->
+        <joint name="torso_lift_joint" type="slide" range="0 0.35" actuatorfrcrange="-2000 2000" />
         <geom class="visual" material="very_light_blue_gray" mesh="torso_lift_link" />
         <geom class="visual" size="0.055 0.046 0.01085" pos="0 0 0.05085" type="box" material="dark_medium_gray" />
         <geom class="visual" pos="0.08976 0.15918 -0.092008" quat="0.418942 -0.703926 0.492878 -0.293337" material="dark_medium_gray" mesh="arm_base_link" />
@@ -106,6 +106,7 @@
             <geom class="visual" material="white" mesh="head_2_link" />
             <geom class="visual" size="0.08641 0.05412 0.0025" pos="0.05584 -0.083935 0" quat="-1.29867e-06 0.707107 -1.29867e-06 0.707107" type="box" material="black" />
             <geom class="visual" pos="0.0565 -0.168 -4.59151e-08" quat="-1.29867e-06 0.707107 -1.29867e-06 0.707107" mesh="d435_simplified" />
+            <camera name="head_realsense_camera" pos="0.0565 -0.168 0" euler="0 -1.57 0" fovy="60"/>
           </body>
         </body>
         <body name="arm_left_1_link" pos="0.08976 0.15918 -0.092008" quat="0.418942 -0.703926 0.492878 -0.293337">
@@ -216,6 +217,7 @@
                       <geom class="visual" material="dark_medium_gray" mesh="arm_7_link" />
                       <geom class="visual" pos="0 0 0.017" material="dark_medium_gray" mesh="base_link_tc" />
                       <site name="ee_right" pos="0 0 0.15"/>
+                      <camera name="wrist_realsense_camera" pos="0.05 0 0" euler="0 3.14 0" fovy="60"/>
                       <geom class="collision" name="col_ee_right" size="0.04 0.07" />
                       <geom class="collision" name="col_right_palm" type="box" pos="0 0 0.1025" size="0.01 0.035 0.025" />
                       <body name="gripper_right_inner_finger_left_link" pos="0 -0.013977 0.095832" quat="0.253401 0.660141 -0.253406 -0.660141">
@@ -232,7 +234,7 @@
                       </body>
                       <body name="gripper_right_outer_finger_left_link" pos="0 -0.0288 0.0913" quat="0.253401 0.660141 -0.253406 -0.660141">
                         <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                        <!-- <joint name="gripper_right_outer_finger_left_joint" range="0 0.95" actuatorfrcrange="-8 8"/> -->
+                        <joint name="gripper_right_outer_finger_left_joint" range="0 0.95" actuatorfrcrange="-8 8"/>
                         <geom class="visual" material="light_gray" mesh="outer_finger" />
                       </body>
                       <body name="gripper_right_inner_finger_right_link" pos="0 0.013977 0.095832" quat="0.66014 0.253404 0.660142 0.253404">
@@ -249,7 +251,7 @@
                       </body>
                       <body name="gripper_right_outer_finger_right_link" pos="0 0.0288 0.0913" quat="0.66014 0.253404 0.660142 0.253404">
                         <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                        <!-- <joint name="gripper_right_outer_finger_right_joint" range="0 0.95" actuatorfrcrange="-8 8" /> -->
+                        <joint name="gripper_right_outer_finger_right_joint" range="0 0.95" actuatorfrcrange="-8 8" />
                         <geom class="visual" material="light_gray" mesh="outer_finger" />
                       </body>
                     </body>
