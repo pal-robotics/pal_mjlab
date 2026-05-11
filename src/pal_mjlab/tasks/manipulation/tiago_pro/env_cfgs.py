@@ -304,7 +304,7 @@ def lift_env_cfg(
   cfg.sim.nconmax = 4000
   cfg.sim.njmax = 12000
   cfg.decimation = 10
-  cfg.episode_length_s = 1.0
+  cfg.episode_length_s = 10.0
   cfg.viewer.lookat = (0.4, 0.0, 0.55)
   cfg.viewer.distance = 1.7
   cfg.viewer.azimuth = 190.0

@@ -93,9 +93,9 @@ def lift_vision_ppo_runner_cfg(
       max_grad_norm=1.0,
     ),
     experiment_name=experiment_name,
-    save_interval=20,
+    save_interval=500,
     num_steps_per_env=24,
-    max_iterations=3000,
+    max_iterations=30000,
     obs_groups={
       "actor": ("actor", "camera"),
       "critic": ("critic", "camera"),
