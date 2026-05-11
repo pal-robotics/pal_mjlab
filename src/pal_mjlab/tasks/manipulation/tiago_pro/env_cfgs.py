@@ -315,7 +315,7 @@ def ee_position_in_robot_base_frame(
 def lift_env_cfg(
   play: bool = False,
   robot_cfg=TiagoProRobot,
-  cam_source: Literal["head", "wrist"] = "wrist",
+  cam_source: Literal["head", "wrist"] = "head",
 ) -> ManagerBasedRlEnvCfg:
   cfg = make_lift_cube_env_cfg()
   robot = robot_cfg()
@@ -469,10 +469,7 @@ def lift_env_cfg(
       "asset_cfg"
     ].geom_names = robot.fingertip_geom_pattern
 
-  cfg.events["reset_robot_joints"].params["asset_cfg"].joint_names = (
-    robot.arm_joint_pattern,
-    robot.gripper_joint_pattern,
-  )
+  cfg.events["reset_robot_joints"].params["asset_cfg"].joint_names = None
 
   cfg.events["reset_table"] = EventTermCfg(
     func=mdp.reset_root_state_uniform,
