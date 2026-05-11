@@ -78,7 +78,7 @@ TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 # Gripper
 TIAGO_PRO_GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"gripper_right_.*_joint",),
+  target_names_expr=(r"gripper_right_outer_finger_.*_joint",),
   **XS,
 )
 
@@ -87,7 +87,7 @@ TIAGO_PRO_GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 ##
 
 INIT_STATE = EntityCfg.InitialStateCfg(
-  pos=(-0.3, 0.0, 0.0),
+  pos=(-0.25, 0.0, 0.0),
   joint_pos={
     # "torso_lift_joint": 0.1,
     "arm_right_1_joint": -3.14,
@@ -95,6 +95,8 @@ INIT_STATE = EntityCfg.InitialStateCfg(
     "arm_right_3_joint": 0.71,
     "arm_right_4_joint": -1.14,
     "arm_right_6_joint": -1,
+    "gripper_right_outer_finger_left_joint": 0.0,
+    "gripper_right_outer_finger_right_joint": 0.0,
   },
   joint_vel={".*": 0.0},
 )

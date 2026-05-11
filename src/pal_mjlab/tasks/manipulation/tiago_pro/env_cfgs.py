@@ -313,7 +313,9 @@ def ee_position_in_robot_base_frame(
 
 
 def lift_env_cfg(
-  play: bool = False, robot_cfg=TiagoProRobot
+  play: bool = False,
+  robot_cfg=TiagoProRobot,
+  cam_source: Literal["head", "wrist"] = "wrist",
 ) -> ManagerBasedRlEnvCfg:
   cfg = make_lift_cube_env_cfg()
   robot = robot_cfg()
@@ -331,7 +333,7 @@ def lift_env_cfg(
   cfg.viewer.distance = 1.7
   cfg.viewer.azimuth = 190.0
   cfg.viewer.elevation = 15.0
-  cfg.viewer.camera = robot.camera_name
+  cfg.viewer.camera = f"{cam_source}_realsense_camera"
   cfg.sim.nan_guard.enabled = True
   cfg.sim.nan_guard.output_dir = "/tmp/mjlab/nan_dumps"
   cfg.observations["actor"].nan_policy = "sanitize"
@@ -370,11 +372,11 @@ def lift_env_cfg(
     ),
     
     CameraSensorCfg(
-      name="wrist_realsense_camera",
+      name=f"{cam_source}_realsense_camera",
       height=128,
       width=128,
       data_types=("depth",),
-      camera_name=f"robot/{robot.wrist_camera_name}",
+      camera_name=f"robot/{robot.head_camera_name if cam_source == 'head' else robot.wrist_camera_name}",
     ),
   )
 
@@ -513,26 +515,27 @@ def lift_env_cfg(
 
 
 def lift_vision_env_cfg(
-  cam_type: Literal["rgb", "depth"],
+  cam_type: Literal["rgb", "depth", "rgbd"],
+  cam_source: Literal["head", "wrist"] = "wrist",
   play: bool = False,
   robot_cfg=TiagoProRobot,
 ) -> ManagerBasedRlEnvCfg:
-  cfg = lift_env_cfg(play=play, robot_cfg=robot_cfg)
+  cfg = lift_env_cfg(play=play, robot_cfg=robot_cfg, cam_source=cam_source)
   robot = robot_cfg()
 
-  # We use the sensors already defined in lift_env_cfg
-  obs_sensor_name = "wrist_realsense_camera"
+  # Choose the sensor name based on the source
+  obs_sensor_name = f"{cam_source}_realsense_camera"
 
   if cam_type == "depth":
     obs_func = manipulation_mdp.camera_depth
-    obs_params = {"sensor_name": obs_sensor_name, "cutoff_distance": 0.5}
+    obs_params = {"sensor_name": obs_sensor_name, "cutoff_distance": 1.0}
   else:
     obs_func = manipulation_mdp.camera_rgb
     obs_params = {"sensor_name": obs_sensor_name}
 
   cfg.observations["camera"] = ObservationGroupCfg(
     terms={
-      f"wrist_camera_{cam_type}": ObservationTermCfg(func=obs_func, params=obs_params)
+      f"{cam_source}_camera_{cam_type}": ObservationTermCfg(func=obs_func, params=obs_params)
     },
     enable_corruption=False,
     concatenate_terms=True,
