@@ -265,6 +265,28 @@ def object_goal_distance(
   return (~command.object_on_table & ee_close) * (1.0 - torch.tanh(distance / std))
 
 
+def contact_penalty(env: ManagerBasedRlEnv, sensor_names: list[str]) -> torch.Tensor:
+  contact = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+  for name in sensor_names:
+    sensor: ContactSensor = env.scene[name]
+    contact |= sensor.data.found.any(dim=-1)
+  return contact.float()
+
+
+def arm_contact_while_lifting_term(
+  env: ManagerBasedRlEnv,
+  sensor_names: list[str],
+  command_name: str,
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+  contact = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+  for name in sensor_names:
+    sensor: ContactSensor = env.scene[name]
+    contact |= sensor.data.found.any(dim=-1)
+  lifted = object_is_lifted(env, command_name, asset_cfg).bool()
+  return contact & lifted
+
+
 def target_position_in_robot_base_frame(
   env: ManagerBasedRlEnv,
   command_name: str,
@@ -338,6 +360,15 @@ def lift_env_cfg(
       num_slots=1,
     ),
 
+    ContactSensorCfg(
+      name="gripper_table_contact",
+      primary=ContactMatch(mode="geom", pattern=robot.fingertip_geom_pattern, entity="robot"),
+      secondary=ContactMatch(mode="subtree", pattern="table", entity="table"),
+      fields=("found",),
+      reduce="none",
+      num_slots=1,
+    ),
+    
     CameraSensorCfg(
       name="wrist_realsense_camera",
       height=128,
@@ -406,7 +437,7 @@ def lift_env_cfg(
   cfg.rewards["reaching_object"] = RewardTermCfg(
     func=nan_safe(object_ee_distance),
     weight=5.0,
-    params={"std": 0.3, "command_name": "lift_height", "asset_cfg": _grasp_cfg},
+    params={"std": 0.1, "command_name": "lift_height", "asset_cfg": _grasp_cfg},
   )
   cfg.rewards["lifting_object"] = RewardTermCfg(
     func=nan_safe(object_is_lifted),
@@ -422,6 +453,11 @@ def lift_env_cfg(
     func=nan_safe(object_goal_distance),
     weight=10.0,
     params={"command_name": "lift_height", "std": 0.05, "asset_cfg": _grasp_cfg},
+  )
+  cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
+    func=contact_penalty,
+    weight=-0.5,
+    params={"sensor_names": ["ee_ground_collision", "gripper_table_contact"]},
   )
 
   cfg.curriculum.clear()
@@ -449,6 +485,14 @@ def lift_env_cfg(
   from mjlab.envs.mdp import terminations as mdp_term
 
   cfg.terminations["nan_term"] = TerminationTermCfg(func=mdp_term.nan_detection)
+  cfg.terminations["arm_contact_while_lifting"] = TerminationTermCfg(
+    func=arm_contact_while_lifting_term,
+    params={
+      "sensor_names": ["ee_ground_collision", "gripper_table_contact"],
+      "command_name": "lift_height",
+      "asset_cfg": _grasp_cfg,
+    },
+  )
 
   for s in cfg.scene.sensors:
     if isinstance(s, ContactSensorCfg) and s.name == "ee_ground_collision":
