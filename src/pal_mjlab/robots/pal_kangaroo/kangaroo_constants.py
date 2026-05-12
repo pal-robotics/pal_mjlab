@@ -23,6 +23,7 @@ REGEX_FEMUR_AND_KNEE_LINKS = (
 REGEX_KNEE_LINKS = (
   r"^(leg_left_knee_link|leg_right_knee_link)$"
 )
+REGEX_ILLEGAL_GEOMS = r"^leg_.*_(femur|knee_bar)_collision$"
 
 KANGAROO_PATH = PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo" / "xmls"
 KANGAROO_XML = KANGAROO_PATH / "kangaroo.xml"

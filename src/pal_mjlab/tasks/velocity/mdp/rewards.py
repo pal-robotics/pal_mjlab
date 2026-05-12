@@ -494,3 +494,56 @@ class sound_suppression:
 
     # return the squared sum of change in velocity along the projected gravity direction
     return cost
+
+def knee_ground_contact_time(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  saturation_time: float = 0.5,
+) -> torch.Tensor:
+  """Penalize knees being in sustained contact with the ground.
+
+  Returns sum over slots of clamp(current_contact_time, max=saturation_time).
+  Integrated over an episode, this grows ~quadratically in total contact duration
+  while a single saturation_time cap keeps the per-step magnitude bounded.
+  """
+  sensor: ContactSensor = env.scene[sensor_name]
+  assert sensor.data.current_contact_time is not None, (
+    f"Sensor '{sensor_name}' must be configured with track_air_time=True"
+  )
+  capped = torch.clamp(sensor.data.current_contact_time, max=saturation_time)
+  return capped.sum(dim=-1)
+
+def ang_vel_z_exp(
+  env: ManagerBasedRlEnv,
+  std: float,
+  command_name: str,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Track commanded yaw rate (z, body frame) with exponential kernel."""
+  asset: Entity = env.scene[asset_cfg.name]
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+  z_error = torch.square(command[:, 2] - asset.data.root_link_ang_vel_b[:, 2])
+  return torch.exp(-z_error / std**2)
+
+
+def ang_vel_xy_l2(
+  env: ManagerBasedRlEnv,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Penalize roll/pitch rates in the body frame."""
+  asset: Entity = env.scene[asset_cfg.name]
+  ang_vel_b = asset.data.root_link_ang_vel_b  # body frame for consistency
+  return torch.sum(torch.square(ang_vel_b[:, :2]), dim=1)
+
+def illegal_contact_termination_penalty(
+    env, term_name: str = "illegal_contacts"
+) -> torch.Tensor:
+    """Penalty on the step a specific termination term fires, decaying linearly with
+    episode progress. Returns (1 - t/T) where the named termination term is True, else 0.
+    Apply with a negative weight so earlier terminations are penalized more than later ones.
+    Timeouts and other termination terms (e.g. fell_over) do not fire this penalty.
+    """
+    fired = env.termination_manager.get_term(term_name).float()
+    progress = env.episode_length_buf.float() / float(env.max_episode_length)
+    return fired * (1.0 - progress).clamp(min=0.0)
