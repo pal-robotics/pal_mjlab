@@ -18,11 +18,8 @@ from mjlab.sensor import (
   RingPatternCfg,
   TerrainHeightSensorCfg,
   RayCastSensorCfg,
-  PinholeCameraPatternCfg
 )
-from mjlab.terrains.config import STAIRS_TERRAINS_CFG
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
-from pal_mjlab.tasks.velocity.mdp import UniformVelocityCommandWithProgressTracking, UniformVelocityCommandWithProgressTrackingCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.terrains.config import pyramid_stairs, pyramid_stairs_inv, flat, random_spread_boxes
 from mjlab.terrains.terrain_generator import SubTerrainCfg, TerrainGeneratorCfg
@@ -467,41 +464,6 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       assert isinstance(sensor, RayCastSensorCfg)
       sensor.frame = ObjRef(type="body", name="pelvis_2_link", entity="robot")
 
-  # # More permissive illegal contact sensor
-  # # preventing the envs for terminating early due to tibia collisions
-  # new_body_ground_contact = ContactSensorCfg(
-  #   name="body_ground_contact",
-  #   primary=ContactMatch(
-  #     mode="geom",
-  #     pattern=REGEX_ILLEGAL_GEOMS,
-  #     entity="robot",
-  #   ),
-  #   secondary=ContactMatch(mode="body", pattern="terrain"),
-  #   fields=("found",),
-  #   reduce="none",
-  #   num_slots=1,
-  # )
-
-  # # The info of this sensor can be used to penalize contacts by time
-  # knee_ground_cfg = ContactSensorCfg(
-  #   name="knee_ground_contact",
-  #   primary=ContactMatch(
-  #     mode="geom",
-  #     pattern=r"^leg_(left|right)_knee_collision$",
-  #     entity="robot",
-  #   ),
-  #   secondary=ContactMatch(mode="body", pattern="terrain"),
-  #   fields=("found",),
-  #   reduce="none",
-  #   num_slots=1,
-  #   track_air_time=True,   # required for current_contact_time
-  # )
-
-  # cfg.scene.sensors = tuple(
-  #   new_body_ground_contact if s.name == "body_ground_contact" else s
-  #   for s in (cfg.scene.sensors or ())
-  # ) + (knee_ground_cfg,)
-
   ### OBSERVATIONS
 
   # OBSERVATION LAG (sensor lag)
@@ -520,9 +482,11 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # Only applied to the most important observations
   cfg.observations["actor"].terms["base_ang_vel"].history_length = 3
+  cfg.observations["actor"].terms["base_ang_vel"].noise = Unoise(n_min=-0.02, n_max=0.02) # 10 times smaller
   cfg.observations["critic"].terms["base_ang_vel"].history_length = 3
 
   cfg.observations["actor"].terms["base_lin_acc"].history_length = 3
+  cfg.observations["actor"].terms["base_lin_acc"].noise = Unoise(n_min=-0.05, n_max=0.05) # Reduce more
   cfg.observations["critic"].terms["base_lin_acc"].history_length = 3
 
   cfg.observations["actor"].terms["imu_projected_gravity"].history_length = 3
@@ -538,8 +502,11 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.15, n_max=0.15)
   del cfg.observations["critic"].terms["joint_vel"].noise
 
-  # Give some evolution info
+  # Give some evolution info to the height scan
   cfg.observations["critic"].terms["height_scan"].history_length = 3
+
+  # Reduce even more the IMU noise so the policy trust it more
+  cfg.observations["actor"].terms["imu_projected_gravity"].noise = Unoise(n_min=-0.02, n_max=0.02)
 
   ### COMMANDS
 
@@ -552,87 +519,38 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd.rel_standing_envs = 0.1
   twist_cmd.rel_forward_envs = 0.0 # This is only straight, the random sampling takes care of this
   twist_cmd.rel_heading_envs = 1.0
-  twist_cmd.ranges.lin_vel_x = (-0.3, -0.2) # Only forward and backward
+  twist_cmd.ranges.lin_vel_x = (-0.3, -0.2) # Only backward
   twist_cmd.ranges.lin_vel_y = (0.0, 0.0)
-  twist_cmd.ranges.ang_vel_z = (-0.3, 0.3) # When heading = true, it is the clip value
-  twist_cmd.ranges.heading = (0.0, 0.0) # Lock heading
+  twist_cmd.ranges.ang_vel_z = (-0.5, 0.5) # When heading = true, it is the clip value
+  twist_cmd.ranges.heading = (-math.pi, math.pi)
 
   ### REWARDS
 
-  # Experimentally, this reward just makes the robot learn upright faster
-  # cfg.rewards["is_terminated"] = RewardTermCfg(
-  #   func=mdp.is_terminated,
-  #   weight=-100.0
-  # )
-
-  # cfg.rewards["knee_ground_contact"] = RewardTermCfg(
-  #   func=mdp.knee_ground_contact_time,
-  #   weight=-2.0,
-  #   params={
-  #     "sensor_name": knee_ground_cfg.name,
-  #     "saturation_time": 0.5, 
-  #   },
-  # )
-
-  # cfg.rewards["torso_height"] = RewardTermCfg(
-  #   func=mdp.torso_height,
-  #   weight=-3.0,
-  #   params={
-  #     "z_des": 0.85,
-  #     "std": 0.1,
-  #   },
-  # )
-
-  # Reward policies that lasted more before illegal contact
-  # cfg.rewards["illegal_contact_termination_penalty"] = RewardTermCfg(
-  #   func=mdp.illegal_contact_termination_penalty,
-  #   weight=-50.0,
-  #   params={"term_name": "illegal_contacts"},
-  # )
-
-  # With ``terrain_sensor_names``, penalizes tilt relative to the terrain surface normal.
+  # Penalizes tilt relative to the terrain surface normal.
   cfg.rewards["upright"].params["terrain_sensor_names"] = ("terrain_scan",)
+  # cfg.rewards["upright"].params["std"] = 0.25 # Stricter
 
   # Extra clearance to go over steps
-  cfg.rewards["foot_clearance"].params["target_height"] = 0.2
-  cfg.rewards["foot_swing_height"].params["target_height"] = 0.2
-  cfg.rewards["air_time"].weight = 0.5 # More important
+  cfg.rewards["foot_clearance"].params["target_height"] = 0.25
+  cfg.rewards["foot_swing_height"].params["target_height"] = 0.25
+
+  # Make air time activate more and more weight
+  cfg.rewards["air_time"].weight = 0.5
   cfg.rewards["air_time"].params["threshold_min"] = 0.1
   cfg.rewards["air_time"].params["threshold_max"] = 1.0
-  cfg.rewards["air_time"].params["command_threshold"] = 0.1
+  cfg.rewards["air_time"].params["command_threshold"] = 0.05 # Gate of the reward
 
-  # Use deocupled ang vel z-xy reward / penalties
+  # Use improved deocupled ang vel z-xy reward / penalties
   cfg.rewards["track_angular_velocity"].func = mdp.ang_vel_z_exp
   cfg.rewards["body_ang_vel"].func = mdp.ang_vel_xy_l2
 
-  # More principled std values (Rudin et al)
-  cfg.rewards["track_angular_velocity"].weight = 2.0
-  cfg.rewards["track_linear_velocity"].weight = 2.0
-  cfg.rewards["track_linear_velocity"].params["std"] = 0.25
-  cfg.rewards["track_angular_velocity"].params["std"] = 0.25
-  cfg.rewards["upright"].params["std"] = 0.25 # Stricter
-  # cfg.rewards["body_ang_vel"].weight = -0.1 # Stricter
+  # Stricter tracking std, 0.5 of the reward at error ≈ std·√ln2
+  cfg.rewards["track_linear_velocity"].params["std"] = 0.15  # 0.12 m/s
+  cfg.rewards["track_angular_velocity"].params["std"] = 0.15  # 0.12 rad/s
 
   ### EVENTS
 
   # PUSHING
-
-  # Milder, low velocity adapted pushes
-  # cfg.events["push_robot"] = EventTermCfg(
-  #   func=mdp.push_by_setting_velocity,
-  #   mode="interval",
-  #   interval_range_s=(4.0, 6.0),
-  #   params={
-  #     "velocity_range": {
-  #       "x": (-0.3, 0.3),
-  #       "y": (-0.3, 0.3),
-  #       "z": (0.0, 0.0), # Doesn't make a lot of sense
-  #       "roll": (-0.2, 0.2),
-  #       "pitch": (-0.2, 0.2),
-  #       "yaw": (-0.25, 0.25),
-  #     }
-  #   }
-  # )
 
   # Safer spawning close to the center (to avoid directly spawning unbalanced most of the time)
   cfg.events["reset_base"].params["pose_range"] = {
@@ -779,38 +697,6 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
-  # REWARDS PARAMS
-
-  # Adapt std so a motionless robot at the maximum commanded velocity earns the same fraction of the tracking reward as in Rudin et al. 2022 (legged_gym default: ~0.018 — i.e., effectively zero).
-  # The principled rule, derived from Rudin's σ_lin/cmd_max = 0.5: σ = cmd_max / 2 at each stage.
-  # cfg.curriculum["track_linear_velocity_params"] = CurriculumTermCfg(
-  #   func=mdp.reward_params,
-  #   params={
-  #     "reward_name": "track_linear_velocity",
-  #     "param_stages": [
-  #       {"step": 0, "params": {"std": 0.15}},
-  #       {"step": 5000 * 24, "params": {"std": 0.2}},
-  #       {"step": 10000 * 24, "params": {"std": 0.25}},
-  #       {"step": 20000 * 24, "params": {"std": 0.3}},
-  #     ],
-  #   },
-  # )
-
-  # No need for a track curriculum as the target is always 0
-  # It would only narrow ned
-  # cfg.curriculum["track_angular_velocity_params"] = CurriculumTermCfg(
-  #   func=mdp.reward_params,
-  #   params={
-  #     "reward_name": "track_angular_velocity",
-  #     "param_stages": [
-  #       {"step": 0, "params": {"std": math.sqrt(0.25)}},
-  #       {"step": 5000 * 24, "params": {"std": math.sqrt(0.2)}},
-  #       {"step": 10000 * 24, "params": {"std": math.sqrt(0.15)}},
-  #       {"step": 20000 * 24, "params": {"std": math.sqrt(0.1)}},
-  #     ],
-  #   },
-  # )
-
   ### PLAY
   if play:
     # Disable command curriculum.
@@ -819,8 +705,11 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.ranges.lin_vel_x = (-0.6, -0.2)
-    twist_cmd.ranges.heading = (0.1, 0.1) # Lock heading
+    twist_cmd.ranges.lin_vel_x = (-0.2, -0.2)
+    twist_cmd.heading_command = False
+    twist_cmd.ranges.ang_vel_z = (-0.5, -0.5)
+    del twist_cmd.ranges.heading
+    # twist_cmd.ranges.heading = (0.0, 0.0) # Lock heading
 
     # if cfg.scene.terrain is not None:
     #   if cfg.scene.terrain.terrain_generator is not None:

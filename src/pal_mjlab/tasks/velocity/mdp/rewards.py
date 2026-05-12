@@ -535,15 +535,3 @@ def ang_vel_xy_l2(
   asset: Entity = env.scene[asset_cfg.name]
   ang_vel_b = asset.data.root_link_ang_vel_b  # body frame for consistency
   return torch.sum(torch.square(ang_vel_b[:, :2]), dim=1)
-
-def illegal_contact_termination_penalty(
-    env, term_name: str = "illegal_contacts"
-) -> torch.Tensor:
-    """Penalty on the step a specific termination term fires, decaying linearly with
-    episode progress. Returns (1 - t/T) where the named termination term is True, else 0.
-    Apply with a negative weight so earlier terminations are penalized more than later ones.
-    Timeouts and other termination terms (e.g. fell_over) do not fire this penalty.
-    """
-    fired = env.termination_manager.get_term(term_name).float()
-    progress = env.episode_length_buf.float() / float(env.max_episode_length)
-    return fired * (1.0 - progress).clamp(min=0.0)
