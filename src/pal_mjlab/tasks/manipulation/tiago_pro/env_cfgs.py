@@ -315,7 +315,7 @@ def ee_position_in_robot_base_frame(
 def lift_env_cfg(
   play: bool = False,
   robot_cfg=TiagoProRobot,
-  cam_source: Literal["head", "wrist"] = "wrist",
+  cam_source: Literal["head", "wrist"] = "head",
 ) -> ManagerBasedRlEnvCfg:
   cfg = make_lift_cube_env_cfg()
   robot = robot_cfg()
@@ -462,6 +462,15 @@ def lift_env_cfg(
     params={"sensor_names": ["ee_ground_collision", "gripper_table_contact"]},
   )
 
+  cfg.rewards["joint_vel_l2"] = RewardTermCfg(
+    func=mdp.joint_vel_l2,
+    weight=-0.1,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))
+    },
+  )
+
+
   cfg.curriculum.clear()
 
   for friction_type in ("slide", "spin", "roll"):
@@ -501,16 +510,25 @@ def lift_env_cfg(
 
   from mjlab.envs.mdp import terminations as mdp_term
 
-  cfg.terminations.pop("ee_ground_collision", None)
+  # cfg.terminations.pop("ee_ground_collision", None)
   cfg.terminations["nan_term"] = TerminationTermCfg(func=mdp_term.nan_detection)
-  cfg.terminations["arm_contact_while_lifting"] = TerminationTermCfg(
-    func=arm_contact_while_lifting_term,
+
+  cfg.terminations["object_dropped"] = TerminationTermCfg(
+    func=mdp_term.root_height_below_minimum,
     params={
-      "sensor_names": ["ee_ground_collision", "gripper_table_contact"],
-      "command_name": "lift_height",
-      "asset_cfg": _grasp_cfg,
+      "minimum_height": _TABLE_HEIGHT - 0.1,
+      "asset_cfg": SceneEntityCfg("box"),
     },
   )
+
+  # cfg.terminations["arm_contact_while_lifting"] = TerminationTermCfg(
+  #   func=arm_contact_while_lifting_term,
+  #   params={
+  #     "sensor_names": ["ee_ground_collision", "gripper_table_contact"],
+  #     "command_name": "lift_height",
+  #     "asset_cfg": _grasp_cfg,
+  #   },
+  # )
 
   for s in cfg.scene.sensors:
     if isinstance(s, ContactSensorCfg) and s.name == "ee_ground_collision":
