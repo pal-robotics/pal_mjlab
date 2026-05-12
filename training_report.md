@@ -44,7 +44,6 @@
 | Name | Function | Parameters |
 | :--- | :--- | :--- |
 | time_out | time_out |  |
-| ee_ground_collision | illegal_contact | sensor_name: ee_ground_collision, force_threshold: 10.0000 |
 | nan_term | nan_detection |  |
 | arm_contact_while_lifting | arm_contact_while_lifting_term | sensor_names: ['ee_ground_collision', 'gripper_table_contact'], command_name: lift_height, asset_cfg: SceneEntityCfg(name='robot', joint_names=None, joint_ids=slice(None, None, None), body_names=None, body_ids=slice(None, None, None), geom_names=None, geom_ids=slice(None, None, None), site_names=('ee_right',), site_ids=slice(None, None, None), actuator_names=None, actuator_ids=slice(None, None, None), tendon_names=None, tendon_ids=slice(None, None, None), camera_names=None, camera_ids=slice(None, None, None), light_names=None, light_ids=slice(None, None, None), material_names=None, material_ids=slice(None, None, None), pair_names=None, pair_ids=slice(None, None, None), preserve_order=False) |
 
@@ -55,18 +54,15 @@
 - **Steps per Env**: 24
 - **Learning Rate**: 0.001
 - **Entropy Coef**: 0.01
-- **Distribution**: GaussianDistribution
-- **Initial Std**: 1.0
 
 ### CNN Architecture
 - **Output Channels**: [16, 32]
 - **Kernel Sizes**: [5, 3]
 - **Strides**: [2, 2]
-- **CNN Activation**: elu
 - **Spatial Softmax**: True
 - **Spatial Softmax Temperature**: 1.0
 
 ### MLP Architecture
 - **Actor Hidden Dims**: (256, 256, 128)
 - **Critic Hidden Dims**: (256, 256, 128)
-- **MLP Activation**: elu
+- **Activation**: elu

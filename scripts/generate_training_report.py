@@ -60,12 +60,6 @@ def generate_report(output_path: str = "training_report.md"):
     lines.append(f"- **Steps per Env**: {rl_cfg.num_steps_per_env}")
     lines.append(f"- **Learning Rate**: {rl_cfg.algorithm.learning_rate}")
     lines.append(f"- **Entropy Coef**: {rl_cfg.algorithm.entropy_coef}")
-    
-    # Distribution info
-    dist = rl_cfg.actor.distribution_cfg
-    if dist:
-        lines.append(f"- **Distribution**: {dist.get('class_name', 'N/A')}")
-        lines.append(f"- **Initial Std**: {dist.get('init_std', 'N/A')}")
 
     lines.append("\n### CNN Architecture")
     actor_cfg = rl_cfg.actor
@@ -74,7 +68,6 @@ def generate_report(output_path: str = "training_report.md"):
         lines.append(f"- **Output Channels**: {cnn.get('output_channels')}")
         lines.append(f"- **Kernel Sizes**: {cnn.get('kernel_size')}")
         lines.append(f"- **Strides**: {cnn.get('stride')}")
-        lines.append(f"- **CNN Activation**: {cnn.get('activation')}")
         lines.append(f"- **Spatial Softmax**: {cnn.get('spatial_softmax')}")
         if cnn.get('spatial_softmax'):
             lines.append(f"- **Spatial Softmax Temperature**: {cnn.get('spatial_softmax_temperature')}")
@@ -85,7 +78,7 @@ def generate_report(output_path: str = "training_report.md"):
     lines.append("\n### MLP Architecture")
     lines.append(f"- **Actor Hidden Dims**: {rl_cfg.actor.hidden_dims}")
     lines.append(f"- **Critic Hidden Dims**: {rl_cfg.critic.hidden_dims}")
-    lines.append(f"- **MLP Activation**: {rl_cfg.actor.activation}")
+    lines.append(f"- **Activation**: {rl_cfg.actor.activation}")
 
     # Write to file
     with open(output_path, "w") as f:

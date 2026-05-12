@@ -315,7 +315,7 @@ def ee_position_in_robot_base_frame(
 def lift_env_cfg(
   play: bool = False,
   robot_cfg=TiagoProRobot,
-  cam_source: Literal["head", "wrist"] = "head",
+  cam_source: Literal["head", "wrist"] = "wrist",
 ) -> ManagerBasedRlEnvCfg:
   cfg = make_lift_cube_env_cfg()
   robot = robot_cfg()
@@ -328,7 +328,7 @@ def lift_env_cfg(
   cfg.sim.nconmax = 4000
   cfg.sim.njmax = 12000
   cfg.decimation = 10
-  cfg.episode_length_s = 10.0
+  cfg.episode_length_s = 1.0
   cfg.viewer.lookat = (0.4, 0.0, 0.55)
   cfg.viewer.distance = 1.7
   cfg.viewer.azimuth = 190.0
@@ -469,7 +469,25 @@ def lift_env_cfg(
       "asset_cfg"
     ].geom_names = robot.fingertip_geom_pattern
 
-  cfg.events["reset_robot_joints"].params["asset_cfg"].joint_names = None
+  # cfg.events["reset_robot_base"] = EventTermCfg(
+  #   func=mdp.reset_root_state_uniform,
+  #   mode="reset",
+  #   params={
+  #     "pose_range": {},
+  #     "velocity_range": {},
+  #     "asset_cfg": SceneEntityCfg("robot"),
+  #   },
+  # )
+
+  cfg.events["reset_robot_joints"] = EventTermCfg(
+    func=mdp.reset_joints_by_offset,
+    mode="reset",
+    params={
+      "position_range": (0.0, 0.0),
+      "velocity_range": (0.0, 0.0),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+    },
+  )
 
   cfg.events["reset_table"] = EventTermCfg(
     func=mdp.reset_root_state_uniform,
@@ -483,6 +501,7 @@ def lift_env_cfg(
 
   from mjlab.envs.mdp import terminations as mdp_term
 
+  cfg.terminations.pop("ee_ground_collision", None)
   cfg.terminations["nan_term"] = TerminationTermCfg(func=mdp_term.nan_detection)
   cfg.terminations["arm_contact_while_lifting"] = TerminationTermCfg(
     func=arm_contact_while_lifting_term,
@@ -513,7 +532,7 @@ def lift_env_cfg(
 
 def lift_vision_env_cfg(
   cam_type: Literal["rgb", "depth", "rgbd"],
-  cam_source: Literal["head", "wrist"] = "wrist",
+  cam_source: Literal["head", "wrist"] = "head",
   play: bool = False,
   robot_cfg=TiagoProRobot,
 ) -> ManagerBasedRlEnvCfg:
