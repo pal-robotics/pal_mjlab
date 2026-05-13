@@ -14,6 +14,8 @@ class TiagoProRobot:
   ee_site: str = "gripper_right_grasping_site"
   fingertip_geom_pattern: str = "col_right_fingertip_.*"
   collision_link_pattern: str = "(arm_right|gripper_right)_.*_link"
+  arm_collision_link_pattern: str = "arm_right_.*_link"
+  gripper_collision_link_pattern: str = "gripper_right_.*_link"
   viewer_body: str = "base_footprint"
   camera_name: str = "head_realsense_camera"
   wrist_camera_name: str = "wrist_realsense_camera"
