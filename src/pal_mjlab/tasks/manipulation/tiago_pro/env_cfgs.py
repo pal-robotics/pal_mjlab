@@ -441,7 +441,7 @@ def lift_env_cfg(
   cfg.rewards["reaching_object"] = RewardTermCfg(
     func=nan_safe(object_ee_distance),
     weight=5.0,
-    params={"std": 0.1, "command_name": "lift_height", "asset_cfg": _grasp_cfg},
+    params={"std": 0.3, "command_name": "lift_height", "asset_cfg": _grasp_cfg},
   )
   cfg.rewards["lifting_object"] = RewardTermCfg(
     func=nan_safe(object_is_lifted),
@@ -458,19 +458,24 @@ def lift_env_cfg(
     weight=10.0,
     params={"command_name": "lift_height", "std": 0.05, "asset_cfg": _grasp_cfg},
   )
-  cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
-    func=contact_penalty,
-    weight=-0.5,
-    params={"sensor_names": ["ee_ground_collision", "gripper_table_contact"]},
-  )
+  # cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
+  #   func=contact_penalty,
+  #   weight=-0.5,
+  #   params={"sensor_names": ["ee_ground_collision", "gripper_table_contact"]},
+  # )
+  # cfg.rewards["ee_ground_collision_termination_penalty"] = RewardTermCfg(
+  #   func=manipulation_mdp.illegal_contact,
+  #   weight=-10.0,
+  #   params={"sensor_name": "ee_ground_collision", "force_threshold": 1.0},
+  # )
 
-  cfg.rewards["joint_vel_l2"] = RewardTermCfg(
-    func=mdp.joint_vel_l2,
-    weight=-0.01,
-    params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))
-    },
-  )
+  # cfg.rewards["joint_vel_l2"] = RewardTermCfg(
+  #   func=mdp.joint_vel_l2,
+  #   weight=-0.01,
+  #   params={
+  #     "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))
+  #   },
+  # )
 
 
   cfg.curriculum.clear()
@@ -515,18 +520,18 @@ def lift_env_cfg(
   # cfg.terminations.pop("ee_ground_collision", None)
   cfg.terminations["nan_term"] = TerminationTermCfg(func=mdp_term.nan_detection)
 
-  cfg.terminations["object_dropped"] = TerminationTermCfg(
-    func=mdp_term.root_height_below_minimum,
-    params={
-      "minimum_height": _TABLE_HEIGHT - 0.1,
-      "asset_cfg": SceneEntityCfg("box"),
-    },
-  )
+  # cfg.terminations["object_dropped"] = TerminationTermCfg(
+  #   func=mdp_term.root_height_below_minimum,
+  #   params={
+  #     "minimum_height": _TABLE_HEIGHT - 0.1,
+  #     "asset_cfg": SceneEntityCfg("box"),
+  #   },
+  # )
 
-  cfg.terminations["ee_ground_collision"] = TerminationTermCfg(
-    func=manipulation_mdp.illegal_contact,
-    params={"sensor_name": "ee_ground_collision", "force_threshold": 1.0},
-  )
+  # cfg.terminations["ee_ground_collision"] = TerminationTermCfg(
+  #   func=manipulation_mdp.illegal_contact,
+  #   params={"sensor_name": "ee_ground_collision", "force_threshold": 1.0},
+  # )
 
   # cfg.terminations["arm_contact_while_lifting"] = TerminationTermCfg(
   #   func=arm_contact_while_lifting_term,
@@ -569,7 +574,7 @@ def lift_vision_env_cfg(
 
   if cam_type == "depth":
     obs_func = manipulation_mdp.camera_depth
-    obs_params = {"sensor_name": obs_sensor_name, "cutoff_distance": 1.0}
+    obs_params = {"sensor_name": obs_sensor_name, "cutoff_distance": 0.5}
   else:
     obs_func = manipulation_mdp.camera_rgb
     obs_params = {"sensor_name": obs_sensor_name}
