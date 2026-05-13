@@ -10,6 +10,7 @@ import torch
 from mjlab.entity import Entity, EntityCfg
 from mjlab.envs import ManagerBasedRlEnv, ManagerBasedRlEnvCfg
 from mjlab.managers import (
+  CurriculumTermCfg,
   EventTermCfg,
   ObservationGroupCfg,
   ObservationTermCfg,
@@ -74,6 +75,8 @@ def get_box_spec() -> mujoco.MjSpec:
     size=(_BOX_HALF_SIZE, _BOX_HALF_SIZE, _BOX_HALF_SIZE),
     rgba=(0.8, 0.2, 0.2, 1.0),
     mass=0.1,
+    solref=(0.001, 1),
+    solimp=(0.95, 0.99, 0.001), 
   )
   return spec
 
@@ -187,8 +190,8 @@ class LiftingCommandCfg(CommandTermCfg):
 
   @dataclass
   class ObjectPoseRangeCfg:
-    x: tuple[float, float] = (0.3, 0.35)
-    y: tuple[float, float] = (-0.1, 0.1)
+    x: tuple[float, float] = (0.25, 0.35)
+    y: tuple[float, float] = (0.05, 0.15)
     yaw: tuple[float, float] = (-math.pi, math.pi)
 
   object_pose_range: ObjectPoseRangeCfg = field(default_factory=ObjectPoseRangeCfg)
@@ -366,7 +369,7 @@ def lift_env_cfg(
 
     ContactSensorCfg(
       name="gripper_table_contact",
-      primary=ContactMatch(mode="geom", pattern=robot.fingertip_geom_pattern, entity="robot"),
+      primary=ContactMatch(mode="body", pattern=robot.gripper_collision_link_pattern, entity="robot"),
       secondary=ContactMatch(mode="subtree", pattern="table", entity="table"),
       fields=("found",),
       reduce="none",
@@ -448,21 +451,21 @@ def lift_env_cfg(
     weight=5.0,
     params={"command_name": "lift_height", "asset_cfg": _grasp_cfg},
   )
-  cfg.rewards["object_goal_tracking"] = RewardTermCfg(
-    func=nan_safe(object_goal_distance),
-    weight=25.0,
-    params={"command_name": "lift_height", "std": 0.3, "asset_cfg": _grasp_cfg},
-  )
-  cfg.rewards["object_goal_tracking_fine_grained"] = RewardTermCfg(
-    func=nan_safe(object_goal_distance),
-    weight=10.0,
-    params={"command_name": "lift_height", "std": 0.05, "asset_cfg": _grasp_cfg},
-  )
-  # cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
-  #   func=contact_penalty,
-  #   weight=-0.5,
-  #   params={"sensor_names": ["ee_ground_collision", "gripper_table_contact"]},
+  # cfg.rewards["object_goal_tracking"] = RewardTermCfg(
+  #   func=nan_safe(object_goal_distance),
+  #   weight=25.0,
+  #   params={"command_name": "lift_height", "std": 0.3, "asset_cfg": _grasp_cfg},
   # )
+  # cfg.rewards["object_goal_tracking_fine_grained"] = RewardTermCfg(
+  #   func=nan_safe(object_goal_distance),
+  #   weight=10.0,
+  #   params={"command_name": "lift_height", "std": 0.05, "asset_cfg": _grasp_cfg},
+  # )
+  cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
+    func=contact_penalty,
+    weight=-1.0,
+    params={"sensor_names": ["gripper_table_contact"]},
+  )
   # cfg.rewards["ee_ground_collision_termination_penalty"] = RewardTermCfg(
   #   func=manipulation_mdp.illegal_contact,
   #   weight=-10.0,
@@ -479,6 +482,25 @@ def lift_env_cfg(
 
 
   cfg.curriculum.clear()
+  # cfg.curriculum["reaching_object_std"] = CurriculumTermCfg(
+  #   func=mdp.reward_curriculum,
+  #   params={
+  #     "reward_name": "reaching_object",
+  #     "stages": [
+  #       {"step": 1000 * 24, "params": {"std": 0.1}},
+  #       {"step": 1500 * 24, "params": {"std": 0.05}},
+  #     ],
+  #   },
+  # )
+  # cfg.curriculum["remove_ee_ground_collision"] = CurriculumTermCfg(
+  #   func=mdp.termination_curriculum,
+  #   params={
+  #     "termination_name": "ee_ground_collision",
+  #     "stages": [
+  #       {"step": 800 * 24, "params": {"force_threshold": 10000000000.0}},
+  #     ],
+  #   },
+  # )
 
   for friction_type in ("slide", "spin", "roll"):
     cfg.events[f"fingertip_friction_{friction_type}"].params[
@@ -528,10 +550,10 @@ def lift_env_cfg(
   #   },
   # )
 
-  # cfg.terminations["ee_ground_collision"] = TerminationTermCfg(
-  #   func=manipulation_mdp.illegal_contact,
-  #   params={"sensor_name": "ee_ground_collision", "force_threshold": 1.0},
-  # )
+  cfg.terminations["ee_ground_collision"] = TerminationTermCfg(
+    func=manipulation_mdp.illegal_contact,
+    params={"sensor_name": "ee_ground_collision", "force_threshold": 1.0},
+  )
 
   # cfg.terminations["arm_contact_while_lifting"] = TerminationTermCfg(
   #   func=arm_contact_while_lifting_term,
@@ -545,7 +567,7 @@ def lift_env_cfg(
   for s in cfg.scene.sensors:
     if isinstance(s, ContactSensorCfg) and s.name == "ee_ground_collision":
       s.primary = ContactMatch(
-        mode="body", pattern=robot.collision_link_pattern, entity="robot"
+        mode="body", pattern=robot.arm_collision_link_pattern, entity="robot"
       )
       s.secondary = ContactMatch(mode="subtree", pattern="table", entity="table")
       break
