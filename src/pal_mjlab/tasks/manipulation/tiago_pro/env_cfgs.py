@@ -464,7 +464,7 @@ def lift_env_cfg(
 
   cfg.rewards["joint_vel_l2"] = RewardTermCfg(
     func=mdp.joint_vel_l2,
-    weight=-0.1,
+    weight=-0.01,
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))
     },
@@ -519,6 +519,11 @@ def lift_env_cfg(
       "minimum_height": _TABLE_HEIGHT - 0.1,
       "asset_cfg": SceneEntityCfg("box"),
     },
+  )
+
+  cfg.terminations["ee_ground_collision"] = TerminationTermCfg(
+    func=manipulation_mdp.illegal_contact,
+    params={"sensor_name": "ee_ground_collision", "force_threshold": 1.0},
   )
 
   # cfg.terminations["arm_contact_while_lifting"] = TerminationTermCfg(
