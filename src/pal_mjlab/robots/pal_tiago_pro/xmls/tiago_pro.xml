@@ -163,7 +163,7 @@
                               <body name="gripper_right_fingertip_left_link" pos="0 0.05 0">
                                 <inertial pos="-0.000864586 0.011929 -2.73244e-11" quat="0.704565 0.704565 0.0599056 0.0599056" mass="0.033503" diaginertia="3.69751e-06 2.84428e-06 1.65117e-06"/>
                                 <joint name="gripper_right_fingertip_left_joint" pos="0 0 0" axis="0 0 1" range="-0.139644 0.747699" actuatorfrcrange="-8 8"/>
-                                <geom type="mesh" mesh="fingertip" class="collision"/>
+                                <geom name="col_right_fingertip_left" type="mesh" mesh="fingertip" class="collision"/>
                                 <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" class="visual"/>
                                 <site name="gripper_right_fingertip_left_site" pos="0 0 0" quat="1.0 0 0 0"/>
                               </body>
@@ -194,7 +194,7 @@
                               <body name="gripper_right_fingertip_right_link" pos="0 0.05 0">
                                 <inertial pos="-0.000864586 0.011929 -2.73244e-11" quat="0.704565 0.704565 0.0599056 0.0599056" mass="0.033503" diaginertia="3.69751e-06 2.84428e-06 1.65117e-06"/>
                                 <joint name="gripper_right_fingertip_right_joint" pos="0 0 0" axis="0 0 1" range="-0.139644 0.747699" actuatorfrcrange="-8 8"/>
-                                <geom type="mesh" mesh="fingertip" class="collision"/>
+                                <geom name="col_right_fingertip_right" type="mesh" mesh="fingertip" class="collision"/>
                                 <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" class="visual"/>
                                 <site name="gripper_right_fingertip_right_site" pos="0 0 0" quat="1.0 0 0 0"/>
                               </body>

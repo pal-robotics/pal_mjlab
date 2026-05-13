@@ -11,7 +11,7 @@ class TiagoProRobot:
   entity_cfg: EntityCfg = field(default_factory=get_tiago_pro_robot_cfg)
   arm_joint_pattern: str = "arm_right_.*_joint"
   gripper_joint_pattern: str = "gripper_right_finger_joint"
-  ee_site: str = "ee_right"
+  ee_site: str = "gripper_right_grasping_site"
   fingertip_geom_pattern: str = "col_right_fingertip_.*"
   collision_link_pattern: str = "(arm_right|gripper_right)_.*_link"
   viewer_body: str = "base_footprint"
