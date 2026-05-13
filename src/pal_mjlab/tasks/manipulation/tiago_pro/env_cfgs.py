@@ -38,6 +38,8 @@ _TABLE_HALF_X = 0.35
 _TABLE_HALF_Y = 0.35
 _BOX_HALF_SIZE = 0.025
 
+EPISODE_LENGTH = 10
+
 
 def nan_safe(fn):
   @functools.wraps(fn)
@@ -328,7 +330,7 @@ def lift_env_cfg(
   cfg.sim.nconmax = 4000
   cfg.sim.njmax = 12000
   cfg.decimation = 10
-  cfg.episode_length_s = 1.0
+  cfg.episode_length_s = EPISODE_LENGTH
   cfg.viewer.lookat = (0.4, 0.0, 0.55)
   cfg.viewer.distance = 1.7
   cfg.viewer.azimuth = 190.0
@@ -385,7 +387,7 @@ def lift_env_cfg(
     object_half_height=_BOX_HALF_SIZE,
     table_height=_TABLE_HEIGHT,
     contact_sensor_name="box_table_contact",
-    resampling_time_range=(5.0, 5.0),
+    resampling_time_range=(EPISODE_LENGTH, EPISODE_LENGTH),
     debug_vis=True,
     target_position_range=LiftingCommandCfg.TargetPositionRangeCfg(
       x=(0.4, 0.6),
@@ -548,7 +550,7 @@ def lift_env_cfg(
   if play:
     cfg.observations["actor"].enable_corruption = False
     cfg.curriculum = {}
-    cfg.commands["lift_height"].resampling_time_range = (4.0, 4.0)
+    # cfg.commands["lift_height"].resampling_time_range = (4.0, 4.0)
 
   return cfg
 
