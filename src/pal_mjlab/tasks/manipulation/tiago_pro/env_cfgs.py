@@ -317,7 +317,7 @@ def ee_position_in_robot_base_frame(
 def lift_env_cfg(
   play: bool = False,
   robot_cfg=TiagoProRobot,
-  cam_source: Literal["head", "wrist"] = "head",
+  cam_source: Literal["head", "wrist"] = "wrist",
 ) -> ManagerBasedRlEnvCfg:
   cfg = make_lift_cube_env_cfg()
   robot = robot_cfg()
@@ -562,7 +562,7 @@ def lift_env_cfg(
 
 def lift_vision_env_cfg(
   cam_type: Literal["rgb", "depth", "rgbd"],
-  cam_source: Literal["head", "wrist"] = "head",
+  cam_source: Literal["head", "wrist"] = "wrist",
   play: bool = False,
   robot_cfg=TiagoProRobot,
 ) -> ManagerBasedRlEnvCfg:
