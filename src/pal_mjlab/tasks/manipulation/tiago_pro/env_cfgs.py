@@ -32,14 +32,20 @@ from mjlab.utils.lab_api.math import (
 )
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
+from pal_mjlab.tasks.manipulation.mdp.contact_sensor import (
+  site_contact_both_fingers,
+  site_contact_found,
+)
+
 from pal_mjlab.robots.pal_tiago_pro.tiago_pro import TiagoProRobot
 
+print("LOADING ENV_CFGS.PY")
 _TABLE_HEIGHT = 0.5
 _TABLE_HALF_X = 0.35
 _TABLE_HALF_Y = 0.35
 _BOX_HALF_SIZE = 0.025
 
-EPISODE_LENGTH = 10
+EPISODE_LENGTH = 4
 
 
 def nan_safe(fn):
@@ -61,6 +67,8 @@ def get_table_spec() -> mujoco.MjSpec:
     type=mujoco.mjtGeom.mjGEOM_BOX,
     size=(_TABLE_HALF_X, _TABLE_HALF_Y, _TABLE_HEIGHT / 2),
     rgba=(0.1, 0.1, 0.1, 1.0),
+    solref=(0.001, 1),
+    solimp=(0.95, 0.99, 0.001, 0.5, 2), 
   )
   return spec
 
@@ -72,11 +80,11 @@ def get_box_spec() -> mujoco.MjSpec:
   body.add_geom(
     name="box_geom",
     type=mujoco.mjtGeom.mjGEOM_BOX,
-    size=(_BOX_HALF_SIZE, _BOX_HALF_SIZE, _BOX_HALF_SIZE),
+    size=(_BOX_HALF_SIZE, _BOX_HALF_SIZE, 2*_BOX_HALF_SIZE),
     rgba=(0.8, 0.2, 0.2, 1.0),
     mass=0.1,
     solref=(0.001, 1),
-    solimp=(0.95, 0.99, 0.001), 
+    solimp=(0.95, 0.99, 0.001, 0.5, 2), 
   )
   return spec
 
@@ -292,11 +300,49 @@ def arm_contact_while_lifting_term(
   return contact & lifted
 
 
+def object_is_floating(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+) -> torch.Tensor:
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  return (~command.object_on_table).float()
+
+
+def object_contact_both_fingers(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+) -> torch.Tensor:
+  sensor: ContactSensor = env.scene[sensor_name]
+  return sensor.data.found.all(dim=-1).float()
+
+
+def contact_sensor_found(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+) -> torch.Tensor:
+  sensor: ContactSensor = env.scene[sensor_name]
+  return sensor.data.found.float()
+
+
+def action_rate_l2(
+  env: ManagerBasedRlEnv, action_indices: list[int] | None = None
+) -> torch.Tensor:
+  """Penalize the rate of change of the actions using L2 squared kernel."""
+  if action_indices is None:
+    action_diff = env.action_manager.action - env.action_manager.prev_action
+  else:
+    action_diff = (
+      env.action_manager.action[:, action_indices]
+      - env.action_manager.prev_action[:, action_indices]
+    )
+  return torch.sum(torch.square(action_diff), dim=1)
+
+
 def target_position_in_robot_base_frame(
   env: ManagerBasedRlEnv,
   command_name: str,
   asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-) -> torch.Tensor:
+) -> torch.Tensor:  
   robot: Entity = env.scene[asset_cfg.name]
   command: LiftingCommand = env.command_manager.get_term(command_name)
   return quat_apply(
@@ -320,7 +366,7 @@ def ee_position_in_robot_base_frame(
 def lift_env_cfg(
   play: bool = False,
   robot_cfg=TiagoProRobot,
-  cam_source: Literal["head", "wrist"] = "wrist",
+  cam_source: Literal["head", "wrist"] = "head",
 ) -> ManagerBasedRlEnvCfg:
   cfg = make_lift_cube_env_cfg()
   robot = robot_cfg()
@@ -375,6 +421,17 @@ def lift_env_cfg(
       reduce="none",
       num_slots=1,
     ),
+
+    ContactSensorCfg(
+      name="box_fingertip_contact",
+      primary=ContactMatch(
+        mode="geom", pattern=robot.fingertip_geom_pattern, entity="robot"
+      ),
+      secondary=ContactMatch(mode="subtree", pattern="box_object", entity="box"),
+      fields=("found", "pos", "dist"),
+      reduce="none",
+      num_slots=1,
+    ),
     
     CameraSensorCfg(
       name=f"{cam_source}_realsense_camera",
@@ -387,7 +444,7 @@ def lift_env_cfg(
 
   cfg.commands["lift_height"] = LiftingCommandCfg(
     entity_name="box",
-    object_half_height=_BOX_HALF_SIZE,
+    object_half_height=1.5 * _BOX_HALF_SIZE,
     table_height=_TABLE_HEIGHT,
     contact_sensor_name="box_table_contact",
     resampling_time_range=(EPISODE_LENGTH, EPISODE_LENGTH),
@@ -398,8 +455,8 @@ def lift_env_cfg(
       z=(0.65, 0.85),
     ),
     object_pose_range=LiftingCommandCfg.ObjectPoseRangeCfg(
-      x=(0.4, 0.5),
-      y=(-0.15, 0.15),
+      x=(0.5, 0.5),
+      y=(0.0, 0.0),
     ),
   )
 
@@ -436,6 +493,14 @@ def lift_env_cfg(
       params={"asset_cfg": SceneEntityCfg("robot", site_names=(robot.ee_site,))},
     )
 
+  cfg.observations["critic"].terms["finger_contact"] = ObservationTermCfg(
+    func=site_contact_found,
+    params={
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
+    },
+  )
+
   for name in ("object_position", "object_orientation", "target_object_position"):
     cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
 
@@ -448,7 +513,7 @@ def lift_env_cfg(
   )
   cfg.rewards["lifting_object"] = RewardTermCfg(
     func=nan_safe(object_is_lifted),
-    weight=5.0,
+    weight=0.0,  # Start at zero
     params={"command_name": "lift_height", "asset_cfg": _grasp_cfg},
   )
   # cfg.rewards["object_goal_tracking"] = RewardTermCfg(
@@ -463,8 +528,26 @@ def lift_env_cfg(
   # )
   cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
     func=contact_penalty,
-    weight=-1.0,
+    weight=-0.5,
     params={"sensor_names": ["gripper_table_contact"]},
+  )
+  # cfg.rewards["object_floating"] = RewardTermCfg(
+  #   func=nan_safe(object_is_floating),
+  #   weight=2.0,
+  #   params={"command_name": "lift_height"},
+  # )
+  cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
+    func=nan_safe(site_contact_both_fingers),
+    weight=5.0,
+    params={
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
+    },
+  )
+  cfg.rewards["action_rate_l2"] = RewardTermCfg(
+    func=action_rate_l2,
+    weight=-0.1,
+    params={"action_indices": list(range(6))},
   )
   # cfg.rewards["ee_ground_collision_termination_penalty"] = RewardTermCfg(
   #   func=manipulation_mdp.illegal_contact,
@@ -482,6 +565,15 @@ def lift_env_cfg(
 
 
   cfg.curriculum.clear()
+  cfg.curriculum["lifting_object_weight"] = CurriculumTermCfg(
+    func=mdp.reward_curriculum,
+    params={
+      "reward_name": "lifting_object",
+      "stages": [
+        {"step": 1000 * 24, "weight": 5.0}, # Enable after 800 iterations
+      ],
+    },
+  )
   # cfg.curriculum["reaching_object_std"] = CurriculumTermCfg(
   #   func=mdp.reward_curriculum,
   #   params={
@@ -489,6 +581,15 @@ def lift_env_cfg(
   #     "stages": [
   #       {"step": 1000 * 24, "params": {"std": 0.1}},
   #       {"step": 1500 * 24, "params": {"std": 0.05}},
+  #     ],
+  #   },
+  # )
+  # cfg.curriculum["remove_ee_ground_collision"] = CurriculumTermCfg(
+  #   func=mdp.termination_curriculum,
+  #   params={
+  #     "termination_name": "ee_ground_collision",
+  #     "stages": [
+  #       {"step": 800 * 24, "params": {"force_threshold": 10000000000.0}},
   #     ],
   #   },
   # )
@@ -584,7 +685,7 @@ def lift_env_cfg(
 
 def lift_vision_env_cfg(
   cam_type: Literal["rgb", "depth", "rgbd"],
-  cam_source: Literal["head", "wrist"] = "wrist",
+  cam_source: Literal["head", "wrist"] = "head",
   play: bool = False,
   robot_cfg=TiagoProRobot,
 ) -> ManagerBasedRlEnvCfg:
@@ -596,7 +697,7 @@ def lift_vision_env_cfg(
 
   if cam_type == "depth":
     obs_func = manipulation_mdp.camera_depth
-    obs_params = {"sensor_name": obs_sensor_name, "cutoff_distance": 0.5}
+    obs_params = {"sensor_name": obs_sensor_name, "cutoff_distance": 1.0}
   else:
     obs_func = manipulation_mdp.camera_rgb
     obs_params = {"sensor_name": obs_sensor_name}

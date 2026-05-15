@@ -47,10 +47,15 @@ def lift_vision_ppo_runner_cfg(
   experiment_name: str = "lift_depth",
 ) -> RslRlOnPolicyRunnerCfg:
   cnn_cfg = {
-    "output_channels": [16, 32],
-    "kernel_size": [5, 3],
-    "stride": [2, 2],
-    "padding": "zeros",
+    "output_channels": [32, 64, 64, 16],
+    
+    # Matching kernel sizes for the 4 layers
+    "kernel_size": [5, 3, 3, 1],
+    
+    # Strides: Downsample twice, then maintain 32x32 resolution
+    "stride": [2, 2, 1, 1],
+    
+    "padding": "zeros", 
     "activation": "elu",
     "max_pool": False,
     "global_pool": "none",

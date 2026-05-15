@@ -13,6 +13,7 @@ class TiagoProRobot:
   gripper_joint_pattern: str = "gripper_right_finger_joint"
   ee_site: str = "gripper_right_grasping_site"
   fingertip_geom_pattern: str = "col_right_fingertip_.*"
+  fingertip_site_pattern: str = "gripper_right_fingertip_.*_site"
   collision_link_pattern: str = "(arm_right|gripper_right)_.*_link"
   arm_collision_link_pattern: str = "arm_right_.*_link"
   gripper_collision_link_pattern: str = "gripper_right_.*_link"
