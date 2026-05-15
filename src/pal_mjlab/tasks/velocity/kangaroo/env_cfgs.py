@@ -511,18 +511,62 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   ### COMMANDS
 
   # Start with a small forward-only cmd range
-  twist_cmd = cfg.commands["twist"]
-  assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+  # del cfg.commands["twist"]
+  # assert isinstance(twist_cmd, UniformVelocityCommandCfg)
   
-  twist_cmd.resampling_time_range=(6.0, 9.0) # More constant commands
-  twist_cmd.heading_command = True
-  twist_cmd.rel_standing_envs = 0.1
-  twist_cmd.rel_forward_envs = 0.0 # This is only straight, the random sampling takes care of this
-  twist_cmd.rel_heading_envs = 1.0
-  twist_cmd.ranges.lin_vel_x = (-0.3, -0.2) # Only backward
-  twist_cmd.ranges.lin_vel_y = (0.0, 0.0)
-  twist_cmd.ranges.ang_vel_z = (-0.5, 0.5) # When heading = true, it is the clip value
-  twist_cmd.ranges.heading = (-math.pi, math.pi)
+  # twist_cmd.resampling_time_range=(6.0, 9.0) # More constant commands
+  # twist_cmd.heading_command = True
+  # twist_cmd.rel_standing_envs = 0.1
+  # twist_cmd.rel_forward_envs = 0.0 # This is only straight, the random sampling takes care of this
+  # twist_cmd.rel_heading_envs = 1.0
+  # twist_cmd.ranges.lin_vel_x = (-0.3, -0.2) # Only backward
+  # twist_cmd.ranges.lin_vel_y = (0.0, 0.0)
+  # twist_cmd.ranges.ang_vel_z = (-0.5, 0.5) # When heading = true, it is the clip value
+  # twist_cmd.ranges.heading = (-math.pi, math.pi)
+
+  test_cfg = UniformVelocityCommandCfg(
+    entity_name="robot",
+    resampling_time_range=(3.0, 8.0),
+    rel_standing_envs=0.1,
+    rel_heading_envs=0.3,
+    rel_forward_envs=0.2,
+    heading_command=True,
+    heading_control_stiffness=0.5,
+    debug_vis=True,
+    ranges=UniformVelocityCommandCfg.Ranges(
+      lin_vel_x=(-1.0, 1.0),
+      lin_vel_y=(-1.0, 1.0),
+      ang_vel_z=(-0.5, 0.5),
+      heading=(-math.pi, math.pi),
+    ),
+  )
+
+  test2_cfg = UniformVelocityCommandCfg(
+    entity_name="robot",
+    resampling_time_range=(3.0, 8.0),
+    rel_standing_envs=0.1,
+    rel_heading_envs=0.3,
+    rel_forward_envs=0.2,
+    heading_command=True,
+    heading_control_stiffness=0.5,
+    debug_vis=True,
+    ranges=UniformVelocityCommandCfg.Ranges(
+      lin_vel_x=(-1.0, 1.0),
+      lin_vel_y=(-1.0, 1.0),
+      ang_vel_z=(-0.5, 0.5),
+      heading=(-math.pi, math.pi),
+    ),
+  )
+
+  cfg.commands["twist"] = mdp.PieceWiseVelocityCommandCfg(
+    resampling_time_range=(6.0, 9.0),
+    pieces={
+      "forward_range": mdp.PieceCommandCfg(test_cfg),
+      "backward_range": mdp.PieceCommandCfg(test2_cfg)
+    }
+  )
+
+  del cfg.curriculum["command_vel"]
 
   ### REWARDS
 
@@ -531,8 +575,8 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # cfg.rewards["upright"].params["std"] = 0.25 # Stricter
 
   # Extra clearance to go over steps
-  cfg.rewards["foot_clearance"].params["target_height"] = 0.25
-  cfg.rewards["foot_swing_height"].params["target_height"] = 0.25
+  cfg.rewards["foot_clearance"].params["target_height"] = 0.2
+  cfg.rewards["foot_swing_height"].params["target_height"] = 0.2
 
   # Make air time activate more and more weight
   cfg.rewards["air_time"].weight = 0.5
@@ -684,31 +728,28 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # VELOCITY COMMAND
 
-  cfg.curriculum["command_vel"] = CurriculumTermCfg(
-    func=mdp.commands_vel,
-    params={
-      "command_name": "twist",
-      "velocity_stages": [
-        {"step": 0, "lin_vel_x": (-0.3, -0.2)},
-        {"step": 5000 * 24, "lin_vel_x": (-0.4, -0.2)},
-        {"step": 10000 * 24, "lin_vel_x": (-0.5, -0.2)},
-        {"step": 20000 * 24, "lin_vel_x": (-0.6, -0.2)},
-      ],
-    },
-  )
+  # cfg.curriculum["command_vel"] = CurriculumTermCfg(
+  #   func=mdp.commands_vel,
+  #   params={
+  #     "command_name": "twist",
+  #     "velocity_stages": [
+  #       {"step": 0, "lin_vel_x": (-0.3, -0.2)},
+  #       {"step": 5000 * 24, "lin_vel_x": (-0.4, -0.2)},
+  #       {"step": 10000 * 24, "lin_vel_x": (-0.5, -0.2)},
+  #       {"step": 20000 * 24, "lin_vel_x": (-0.6, -0.2)},
+  #     ],
+  #   },
+  # )
 
   ### PLAY
-  if play:
+  # if play:
     # Disable command curriculum.
-    assert "command_vel" in cfg.curriculum
-    del cfg.curriculum["command_vel"]
+    # assert "command_vel" in cfg.curriculum
+    # del cfg.curriculum["command_vel"]
 
-    twist_cmd = cfg.commands["twist"]
-    assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.ranges.lin_vel_x = (-0.2, -0.2)
-    twist_cmd.heading_command = False
-    twist_cmd.ranges.ang_vel_z = (-0.5, -0.5)
-    del twist_cmd.ranges.heading
+    # twist_cmd = cfg.commands["twist"]
+    # assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+    # twist_cmd.ranges.lin_vel_x = (-0.6, -0.2)
     # twist_cmd.ranges.heading = (0.0, 0.0) # Lock heading
 
     # if cfg.scene.terrain is not None:
