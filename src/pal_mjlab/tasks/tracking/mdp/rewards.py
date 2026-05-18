@@ -69,3 +69,20 @@ def feet_air_time(
     mean_air_time = air_time.mean(dim=1)
 
     return all_feet_airborne * mean_air_time
+
+def soft_jump_landing(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+) -> torch.Tensor:
+  """Penalize high impact forces at landing to encourage soft footfalls."""
+  contact_sensor: ContactSensor = env.scene[sensor_name]
+  sensor_data = contact_sensor.data
+  assert sensor_data.force is not None
+  forces = sensor_data.force[...,2]  # [B, N, 3]
+  first_contact = contact_sensor.compute_first_contact(dt=env.step_dt)  # [B, N]
+  landing_impact = forces**2 * first_contact.float()  # [B, N]
+  cost = torch.sum(landing_impact, dim=1)  # [B]
+  num_landings = torch.sum(first_contact.float())
+  mean_landing_force = torch.sum(landing_impact) / torch.clamp(num_landings, min=1)
+  env.extras["log"]["Metrics/landing_force_mean"] = mean_landing_force
+  return cost

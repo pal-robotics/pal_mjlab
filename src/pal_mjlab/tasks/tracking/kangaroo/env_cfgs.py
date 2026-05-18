@@ -220,7 +220,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
-    noise=Unoise(n_min=-0.035, n_max=0.035),
+    noise=Unoise(n_min=-0.02, n_max=0.02),
   )
   cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
@@ -235,31 +235,45 @@ def pal_kangaroo_flat_tracking_env_cfg(
     func=mdp.builtin_sensor,
     params={"sensor_name": "robot/imu_lin_acc"},
   )
-  cfg.observations["critic"].terms["foot_air_time"] = ObservationTermCfg(
-    func=mdp.foot_air_time,
-    params={"sensor_name": "feet_ground_contact"},
-  )
 
-  cfg.rewards["motion_global_root_lin_vel_z"] = RewardTermCfg(
-    func=tracking_mdp.motion_global_anchor_velocity_z_error_exp,
-    weight=1.0,
-    params={
-      "command_name": "motion",
-      "std": 1.0,
-    },
-  )
+  # This is for jumping
+  # cfg.observations["critic"].terms["foot_air_time"] = ObservationTermCfg(
+  #   func=mdp.foot_air_time,
+  #   params={"sensor_name": "feet_ground_contact"},
+  # )
 
-  cfg.rewards["foot_air"] = RewardTermCfg(
-    func=tracking_mdp.feet_air_time,
-    weight=10.0,
-    params={
-      "sensor_name": "feet_ground_contact",
-      "threshold": 0.1,
-    },
-  )
+  # This is for jumping
+  # cfg.rewards["motion_global_root_lin_vel_z"] = RewardTermCfg(
+  #   func=tracking_mdp.motion_global_anchor_velocity_z_error_exp,
+  #   weight=1.0,
+  #   params={
+  #     "command_name": "motion",
+  #     "std": 1.0,
+  #   },
+  # )
 
-  # cfg.observations["actor"].history_length = 3  # Keep last 3 frames
-  # cfg.observations["critic"].history_length = 3  # Keep last 3 frames
+  # This is for jumping
+  # cfg.rewards["foot_air"] = RewardTermCfg(
+  #   func=tracking_mdp.feet_air_time,
+  #   weight=10.0,
+  #   params={
+  #     "sensor_name": "feet_ground_contact",
+  #     "threshold": 0.1,
+  #   },
+  # )
+
+  # This needs to be reviewed (doesn't work)
+  # cfg.rewards["soft_landing"] = RewardTermCfg(
+  #   func=tracking_mdp.soft_jump_landing,
+  #   weight=-3e-7,
+  #   params={
+  #     "sensor_name": "feet_ground_contact",
+  #   },
+  # )
+
+  # This works better for dances but doesn't work for jumping
+  cfg.observations["actor"].history_length = 3  # Keep last 3 frames
+  cfg.observations["critic"].history_length = 3  # Keep last 3 frames
 
   # Modify observations if we don't have state estimation.
   if not has_state_estimation:
