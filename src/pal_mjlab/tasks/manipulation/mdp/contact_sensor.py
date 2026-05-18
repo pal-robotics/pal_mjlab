@@ -8,7 +8,7 @@ def site_contact_found(
   env: ManagerBasedRlEnv,
   sensor_name: str,
   site_names: list[str],
-  threshold: float = 0.01,
+  threshold: float = 0.015,
   asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
   """Returns a mask [B, P] of contacts that are close to the specified sites.

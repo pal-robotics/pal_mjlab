@@ -22,3 +22,8 @@ MUJOCO_LOG.TXT
 artifacts/
 *.npz
 motion.mp4
+dataset/
+dataset_vis/
+test_results/
+scratch/
+keypoints/

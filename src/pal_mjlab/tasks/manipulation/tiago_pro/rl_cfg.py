@@ -47,7 +47,7 @@ def lift_vision_ppo_runner_cfg(
   experiment_name: str = "lift_depth",
 ) -> RslRlOnPolicyRunnerCfg:
   cnn_cfg = {
-    "output_channels": [32, 64, 64, 16],
+    "output_channels": [32, 64, 64, 6],
     
     # Matching kernel sizes for the 4 layers
     "kernel_size": [5, 3, 3, 1],
@@ -100,7 +100,7 @@ def lift_vision_ppo_runner_cfg(
     experiment_name=experiment_name,
     save_interval=500,
     num_steps_per_env=24,
-    max_iterations=5000,
+    max_iterations=30000,
     obs_groups={
       "actor": ("actor", "camera"),
       "critic": ("critic", "camera"),
