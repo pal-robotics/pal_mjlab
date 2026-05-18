@@ -466,6 +466,10 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### OBSERVATIONS
 
+  # HISTORY
+  cfg.observations["actor"].history_length = 3
+  cfg.observations["critic"].history_length = 3
+
   # OBSERVATION LAG (sensor lag)
   cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
   cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 2
@@ -478,34 +482,10 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
   cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
 
-  # OBSERVATION history (to better infer dynamics)
-
-  # Only applied to the most important observations
-  cfg.observations["actor"].terms["base_ang_vel"].history_length = 3
+  # Reduce the observation noises
   cfg.observations["actor"].terms["base_ang_vel"].noise = Unoise(n_min=-0.02, n_max=0.02) # 10 times smaller
-  cfg.observations["critic"].terms["base_ang_vel"].history_length = 3
-
-  cfg.observations["actor"].terms["base_lin_acc"].history_length = 3
   cfg.observations["actor"].terms["base_lin_acc"].noise = Unoise(n_min=-0.05, n_max=0.05) # Reduce more
-  cfg.observations["critic"].terms["base_lin_acc"].history_length = 3
-
-  cfg.observations["actor"].terms["imu_projected_gravity"].history_length = 3
-  cfg.observations["critic"].terms["imu_projected_gravity"].history_length = 3
-
-  cfg.observations["actor"].terms["joint_pos"].history_length = 3
-  cfg.observations["critic"].terms["joint_pos"].history_length = 3
-
-  cfg.observations["actor"].terms["joint_vel"].history_length = 3
-  cfg.observations["critic"].terms["joint_vel"].history_length = 3
-
-  # Reduce the joint vel obs noise
   cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.15, n_max=0.15)
-  del cfg.observations["critic"].terms["joint_vel"].noise
-
-  # Give some evolution info to the height scan
-  cfg.observations["critic"].terms["height_scan"].history_length = 3
-
-  # Reduce even more the IMU noise so the policy trust it more
   cfg.observations["actor"].terms["imu_projected_gravity"].noise = Unoise(n_min=-0.02, n_max=0.02)
 
   ### COMMANDS
