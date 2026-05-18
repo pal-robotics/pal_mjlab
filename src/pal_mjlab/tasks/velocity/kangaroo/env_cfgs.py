@@ -546,7 +546,7 @@ def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["foot_swing_height"].params["target_height"] = 0.2
 
   # Make air time activate more and more weight
-  cfg.rewards["air_time"].weight = 0.5
+  # cfg.rewards["air_time"].weight = 0.5
   cfg.rewards["air_time"].params["threshold_min"] = 0.1
   cfg.rewards["air_time"].params["threshold_max"] = 1.0
   cfg.rewards["air_time"].params["command_threshold"] = 0.05 # Gate of the reward
