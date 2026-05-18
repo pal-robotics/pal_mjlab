@@ -25,3 +25,8 @@ docs_build/
 artifacts/
 *.npz
 motion.mp4
+dataset/
+dataset_vis/
+test_results/
+scratch/
+keypoints/

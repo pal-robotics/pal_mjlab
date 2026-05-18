@@ -19,3 +19,13 @@ register_mjlab_task(
   rl_cfg=lift_vision_ppo_runner_cfg(),
   runner_cls=ManipulationOnPolicyRunner,
 )
+
+from .curriculum_runner import VisionCurriculumRunner
+
+register_mjlab_task(
+  task_id="Mjlab-Manipulation-Lift-Cube-Vision-Curriculum-Pal-Tiago-Pro-v0",
+  env_cfg=lift_vision_env_cfg("depth"),
+  play_env_cfg=lift_vision_env_cfg("depth", play=True),
+  rl_cfg=lift_vision_ppo_runner_cfg(),
+  runner_cls=VisionCurriculumRunner,
+)
