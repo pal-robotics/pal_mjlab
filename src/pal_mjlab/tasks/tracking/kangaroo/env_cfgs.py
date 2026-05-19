@@ -129,6 +129,11 @@ def pal_kangaroo_flat_tracking_env_cfg(
 
   # The hull points should correspond to the respective joints defined in the joint_names_group order
   # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
+  _foot_names = ("leg_left_5_link", "leg_right_5_link")
+  _non_foot_body_names = tuple(n for n in motion_cmd.body_names if n not in _foot_names)
+  for key in ("motion_body_pos", "motion_body_ori", "motion_body_lin_vel", "motion_body_ang_vel"):
+    cfg.rewards[key].params["body_names"] = _non_foot_body_names
+
   cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
     func=mdp.joint_limits_convex_hull,
     weight=-10.0,
@@ -156,6 +161,46 @@ def pal_kangaroo_flat_tracking_env_cfg(
         [r"leg_right_4_joint", r"leg_right_5_joint"],
       ],
       "hull_points": ANKLE_XY_CONVEX_HULL_POINTS,
+    },
+  )
+
+  cfg.rewards["motion_foot_pos"] = RewardTermCfg(
+    func=tracking_mdp.motion_relative_body_position_error_exp,
+    weight=3.0,
+    params={
+      "command_name": "motion",
+      "std": 0.3,
+      "body_names": ("leg_left_5_link", "leg_right_5_link"),
+    },
+  )
+
+  cfg.rewards["motion_foot_ori"] = RewardTermCfg(
+    func=tracking_mdp.motion_relative_body_orientation_error_exp,
+    weight=1.0,
+    params={
+      "command_name": "motion",
+      "std": 0.4,
+      "body_names": ("leg_left_5_link", "leg_right_5_link"),
+    },
+  )
+
+  cfg.rewards["motion_foot_lin_vel"] = RewardTermCfg(
+    func=tracking_mdp.motion_global_body_linear_velocity_error_exp,
+    weight=2.0,
+    params={
+      "command_name": "motion",
+      "std": 1.0,
+      "body_names": ("leg_left_5_link", "leg_right_5_link"),
+    },
+  )
+
+  cfg.rewards["motion_foot_ang_vel"] = RewardTermCfg(
+    func=tracking_mdp.motion_global_body_angular_velocity_error_exp,
+    weight=1.0,
+    params={
+      "command_name": "motion",
+      "std": 3.14,
+      "body_names": ("leg_left_5_link", "leg_right_5_link"),
     },
   )
 
@@ -220,7 +265,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
-    noise=Unoise(n_min=-0.02, n_max=0.02),
+    noise=Unoise(n_min=-0.03, n_max=0.03),
   )
   cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
@@ -243,14 +288,14 @@ def pal_kangaroo_flat_tracking_env_cfg(
   # )
 
   # This is for jumping
-  # cfg.rewards["motion_global_root_lin_vel_z"] = RewardTermCfg(
-  #   func=tracking_mdp.motion_global_anchor_velocity_z_error_exp,
-  #   weight=1.0,
-  #   params={
-  #     "command_name": "motion",
-  #     "std": 1.0,
-  #   },
-  # )
+  cfg.rewards["motion_global_root_lin_vel_z"] = RewardTermCfg(
+    func=tracking_mdp.motion_global_anchor_velocity_z_error_exp,
+    weight=1.0,
+    params={
+      "command_name": "motion",
+      "std": 1.0,
+    },
+  )
 
   # This is for jumping
   # cfg.rewards["foot_air"] = RewardTermCfg(
