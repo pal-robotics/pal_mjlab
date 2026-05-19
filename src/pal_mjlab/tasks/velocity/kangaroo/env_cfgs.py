@@ -189,7 +189,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
   cfg.events["encoder_bias"].params["asset_cfg"].joint_names = [
-    r"^(?!leg_.*_length_.*$).*"
+    r"^leg_(left|right)_(?!3_|length_).*"
   ]
   cfg.events["leg_length_encoder_bias"] = EventTermCfg(
     mode="startup",
@@ -197,6 +197,24 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=[REGEX_LEG_LENGTH_JOINTS_ONLY]),
       "bias_range": (-0.005, 0.005),
+    },
+  )
+  cfg.events["hip_left_roll_encoder_bias"] = EventTermCfg(
+    mode="interval",
+    interval_range_s=(0.25, 1.0),
+    func=dr.encoder_bias,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=["leg_left_3_joint"]),
+      "bias_range": (-0.018, 0.0),
+    },
+  )
+  cfg.events["hip_right_roll_encoder_bias"] = EventTermCfg(
+    mode="interval",
+    interval_range_s=(0.25, 1.0),
+    func=dr.encoder_bias,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=["leg_right_3_joint"]),
+      "bias_range": (0.0, 0.018),
     },
   )
 
