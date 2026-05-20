@@ -44,7 +44,7 @@ _TABLE_HALF_X = 0.35
 _TABLE_HALF_Y = 0.35
 _BOX_HALF_SIZE = 0.025
 
-EPISODE_LENGTH = 4
+EPISODE_LENGTH = 10
 
 
 def nan_safe(fn):
@@ -199,7 +199,7 @@ class LiftingCommandCfg(CommandTermCfg):
   class ObjectPoseRangeCfg:
     x: tuple[float, float] = (0.4, 0.6)
     y: tuple[float, float] = (-0.1, 0.1)
-    yaw: tuple[float, float] = (-math.pi, math.pi)
+    yaw: tuple[float, float] = (math.pi, math.pi)
 
   object_pose_range: ObjectPoseRangeCfg = field(default_factory=ObjectPoseRangeCfg)
 
@@ -246,22 +246,27 @@ def object_ee_distance(
   command: LiftingCommand = env.command_manager.get_term(command_name)
   ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
   distance = torch.norm(ee_pos_w - command.object_pos_w, dim=-1)
-  return torch.clamp(1.0 - torch.tanh(distance / std), max=0.7)
+  
+  # if (distance < 0.03).any():
+  #     print("\033[96mFLAG: EE is within 3cm of the object center!\033[0m")
+      
+  return torch.clamp(1.0 - torch.tanh(distance / std), max=0.8)
 
 
 def object_is_lifted(
   env: ManagerBasedRlEnv,
   command_name: str,
+  sensor_name: str,
+  site_names: list[str],
   asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-  grasp_threshold: float = 0.06,
   min_weight: float = 0.5,
   max_weight: float = 5.0,
   lift_threshold: float = 0.05,
 ) -> torch.Tensor:
-  robot: Entity = env.scene[asset_cfg.name]
   command: LiftingCommand = env.command_manager.get_term(command_name)
-  ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
-  ee_close = torch.norm(ee_pos_w - command.object_pos_w, dim=-1) < grasp_threshold
+  
+  # Check if both fingers are close (this uses our new distance logic)
+  fingers_close = site_contact_both_fingers(env, sensor_name, site_names, asset_cfg=asset_cfg).bool()
   
   # Calculate elevation of the bottom of the object above the table
   elevation = command.object_bottom_z - command.cfg.table_height
@@ -271,7 +276,7 @@ def object_is_lifted(
   ratio = max_weight / min_weight
   scale = min_weight * (ratio ** (elevation / lift_threshold))
   
-  is_lifted = (~command.object_on_table & ee_close).float()
+  is_lifted = (~command.object_on_table & fingers_close).float()
   return is_lifted * scale
 
 
@@ -279,15 +284,15 @@ def object_goal_distance(
   env: ManagerBasedRlEnv,
   command_name: str,
   std: float,
+  sensor_name: str,
+  site_names: list[str],
   asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-  grasp_threshold: float = 0.06,
 ) -> torch.Tensor:
-  robot: Entity = env.scene[asset_cfg.name]
   command: LiftingCommand = env.command_manager.get_term(command_name)
-  ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
-  ee_close = torch.norm(ee_pos_w - command.object_pos_w, dim=-1) < grasp_threshold
+  contact_both = site_contact_both_fingers(env, sensor_name, site_names, asset_cfg=asset_cfg).bool()
+  
   distance = torch.norm(command.target_pos - command.object_pos_w, dim=-1)
-  return (~command.object_on_table & ee_close) * (1.0 - torch.tanh(distance / std))
+  return (~command.object_on_table & contact_both) * (1.0 - torch.tanh(distance / std))
 
 
 def contact_penalty(env: ManagerBasedRlEnv, sensor_names: list[str]) -> torch.Tensor:
@@ -401,18 +406,18 @@ def lift_env_cfg(
 
   cfg.sim.mujoco.timestep = 0.002
   cfg.sim.mujoco.iterations = 20
-  cfg.sim.mujoco.ls_iterations = 20
-  cfg.sim.mujoco.ccd_iterations = 70
+  # cfg.sim.mujoco.ls_iterations = 20
+  # cfg.sim.mujoco.ccd_iterations = 50
   cfg.sim.mujoco.jacobian = "sparse"
-  cfg.sim.nconmax = 4000
-  cfg.sim.njmax = 12000
+  cfg.sim.nconmax = 500
+  cfg.sim.njmax = 500
   cfg.decimation = 10
   cfg.episode_length_s = EPISODE_LENGTH
   cfg.viewer.lookat = (0.4, 0.0, 0.55)
   cfg.viewer.distance = 1.7
   cfg.viewer.azimuth = 190.0
   cfg.viewer.elevation = 15.0
-  cfg.viewer.camera = f"{cam_source}_realsense_camera"
+  #cfg.viewer.camera = f"{cam_source}_realsense_camera"
   cfg.sim.nan_guard.enabled = True
   cfg.sim.nan_guard.output_dir = "/tmp/mjlab/nan_dumps"
   cfg.observations["actor"].nan_policy = "sanitize"
@@ -459,14 +464,6 @@ def lift_env_cfg(
       fields=("found", "pos", "dist"),
       reduce="none",
       num_slots=1,
-    ),
-    
-    CameraSensorCfg(
-      name=f"{cam_source}_realsense_camera",
-      height=128,
-      width=128,
-      data_types=("rgb", "depth"),
-      camera_name=f"robot/{robot.head_camera_name if cam_source == 'head' else robot.wrist_camera_name}",
     ),
   )
 
@@ -542,26 +539,40 @@ def lift_env_cfg(
   cfg.rewards["reaching_object"] = RewardTermCfg(
     func=nan_safe(object_ee_distance),
     weight=5.0,
-    params={"std": 0.3, "command_name": "lift_height", "asset_cfg": _grasp_cfg},
+    params={"std": 0.15, "command_name": "lift_height", "asset_cfg": _grasp_cfg},
   )
   # cfg.rewards["lifting_object"] = RewardTermCfg(
   #   func=nan_safe(object_is_lifted),
   #   weight=1.0,
-  #   params={"command_name": "lift_height", "asset_cfg": _grasp_cfg},
+  #   params={
+  #     "command_name": "lift_height", 
+  #     "sensor_name": "box_fingertip_contact",
+  #     "site_names": [robot.fingertip_site_pattern],
+  #   },
   # )
-  # cfg.rewards["object_goal_tracking"] = RewardTermCfg(
-  #   func=nan_safe(object_goal_distance),
-  #   weight=5.0,
-  #   params={"command_name": "lift_height", "std": 0.3, "asset_cfg": _grasp_cfg},
-  # )
+  cfg.rewards["object_goal_tracking"] = RewardTermCfg(
+    func=nan_safe(object_goal_distance),
+    weight=5.0,
+    params={
+      "command_name": "lift_height", 
+      "std": 0.3, 
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
+    },
+  )
   # cfg.rewards["object_goal_tracking_fine_grained"] = RewardTermCfg(
   #   func=nan_safe(object_goal_distance),
   #   weight=10.0,
-  #   params={"command_name": "lift_height", "std": 0.05, "asset_cfg": _grasp_cfg},
+  #   params={
+  #     "command_name": "lift_height", 
+  #     "std": 0.05, 
+  #     "sensor_name": "box_fingertip_contact",
+  #     "site_names": [robot.fingertip_site_pattern],
+  #   },
   # )
   cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
     func=contact_penalty,
-    weight=-0.1,
+    weight=-0.5,
     params={"sensor_names": ["gripper_table_contact"]},
   )
 
@@ -576,7 +587,7 @@ def lift_env_cfg(
   )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=action_rate_l2,
-    weight=-1.0,
+    weight=-1.5,
     params={"action_indices": list(range(6))},
   )
   # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(
@@ -598,6 +609,18 @@ def lift_env_cfg(
 
 ### CURRICULUMS
   cfg.curriculum.clear()
+  
+  # cfg.curriculum["reaching_object_std"] = CurriculumTermCfg(
+  #   func=mdp.reward_curriculum,
+  #   params={
+  #     "reward_name": "reaching_object",
+  #     "stages": [
+  #       {"step": 0, "params": {"std": 0.15}},
+  #       {"step": 1500 * 24, "params": {"std": 0.10}}, # Dopo 1000 iterazioni (1000 * num_steps_per_env)
+  #       # {"step": 3000 * 24, "params": {"std": 0.075}}, # Dopo 3000 iterazioni
+  #     ],
+  #   },
+  # )
   # cfg.curriculum["lifting_object_weight"] = CurriculumTermCfg(
   #   func=mdp.reward_curriculum,
   #   params={
@@ -666,13 +689,13 @@ def lift_env_cfg(
   # cfg.terminations.pop("ee_ground_collision", None)
   cfg.terminations["nan_term"] = TerminationTermCfg(func=mdp_term.nan_detection)
 
-  cfg.terminations["object_dropped"] = TerminationTermCfg(
-    func=mdp_term.root_height_below_minimum,
-    params={
-      "minimum_height": _TABLE_HEIGHT - 0.1,
-      "asset_cfg": SceneEntityCfg("box"),
-    },
-  )
+  # cfg.terminations["object_dropped"] = TerminationTermCfg(
+  #   func=mdp_term.root_height_below_minimum,
+  #   params={
+  #     "minimum_height": _TABLE_HEIGHT - 0.1,
+  #     "asset_cfg": SceneEntityCfg("box"),
+  #   },
+  # )
 
   cfg.terminations["ee_ground_collision"] = TerminationTermCfg(
     func=manipulation_mdp.illegal_contact,
@@ -715,6 +738,20 @@ def lift_vision_env_cfg(
   cfg = lift_env_cfg(play=play, robot_cfg=robot_cfg, cam_source=cam_source)
   robot = robot_cfg()
 
+  # Add camera sensor only for vision task
+  cfg.scene.sensors = (cfg.scene.sensors or ()) + (
+    CameraSensorCfg(
+      name=f"{cam_source}_realsense_camera",
+      height=128,
+      width=128,
+      data_types=("rgb", "depth"),
+      camera_name=f"robot/{robot.head_camera_name if cam_source == 'head' else robot.wrist_camera_name}",
+    ),
+  )
+
+  # Start the viewer from the robot's camera
+  cfg.viewer.camera = f"robot/{robot.head_camera_name if cam_source == 'head' else robot.wrist_camera_name}"
+
   # Choose the sensor name based on the source
   obs_sensor_name = f"{cam_source}_realsense_camera"
 
@@ -730,7 +767,7 @@ def lift_vision_env_cfg(
   elif cam_type == "depth":
     terms[f"{cam_source}_camera_depth"] = ObservationTermCfg(
       func=manipulation_mdp.camera_depth,
-      params={"sensor_name": obs_sensor_name, "cutoff_distance": 1.0},
+      params={"sensor_name": obs_sensor_name, "cutoff_distance": 1.5},
     )
 
   cfg.observations["camera"] = ObservationGroupCfg(

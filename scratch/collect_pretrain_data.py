@@ -7,46 +7,13 @@ from pal_mjlab.tasks.manipulation.tiago_pro.env_cfgs import lift_vision_env_cfg,
 
 # --- Expert Actor Definition (to drive collection) ---
 
-class SpatialSoftmax(torch.nn.Module):
-    def __init__(self, height, width, temperature=1.0):
+class OracleExpert(torch.nn.Module):
+    def __init__(self):
         super().__init__()
-        pos_x, pos_y = torch.meshgrid(
-            torch.linspace(-1.0, 1.0, height),
-            torch.linspace(-1.0, 1.0, width),
-            indexing="ij",
-        )
-        self.register_buffer("pos_x", pos_x.reshape(1, 1, -1))
-        self.register_buffer("pos_y", pos_y.reshape(1, 1, -1))
-        self.temperature = temperature
-
-    def forward(self, x):
-        B, C, H, W = x.shape
-        features = x.reshape(B, C, -1)
-        weights = torch.softmax(features / self.temperature, dim=-1)
-        expected_x = (weights * self.pos_x).sum(dim=-1)
-        expected_y = (weights * self.pos_y).sum(dim=-1)
-        return torch.stack([expected_x, expected_y], dim=-1).reshape(B, C * 2)
-
-class ExpertActor(torch.nn.Module):
-    def __init__(self, num_keypoints=6):
-        super().__init__()
-        self.cnns = torch.nn.ModuleDict({
-            "camera": torch.nn.Sequential(
-                torch.nn.Conv2d(1, 32, kernel_size=5, stride=2, padding=2),
-                torch.nn.ELU(),
-                torch.nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
-                torch.nn.ELU(),
-                torch.nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-                torch.nn.ELU(),
-                torch.nn.Conv2d(64, num_keypoints, kernel_size=1, stride=1, padding=0),
-                torch.nn.ELU(),
-                SpatialSoftmax(32, 32)
-            )
-        })
         self.mlp = torch.nn.Sequential(
-            torch.nn.Linear(28 + (num_keypoints * 2), 256),
+            torch.nn.Linear(35, 512),
             torch.nn.ELU(),
-            torch.nn.Linear(256, 256),
+            torch.nn.Linear(512, 256),
             torch.nn.ELU(),
             torch.nn.Linear(256, 128),
             torch.nn.ELU(),
@@ -54,16 +21,20 @@ class ExpertActor(torch.nn.Module):
         )
 
     def forward(self, obs_dict):
-        kps = self.cnns["camera"](obs_dict["camera"])
-        combined = torch.cat([obs_dict["actor"], kps], dim=-1)
-        return self.mlp(combined)
+        # The oracle expects the 35D state: 
+        # joint_pos(7) + joint_vel(7) + actions(7) + object_pos(3) + object_ori(4) + target_pos(3) + gripper_pos(1) + ee_pos(3)
+        # This matches exactly the first 35 features of the 'critic' observation group.
+        critic_obs = obs_dict["critic"]
+        oracle_obs = critic_obs[:, :-2] # Drop the last 2 features (finger_contact)
+        return self.mlp(oracle_obs)
 
 # --- Projection Utilities ---
 
 def project_3d_to_2d(points_3d_w, cam_pos, cam_quat, K_matrix, width, height):
     from mjlab.utils.lab_api.math import quat_apply, quat_inv
-    cam_pos_exp = cam_pos.unsqueeze(1)
-    cam_quat_exp = cam_quat.unsqueeze(1)
+    B, N, _ = points_3d_w.shape
+    cam_pos_exp = cam_pos.unsqueeze(1).expand(B, N, 3)
+    cam_quat_exp = cam_quat.unsqueeze(1).expand(B, N, 4)
     points_c = quat_apply(quat_inv(cam_quat_exp), points_3d_w - cam_pos_exp)
     x = points_c[..., 0]
     y = -points_c[..., 1]
@@ -97,7 +68,7 @@ def get_3d_keypoints(env):
 def collect_data(num_samples=10000, save_dir="dataset"):
     os.makedirs(save_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    checkpoint_path = "logs/rsl_rl/lift_depth/2026-05-18_10-18-26/model_1000.pt"
+    checkpoint_path = os.path.expanduser("~/Downloads/model_14200.pt")
 
     # 1. Instantiate environment
     print("Initializing environment...")
@@ -107,12 +78,9 @@ def collect_data(num_samples=10000, save_dir="dataset"):
     
     # 2. Load Expert
     print(f"Loading Expert Policy from {checkpoint_path}...")
-    expert = ExpertActor(num_keypoints=6).to(device)
+    expert = OracleExpert().to(device)
     checkpoint = torch.load(checkpoint_path, map_location=device)
     sd = checkpoint["actor_state_dict"]
-    if "cnns.camera.spatial_softmax.pos_x" in sd:
-        sd["cnns.camera.spatial_softmax.pos_x"] = sd["cnns.camera.spatial_softmax.pos_x"].view(32, 32)
-        sd["cnns.camera.spatial_softmax.pos_y"] = sd["cnns.camera.spatial_softmax.pos_y"].view(32, 32)
     expert.load_state_dict(sd, strict=False)
     expert.eval()
 
@@ -131,8 +99,8 @@ def collect_data(num_samples=10000, save_dir="dataset"):
         with torch.no_grad():
             camera = env.scene.sensors[camera_name]
             expert_obs = {
-                "actor": obs["actor"],
-                "camera": torch.clamp(camera.data.depth.permute(0, 3, 1, 2), 0, 1.0)
+                "critic": obs["critic"],
+                "camera": torch.clamp(camera.data.depth.permute(0, 3, 1, 2), 0, 1.5)
             }
             actions = expert(expert_obs)
             
@@ -148,10 +116,28 @@ def collect_data(num_samples=10000, save_dir="dataset"):
         cam_quat = quat_from_matrix(sim_data.cam_xmat[:, camera.camera_idx])
         
         keypoints_2d = project_3d_to_2d(keypoints_3d, cam_pos, cam_quat, K, width, height)
-        
         kps_raw = keypoints_2d[0].cpu().numpy()
         
-        # Visibility check
+        # Calculate expected local Z depths to check for occlusion
+        from mjlab.utils.lab_api.math import quat_apply, quat_inv
+        B, N, _ = keypoints_3d.shape
+        cam_pos_exp = cam_pos.unsqueeze(1).expand(B, N, 3)
+        cam_quat_exp = cam_quat.unsqueeze(1).expand(B, N, 4)
+        points_c = quat_apply(quat_inv(cam_quat_exp), keypoints_3d - cam_pos_exp)
+        z_expected = -points_c[0, :, 2].cpu().numpy()
+        
+        # Calculate visibility mask based on depth buffer comparison
+        visibility_list = []
+        for idx, (u, v) in enumerate(kps_raw):
+            col = int(np.clip(u, 0, width - 1))
+            row = int(np.clip(v, 0, height - 1))
+            observed_z = depth_image[row, col, 0]
+            expected_z = z_expected[idx]
+            # Keypoint is visible if observed surface is not significantly closer than expected depth
+            is_visible = bool(observed_z >= expected_z - 0.02)
+            visibility_list.append(is_visible)
+        
+        # Visibility check (ensure keypoints are at least on-screen or within bounds)
         valid = True
         for u, v in kps_raw:
             if u < -10 or u > 138 or v < -10 or v > 138:
@@ -161,11 +147,15 @@ def collect_data(num_samples=10000, save_dir="dataset"):
         if valid:
             filename = f"depth_{len(dataset_labels):05d}.npy"
             np.save(os.path.join(save_dir, filename), depth_image)
-            dataset_labels.append({"depth": filename, "keypoints": kps_raw.tolist()})
+            dataset_labels.append({
+                "depth": filename,
+                "keypoints": kps_raw.tolist(),
+                "visibility": visibility_list
+            })
             if len(dataset_labels) % 100 == 0:
                 print(f"Collected {len(dataset_labels)}/{num_samples}...")
 
-        if len(dataset_labels) % 500 == 0:
+        if len(dataset_labels) % 250 == 0:
             env.reset()
 
     with open(os.path.join(save_dir, "labels.json"), "w") as f:

@@ -11,11 +11,11 @@ from tensordict import TensorDict
 # --- CONFIGURATION ---
 # Replace with your actual checkpoint path
 TASK_ID = "Mjlab-Manipulation-Lift-Cube-Vision-Curriculum-Pal-Tiago-Pro-v0"
-MODEL_PATH = "/home/lorenzobarbieri/pal_mjlab_manipulation/pal_mjlab/logs/rsl_rl/lift_depth/2026-05-18_15-22-58/model_0.pt"
+MODEL_PATH = "/home/lorenzobarbieri/pal_mjlab_manipulation/pal_mjlab/logs/rsl_rl/lift_depth/2026-05-18_10-18-26/model_3000.pt"
 OUTPUT_DIR = "scratch/keypoints"
 DURATION = 2.0  # seconds
 INTERVAL = 0.1  # seconds
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "cpu" if torch.cuda.is_available() else "cpu"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -46,11 +46,19 @@ model = SpatialSoftmaxCNNModel(
     distribution_cfg=actor_cfg.distribution_cfg,
 ).to(DEVICE)
 
+# First load full checkpoint if available to get the expert MLP policy
 if os.path.exists(MODEL_PATH):
+    print(f"Loading full policy from {MODEL_PATH}...")
     checkpoint = torch.load(MODEL_PATH, map_location=DEVICE)
-    model.load_state_dict(checkpoint['actor_state_dict'])
+    model.load_state_dict(checkpoint['actor_state_dict'], strict=False)
+
+# Then load our fresh supervised pretrained CNN backbone weights specifically
+if os.path.exists("pretrained_backbone.pth"):
+    print("Loading pretrained CNN backbone weights from pretrained_backbone.pth...")
+    backbone_sd = torch.load("pretrained_backbone.pth", map_location=DEVICE)
+    model.cnns["camera"].load_state_dict(backbone_sd, strict=False)
 else:
-    print(f"Warning: Checkpoint {MODEL_PATH} not found. Visualizing random weights.")
+    print("Warning: pretrained_backbone.pth not found!")
 
 model.eval()
 
