@@ -37,9 +37,9 @@ def lift_ppo_runner_cfg(experiment_name: str = "lift") -> RslRlOnPolicyRunnerCfg
       max_grad_norm=1.0,
     ),
     experiment_name=experiment_name,
-    save_interval=20,
+    save_interval=500,
     num_steps_per_env=24,
-    max_iterations=1500,
+    max_iterations=30000,
   )
 
 
@@ -60,7 +60,7 @@ def lift_vision_ppo_runner_cfg(
     "max_pool": False,
     "global_pool": "none",
     "spatial_softmax": True,
-    "spatial_softmax_temperature": 1.0,
+    "spatial_softmax_temperature": 1.0,  # learned during supervised pretraining
   }
   class_name = "mjlab.rl.spatial_softmax:SpatialSoftmaxCNNModel"
   return RslRlOnPolicyRunnerCfg(
