@@ -6,6 +6,8 @@ from mjlab.rl import (
   RslRlPpoAlgorithmCfg,
 )
 
+from pal_mjlab.rl.flash_sac import FlashSACRunnerCfg
+
 
 def pal_kangaroo_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
   """Create RL runner configuration for PAL Kangaroo velocity task."""
@@ -44,3 +46,27 @@ def pal_kangaroo_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
     num_steps_per_env=24,
     max_iterations=30_000,
   )
+
+
+def pal_kangaroo_flashsac_runner_cfg() -> FlashSACRunnerCfg:
+    """Create FlashSAC runner configuration for PAL Kangaroo velocity task."""
+    return FlashSACRunnerCfg(
+        experiment_name="kangaroo_velocity",
+        asymmetric_observation=True,
+        # Network depth matches (512, 256, 128) ladder
+        actor_num_blocks=3,
+        actor_hidden_dim=512,
+        critic_num_blocks=3,
+        critic_hidden_dim=512,
+        # Tuned for locomotion
+        gamma=0.99,
+        n_step=3,
+        normalize_reward=True,
+        temp_initial_value=1.0,
+        temp_target_sigma=0.5,
+        buffer_min_length=10_000,
+        buffer_max_length=1_000_000,
+        sample_batch_size=256,
+        actor_update_period=2,
+        critic_target_update_tau=0.005,
+    )

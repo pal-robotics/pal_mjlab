@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.10,<3.14"
 dependencies = [
     "mjlab>=1.3.0",
+    "jax",
 ]
 
 [build-system]
@@ -29,3 +30,8 @@ select = ["E4", "E7", "E9", "F", "I", "B"]
 
 [project.entry-points."mjlab.tasks"]
 pal_mjlab = "pal_mjlab.tasks"
+
+[project.scripts]
+train_FlSAC = "pal_mjlab.scripts.train_flash_sac:main"
+play_FlSAC = "pal_mjlab.scripts.play_flash_sac:main"
+
