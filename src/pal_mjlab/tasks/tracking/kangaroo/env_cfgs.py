@@ -24,6 +24,7 @@ from pal_mjlab.robots import (
   KANGAROO_ACTION_SCALE,
   KANGAROO_ACTUATOR_NAMES,
   REGEX_FEMUR_AND_KNEE_LINKS,
+  REGEX_LEG_LENGTH_JOINTS_ONLY,
   get_kangaroo_robot_cfg,
 )
 from pal_mjlab.tasks.velocity import mdp
@@ -166,7 +167,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
 
   cfg.rewards["motion_foot_pos"] = RewardTermCfg(
     func=tracking_mdp.motion_relative_body_position_error_exp,
-    weight=3.0,
+    weight=5.0,
     params={
       "command_name": "motion",
       "std": 0.3,
@@ -265,13 +266,14 @@ def pal_kangaroo_flat_tracking_env_cfg(
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
-    noise=Unoise(n_min=-0.03, n_max=0.03),
+    noise=Unoise(n_min=-0.035, n_max=0.035),
   )
   cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
     params={"sensor_name": "robot/imu_lin_acc"},
-    noise=Unoise(n_min=-0.075, n_max=0.075),
+    noise=Unoise(n_min=-0.05, n_max=0.05),
   )
+  cfg.observations["actor"].terms["base_ang_vel"].noise = Unoise(n_min=-0.02, n_max=0.02)
   cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
@@ -280,12 +282,43 @@ def pal_kangaroo_flat_tracking_env_cfg(
     func=mdp.builtin_sensor,
     params={"sensor_name": "robot/imu_lin_acc"},
   )
-
   # This is for jumping
   # cfg.observations["critic"].terms["foot_air_time"] = ObservationTermCfg(
   #   func=mdp.foot_air_time,
   #   params={"sensor_name": "feet_ground_contact"},
   # )
+
+  cfg.events["encoder_bias"].params["asset_cfg"].joint_names = [
+    r"^leg_(left|right)_(?!3_|length_).*"
+  ]
+
+  cfg.events["leg_length_encoder_bias"] = EventTermCfg(
+    mode="startup",
+    func=dr.encoder_bias,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=[REGEX_LEG_LENGTH_JOINTS_ONLY]),
+      "bias_range": (-0.005, 0.005),
+    },
+  )
+  
+  cfg.events["hip_left_roll_encoder_bias"] = EventTermCfg(
+    mode="interval",
+    interval_range_s=(0.25, 1.0),
+    func=dr.encoder_bias,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=["leg_left_3_joint"]),
+      "bias_range": (-0.025, 0.025),
+    },
+  )
+  cfg.events["hip_right_roll_encoder_bias"] = EventTermCfg(
+    mode="interval",
+    interval_range_s=(0.25, 1.0),
+    func=dr.encoder_bias,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=["leg_right_3_joint"]),
+      "bias_range": (-0.025, 0.025),
+    },
+  )
 
   # This is for jumping
   cfg.rewards["motion_global_root_lin_vel_z"] = RewardTermCfg(
