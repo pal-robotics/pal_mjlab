@@ -424,6 +424,42 @@ def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_4_.*"]
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_(?![14]_joint)\d+_joint"]
 
+  # Restrict the policy's action space to leg + pelvis actuators. The full
+  # kangaroo XML is still used (arms are present and physically actuated) so
+  # the arm actuators can be driven externally by the scripted arm action
+  # term below.
+  joint_pos_action = cfg.actions["joint_pos"]
+  assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action.scale = KANGAROO_LOWER_BODY_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_ACTUATOR_NAMES
+
+  # Seed the arms with a randomized initial pose + non-zero velocity so the
+  # policy sees diverse initial angular-momentum conditions.
+  cfg.events["reset_arm_joints"] = EventTermCfg(
+    func=mdp.reset_joints_by_offset,
+    mode="reset",
+    params={
+      "position_range": (-0.4, 0.4),
+      "velocity_range": (-1.0, 1.0),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(r"arm_.*",)),
+    },
+  )
+
+  # Drive the arms with a per-env randomized motion profile during the episode
+  # (sinusoid / random walk / hold), re-rolled every few seconds. MuJoCo's
+  # built-in position actuators apply real PD torques to track the targets,
+  # so the resulting reaction torques propagate to the trunk and legs.
+  cfg.actions["scripted_arm"] = mdp.ScriptedArmActionCfg(
+    entity_name="robot",
+    joint_names=(r"arm_.*",),
+    amplitude_range=(0.1, 0.5),
+    frequency_range_hz=(0.3, 1.0),
+    bias_range=(-0.3, 0.3),
+    resample_interval_s_range=(2.0, 6.0),
+    mode_weights={"sinusoid": 0.3, "random_walk": 0.2, "hold": 0.5},
+    random_walk_step_std=0.02,
+  )
+
   return cfg
 
 
