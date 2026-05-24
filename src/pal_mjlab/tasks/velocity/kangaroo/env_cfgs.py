@@ -32,6 +32,7 @@ from pal_mjlab.robots import (
   KANGAROO_LOWER_BODY_ACTION_SCALE,
   KANGAROO_LOWER_BODY_ACTUATOR_NAMES,
   REGEX_ALL_ACTUATED_JOINTS,
+  REGEX_ALL_ACTUATED_LOWER_BODY_JOINTS_WITH_PELVIS,
   REGEX_FEMUR_AND_KNEE_LINKS,
   REGEX_LEG_LENGTH_JOINTS_ONLY,
   get_kangaroo_grippers_robot_cfg,
@@ -403,6 +404,25 @@ def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.ranges.lin_vel_x = (-1.5, 2.0)
     twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
+
+  return cfg
+
+
+def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  cfg = pal_kangaroo_flat_env_cfg(play)
+
+  actuated_joints = (
+    REGEX_ALL_ACTUATED_LOWER_BODY_JOINTS_WITH_PELVIS  # Exclude all arm joints
+  )
+  cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
+  cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
+
+  for pose_type in ("std_walking", "std_running"):
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_1_.*"]
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_4_.*"]
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_(?![14]_joint)\d+_joint"]
 
   return cfg
 
