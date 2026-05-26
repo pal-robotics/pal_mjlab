@@ -1,15 +1,18 @@
 import os
 import json
+import argparse
 import torch
 import numpy as np
 from mjlab.envs import ManagerBasedRlEnv
 from pal_mjlab.tasks.manipulation.tiago_pro.env_cfgs import lift_vision_env_cfg, _BOX_HALF_SIZE
+from rsl_rl.modules import EmpiricalNormalization
 
-# --- Expert Actor Definition (to drive collection) ---
+# --- Expert Actor Definition with Empirical Normalization ---
 
 class OracleExpert(torch.nn.Module):
     def __init__(self):
         super().__init__()
+        self.obs_normalizer = EmpiricalNormalization(35)
         self.mlp = torch.nn.Sequential(
             torch.nn.Linear(35, 512),
             torch.nn.ELU(),
@@ -26,7 +29,8 @@ class OracleExpert(torch.nn.Module):
         # This matches exactly the first 35 features of the 'critic' observation group.
         critic_obs = obs_dict["critic"]
         oracle_obs = critic_obs[:, :-2] # Drop the last 2 features (finger_contact)
-        return self.mlp(oracle_obs)
+        normalized_obs = self.obs_normalizer(oracle_obs)
+        return self.mlp(normalized_obs)
 
 # --- Projection Utilities ---
 
@@ -48,7 +52,6 @@ def get_3d_keypoints(env):
     hx, hy, hz = _BOX_HALF_SIZE, _BOX_HALF_SIZE, 1.5 * _BOX_HALF_SIZE
     local_corners = torch.tensor([[hx, hy, hz], [hx, -hy, hz], [-hx, hy, hz], [-hx, -hy, hz]], device=env.device)
     box = env.scene["box"]
-    # Using generic access to position/orientation to be safe across mjlab versions
     box_pos = box.data.root_pos_w if hasattr(box.data, "root_pos_w") else box.data.geom_pos_w[:, 0]
     box_quat = box.data.root_quat_w if hasattr(box.data, "root_quat_w") else box.data.geom_quat_w[:, 0]
     
@@ -65,24 +68,24 @@ def get_3d_keypoints(env):
 
 # --- Collection Script ---
 
-def collect_data(num_samples=10000, save_dir="dataset"):
+def collect_data(args):
+    num_samples = args.num_samples
+    save_dir = args.save_dir
+    num_envs = args.num_envs
+    reset_steps = args.reset_steps
+    models = [os.path.expanduser(m) for m in args.models]
+
     os.makedirs(save_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    checkpoint_path = os.path.expanduser("~/Downloads/model_14200.pt")
 
     # 1. Instantiate environment
-    print("Initializing environment...")
+    print(f"Initializing environment with {num_envs} envs...")
     cfg = lift_vision_env_cfg(cam_type="depth")
-    cfg.scene.num_envs = 1
+    cfg.scene.num_envs = num_envs
     env = ManagerBasedRlEnv(cfg=cfg, device="cuda")
     
-    # 2. Load Expert
-    print(f"Loading Expert Policy from {checkpoint_path}...")
+    # 2. Instantiate Expert model
     expert = OracleExpert().to(device)
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-    sd = checkpoint["actor_state_dict"]
-    expert.load_state_dict(sd, strict=False)
-    expert.eval()
 
     # 3. Camera Params
     camera_name = "head_realsense_camera"
@@ -93,74 +96,170 @@ def collect_data(num_samples=10000, save_dir="dataset"):
 
     dataset_labels = []
     obs, _ = env.reset()
+    steps = 0
     
-    print(f"Starting Expert-Guided Collection for {num_samples} samples...")
-    while len(dataset_labels) < num_samples:
-        with torch.no_grad():
-            camera = env.scene.sensors[camera_name]
-            expert_obs = {
-                "critic": obs["critic"],
-                "camera": torch.clamp(camera.data.depth.permute(0, 3, 1, 2), 0, 1.5)
-            }
-            actions = expert(expert_obs)
+    print(f"Starting Expert-Guided Collection for {num_samples} samples across {len(models)} model(s)...")
+    
+    # We will split samples equally between all provided models
+    samples_per_model = num_samples // len(models)
+    
+    for model_idx, model_path in enumerate(models):
+        print(f"\n--- Loading Expert Policy ({model_idx+1}/{len(models)}) from {model_path} ---")
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Expert model path {model_path} does not exist.")
             
-        obs, _, _, _, _ = env.step(actions)
+        checkpoint = torch.load(model_path, map_location=device)
+        # Load state dict strictly omitting standard deviation parameter but keeping normalizer
+        expert.load_state_dict(checkpoint["actor_state_dict"], strict=False)
+        expert.eval()
         
-        # Save image and keypoints
-        depth_image = camera.data.depth[0].cpu().numpy()
-        keypoints_3d = get_3d_keypoints(env)
+        # Reset environment states at model transition to avoid carry-over
+        obs, _ = env.reset()
+        steps = 0
         
-        from mjlab.utils.lab_api.math import quat_from_matrix
-        sim_data = env.sim.data
-        cam_pos = sim_data.cam_xpos[:, camera.camera_idx]
-        cam_quat = quat_from_matrix(sim_data.cam_xmat[:, camera.camera_idx])
-        
-        keypoints_2d = project_3d_to_2d(keypoints_3d, cam_pos, cam_quat, K, width, height)
-        kps_raw = keypoints_2d[0].cpu().numpy()
-        
-        # Calculate expected local Z depths to check for occlusion
-        from mjlab.utils.lab_api.math import quat_apply, quat_inv
-        B, N, _ = keypoints_3d.shape
-        cam_pos_exp = cam_pos.unsqueeze(1).expand(B, N, 3)
-        cam_quat_exp = cam_quat.unsqueeze(1).expand(B, N, 4)
-        points_c = quat_apply(quat_inv(cam_quat_exp), keypoints_3d - cam_pos_exp)
-        z_expected = -points_c[0, :, 2].cpu().numpy()
-        
-        # Calculate visibility mask based on depth buffer comparison
-        visibility_list = []
-        for idx, (u, v) in enumerate(kps_raw):
-            col = int(np.clip(u, 0, width - 1))
-            row = int(np.clip(v, 0, height - 1))
-            observed_z = depth_image[row, col, 0]
-            expected_z = z_expected[idx]
-            # Keypoint is visible if observed surface is not significantly closer than expected depth
-            is_visible = bool(observed_z >= expected_z - 0.02)
-            visibility_list.append(is_visible)
-        
-        # Visibility check (ensure keypoints are at least on-screen or within bounds)
-        valid = True
-        for u, v in kps_raw:
-            if u < -10 or u > 138 or v < -10 or v > 138:
-                valid = False
-                break
-        
-        if valid:
-            filename = f"depth_{len(dataset_labels):05d}.npy"
-            np.save(os.path.join(save_dir, filename), depth_image)
-            dataset_labels.append({
-                "depth": filename,
-                "keypoints": kps_raw.tolist(),
-                "visibility": visibility_list
-            })
-            if len(dataset_labels) % 100 == 0:
-                print(f"Collected {len(dataset_labels)}/{num_samples}...")
+        target_count = (model_idx + 1) * samples_per_model
+        # Ensure the last model collects any remaining remainder samples
+        if model_idx == len(models) - 1:
+            target_count = num_samples
+            
+        while len(dataset_labels) < target_count:
+            with torch.no_grad():
+                camera = env.scene.sensors[camera_name]
+                expert_obs = {
+                    "critic": obs["critic"],
+                    "camera": torch.clamp(camera.data.depth.permute(0, 3, 1, 2), 0, 1.5)
+                }
+                actions = expert(expert_obs)
+                
+            obs, _, _, _, _ = env.step(actions)
+            steps += 1
+            
+            # Retrieve all batch items
+            depth_images = camera.data.depth.cpu().numpy()
+            keypoints_3d = get_3d_keypoints(env)
+            
+            from mjlab.utils.lab_api.math import quat_from_matrix
+            sim_data = env.sim.data
+            cam_pos = sim_data.cam_xpos[:, camera.camera_idx]
+            cam_quat = quat_from_matrix(sim_data.cam_xmat[:, camera.camera_idx])
+            
+            keypoints_2d = project_3d_to_2d(keypoints_3d, cam_pos, cam_quat, K, width, height)
+            kps_raw_batch = keypoints_2d.cpu().numpy()
+            
+            # Calculate expected local Z depths to check for occlusion
+            from mjlab.utils.lab_api.math import quat_apply, quat_inv
+            B, N, _ = keypoints_3d.shape
+            cam_pos_exp = cam_pos.unsqueeze(1).expand(B, N, 3)
+            cam_quat_exp = cam_quat.unsqueeze(1).expand(B, N, 4)
+            points_c = quat_apply(quat_inv(cam_quat_exp), keypoints_3d - cam_pos_exp)
+            z_expected_batch = -points_c[:, :, 2].cpu().numpy()
+            
+            for b in range(num_envs):
+                if len(dataset_labels) >= target_count:
+                    break
+                    
+                depth_image = depth_images[b]
+                kps_raw = kps_raw_batch[b]
+                z_expected = z_expected_batch[b]
+                
+                # Calculate visibility mask based on depth buffer comparison
+                visibility_list = []
+                for idx, (u, v) in enumerate(kps_raw):
+                    col = int(np.clip(u, 0, width - 1))
+                    row = int(np.clip(v, 0, height - 1))
+                    observed_z = depth_image[row, col, 0]
+                    expected_z = z_expected[idx]
+                    is_visible = bool(observed_z >= expected_z - 0.02)
+                    visibility_list.append(is_visible)
+                
+                # Visibility check (ensure keypoints are at least on-screen or within bounds)
+                valid = True
+                for u, v in kps_raw:
+                    if u < -10 or u > 138 or v < -10 or v > 138:
+                        valid = False
+                        break
+                
+                if valid:
+                    filename = f"depth_{len(dataset_labels):05d}.npy"
+                    np.save(os.path.join(save_dir, filename), depth_image)
+                    dataset_labels.append({
+                        "depth": filename,
+                        "keypoints": kps_raw.tolist(),
+                        "visibility": visibility_list
+                    })
+                    if len(dataset_labels) % 100 == 0:
+                        print(f"Collected {len(dataset_labels)}/{num_samples}...")
 
-        if len(dataset_labels) % 250 == 0:
-            env.reset()
+            if steps % reset_steps == 0:
+                env.reset()
 
     with open(os.path.join(save_dir, "labels.json"), "w") as f:
         json.dump(dataset_labels, f, indent=4)
-    print("Collection complete.")
+    print(f"\nCollection complete. Total samples collected: {len(dataset_labels)}")
 
 if __name__ == "__main__":
-    collect_data()
+    parser = argparse.ArgumentParser(description="Collect pretrain data from expert policy models.")
+    parser.add_argument(
+        "--set", 
+        type=str, 
+        choices=["train", "validation"], 
+        default="train", 
+        help="Whether to collect training or validation dataset."
+    )
+    parser.add_argument(
+        "--num_samples", 
+        type=int, 
+        default=None, 
+        help="Total number of samples to collect. Defaults to 100000 for train, 10000 for validation."
+    )
+    parser.add_argument(
+        "--save_dir", 
+        type=str, 
+        default=None, 
+        help="Output directory. Defaults to 'dataset' for train, 'dataset_val' for validation."
+    )
+    parser.add_argument(
+        "--num_envs", 
+        type=int, 
+        default=64, 
+        help="Number of parallel environments to run."
+    )
+    parser.add_argument(
+        "--reset_steps", 
+        type=int, 
+        default=40, 
+        help="Number of steps after which the environments reset. Default is 40."
+    )
+    parser.add_argument(
+        "--models", 
+        type=str, 
+        nargs="+", 
+        default=None, 
+        help="Paths to expert models. If not specified, defaults are selected based on --set."
+    )
+    
+    args = parser.parse_args()
+    
+    # Apply defaults based on chosen set
+    if args.set == "train":
+        if args.num_samples is None:
+            args.num_samples = 100000
+        if args.save_dir is None:
+            args.save_dir = "dataset"
+        if args.models is None:
+            args.models = ["~/Downloads/model_18400.pt"]
+    else: # validation
+        if args.num_samples is None:
+            args.num_samples = 10000
+        if args.save_dir is None:
+            args.save_dir = "dataset_val"
+        if args.models is None:
+            # Populating typical checkpoints as default validation list
+            args.models = [
+                "~/Downloads/model_14200.pt",
+                "~/Downloads/model_10000.pt",
+                "~/Downloads/model_14000.pt",
+                "/home/lorenzobarbieri/pal_mjlab_manipulation/pal_mjlab/logs/rsl_rl/lift/2026-05-20_17-53-58/model_3500.pt"
+            ]
+            
+    collect_data(args)
