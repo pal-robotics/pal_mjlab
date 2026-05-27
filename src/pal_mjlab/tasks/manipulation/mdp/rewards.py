@@ -58,7 +58,7 @@ def object_is_lifted(
     env, sensor_name, site_names, asset_cfg=asset_cfg
   ).bool()
 
-  elevation = command.object_bottom_z - command.cfg.table_height
+  elevation = command.object_bottom_z - command.table_surface_z
   elevation = torch.clamp(elevation, min=0.0, max=lift_threshold)
 
   ratio = max_weight / min_weight
