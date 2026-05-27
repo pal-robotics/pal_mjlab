@@ -10,6 +10,10 @@ def randomize_box_size(
     env: ManagerBasedRlEnv,
     env_ids: torch.Tensor | None,
     asset_cfg: SceneEntityCfg,
+    cube_size: float = 0.025,
+    narrow_x_range: tuple[float, float] = (0.01, 0.02),
+    narrow_y_range: tuple[float, float] = (0.04, 0.06),
+    z_range: tuple[float, float] = (0.02, 0.035),
 ) -> None:
     """Randomizes the box geometry dimensions per-environment at startup."""
     if env_ids is None:
@@ -27,16 +31,16 @@ def randomize_box_size(
     # 50% chance of narrow-but-long shape
     choice = torch.rand(num_envs, device=env.device) < 0.5
 
-    x_std = torch.full((num_envs,), 0.025, device=env.device)
-    x_narrow = torch.rand(num_envs, device=env.device) * (0.02 - 0.01) + 0.01
+    x_std = torch.full((num_envs,), cube_size, device=env.device)
+    x_narrow = torch.rand(num_envs, device=env.device) * (narrow_x_range[1] - narrow_x_range[0]) + narrow_x_range[0]
     box_sizes[:, 0] = torch.where(choice, x_std, x_narrow)
 
-    y_std = torch.full((num_envs,), 0.025, device=env.device)
-    y_narrow = torch.rand(num_envs, device=env.device) * (0.06 - 0.04) + 0.04
+    y_std = torch.full((num_envs,), cube_size, device=env.device)
+    y_narrow = torch.rand(num_envs, device=env.device) * (narrow_y_range[1] - narrow_y_range[0]) + narrow_y_range[0]
     box_sizes[:, 1] = torch.where(choice, y_std, y_narrow)
 
-    # Z tallness always uniform(0.02, 0.035)
-    box_sizes[:, 2] = torch.rand(num_envs, device=env.device) * (0.035 - 0.02) + 0.02
+    # Z tallness range
+    box_sizes[:, 2] = torch.rand(num_envs, device=env.device) * (z_range[1] - z_range[0]) + z_range[0]
 
     # Map box_sizes to env.sim.model.geom_size
     env_grid, geom_grid = torch.meshgrid(env_ids, geom_ids, indexing="ij")
