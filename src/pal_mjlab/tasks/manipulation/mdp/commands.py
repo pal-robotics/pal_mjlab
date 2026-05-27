@@ -15,19 +15,9 @@ TABLE_HEIGHT = 0.5
 TABLE_HALF_X = 0.35
 TABLE_HALF_Y = 0.35
 
-# Procedural randomization of object shape at compile-time:
-# 50% chance of standard/cube-like shape (BOX_HALF_SIZE = 0.025)
-# 50% chance of narrow-but-long shape (X=0.015, Y=0.045)
-# Tallness goes from 0.04 (Z half size 0.02) to 0.07 (Z half size 0.035)
-import random
-if random.random() < 0.5:
-  BOX_HALF_X = 0.025
-  BOX_HALF_Y = 0.025
-else:
-  BOX_HALF_X = random.uniform(0.01,0.02)
-  BOX_HALF_Y = random.uniform(0.04,0.06)
-
-BOX_HALF_Z = random.uniform(0.02, 0.035)
+BOX_HALF_X = 0.025
+BOX_HALF_Y = 0.025
+BOX_HALF_Z = 0.025
 BOX_HALF_SIZE = 0.025  # Keep for compatibility
 
 
@@ -57,7 +47,7 @@ def get_box_spec() -> mujoco.MjSpec:
     type=mujoco.mjtGeom.mjGEOM_BOX,
     size=(BOX_HALF_X, BOX_HALF_Y, BOX_HALF_Z),
     rgba=(0.8, 0.2, 0.2, 1.0),
-    mass=0.1,
+    mass=0.025,
     solref=(0.001, 1),
     solimp=(0.95, 0.99, 0.001, 0.5, 2),
   )
@@ -101,7 +91,8 @@ class LiftingCommand(CommandTerm):
 
   @property
   def object_bottom_z(self) -> torch.Tensor:
-    return self.object_pos_w[:, 2] - self.cfg.object_half_height
+    box_half_height = self._env.sim.model.geom_size[:, self.object.indexing.geom_ids[0], 2]
+    return self.object_pos_w[:, 2] - box_half_height
 
   @property
   def object_on_table(self) -> torch.Tensor:
@@ -140,7 +131,8 @@ class LiftingCommand(CommandTerm):
     
     # Spawn box position: X & Y relative to env origins, Z exactly on the actual table surface.
     pos_x_y = pos[:, 0:2] + self._env.scene.env_origins[env_ids, 0:2]
-    pos_z = table_surface_z + self.cfg.object_half_height
+    box_half_height = self._env.sim.model.geom_size[env_ids, self.object.indexing.geom_ids[0], 2]
+    pos_z = table_surface_z + box_half_height
     pos = torch.cat([pos_x_y, pos_z.unsqueeze(1)], dim=-1)
 
     yaw = sample_uniform(r.yaw[0], r.yaw[1], (n,), device=self.device)
