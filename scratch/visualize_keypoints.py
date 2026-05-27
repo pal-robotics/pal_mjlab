@@ -21,10 +21,10 @@ def load_class(class_name: str):
 
 # --- CONFIGURATION ---
 # Replace with your actual checkpoint path
-TASK_ID = "Mjlab-Manipulation-Lift-Cube-Vision-ConvNeXt-Pal-Tiago-Pro-v0"
-MODEL_PATH = "/home/lorenzobarbieri/pal_mjlab_manipulation/pal_mjlab/logs/rsl_rl/lift_depth_convnext/2026-05-26_18-05-44/model_0.pt"
+TASK_ID = "Mjlab-Manipulation-Lift-Cube-Vision-Curriculum-Pal-Tiago-Pro-v0"
+MODEL_PATH = "/home/lorenzobarbieri/Downloads/model_7999.pt"
 OUTPUT_DIR = "scratch/keypoints"
-DURATION = 2.0  # seconds
+DURATION = 4.0  # seconds
 INTERVAL = 0.1  # seconds
 DEVICE = "cpu" if torch.cuda.is_available() else "cpu"
 
