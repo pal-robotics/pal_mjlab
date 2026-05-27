@@ -1,8 +1,9 @@
 import torch
-from mjlab.envs import ManagerBasedRlEnv
-from mjlab.sensor import ContactSensor
 from mjlab.entity import Entity
+from mjlab.envs import ManagerBasedRlEnv
 from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.sensor import ContactSensor
+
 
 def site_contact_found(
   env: ManagerBasedRlEnv,
@@ -12,7 +13,7 @@ def site_contact_found(
   asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
   """Returns a mask [B, P] of contacts that are close to the specified sites.
-  
+
   Args:
       env: The environment.
       sensor_name: Name of the ContactSensor.
@@ -23,28 +24,29 @@ def site_contact_found(
   sensor: ContactSensor = env.scene[sensor_name]
   data = sensor.data
   if data.found is None or data.pos is None:
-      return torch.zeros(env.num_envs, len(site_names), device=env.device)
-  
+    return torch.zeros(env.num_envs, len(site_names), device=env.device)
+
   robot: Entity = env.scene[asset_cfg.name]
-  
+
   # Get site indices and positions
   # We assume site_names are already prefixed or we handle them here
   # But in env_cfgs.py they are usually unprefixed in SceneEntityCfg
   site_ids, _ = robot.find_sites(site_names, preserve_order=True)
-  site_pos_w = robot.data.site_pos_w[:, site_ids] # [B, P, 3]
-  
+  site_pos_w = robot.data.site_pos_w[:, site_ids]  # [B, P, 3]
+
   # data.pos is [B, N, 3]. With num_slots=1, N=P.
-  contact_pos_w = data.pos # [B, P, 3]
-  
+  contact_pos_w = data.pos  # [B, P, 3]
+
   # Calculate distance
-  dist = torch.norm(contact_pos_w - site_pos_w, dim=-1) # [B, P]
-  
+  dist = torch.norm(contact_pos_w - site_pos_w, dim=-1)  # [B, P]
+
   # Thresholding
   # data.found > 0 checks if any contact was detected by the sensor at all
   is_near = dist < threshold
   contact_at_site = (data.found > 0) & is_near
-  
+
   return contact_at_site.float()
+
 
 def site_contact_both_fingers(
   env: ManagerBasedRlEnv,
@@ -57,20 +59,20 @@ def site_contact_both_fingers(
   """Returns 1.0 if all specified sites are within threshold distance of the object, 0.0 otherwise."""
   robot: Entity = env.scene[asset_cfg.name]
   box: Entity = env.scene["box"]
-  
+
   site_ids, _ = robot.find_sites(site_names, preserve_order=True)
-  site_pos_w = robot.data.site_pos_w[:, site_ids] # [B, P, 3]
-  
-  obj_pos_w = box.data.geom_pos_w[:, 0].unsqueeze(1) # [B, 1, 3]
-  
-  dist_to_obj = torch.norm(site_pos_w - obj_pos_w, dim=-1) # [B, P]
+  site_pos_w = robot.data.site_pos_w[:, site_ids]  # [B, P, 3]
+
+  obj_pos_w = box.data.geom_pos_w[:, 0].unsqueeze(1)  # [B, 1, 3]
+
+  dist_to_obj = torch.norm(site_pos_w - obj_pos_w, dim=-1)  # [B, P]
   both_contact = (dist_to_obj < threshold).all(dim=-1)
-  
+
   if site_pos_w.shape[1] >= 2:
-      dist_between = torch.norm(site_pos_w[:, 0] - site_pos_w[:, 1], dim=-1)
-      apart = dist_between >= min_dist
-      both_contact = both_contact & apart
-      
+    dist_between = torch.norm(site_pos_w[:, 0] - site_pos_w[:, 1], dim=-1)
+    apart = dist_between >= min_dist
+    both_contact = both_contact & apart
+
   # if both_contact.any():
   #     print("\033[92mFLAG: site_contact_both_fingers is TRUE\033[0m")
 

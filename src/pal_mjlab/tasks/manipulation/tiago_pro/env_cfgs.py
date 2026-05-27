@@ -4,6 +4,7 @@ from typing import Literal
 
 from mjlab.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnvCfg
+from mjlab.envs.mdp import terminations as mdp_term
 from mjlab.managers import (
   EventTermCfg,
   ObservationGroupCfg,
@@ -16,11 +17,10 @@ from mjlab.sensor import CameraSensorCfg, ContactMatch, ContactSensorCfg
 from mjlab.tasks.manipulation import mdp as manipulation_mdp
 from mjlab.tasks.manipulation.lift_cube_env_cfg import make_lift_cube_env_cfg
 from mjlab.tasks.velocity import mdp
-from mjlab.envs.mdp import terminations as mdp_term
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
-from pal_mjlab.tasks.manipulation import mdp as manipulation_mdp_pal
 from pal_mjlab.robots.pal_tiago_pro.tiago_pro import TiagoProRobot
+from pal_mjlab.tasks.manipulation import mdp as manipulation_mdp_pal
 
 EPISODE_LENGTH = 10
 
@@ -71,16 +71,16 @@ def lift_env_cfg(
       reduce="none",
       num_slots=1,
     ),
-
     ContactSensorCfg(
       name="gripper_table_contact",
-      primary=ContactMatch(mode="body", pattern=robot.gripper_collision_link_pattern, entity="robot"),
+      primary=ContactMatch(
+        mode="body", pattern=robot.gripper_collision_link_pattern, entity="robot"
+      ),
       secondary=ContactMatch(mode="subtree", pattern="table", entity="table"),
       fields=("found",),
       reduce="none",
       num_slots=1,
     ),
-
     ContactSensorCfg(
       name="box_fingertip_contact",
       primary=ContactMatch(
@@ -161,13 +161,19 @@ def lift_env_cfg(
   cfg.rewards["reaching_object"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_ee_distance),
     weight=5.0,
-    params={"std": 0.15, "command_name": "lift_height", "asset_cfg": _grasp_cfg},
+    params={
+      "std": 0.3,
+      "ee_vel_std": 0.5,
+      "min_reaching_reward": 0.0,
+      "command_name": "lift_height",
+      "asset_cfg": _grasp_cfg,
+    },
   )
   # cfg.rewards["lifting_object"] = RewardTermCfg(
   #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_is_lifted),
   #   weight=1.0,
   #   params={
-  #     "command_name": "lift_height", 
+  #     "command_name": "lift_height",
   #     "sensor_name": "box_fingertip_contact",
   #     "site_names": [robot.fingertip_site_pattern],
   #   },
@@ -176,8 +182,8 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance),
     weight=5.0,
     params={
-      "command_name": "lift_height", 
-      "std": 0.3, 
+      "command_name": "lift_height",
+      "std": 0.3,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
     },
@@ -186,8 +192,8 @@ def lift_env_cfg(
   #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance),
   #   weight=10.0,
   #   params={
-  #     "command_name": "lift_height", 
-  #     "std": 0.05, 
+  #     "command_name": "lift_height",
+  #     "std": 0.05,
   #     "sensor_name": "box_fingertip_contact",
   #     "site_names": [robot.fingertip_site_pattern],
   #   },
@@ -200,17 +206,17 @@ def lift_env_cfg(
 
   cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_both_fingers),
-    weight=3.0, 
+    weight=3.0,
     params={
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
     },
   )
-  cfg.rewards["action_rate_l2"] = RewardTermCfg(
-    func=manipulation_mdp_pal.action_rate_l2,
-    weight=-1.5,
-    params={"action_indices": list(range(6))},
-  )
+  # cfg.rewards["action_rate_l2"] = RewardTermCfg(
+  #   func=manipulation_mdp_pal.action_rate_l2,
+  #   weight=-1.5,
+  #   params={"action_indices": list(range(6))},
+  # )
   # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(
   #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.ee_vel_penalty),
   #   weight=-1.0,
@@ -229,7 +235,7 @@ def lift_env_cfg(
 
   ### CURRICULUMS
   cfg.curriculum.clear()
-  
+
   # cfg.curriculum["reaching_object_std"] = CurriculumTermCfg(
   #   func=mdp.reward_curriculum,
   #   params={
@@ -257,7 +263,7 @@ def lift_env_cfg(
   #       {"step": 4000 * 24, "weight": 25.0},
   #     ],
   #   },
-  # )  
+  # )
 
   ##### DOMAIN RANDOMIZATION ON THE GRIPPER
   for friction_type in ("slide", "spin", "roll"):
