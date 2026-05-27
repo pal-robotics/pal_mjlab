@@ -58,8 +58,14 @@ def lift_env_cfg(
     ),
   }
 
-  cfg.actions.pop("joint_pos", None)
-  cfg.actions["ee_ik"] = robot.arm_action_cfg()
+  from mjlab.envs.mdp.actions import RelativeJointPositionActionCfg
+
+  cfg.actions.pop("ee_ik", None)
+  cfg.actions["joint_pos"] = RelativeJointPositionActionCfg(
+    entity_name="robot",
+    actuator_names=(robot.arm_joint_pattern,),
+    scale=0.05,
+  )
   cfg.actions["gripper"] = robot.gripper_action_cfg()
 
   cfg.scene.sensors = (cfg.scene.sensors or ()) + (
@@ -164,7 +170,7 @@ def lift_env_cfg(
     weight=5.0,
     params={
       "std": 0.3,
-      "ee_vel_std": 0.3,
+      "ee_vel_std": 0.15,
       "min_reaching_reward": 0.0,
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
@@ -213,11 +219,11 @@ def lift_env_cfg(
       "site_names": [robot.fingertip_site_pattern],
     },
   )
-  # cfg.rewards["action_rate_l2"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.action_rate_l2,
-  #   weight=-1.5,
-  #   params={"action_indices": list(range(6))},
-  # )
+  cfg.rewards["action_rate_l2"] = RewardTermCfg(
+    func=manipulation_mdp_pal.action_rate_l2,
+    weight=-0.5,
+    params={"action_indices": list(range(7))},
+  )
   # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(
   #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.ee_vel_penalty),
   #   weight=-1.0,
@@ -289,6 +295,15 @@ def lift_env_cfg(
       "asset_cfg": SceneEntityCfg("table"),
     },
   )
+
+  cfg.events["randomize_box_size"] = EventTermCfg(
+    func=manipulation_mdp_pal.randomize_box_size,
+    mode="startup",
+    params={
+      "asset_cfg": SceneEntityCfg("box", geom_names=("box_geom",)),
+    },
+  )
+
 
   #### TERMINATIONS
   cfg.terminations["nan_term"] = TerminationTermCfg(func=mdp_term.nan_detection)
