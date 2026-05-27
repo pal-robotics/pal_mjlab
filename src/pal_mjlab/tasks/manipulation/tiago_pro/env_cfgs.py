@@ -301,6 +301,10 @@ def lift_env_cfg(
     mode="startup",
     params={
       "asset_cfg": SceneEntityCfg("box", geom_names=("box_geom",)),
+      "cube_size": 0.025,
+      "narrow_x_range": (0.015, 0.025),
+      "narrow_y_range": (0.04, 0.06),
+      "z_range": (0.025, 0.035),
     },
   )
 
