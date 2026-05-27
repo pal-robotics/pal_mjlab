@@ -14,7 +14,21 @@ from mjlab.utils.lab_api.math import quat_from_euler_xyz, sample_uniform
 TABLE_HEIGHT = 0.5
 TABLE_HALF_X = 0.35
 TABLE_HALF_Y = 0.35
-BOX_HALF_SIZE = 0.025
+
+# Procedural randomization of object shape at compile-time:
+# 50% chance of standard/cube-like shape (BOX_HALF_SIZE = 0.025)
+# 50% chance of narrow-but-long shape (X=0.015, Y=0.045)
+# Tallness goes from 0.04 (Z half size 0.02) to 0.07 (Z half size 0.035)
+import random
+if random.random() < 0.5:
+  BOX_HALF_X = 0.025
+  BOX_HALF_Y = 0.025
+else:
+  BOX_HALF_X = random.uniform(0.01,0.02)
+  BOX_HALF_Y = random.uniform(0.04,0.06)
+
+BOX_HALF_Z = random.uniform(0.02, 0.035)
+BOX_HALF_SIZE = 0.025  # Keep for compatibility
 
 
 def get_table_spec() -> mujoco.MjSpec:
@@ -41,7 +55,7 @@ def get_box_spec() -> mujoco.MjSpec:
   body.add_geom(
     name="box_geom",
     type=mujoco.mjtGeom.mjGEOM_BOX,
-    size=(BOX_HALF_SIZE, BOX_HALF_SIZE, 1.5 * BOX_HALF_SIZE),
+    size=(BOX_HALF_X, BOX_HALF_Y, BOX_HALF_Z),
     rgba=(0.8, 0.2, 0.2, 1.0),
     mass=0.1,
     solref=(0.001, 1),
@@ -73,6 +87,15 @@ class LiftingCommand(CommandTerm):
     return self.object.data.root_link_pos_w
 
   @property
+  def table_surface_z(self) -> torch.Tensor:
+    table: Entity = self._env.scene["table"]
+    if table.data.indexing.mocap_id is not None:
+      table_pos_z = table.data.data.mocap_pos[:, table.data.indexing.mocap_id, 2]
+    else:
+      table_pos_z = table.data.root_link_pos_w[:, 2]
+    return table_pos_z + self.cfg.table_height
+
+  @property
   def object_quat_w(self) -> torch.Tensor:
     return self.object.data.root_link_quat_w
 
@@ -99,19 +122,26 @@ class LiftingCommand(CommandTerm):
   def _resample_command(self, env_ids: torch.Tensor) -> None:
     n = len(env_ids)
     self.episode_success[env_ids] = 0.0
+    table_surface_z = self.table_surface_z[env_ids]
 
     r = self.cfg.target_position_range
     lower = torch.tensor([r.x[0], r.y[0], r.z[0]], device=self.device)
     upper = torch.tensor([r.x[1], r.y[1], r.z[1]], device=self.device)
     target_pos = sample_uniform(lower, upper, (n, 3), device=self.device)
-    self.target_pos[env_ids] = target_pos + self._env.scene.env_origins[env_ids]
+    
+    # Target positions: X & Y relative to env origins, Z relative to actual randomized table height.
+    self.target_pos[env_ids, 0:2] = target_pos[:, 0:2] + self._env.scene.env_origins[env_ids, 0:2]
+    self.target_pos[env_ids, 2] = table_surface_z + (target_pos[:, 2] - 0.5)
 
     r = self.cfg.object_pose_range
     lower = torch.tensor([r.x[0], r.y[0], 0.0], device=self.device)
     upper = torch.tensor([r.x[1], r.y[1], 0.0], device=self.device)
     pos = sample_uniform(lower, upper, (n, 3), device=self.device)
-    pos[:, 2] = self.cfg.table_height + self.cfg.object_half_height
-    pos = pos + self._env.scene.env_origins[env_ids]
+    
+    # Spawn box position: X & Y relative to env origins, Z exactly on the actual table surface.
+    pos_x_y = pos[:, 0:2] + self._env.scene.env_origins[env_ids, 0:2]
+    pos_z = table_surface_z + self.cfg.object_half_height
+    pos = torch.cat([pos_x_y, pos_z.unsqueeze(1)], dim=-1)
 
     yaw = sample_uniform(r.yaw[0], r.yaw[1], (n,), device=self.device)
     zeros = torch.zeros(n, device=self.device)

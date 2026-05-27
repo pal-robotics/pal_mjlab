@@ -95,7 +95,7 @@ def lift_env_cfg(
 
   cfg.commands["lift_height"] = manipulation_mdp_pal.LiftingCommandCfg(
     entity_name="box",
-    object_half_height=1.5 * manipulation_mdp_pal.BOX_HALF_SIZE,
+    object_half_height=manipulation_mdp_pal.BOX_HALF_Z,
     table_height=manipulation_mdp_pal.TABLE_HEIGHT,
     contact_sensor_name="box_table_contact",
     resampling_time_range=(EPISODE_LENGTH, EPISODE_LENGTH),
@@ -108,6 +108,7 @@ def lift_env_cfg(
     object_pose_range=manipulation_mdp_pal.LiftingCommandCfg.ObjectPoseRangeCfg(
       x=(0.4, 0.6),
       y=(-0.1, 0.1),
+      yaw=(-3.1415926535, 3.1415926535),
     ),
   )
 
@@ -163,7 +164,7 @@ def lift_env_cfg(
     weight=5.0,
     params={
       "std": 0.3,
-      "ee_vel_std": 0.5,
+      "ee_vel_std": 0.3,
       "min_reaching_reward": 0.0,
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
@@ -283,7 +284,7 @@ def lift_env_cfg(
     func=mdp.reset_root_state_uniform,
     mode="reset",
     params={
-      "pose_range": {},
+      "pose_range": {"z": (-0.05, 0.05)},
       "velocity_range": {},
       "asset_cfg": SceneEntityCfg("table"),
     },
