@@ -214,7 +214,7 @@ def lift_env_cfg(
 
   cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_both_fingers),
-    weight=1.0,
+    weight=3.0,
     params={
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
@@ -222,7 +222,7 @@ def lift_env_cfg(
   )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
-    weight=-0.5,
+    weight=-1.5,
     params={"action_indices": list(range(7))},
   )
   # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(
