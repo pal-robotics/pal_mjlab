@@ -59,10 +59,82 @@ def ee_position_in_robot_base_frame(
 
 
 def camera_rgbd(
-  env: ManagerBasedRlEnv, sensor_name: str, cutoff_distance: float = 1.0
+  env: ManagerBasedRlEnv, sensor_name: str, cutoff_distance: float = 1.5
 ) -> torch.Tensor:
   rgb = manipulation_mdp.camera_rgb(env, sensor_name)
   depth = manipulation_mdp.camera_depth(
     env, sensor_name, cutoff_distance=cutoff_distance
   )
   return torch.cat([rgb, depth], dim=1)
+
+
+def head_camera_keypoints(
+  env: ManagerBasedRlEnv,
+  camera_name: str = "head_realsense_camera",
+  noise_std: float = 0.0,
+  box_entity_name: str = "box",
+  robot_entity_name: str = "robot",
+) -> torch.Tensor:
+  # 1. Box corners
+  box = env.scene[box_entity_name]
+  geom_id = box.indexing.geom_ids[0]
+  box_sizes = env.sim.model.geom_size[:, geom_id]
+  
+  num_envs = env.num_envs
+  local_corners = torch.zeros(num_envs, 4, 3, device=env.device)
+  local_corners[:, 0, 0] = box_sizes[:, 0]
+  local_corners[:, 0, 1] = box_sizes[:, 1]
+  local_corners[:, 0, 2] = 1.5 * box_sizes[:, 2]
+  local_corners[:, 1, 0] = box_sizes[:, 0]
+  local_corners[:, 1, 1] = -box_sizes[:, 1]
+  local_corners[:, 1, 2] = 1.5 * box_sizes[:, 2]
+  local_corners[:, 2, 0] = -box_sizes[:, 0]
+  local_corners[:, 2, 1] = box_sizes[:, 1]
+  local_corners[:, 2, 2] = 1.5 * box_sizes[:, 2]
+  local_corners[:, 3, 0] = -box_sizes[:, 0]
+  local_corners[:, 3, 1] = -box_sizes[:, 1]
+  local_corners[:, 3, 2] = 1.5 * box_sizes[:, 2]
+  
+  box_pos = box.data.root_pos_w if hasattr(box.data, "root_pos_w") else box.data.geom_pos_w[:, 0]
+  box_quat = box.data.root_quat_w if hasattr(box.data, "root_quat_w") else box.data.geom_quat_w[:, 0]
+  box_pos_exp = box_pos.unsqueeze(1).expand(-1, 4, -1)
+  box_quat_exp = box_quat.unsqueeze(1).expand(-1, 4, -1)
+  corners_3d_w = box_pos_exp + quat_apply(box_quat_exp, local_corners)
+  
+  # 2. Fingertip sites
+  robot = env.scene[robot_entity_name]
+  fingertip_site_names = [s for s in robot.site_names if "fingertip" in s]
+  fingertip_pos_w = robot.data.site_pos_w[:, [robot.site_names.index(name) for name in fingertip_site_names]]
+  
+  keypoints_3d_w = torch.cat([corners_3d_w, fingertip_pos_w], dim=1)
+  
+  # 3. Camera Kinematics
+  cam_idx = env.sim.mj_model.camera(f"robot/{camera_name}").id
+  cam_pos = env.sim.data.cam_xpos[:, cam_idx]
+  cam_xmat = env.sim.data.cam_xmat[:, cam_idx]
+  cam_fovy = env.sim.mj_model.cam_fovy[cam_idx]
+  
+  # 4. Transform to Camera coordinates
+  diff = keypoints_3d_w - cam_pos.unsqueeze(1)
+  points_c = torch.bmm(diff, cam_xmat)
+  
+  # 5. Projection to NDC [-1, 1]
+  import math
+  fovy_rad = cam_fovy * (math.pi / 180.0)
+  focal_length = 1.0 / math.tan(fovy_rad / 2.0)
+  
+  x_c = points_c[..., 0]
+  y_c = points_c[..., 1]
+  z_c = points_c[..., 2]
+  z_depth = -z_c
+  
+  u_norm = (x_c / (z_depth + 1e-6)) * focal_length
+  v_norm = (-y_c / (z_depth + 1e-6)) * focal_length
+  keypoints_2d = torch.stack([v_norm, u_norm], dim=-1)
+  
+  # 6. Noise curriculum addition
+  if noise_std > 0.0:
+    keypoints_2d = keypoints_2d + torch.randn_like(keypoints_2d) * noise_std
+    
+  return keypoints_2d.reshape(num_envs, -1)
+
