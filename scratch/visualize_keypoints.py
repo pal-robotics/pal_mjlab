@@ -24,7 +24,7 @@ def load_class(class_name: str):
 TASK_ID = "Mjlab-Manipulation-Lift-Cube-Vision-Curriculum-Pal-Tiago-Pro-v0"
 MODEL_PATH = "/home/lorenzobarbieri/Downloads/model_7999.pt"
 OUTPUT_DIR = "scratch/keypoints"
-DURATION = 4.0  # seconds
+DURATION = 2.0  # seconds
 INTERVAL = 0.1  # seconds
 DEVICE = "cpu" if torch.cuda.is_available() else "cpu"
 

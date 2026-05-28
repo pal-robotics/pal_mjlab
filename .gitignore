@@ -32,3 +32,5 @@ dataset_vis/
 test_results/
 scratch/
 keypoints/
+keypoints_task_vis/
+noisy_keypoints/

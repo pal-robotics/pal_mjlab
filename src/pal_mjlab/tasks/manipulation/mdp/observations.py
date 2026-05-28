@@ -81,22 +81,61 @@ def head_camera_keypoints(
   box_sizes = env.sim.model.geom_size[:, geom_id]
   
   num_envs = env.num_envs
-  local_corners = torch.zeros(num_envs, 4, 3, device=env.device)
-  local_corners[:, 0, 0] = box_sizes[:, 0]
-  local_corners[:, 0, 1] = box_sizes[:, 1]
-  local_corners[:, 0, 2] = 1.5 * box_sizes[:, 2]
-  local_corners[:, 1, 0] = box_sizes[:, 0]
-  local_corners[:, 1, 1] = -box_sizes[:, 1]
-  local_corners[:, 1, 2] = 1.5 * box_sizes[:, 2]
-  local_corners[:, 2, 0] = -box_sizes[:, 0]
-  local_corners[:, 2, 1] = box_sizes[:, 1]
-  local_corners[:, 2, 2] = 1.5 * box_sizes[:, 2]
-  local_corners[:, 3, 0] = -box_sizes[:, 0]
-  local_corners[:, 3, 1] = -box_sizes[:, 1]
-  local_corners[:, 3, 2] = 1.5 * box_sizes[:, 2]
+  device = env.device
   
   box_pos = box.data.root_pos_w if hasattr(box.data, "root_pos_w") else box.data.geom_pos_w[:, 0]
   box_quat = box.data.root_quat_w if hasattr(box.data, "root_quat_w") else box.data.geom_quat_w[:, 0]
+  
+  # Find which local axis of the box points "up" (aligned with world Z axis)
+  unit_x = torch.tensor([1.0, 0.0, 0.0], device=device).expand(num_envs, -1)
+  unit_y = torch.tensor([0.0, 1.0, 0.0], device=device).expand(num_envs, -1)
+  unit_z = torch.tensor([0.0, 0.0, 1.0], device=device).expand(num_envs, -1)
+  
+  axis_x_w = quat_apply(box_quat, unit_x)
+  axis_y_w = quat_apply(box_quat, unit_y)
+  axis_z_w = quat_apply(box_quat, unit_z)
+  
+  align_x = axis_x_w[:, 2]
+  align_y = axis_y_w[:, 2]
+  align_z = axis_z_w[:, 2]
+  
+  alignments = torch.stack([align_x.abs(), align_y.abs(), align_z.abs()], dim=1)
+  up_axis = torch.argmax(alignments, dim=1)
+  
+  up_align = torch.where(
+      up_axis == 0, align_x,
+      torch.where(up_axis == 1, align_y, align_z)
+  )
+  up_sign = torch.sign(up_align)
+  
+  h1_axis = torch.where(up_axis == 0, 1, 0)
+  h2_axis = torch.where(up_axis == 2, 1, 2)
+  
+  size_up = torch.gather(box_sizes, 1, up_axis.unsqueeze(1)).squeeze(1)
+  size_h1 = torch.gather(box_sizes, 1, h1_axis.unsqueeze(1)).squeeze(1)
+  size_h2 = torch.gather(box_sizes, 1, h2_axis.unsqueeze(1)).squeeze(1)
+  
+  local_corners = torch.zeros(num_envs, 4, 3, device=device)
+  env_indices = torch.arange(num_envs, device=device)
+  
+  up_val = up_sign * 1.5 * size_up
+  local_corners[env_indices, 0, up_axis] = up_val
+  local_corners[env_indices, 1, up_axis] = up_val
+  local_corners[env_indices, 2, up_axis] = up_val
+  local_corners[env_indices, 3, up_axis] = up_val
+  
+  local_corners[env_indices, 0, h1_axis] = size_h1
+  local_corners[env_indices, 0, h2_axis] = size_h2
+  
+  local_corners[env_indices, 1, h1_axis] = size_h1
+  local_corners[env_indices, 1, h2_axis] = -size_h2
+  
+  local_corners[env_indices, 2, h1_axis] = -size_h1
+  local_corners[env_indices, 2, h2_axis] = size_h2
+  
+  local_corners[env_indices, 3, h1_axis] = -size_h1
+  local_corners[env_indices, 3, h2_axis] = -size_h2
+  
   box_pos_exp = box_pos.unsqueeze(1).expand(-1, 4, -1)
   box_quat_exp = box_quat.unsqueeze(1).expand(-1, 4, -1)
   corners_3d_w = box_pos_exp + quat_apply(box_quat_exp, local_corners)
