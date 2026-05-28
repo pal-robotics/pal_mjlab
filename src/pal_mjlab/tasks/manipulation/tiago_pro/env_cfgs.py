@@ -5,6 +5,7 @@ from typing import Literal
 from mjlab.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import terminations as mdp_term
+from mjlab.envs.mdp.dr import geom as dr_geom
 from mjlab.managers import (
   CurriculumTermCfg,
   EventTermCfg,
@@ -286,25 +287,55 @@ def lift_env_cfg(
     },
   )
 
+  cfg.events["randomize_table_height"] = EventTermCfg(
+    func=manipulation_mdp_pal.randomize_table_height,
+    mode="startup",
+    params={
+      "table_asset_cfg": SceneEntityCfg(
+        "table",
+        body_names=("table",),
+        geom_names=("table_geom",),
+      ),
+      "height_range": (-0.025, 0.025),
+    },
+  )
+
   cfg.events["reset_table"] = EventTermCfg(
     func=mdp.reset_root_state_uniform,
     mode="reset",
     params={
-      "pose_range": {"z": (-0.05, 0.05)},
+      "pose_range": {},
       "velocity_range": {},
       "asset_cfg": SceneEntityCfg("table"),
     },
   )
 
-  cfg.events["randomize_box_size"] = EventTermCfg(
-    func=manipulation_mdp_pal.randomize_box_size,
+  _box_geom_cfg = SceneEntityCfg("box", geom_names=("box_geom",))
+  cfg.events["randomize_box_size_x"] = EventTermCfg(
+    func=dr_geom.geom_size,
     mode="reset",
     params={
-      "asset_cfg": SceneEntityCfg("box", geom_names=("box_geom",)),
-      "cube_size": 0.025,
-      "narrow_x_range": (0.015, 0.025),
-      "narrow_y_range": (0.04, 0.06),
-      "z_range": (0.025, 0.035),
+      "ranges": {0: (0.02, 0.03)},
+      "asset_cfg": _box_geom_cfg,
+      "operation": "abs",
+    },
+  )
+  cfg.events["randomize_box_size_y"] = EventTermCfg(
+    func=dr_geom.geom_size,
+    mode="reset",
+    params={
+      "ranges": {1: (0.02, 0.06)},
+      "asset_cfg": _box_geom_cfg,
+      "operation": "abs",
+    },
+  )
+  cfg.events["randomize_box_size_z"] = EventTermCfg(
+    func=dr_geom.geom_size,
+    mode="reset",
+    params={
+      "ranges": {2: (0.03, 0.035)},
+      "asset_cfg": _box_geom_cfg,
+      "operation": "abs",
     },
   )
 

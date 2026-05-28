@@ -79,11 +79,13 @@ class LiftingCommand(CommandTerm):
   @property
   def table_surface_z(self) -> torch.Tensor:
     table: Entity = self._env.scene["table"]
-    if table.data.indexing.mocap_id is not None:
-      table_pos_z = table.data.data.mocap_pos[:, table.data.indexing.mocap_id, 2]
-    else:
-      table_pos_z = table.data.root_link_pos_w[:, 2]
-    return table_pos_z + self.cfg.table_height
+    # Read the table geom's world-frame center Z directly from physics data.
+    # This is correct regardless of table height randomization, mocap wrapping, or
+    # env_origin offsets. geom_xpos is updated by mujoco_warp's kinematics.
+    table_geom_id = table.indexing.geom_ids[0]
+    table_geom_center_z = self._env.sim.data.geom_xpos[:, table_geom_id, 2]
+    table_geom_half_z = self._env.sim.model.geom_size[:, table_geom_id, 2]
+    return table_geom_center_z + table_geom_half_z
 
   @property
   def object_quat_w(self) -> torch.Tensor:
