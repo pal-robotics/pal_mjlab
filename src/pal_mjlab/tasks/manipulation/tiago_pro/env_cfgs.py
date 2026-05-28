@@ -6,6 +6,7 @@ from mjlab.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import terminations as mdp_term
 from mjlab.managers import (
+  CurriculumTermCfg,
   EventTermCfg,
   ObservationGroupCfg,
   ObservationTermCfg,
@@ -34,10 +35,10 @@ def lift_env_cfg(
   robot = robot_cfg()
 
   cfg.sim.mujoco.timestep = 0.002
-  cfg.sim.mujoco.iterations = 20
+  cfg.sim.mujoco.iterations = 40
   cfg.sim.mujoco.jacobian = "sparse"
-  cfg.sim.nconmax = 500
-  cfg.sim.njmax = 500
+  cfg.sim.nconmax = 2000
+  cfg.sim.njmax = 2000
   cfg.decimation = 10
   cfg.episode_length_s = EPISODE_LENGTH
   cfg.viewer.lookat = (0.4, 0.0, 0.55)
@@ -169,8 +170,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_ee_distance),
     weight=5.0,
     params={
-      "std": 0.3,
-      "ee_vel_std": 0.15,
+      "std": 0.15,
       "min_reaching_reward": 0.0,
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
@@ -213,7 +213,7 @@ def lift_env_cfg(
 
   cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_both_fingers),
-    weight=3.0,
+    weight=1.0,
     params={
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
@@ -298,7 +298,7 @@ def lift_env_cfg(
 
   cfg.events["randomize_box_size"] = EventTermCfg(
     func=manipulation_mdp_pal.randomize_box_size,
-    mode="startup",
+    mode="reset",
     params={
       "asset_cfg": SceneEntityCfg("box", geom_names=("box_geom",)),
       "cube_size": 0.025,
@@ -406,3 +406,36 @@ def lift_vision_env_cfg(
   )
 
   return cfg
+
+
+def lift_keypoints_env_cfg(
+  play: bool = False,
+  robot_cfg=TiagoProRobot,
+) -> ManagerBasedRlEnvCfg:
+  cfg = lift_env_cfg(play=play, robot_cfg=robot_cfg, cam_source="head")
+
+  terms = {
+    "head_camera_keypoints": ObservationTermCfg(
+      func=manipulation_mdp_pal.head_camera_keypoints,
+      params={"noise_std": 0.015},
+    )
+  }
+
+  cfg.observations["camera"] = ObservationGroupCfg(
+    terms=terms,
+    enable_corruption=False,
+    concatenate_terms=True,
+    nan_policy="sanitize",
+  )
+
+  for name in ("object_position", "object_orientation", "target_object_position"):
+    cfg.observations["actor"].terms.pop(name)
+
+  cfg.observations["actor"].terms["goal_position"] = ObservationTermCfg(
+    func=manipulation_mdp_pal.target_position_in_robot_base_frame,
+    params={"command_name": "lift_height"},
+  )
+
+  return cfg
+
+

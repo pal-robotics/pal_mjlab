@@ -15,7 +15,6 @@ def object_ee_distance(
   std: float,
   command_name: str,
   asset_cfg: SceneEntityCfg | None = None,
-  ee_vel_std: float = 0.5,
   min_reaching_reward: float = 0.0,
 ) -> torch.Tensor:
   if asset_cfg is None:
@@ -27,28 +26,10 @@ def object_ee_distance(
 
   distance_reward = 1.0 - torch.tanh(distance / std)
 
-  # Direction from EE to object (world frame)
-  direction = command.object_pos_w - ee_pos_w
-  unit_direction = direction / (distance.unsqueeze(1) + 1e-6)
-
-  # Relative linear velocity between EE and object (world frame)
-  ee_lin_vel_w = robot.data.site_lin_vel_w[:, asset_cfg.site_ids].squeeze(1)
-  object_lin_vel_w = command.object.data.root_link_lin_vel_w
-  relative_velocity = ee_lin_vel_w - object_lin_vel_w
-
-  # Closing/approach speed (projection of relative velocity along the direction vector)
-  approach_speed = torch.sum(relative_velocity * unit_direction, dim=-1)
-  clamped_approach_speed = torch.clamp(approach_speed, min=0.0)
-
-  # Exponential penalty for closing speed
-  ee_vel_exp = torch.exp(-((clamped_approach_speed / ee_vel_std) ** 2))
-  velocity_penalty = 1.0 - ee_vel_exp
-
-  # Subtract velocity penalty from reaching distance reward
-  reaching_reward = distance_reward - velocity_penalty
-
   # Never be a penalization (min clip) and maintain 1.0 max
-  return torch.clamp(reaching_reward, min=min_reaching_reward, max=1.0)
+  return torch.clamp(distance_reward, min=min_reaching_reward, max=1.0)
+
+
 
 
 
