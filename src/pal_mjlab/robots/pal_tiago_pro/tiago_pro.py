@@ -35,12 +35,10 @@ class TiagoProRobot:
     )
 
   def gripper_action_cfg(self) -> Any:
-    from mjlab.envs.mdp.actions import JointPositionActionCfg
+    from mjlab.envs.mdp.actions import RelativeJointPositionActionCfg
 
-    return JointPositionActionCfg(
+    return RelativeJointPositionActionCfg(
       entity_name="robot",
       actuator_names=(self.gripper_joint_pattern,),
-      scale=0.035,
-      offset=0.035,
-      use_default_offset=False,
+      scale=0.01,
     )
