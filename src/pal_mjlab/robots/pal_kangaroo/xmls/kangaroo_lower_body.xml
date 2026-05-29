@@ -88,8 +88,8 @@
                   <inertial pos="0.00560127 -5.98529e-06 -0.0297244" quat="-8.95501e-06 0.58162 -1.58775e-05 0.813461" mass="0.61563" diaginertia="0.0019868 0.00170803 0.000338695" />
                   <joint name="leg_left_5_joint" axis="-1 0 0" range="-0.471239 0.471239" />
                   <geom class="visual" mesh="leg_7_link" />
-                  <site name="left_foot" pos="0.0575 0 -0.0243" size="0.015"/>
-                  <body name="leg_left_foot_link" pos="0 0 -0.034" quat="0.9848078 0 -0.1736482 0">
+                  <site name="left_foot" pos="0.0145358561 0.0 -0.0399369364" size="0.015" quat="0.9848078 0 -0.1736482 0"/>
+                  <body name="leg_left_foot_link" pos="0 0 -0.0345" quat="0.9848078 0 -0.1736482 0">
                     <geom name="left_foot0_collision"  class="foot_capsule" fromto="-0.0830 -0.035 0 0.110 -0.0330 0"/>
                     <geom name="left_foot2_collision"  class="foot_capsule" fromto="-0.0975 -0.021 0 0.120 -0.0215 0"/>
                     <geom name="left_foot4_collision"  class="foot_capsule" fromto="-0.0985 -0.007 0 0.122 -0.0065 0"/>
@@ -145,8 +145,8 @@
                   <inertial pos="0.00560127 -5.98529e-06 -0.0297244" quat="-8.95501e-06 0.58162 -1.58775e-05 0.813461" mass="0.61563" diaginertia="0.0019868 0.00170803 0.000338695" />
                   <joint name="leg_right_5_joint" axis="-1 0 0" range="-0.471239 0.471239" />
                   <geom class="visual" mesh="leg_7_link" />
-                  <site name="right_foot" pos="0.0575 0 -0.0243" size="0.015"/>
-                  <body name="leg_right_foot_link" pos="0 0 -0.034" quat="0.9848078 0 -0.1736482 0">
+                  <site name="right_foot" pos="0.0145358561 0.0 -0.0399369364" size="0.015" quat="0.9848078 0 -0.1736482 0"/>
+                  <body name="leg_right_foot_link" pos="0 0 -0.0345" quat="0.9848078 0 -0.1736482 0">
                     <geom name="right_foot0_collision"  class="foot_capsule" fromto="-0.0830 -0.035 0 0.110 -0.0330 0"/>
                     <geom name="right_foot2_collision"  class="foot_capsule" fromto="-0.0975 -0.021 0 0.120 -0.0215 0"/>
                     <geom name="right_foot4_collision"  class="foot_capsule" fromto="-0.0985 -0.007 0 0.122 -0.0065 0"/>
