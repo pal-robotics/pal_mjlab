@@ -1245,6 +1245,22 @@ wheels = [
 ]
 
 [[package]]
+name = "moviepy"
+version = "0.2.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "decorator" },
+    { name = "imageio" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/64/08/2b9b253cbdc5d09fbd844acd03810df6fba822f7b045710a5d7044a9275a/moviepy-0.2.3.1.tar.gz", hash = "sha256:c56165ec07315dfb94f23ed541b9099f6e1ffe7ff980f254ea2fe37355ee2b95", size = 115727, upload-time = "2017-04-05T03:50:04.441Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/83/6d/1c5827d4cd24ab501c11940e2f46a5e170c73aae94d862edc208e0cd48b0/moviepy-0.2.3.1-py2.py3-none-any.whl", hash = "sha256:5188c506d43a881d606f0757df42ed73402d43ba1107c6a6b0550f8db8bc97fd", size = 119386, upload-time = "2017-04-05T03:50:01.991Z" },
+]
+
+[[package]]
 name = "mpmath"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1834,6 +1850,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "mjlab" },
+    { name = "moviepy" },
 ]
 
 [package.dev-dependencies]
@@ -1842,7 +1859,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "mjlab", specifier = ">=1.5.0" }]
+requires-dist = [
+    { name = "mjlab", specifier = ">=1.5.0" },
+    { name = "moviepy" },
+]
 
 [package.metadata.requires-dev]
 dev = [{ name = "ruff", specifier = ">=0.14.14" }]
