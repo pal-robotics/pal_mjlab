@@ -39,7 +39,7 @@ def lift_ppo_runner_cfg(experiment_name: str = "lift") -> RslRlOnPolicyRunnerCfg
     experiment_name=experiment_name,
     save_interval=500,
     num_steps_per_env=24,
-    max_iterations=10000,
+    max_iterations=20000,
   )
 
 
@@ -60,7 +60,7 @@ def lift_vision_ppo_runner_cfg(
     "spatial_softmax_temperature": 0.5,  # Matches the fixed offline training temperature
   }
   class_name = "mjlab.rl.spatial_softmax:SpatialSoftmaxCNNModel"
-  return RslRlOnPolicyRunnerCfg(
+  cfg = RslRlOnPolicyRunnerCfg(
     actor=RslRlModelCfg(
       hidden_dims=(256, 256, 128),
       activation="elu",
@@ -103,13 +103,17 @@ def lift_vision_ppo_runner_cfg(
       "critic": ("critic", "camera"),
     },
   )
+  cfg.backbone_mode = "curriculum"
+  cfg.unfreeze_at = 30000
+  cfg.fine_tune_lr = 1e-5
+  return cfg
 
 
 def lift_vision_convnext_ppo_runner_cfg(
   experiment_name: str = "lift_depth_convnext",
 ) -> RslRlOnPolicyRunnerCfg:
   class_name = "pal_mjlab.tasks.manipulation.mdp.convnext:SpatialSoftmaxConvNeXtModel"
-  return RslRlOnPolicyRunnerCfg(
+  cfg = RslRlOnPolicyRunnerCfg(
     actor=RslRlModelCfg(
       hidden_dims=(256, 256, 128),
       activation="elu",
@@ -152,3 +156,5 @@ def lift_vision_convnext_ppo_runner_cfg(
       "critic": ("critic", "camera"),
     },
   )
+  cfg.backbone_mode = "frozen"
+  return cfg

@@ -61,12 +61,13 @@ def lift_env_cfg(
   }
 
   from mjlab.envs.mdp.actions import RelativeJointPositionActionCfg
+  from pal_mjlab.robots import TIAGO_PRO_ACTION_SCALE
 
   cfg.actions.pop("ee_ik", None)
   cfg.actions["joint_pos"] = RelativeJointPositionActionCfg(
     entity_name="robot",
     actuator_names=(robot.arm_joint_pattern,),
-    scale=0.05,
+    scale={k: v for k, v in TIAGO_PRO_ACTION_SCALE.items() if "gripper" not in k},
   )
   cfg.actions["gripper"] = robot.gripper_action_cfg()
 
@@ -138,6 +139,19 @@ def lift_env_cfg(
       func=manipulation_mdp_pal.object_orientation_in_robot_root_frame,
       params={"command_name": "lift_height"},
     )
+
+    ##########6D
+    # terms["object_pose_6d"] = ObservationTermCfg(
+    #   func=manipulation_mdp_pal.object_pose_6d_in_robot_root_frame,
+    #   params={"command_name": "lift_height"},
+    # )
+    ###############
+
+
+
+
+
+
     terms["target_object_position"] = ObservationTermCfg(
       func=manipulation_mdp_pal.target_position_in_robot_base_frame,
       params={"command_name": "lift_height"},
@@ -163,6 +177,11 @@ def lift_env_cfg(
 
   # for name in ("object_position", "object_orientation", "target_object_position"):
   #   cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
+
+  # cfg.observations["actor"].terms["object_pose_6d"].noise = Unoise(
+  #   n_min=[-0.01, -0.01, -0.01, -0.05, -0.05, -0.05],
+  #   n_max=[0.01, 0.01, 0.01, 0.05, 0.05, 0.05],
+  # )
 
   #### REWARDS
   cfg.rewards.clear()

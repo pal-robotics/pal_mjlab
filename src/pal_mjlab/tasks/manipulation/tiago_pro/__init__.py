@@ -32,23 +32,21 @@ register_mjlab_task(
   runner_cls=ManipulationOnPolicyRunner,
 )
 
-from .curriculum_runner import VisionCurriculumRunner
+from .pretrained_runner import VisionPretrainedRunner
 
 register_mjlab_task(
   task_id="Mjlab-Manipulation-Lift-Cube-Vision-Curriculum-Pal-Tiago-Pro-v0",
   env_cfg=lift_vision_env_cfg("depth"),
   play_env_cfg=lift_vision_env_cfg("depth", play=True),
   rl_cfg=lift_vision_ppo_runner_cfg(),
-  runner_cls=VisionCurriculumRunner,
+  runner_cls=VisionPretrainedRunner,
 )
-
-from .frozen_runner import VisionFrozenRunner
 
 register_mjlab_task(
   task_id="Mjlab-Manipulation-Lift-Cube-Vision-ConvNeXt-Pal-Tiago-Pro-v0",
   env_cfg=lift_vision_env_cfg("depth"),
   play_env_cfg=lift_vision_env_cfg("depth", play=True),
   rl_cfg=lift_vision_convnext_ppo_runner_cfg(),
-  runner_cls=VisionFrozenRunner,
+  runner_cls=VisionPretrainedRunner,
 )
 

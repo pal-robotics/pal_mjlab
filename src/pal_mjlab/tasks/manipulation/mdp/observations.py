@@ -5,7 +5,7 @@ from mjlab.entity import Entity
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.tasks.manipulation import mdp as manipulation_mdp
-from mjlab.utils.lab_api.math import quat_apply, quat_inv, quat_mul
+from mjlab.utils.lab_api.math import quat_apply, quat_inv, quat_mul, euler_xyz_from_quat
 
 from pal_mjlab.tasks.manipulation.mdp.commands import LiftingCommand
 
@@ -31,6 +31,18 @@ def object_orientation_in_robot_root_frame(
   robot: Entity = env.scene[asset_cfg.name]
   command: LiftingCommand = env.command_manager.get_term(command_name)
   return quat_mul(quat_inv(robot.data.root_link_quat_w), command.object_quat_w)
+
+
+def object_pose_6d_in_robot_root_frame(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+  obj_pos = object_position_in_robot_root_frame(env, command_name, asset_cfg)
+  obj_quat = object_orientation_in_robot_root_frame(env, command_name, asset_cfg)
+  roll, pitch, yaw = euler_xyz_from_quat(obj_quat)
+  obj_euler = torch.stack([roll, pitch, yaw], dim=-1)
+  return torch.cat([obj_pos, obj_euler], dim=-1)
 
 
 def target_position_in_robot_base_frame(
