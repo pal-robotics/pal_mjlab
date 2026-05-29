@@ -202,4 +202,4 @@
     <subtreeangmom  name="root_angmom" body="base_link"/>
     <framequat      name="imu_quat" objtype="site" objname="imu"/>
   </sensor>
-</mujoco>R
+</mujoco>
