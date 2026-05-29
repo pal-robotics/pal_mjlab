@@ -38,8 +38,8 @@ def lift_env_cfg(
   cfg.sim.mujoco.timestep = 0.002
   cfg.sim.mujoco.iterations = 40
   cfg.sim.mujoco.jacobian = "sparse"
-  cfg.sim.nconmax = 2000
-  cfg.sim.njmax = 2000
+  cfg.sim.nconmax = 1500
+  cfg.sim.njmax = 1500
   cfg.decimation = 10
   cfg.episode_length_s = EPISODE_LENGTH
   cfg.viewer.lookat = (0.4, 0.0, 0.55)
@@ -161,8 +161,8 @@ def lift_env_cfg(
     },
   )
 
-  for name in ("object_position", "object_orientation", "target_object_position"):
-    cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
+  # for name in ("object_position", "object_orientation", "target_object_position"):
+  #   cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
 
   #### REWARDS
   cfg.rewards.clear()
@@ -223,7 +223,7 @@ def lift_env_cfg(
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
     weight=-1.5,
-    params={"action_indices": list(range(7))},
+    params={"action_indices": list(range(8))},
   )
   # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(
   #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.ee_vel_penalty),
@@ -315,7 +315,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {0: (0.02, 0.03)},
+      "ranges": {0: (0.025, 0.025)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
@@ -324,7 +324,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {1: (0.02, 0.06)},
+      "ranges": {1: (0.025, 0.025)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
@@ -333,7 +333,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {2: (0.03, 0.035)},
+      "ranges": {2: (0.0375, 0.0375)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },

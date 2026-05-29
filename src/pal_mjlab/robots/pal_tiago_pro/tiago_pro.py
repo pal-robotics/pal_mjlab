@@ -30,8 +30,8 @@ class TiagoProRobot:
       actuator_names=(self.arm_joint_pattern,),
       frame_name=self.ee_site,
       frame_type="site",
-      delta_pos_scale=0.01,  # Max displacement of 0.01m per step (0.5m/s max velocity)
-      delta_ori_scale=0.01,  # Max rotation of 0.01 rad per step (0.5 rad/s max angular velocity)
+      delta_pos_scale=0.005,  # Max displacement of 0.01m per step (0.5m/s max velocity)
+      delta_ori_scale=0.005,  # Max rotation of 0.01 rad per step (0.5 rad/s max angular velocity)
     )
 
   def gripper_action_cfg(self) -> Any:

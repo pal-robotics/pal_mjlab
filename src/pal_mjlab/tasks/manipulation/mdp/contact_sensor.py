@@ -52,7 +52,7 @@ def site_contact_both_fingers(
   env: ManagerBasedRlEnv,
   sensor_name: str,
   site_names: list[str],
-  threshold: float = 0.04,
+  threshold: float = 0.03,
   asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
   min_dist: float = 0.03,
 ) -> torch.Tensor:
