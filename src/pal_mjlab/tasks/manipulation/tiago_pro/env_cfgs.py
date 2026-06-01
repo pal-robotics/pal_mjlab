@@ -141,10 +141,10 @@ def lift_env_cfg(
     )
 
     ##########6D
-    # terms["object_pose_6d"] = ObservationTermCfg(
-    #   func=manipulation_mdp_pal.object_pose_6d_in_robot_root_frame,
-    #   params={"command_name": "lift_height"},
-    # )
+    terms["object_pose_6d"] = ObservationTermCfg(
+      func=manipulation_mdp_pal.object_pose_6d_in_robot_root_frame,
+      params={"command_name": "lift_height"},
+    )
     ###############
 
 
@@ -178,10 +178,10 @@ def lift_env_cfg(
   # for name in ("object_position", "object_orientation", "target_object_position"):
   #   cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
 
-  # cfg.observations["actor"].terms["object_pose_6d"].noise = Unoise(
-  #   n_min=[-0.01, -0.01, -0.01, -0.05, -0.05, -0.05],
-  #   n_max=[0.01, 0.01, 0.01, 0.05, 0.05, 0.05],
-  # )
+  cfg.observations["actor"].terms["object_pose_6d"].noise = Unoise(
+    n_min=(-0.01, -0.01, -0.01, -0.05, -0.05, -0.05),
+    n_max=(0.01, 0.01, 0.01, 0.05, 0.05, 0.05),
+  )
 
   #### REWARDS
   cfg.rewards.clear()
@@ -242,7 +242,7 @@ def lift_env_cfg(
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
     weight=-1.5,
-    params={"action_indices": list(range(8))},
+    params={"action_indices": list(range(7))},
   )
   # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(
   #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.ee_vel_penalty),
