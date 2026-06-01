@@ -70,7 +70,7 @@ class ConvNeXtBackbone(nn.Module):
     super().__init__()
     # 128x128 -> 64x64
     self.stem = nn.Sequential(
-      nn.Conv2d(1, 32, kernel_size=4, stride=2, padding=1), LayerNorm2d(32)
+      nn.Conv2d(3, 32, kernel_size=4, stride=2, padding=1), LayerNorm2d(32)
     )
     self.stage1 = nn.Sequential(ConvNeXtBlock(32), ConvNeXtBlock(32))
     # 64x64 -> 32x32
@@ -81,15 +81,29 @@ class ConvNeXtBackbone(nn.Module):
 
     self.head = nn.Conv2d(64, num_keypoints, kernel_size=1)
     self.spatial_softmax = SpatialSoftmax(32, 32, temperature=0.5)
+    
+    # 6D Pose Head
+    self.pose_head = nn.Sequential(
+      nn.Linear(64, 64),
+      nn.ELU(),
+      nn.Linear(64, 6),
+    )
 
   def forward(self, x: torch.Tensor) -> torch.Tensor:
     x = self.stem(x)
     x = self.stage1(x)
     x = self.downsample(x)
-    x = self.stage2(x)
-    x = self.head(x)
-    x = self.spatial_softmax(x)
-    return x
+    features = self.stage2(x)
+    
+    # Keypoint branch
+    kps = self.head(features)
+    kps = self.spatial_softmax(kps)
+    
+    # 6D Pose branch
+    pooled = torch.mean(features, dim=[2, 3])
+    pose = self.pose_head(pooled)
+    
+    return torch.cat([kps, pose], dim=-1)
 
 
 class SpatialSoftmaxConvNeXt(nn.Module):
@@ -98,16 +112,16 @@ class SpatialSoftmaxConvNeXt(nn.Module):
   def __init__(self, num_keypoints: int = 6):
     super().__init__()
     self.convnext = ConvNeXtBackbone(num_keypoints=num_keypoints)
-    self._output_dim = num_keypoints * 2
+    self._output_dim = num_keypoints * 2 + 6
 
   @property
   def output_dim(self) -> int:
-    """Total flattened keypoints dimension (C * 2)."""
+    """Total flattened keypoints + pose dimension (C * 2 + 6)."""
     return self._output_dim
 
   @property
   def output_channels(self) -> None:
-    """Always None indicating flat keypoint predictions."""
+    """Always None indicating flat predictions."""
     return None
 
   def forward(self, x: torch.Tensor) -> torch.Tensor:

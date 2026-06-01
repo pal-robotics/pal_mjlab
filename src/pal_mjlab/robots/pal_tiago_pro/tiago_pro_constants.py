@@ -160,7 +160,7 @@ for a in TIAGO_PRO_ARTICULATION.actuators:
 
   for n in names:
     if n in e and n in s and s[n]:
-      TIAGO_PRO_ACTION_SCALE[n] = 0.15 * e[n] / s[n]
+      TIAGO_PRO_ACTION_SCALE[n] = 0.25 * e[n] / s[n] if "gripper" in n else 0.1 * e[n] / s[n]
       TIAGO_PRO_ACTUATOR_NAMES += (n,)
 
 

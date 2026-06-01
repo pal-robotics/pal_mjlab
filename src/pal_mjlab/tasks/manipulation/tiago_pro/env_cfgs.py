@@ -117,7 +117,7 @@ def lift_env_cfg(
     object_pose_range=manipulation_mdp_pal.LiftingCommandCfg.ObjectPoseRangeCfg(
       x=(0.4, 0.6),
       y=(-0.1, 0.1),
-      yaw=(-3.1415926535, 3.1415926535),
+      yaw=(-0.77, 0.77),
     ),
   )
 
