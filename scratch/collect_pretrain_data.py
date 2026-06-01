@@ -3,9 +3,13 @@ import json
 import argparse
 import torch
 import numpy as np
+from PIL import Image
 from mjlab.envs import ManagerBasedRlEnv
-from pal_mjlab.tasks.manipulation.tiago_pro.env_cfgs import lift_vision_env_cfg, _BOX_HALF_SIZE
+from pal_mjlab.tasks.manipulation.tiago_pro.env_cfgs import lift_vision_env_cfg
+from pal_mjlab.tasks.manipulation.mdp.observations import object_pose_6d_in_robot_root_frame
 from rsl_rl.modules import EmpiricalNormalization
+
+_BOX_HALF_SIZE = 0.025
 
 # --- Expert Actor Definition with Empirical Normalization ---
 
@@ -28,7 +32,7 @@ class OracleExpert(torch.nn.Module):
         # joint_pos(7) + joint_vel(7) + actions(7) + object_pos(3) + object_ori(4) + target_pos(3) + gripper_pos(1) + ee_pos(3)
         # This matches exactly the first 35 features of the 'critic' observation group.
         critic_obs = obs_dict["critic"]
-        oracle_obs = critic_obs[:, :-2] # Drop the last 2 features (finger_contact)
+        oracle_obs = critic_obs[:, :35] # Take exactly the first 35 features
         normalized_obs = self.obs_normalizer(oracle_obs)
         return self.mlp(normalized_obs)
 
@@ -78,9 +82,9 @@ def collect_data(args):
     os.makedirs(save_dir, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # 1. Instantiate environment
+    # 1. Instantiate environment with RGB type (so RGB observations are processed)
     print(f"Initializing environment with {num_envs} envs...")
-    cfg = lift_vision_env_cfg(cam_type="depth")
+    cfg = lift_vision_env_cfg(cam_type="rgb")
     cfg.scene.num_envs = num_envs
     env = ManagerBasedRlEnv(cfg=cfg, device="cuda")
     
@@ -126,17 +130,23 @@ def collect_data(args):
             with torch.no_grad():
                 camera = env.scene.sensors[camera_name]
                 expert_obs = {
-                    "critic": obs["critic"],
-                    "camera": torch.clamp(camera.data.depth.permute(0, 3, 1, 2), 0, 1.5)
+                    "critic": obs["critic"]
                 }
                 actions = expert(expert_obs)
+                if actions.shape[1] < env.action_manager.total_action_dim:
+                    pad_dim = env.action_manager.total_action_dim - actions.shape[1]
+                    actions = torch.cat([actions, torch.zeros(actions.shape[0], pad_dim, device=actions.device)], dim=-1)
                 
             obs, _, _, _, _ = env.step(actions)
             steps += 1
             
             # Retrieve all batch items
+            rgb_images = camera.data.rgb.cpu().numpy()
             depth_images = camera.data.depth.cpu().numpy()
             keypoints_3d = get_3d_keypoints(env)
+            
+            # Extract ground truth 6D pose of object in robot root frame
+            poses_6d = object_pose_6d_in_robot_root_frame(env, "lift_height").cpu().numpy()
             
             from mjlab.utils.lab_api.math import quat_from_matrix
             sim_data = env.sim.data
@@ -158,9 +168,11 @@ def collect_data(args):
                 if len(dataset_labels) >= target_count:
                     break
                     
+                rgb_image = rgb_images[b]
                 depth_image = depth_images[b]
                 kps_raw = kps_raw_batch[b]
                 z_expected = z_expected_batch[b]
+                pose_6d_val = poses_6d[b]
                 
                 # Calculate visibility mask based on depth buffer comparison
                 visibility_list = []
@@ -180,12 +192,16 @@ def collect_data(args):
                         break
                 
                 if valid:
-                    filename = f"depth_{len(dataset_labels):05d}.npy"
-                    np.save(os.path.join(save_dir, filename), depth_image)
+                    filename = f"rgb_{len(dataset_labels):05d}.png"
+                    # Save as PNG
+                    img = Image.fromarray(rgb_image.astype(np.uint8))
+                    img.save(os.path.join(save_dir, filename))
+                    
                     dataset_labels.append({
-                        "depth": filename,
+                        "rgb": filename,
                         "keypoints": kps_raw.tolist(),
-                        "visibility": visibility_list
+                        "visibility": visibility_list,
+                        "pose_6d": pose_6d_val.tolist()
                     })
                     if len(dataset_labels) % 100 == 0:
                         print(f"Collected {len(dataset_labels)}/{num_samples}...")
@@ -245,20 +261,16 @@ if __name__ == "__main__":
         if args.num_samples is None:
             args.num_samples = 100000
         if args.save_dir is None:
-            args.save_dir = "dataset"
+            args.save_dir = "dataset_rgb"
         if args.models is None:
-            args.models = ["~/Downloads/model_18400.pt"]
+            args.models = ["/home/lorenzobarbieri/pal_mjlab_manipulation/pal_mjlab/logs/rsl_rl/lift/2026-05-20_17-53-58/model_3500.pt"]
     else: # validation
         if args.num_samples is None:
             args.num_samples = 10000
         if args.save_dir is None:
-            args.save_dir = "dataset_val"
+            args.save_dir = "dataset_rgb_val"
         if args.models is None:
-            # Populating typical checkpoints as default validation list
             args.models = [
-                "~/Downloads/model_14200.pt",
-                "~/Downloads/model_10000.pt",
-                "~/Downloads/model_14000.pt",
                 "/home/lorenzobarbieri/pal_mjlab_manipulation/pal_mjlab/logs/rsl_rl/lift/2026-05-20_17-53-58/model_3500.pt"
             ]
             

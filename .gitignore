@@ -30,7 +30,10 @@ dataset/
 dataset_val/
 dataset_vis/
 test_results/
-scratch/
 keypoints/
+check_gripper.py
 keypoints_task_vis/
 noisy_keypoints/
+
+test_results_cnn/
+test_results_convnext/
