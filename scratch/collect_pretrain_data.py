@@ -16,15 +16,15 @@ _BOX_HALF_SIZE = 0.025
 class OracleExpert(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.obs_normalizer = EmpiricalNormalization(35)
+        self.obs_normalizer = EmpiricalNormalization(36)
         self.mlp = torch.nn.Sequential(
-            torch.nn.Linear(35, 512),
+            torch.nn.Linear(36, 512),
             torch.nn.ELU(),
             torch.nn.Linear(512, 256),
             torch.nn.ELU(),
             torch.nn.Linear(256, 128),
             torch.nn.ELU(),
-            torch.nn.Linear(128, 7)
+            torch.nn.Linear(128, 8)
         )
 
     def forward(self, obs_dict):
@@ -32,7 +32,7 @@ class OracleExpert(torch.nn.Module):
         # joint_pos(7) + joint_vel(7) + actions(7) + object_pos(3) + object_ori(4) + target_pos(3) + gripper_pos(1) + ee_pos(3)
         # This matches exactly the first 35 features of the 'critic' observation group.
         critic_obs = obs_dict["critic"]
-        oracle_obs = critic_obs[:, :35] # Take exactly the first 35 features
+        oracle_obs = critic_obs[:, :36] # Take exactly the first 35 features
         normalized_obs = self.obs_normalizer(oracle_obs)
         return self.mlp(normalized_obs)
 

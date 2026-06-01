@@ -12,8 +12,14 @@ def test():
         "--backbone",
         type=str,
         choices=["cnn", "convnext"],
-        default="cnn",
-        help="Visual backbone architecture type (default: cnn)"
+        default="convnext",
+        help="Visual backbone architecture type (default: convnext)"
+    )
+    parser.add_argument(
+        "--weights",
+        type=str,
+        default=None,
+        help="Path to .pth weights file (overrides default per-backbone path)"
     )
     parser.add_argument(
         "--dataset",
@@ -29,15 +35,18 @@ def test():
     print(f"Loading trained model ({args.backbone.upper()})...")
     if args.backbone == "cnn":
         model = PolicyCNNBackbone(num_keypoints=6).to(device)
-        model_path = "pretrained_backbone.pth"
+        default_path = "pretrained_backbone.pth"
     else:
         model = ConvNeXtBackbone(num_keypoints=6).to(device)
-        model_path = "pretrained_convnext.pth"
-        
+        default_path = "pretrained_convnext.pth"
+
+    model_path = args.weights if args.weights is not None else default_path
+
     if not os.path.exists(model_path):
-        print(f"Error: Trained model file {model_path} not found. Please train the backbone first.")
+        print(f"Error: Trained model file {model_path} not found.")
         return
-        
+
+    print(f"Weights: {model_path}")
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
     
