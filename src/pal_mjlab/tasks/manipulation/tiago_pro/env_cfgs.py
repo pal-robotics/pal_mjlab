@@ -141,10 +141,10 @@ def lift_env_cfg(
     )
 
     ##########6D
-    terms["object_pose_6d"] = ObservationTermCfg(
-      func=manipulation_mdp_pal.object_pose_6d_in_robot_root_frame,
-      params={"command_name": "lift_height"},
-    )
+    # terms["object_pose_6d"] = ObservationTermCfg(
+    #   func=manipulation_mdp_pal.object_pose_6d_in_robot_root_frame,
+    #   params={"command_name": "lift_height"},
+    # )
     ###############
 
 
@@ -178,10 +178,10 @@ def lift_env_cfg(
   # for name in ("object_position", "object_orientation", "target_object_position"):
   #   cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
 
-  cfg.observations["actor"].terms["object_pose_6d"].noise = Unoise(
-    n_min=(-0.01, -0.01, -0.01, -0.05, -0.05, -0.05),
-    n_max=(0.01, 0.01, 0.01, 0.05, 0.05, 0.05),
-  )
+  # cfg.observations["actor"].terms["object_pose_6d"].noise = Unoise(
+  #   n_min=(-0.01, -0.01, -0.01, -0.05, -0.05, -0.05),
+  #   n_max=(0.01, 0.01, 0.01, 0.05, 0.05, 0.05),
+  # )
 
   #### REWARDS
   cfg.rewards.clear()
