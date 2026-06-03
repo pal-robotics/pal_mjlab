@@ -113,8 +113,8 @@ if __name__ == "__main__":
     env_cfg = lift_env_cfg(play=True)
     env = ManagerBasedRlEnv(cfg=env_cfg, device="cpu")
     
-    pt_file = "/home/lorenzobarbieri/pal_mjlab_manipulation/pal_mjlab/2026-06-01_18-39-57/model_19500.pt"
-    onnx_file = "/home/lorenzobarbieri/exchange/tiago_pro_sim_ws/src/pal_policy_deployer/pal_policy_deployer/models/tiagopro/2026-06-01_18-39-57.onnx"
+    pt_file = "/home/lorenzobarbieri/model_1500.pt"
+    onnx_file = "/home/lorenzobarbieri/exchange/tiago_pro_sim_ws/src/pal_policy_deployer/pal_policy_deployer/models/tiagopro/omniscent_debug.onnx"
     
     # Run the export
-    export_rsl_rl_policy(pt_file, onnx_file, env, "2026-06-01_18-39-57")
+    export_rsl_rl_policy(pt_file, onnx_file, env, "omniscent_debug")
