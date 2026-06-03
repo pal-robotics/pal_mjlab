@@ -302,7 +302,7 @@ def lift_env_cfg(
     params={
       "position_range": (-0.1, 0.1),
       "velocity_range": (0.0, 0.0),
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=("^(?!torso_lift_joint).*$",)),
     },
   )
 

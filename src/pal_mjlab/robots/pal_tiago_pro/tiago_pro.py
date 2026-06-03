@@ -3,7 +3,7 @@ from typing import Any
 
 from mjlab.entity import EntityCfg
 
-from .tiago_pro_constants import get_tiago_pro_robot_cfg
+from .tiago_pro_constants import TIAGO_PRO_ACTION_SCALE, get_tiago_pro_robot_cfg
 
 
 @dataclass
@@ -40,5 +40,5 @@ class TiagoProRobot:
     return RelativeJointPositionActionCfg(
       entity_name="robot",
       actuator_names=(self.gripper_joint_pattern,),
-      scale=0.01,
+      scale=TIAGO_PRO_ACTION_SCALE[self.gripper_joint_pattern],
     )

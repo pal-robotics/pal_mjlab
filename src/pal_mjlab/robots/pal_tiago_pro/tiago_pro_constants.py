@@ -167,8 +167,11 @@ for a in TIAGO_PRO_ARTICULATION.actuators:
 
   for n in names:
     if n in e and n in s and s[n]:
-      TIAGO_PRO_ACTION_SCALE[n] = 0.1 * e[n] / s[n] if "gripper" in n else 0.05 * e[n] / s[n]
+      TIAGO_PRO_ACTION_SCALE[n] = 0.05 * e[n] / s[n]
       TIAGO_PRO_ACTUATOR_NAMES += (n,)
+
+# Override gripper scale: tuned to 0.01 (formula-derived ~0.001528 is too small for control)
+TIAGO_PRO_ACTION_SCALE["gripper_right_finger_joint"] = 0.01
 
 
 if __name__ == "__main__":
