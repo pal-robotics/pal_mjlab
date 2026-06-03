@@ -115,9 +115,9 @@ def lift_env_cfg(
       z=(0.65, 0.85),
     ),
     object_pose_range=manipulation_mdp_pal.LiftingCommandCfg.ObjectPoseRangeCfg(
-      x=(0.4, 0.6),
-      y=(-0.1, 0.1),
-      yaw=(-0.77, 0.77),
+      x=(0.3, 0.7),
+      y=(-0.2, 0.2),
+      yaw=(-0.2, 0.2),
     ),
   )
 
@@ -308,9 +308,19 @@ def lift_env_cfg(
     },
   )
 
+  cfg.events["reset_robot_base"] = EventTermCfg(
+    func=mdp.reset_root_state_uniform,
+    mode="reset",
+    params={
+      "pose_range": {"x": (-0.05, 0.05), "y": (-0.05, 0.05), "yaw": (-0.1, 0.1)},
+      "velocity_range": {},
+      "asset_cfg": SceneEntityCfg("robot"),
+    },
+  )
+
   cfg.events["randomize_table_height"] = EventTermCfg(
     func=manipulation_mdp_pal.randomize_table_height,
-    mode="startup",
+    mode="reset",
     params={
       "table_asset_cfg": SceneEntityCfg(
         "table",
@@ -336,7 +346,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {0: (0.025, 0.025)},
+      "ranges": {0: (0.02, 0.02)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
@@ -345,7 +355,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {1: (0.025, 0.025)},
+      "ranges": {1: (0.02, 0.02)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
