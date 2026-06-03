@@ -59,6 +59,41 @@ except ImportError:
   pass
 
 
+# Monkey patch MjlabOnPolicyRunner to support loading and running ONNX checkpoints directly in play script
+import cv2
+from mjlab.rl.runner import MjlabOnPolicyRunner
+
+original_load = MjlabOnPolicyRunner.load
+original_get_inference_policy = MjlabOnPolicyRunner.get_inference_policy
+
+def patched_load(self, path: str, *args, **kwargs):
+  if path.endswith(".onnx"):
+    print(f"[INFO]: Loading ONNX policy model from {path} via OpenCV DNN...")
+    self._onnx_net = cv2.dnn.readNetFromONNX(path)
+    return {}
+  return original_load(self, path, *args, **kwargs)
+
+def patched_get_inference_policy(self, device=None):
+  if hasattr(self, "_onnx_net"):
+    print("[INFO]: Returning inference policy wrapping ONNX model.")
+    obs_groups = self.alg.get_policy().obs_groups
+    def onnx_policy(obs) -> torch.Tensor:
+      if isinstance(obs, dict) or hasattr(obs, "keys"):
+        obs_list = [obs[g] for g in obs_groups]
+        flat_obs = torch.cat(obs_list, dim=-1)
+      else:
+        flat_obs = obs
+      obs_np = flat_obs.cpu().numpy()
+      self._onnx_net.setInput(obs_np)
+      out = self._onnx_net.forward()
+      return torch.from_numpy(out).to(flat_obs.device)
+    return onnx_policy
+  return original_get_inference_policy(self, device)
+
+MjlabOnPolicyRunner.load = patched_load
+MjlabOnPolicyRunner.get_inference_policy = patched_get_inference_policy
+
+
 from mjlab.utils.lab_api.tasks.importer import import_packages
 
 _BLACKLIST_PKGS = ["utils", ".mdp"]
