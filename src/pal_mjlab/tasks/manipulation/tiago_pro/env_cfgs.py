@@ -175,6 +175,8 @@ def lift_env_cfg(
     },
   )
 
+  cfg.observations["actor"].terms.pop("object_orientation")
+
   # for name in ("object_position", "object_orientation", "target_object_position"):
   #   cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
 
