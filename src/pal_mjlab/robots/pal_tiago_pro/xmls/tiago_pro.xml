@@ -106,7 +106,7 @@
             <geom class="visual" material="white" mesh="head_2_link" />
             <geom class="visual" size="0.08641 0.05412 0.0025" pos="0.05584 -0.083935 0" quat="-1.29867e-06 0.707107 -1.29867e-06 0.707107" type="box" material="black" />
             <geom class="visual" pos="0.0565 -0.168 -4.59151e-08" quat="-1.29867e-06 0.707107 -1.29867e-06 0.707107" mesh="d435_simplified" />
-            <camera name="head_realsense_camera" pos="0.0565 -0.168 0" euler="0 -1.57 3.14159265" fovy="60"/>
+            <camera name="head_realsense_camera" pos="0.0565 -0.168 0" euler="0 -1.57 3.14159265" fovy="80"/>
             <!-- <camera name="head_realsense_camera" pos="0.0565 -0.168 0" euler="0 -1.57 0" fovy="60"/> -->
           </body>
         </body>
@@ -239,7 +239,7 @@
                                 <joint name="gripper_right_fingertip_left_joint" pos="0 0 0" axis="0 0 1" range="-0.139644 0.747699" actuatorfrcrange="-8 8"/>
                                 <geom name="col_right_fingertip_left" type="mesh" mesh="fingertip" class="collision"/>
                                 <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" class="visual"/>
-                                <site name="gripper_right_fingertip_left_site" pos="-0.015 0.025 0" quat="1.0 0 0 0" size="0.005" rgba="1 0 0 1" group="1"/>
+                                <site name="gripper_right_fingertip_left_site" pos="-0.015 0.025 0" quat="1.0 0 0 0" rgba="0 0 0 0"/>
                               </body>
                               <geom type="mesh" mesh="inner_finger" class="collision"/>
                               <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="inner_finger" class="visual"/>
@@ -270,7 +270,7 @@
                                 <joint name="gripper_right_fingertip_right_joint" pos="0 0 0" axis="0 0 1" range="-0.139644 0.747699" actuatorfrcrange="-8 8"/>
                                 <geom name="col_right_fingertip_right" type="mesh" mesh="fingertip" class="collision"/>
                                 <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" class="visual"/>
-                                <site name="gripper_right_fingertip_right_site" pos="-0.015 0.025 0" quat="1.0 0 0 0" size="0.005" rgba="1 0 0 1" group="1"/>
+                                <site name="gripper_right_fingertip_right_site" pos="-0.015 0.025 0" quat="1.0 0 0 0" rgba="0 0 0 0"/>
                               </body>
                               <geom type="mesh" mesh="inner_finger" class="collision"/>
                               <geom type="mesh" rgba="0.752941 0.752941 0.752941 1" mesh="inner_finger" class="visual"/>

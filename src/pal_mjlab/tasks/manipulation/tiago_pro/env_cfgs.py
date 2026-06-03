@@ -24,7 +24,7 @@ from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from pal_mjlab.robots.pal_tiago_pro.tiago_pro import TiagoProRobot
 from pal_mjlab.tasks.manipulation import mdp as manipulation_mdp_pal
 
-EPISODE_LENGTH = 10
+EPISODE_LENGTH = 6
 
 
 def lift_env_cfg(
@@ -38,8 +38,8 @@ def lift_env_cfg(
   cfg.sim.mujoco.timestep = 0.002
   cfg.sim.mujoco.iterations = 40
   cfg.sim.mujoco.jacobian = "sparse"
-  cfg.sim.nconmax = 1500
-  cfg.sim.njmax = 1500
+  cfg.sim.nconmax = 5000
+  cfg.sim.njmax = 5000
   cfg.decimation = 10
   cfg.episode_length_s = EPISODE_LENGTH
   cfg.viewer.lookat = (0.4, 0.0, 0.55)
