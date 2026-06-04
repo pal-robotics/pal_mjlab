@@ -177,13 +177,21 @@ def lift_env_cfg(
 
   cfg.observations["actor"].terms.pop("object_orientation")
 
-  # for name in ("object_position", "object_orientation", "target_object_position"):
-  #   cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
+  cfg.observations["actor"].history_length = 5
+  cfg.observations["critic"].history_length = 5
 
-  # cfg.observations["actor"].terms["object_pose_6d"].noise = Unoise(
-  #   n_min=(-0.01, -0.01, -0.01, -0.05, -0.05, -0.05),
-  #   n_max=(0.01, 0.01, 0.01, 0.05, 0.05, 0.05),
-  # )
+  for name in ("object_position", "target_object_position", "gripper_pos", "ee_position"):
+    if name in cfg.observations["actor"].terms:
+      cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
+
+  cfg.observations["actor"].terms["joint_pos"].noise = Unoise(n_min=-0.02, n_max=0.02)
+  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.05, n_max=0.05)
+
+  if "object_pose_6d" in cfg.observations["actor"].terms:
+    cfg.observations["actor"].terms["object_pose_6d"].noise = Unoise(
+      n_min=(-0.01, -0.01, -0.01, -0.05, -0.05, -0.05),
+      n_max=(0.01, 0.01, 0.01, 0.05, 0.05, 0.05),
+    )
 
   #### REWARDS
   cfg.rewards.clear()
@@ -243,7 +251,7 @@ def lift_env_cfg(
   )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
-    weight=-1.5,
+    weight=-1.0,
     params={"action_indices": list(range(7))},
   )
   # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(

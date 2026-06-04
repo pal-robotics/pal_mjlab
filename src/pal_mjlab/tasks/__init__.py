@@ -25,6 +25,16 @@ def patched_get_base_metadata(
   ]
   joint_stiffness = env.sim.mj_model.actuator_gainprm[ctrl_ids_natural, 0]
   joint_damping = -env.sim.mj_model.actuator_biasprm[ctrl_ids_natural, 2]
+  action_scale = []
+  for term_name in env.action_manager.active_terms:
+    term = env.action_manager.get_term(term_name)
+    if hasattr(term, "_scale"):
+      if isinstance(term._scale, torch.Tensor):
+        term_scale = term._scale[0].cpu().tolist()
+      else:
+        term_scale = [float(term._scale)] * term.action_dim
+      action_scale.extend(term_scale)
+
   return {
     "run_path": run_path,
     "joint_names": list(robot.joint_names),
@@ -33,9 +43,7 @@ def patched_get_base_metadata(
     "default_joint_pos": robot.data.default_joint_pos[0].cpu().tolist(),
     "command_names": list(env.command_manager.active_terms),
     "observation_names": env.observation_manager.active_terms["actor"],
-    "action_scale": joint_action._scale[0].cpu().tolist()
-    if isinstance(joint_action._scale, torch.Tensor)
-    else joint_action._scale,
+    "action_scale": action_scale,
   }
 
 mjlab.rl.exporter_utils.get_base_metadata = patched_get_base_metadata
