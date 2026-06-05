@@ -5,6 +5,7 @@ from typing import Literal
 from mjlab.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import terminations as mdp_term
+from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.dr import geom as dr_geom
 from mjlab.managers import (
   CurriculumTermCfg,
@@ -180,18 +181,22 @@ def lift_env_cfg(
   cfg.observations["actor"].history_length = 5
   cfg.observations["critic"].history_length = 5
 
-  for name in ("object_position", "target_object_position", "gripper_pos", "ee_position"):
-    if name in cfg.observations["actor"].terms:
-      cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
+  if not play:
+    for name in ("object_position", "target_object_position", "gripper_pos", "ee_position"):
+      if name in cfg.observations["actor"].terms:
+        cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
 
-  cfg.observations["actor"].terms["joint_pos"].noise = Unoise(n_min=-0.02, n_max=0.02)
-  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.05, n_max=0.05)
+    cfg.observations["actor"].terms["joint_pos"].noise = Unoise(n_min=-0.02, n_max=0.02)
+    cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.05, n_max=0.05)
 
-  if "object_pose_6d" in cfg.observations["actor"].terms:
-    cfg.observations["actor"].terms["object_pose_6d"].noise = Unoise(
-      n_min=(-0.01, -0.01, -0.01, -0.05, -0.05, -0.05),
-      n_max=(0.01, 0.01, 0.01, 0.05, 0.05, 0.05),
-    )
+    if "object_pose_6d" in cfg.observations["actor"].terms:
+      cfg.observations["actor"].terms["object_pose_6d"].noise = Unoise(
+        n_min=(-0.01, -0.01, -0.01, -0.05, -0.05, -0.05),
+        n_max=(0.01, 0.01, 0.01, 0.05, 0.05, 0.05),
+      )
+  else:
+    for name in cfg.observations["actor"].terms:
+      cfg.observations["actor"].terms[name].noise = None
 
   #### REWARDS
   cfg.rewards.clear()
@@ -379,6 +384,28 @@ def lift_env_cfg(
   )
 
 
+  # Sim2Real: encoder calibration drift (zero-point offset per joint)
+  cfg.events["encoder_bias"] = EventTermCfg(
+    mode="startup",
+    func=dr.encoder_bias,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,)),
+      "bias_range": (-0.01, 0.01),
+    },
+  )
+
+  # Sim2Real: actuator friction variability across robot units
+  cfg.events["joint_friction"] = EventTermCfg(
+    mode="startup",
+    func=dr.dof_frictionloss,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,)),
+      "operation": "add",
+      "ranges": (-0.005, 0.005),
+      "shared_random": False,
+    },
+  )
+
   #### TERMINATIONS
   cfg.terminations["nan_term"] = TerminationTermCfg(func=mdp_term.nan_detection)
 
@@ -487,7 +514,7 @@ def lift_keypoints_env_cfg(
   terms = {
     "head_camera_keypoints": ObservationTermCfg(
       func=manipulation_mdp_pal.head_camera_keypoints,
-      params={"noise_std": 0.015},
+      params={"noise_std": 0.0 if play else 0.015},
     )
   }
 
