@@ -227,7 +227,7 @@ KANGAROO_LOWER_BODY_ACTUATORS = KANGAROO_LEG_ACTUATORS + (KANGAROO_PELVIS_ACTUAT
 ##
 
 INIT_STATE = EntityCfg.InitialStateCfg(
-  pos=(0.0, 0.0, 0.9),
+  pos=(0.0, 0.0, 0.92),
   joint_pos={
     "leg_left_1_joint": -0.012,
     "leg_right_1_joint": 0.012,
