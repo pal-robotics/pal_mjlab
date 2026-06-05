@@ -6,6 +6,7 @@ from mjlab.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import terminations as mdp_term
 from mjlab.envs.mdp import dr
+from mjlab.envs.mdp import rewards as mjlab_rewards
 from mjlab.envs.mdp.dr import geom as dr_geom
 from mjlab.managers import (
   CurriculumTermCfg,
@@ -178,8 +179,8 @@ def lift_env_cfg(
 
   cfg.observations["actor"].terms.pop("object_orientation")
 
-  cfg.observations["actor"].history_length = 5
-  cfg.observations["critic"].history_length = 5
+  # cfg.observations["actor"].history_length = 5
+  # cfg.observations["critic"].history_length = 5
 
   if not play:
     for name in ("object_position", "target_object_position", "gripper_pos", "ee_position"):
@@ -256,8 +257,13 @@ def lift_env_cfg(
   )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
-    weight=-1.0,
+    weight=-0.5,
     params={"action_indices": list(range(7))},
+  )
+  cfg.rewards["joint_torques_l2"] = RewardTermCfg(
+    func=mjlab_rewards.joint_torques_l2,
+    weight=-1e-4,
+    params={"asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))},
   )
   # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(
   #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.ee_vel_penalty),
