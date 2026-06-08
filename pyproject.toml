@@ -9,7 +9,8 @@ authors = [
 requires-python = ">=3.10,<3.14"
 dependencies = [
     "mjlab>=1.5.2",
-    "moviepy>=2.0"
+    "moviepy>=2.0",
+    "onnxruntime"
 ]
 
 [build-system]

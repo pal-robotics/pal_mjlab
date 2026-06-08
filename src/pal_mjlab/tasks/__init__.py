@@ -68,41 +68,78 @@ except ImportError:
 
 
 # Monkey patch MjlabOnPolicyRunner to support loading and running ONNX checkpoints directly in play script
-try:
-  import cv2
-  from mjlab.rl.runner import MjlabOnPolicyRunner
+from mjlab.rl.runner import MjlabOnPolicyRunner
 
-  original_load = MjlabOnPolicyRunner.load
-  original_get_inference_policy = MjlabOnPolicyRunner.get_inference_policy
+original_load = MjlabOnPolicyRunner.load
+original_get_inference_policy = MjlabOnPolicyRunner.get_inference_policy
 
-  def patched_load(self, path: str, *args, **kwargs):
-    if path.endswith(".onnx"):
+def patched_load(self, path: str, *args, **kwargs):
+  if path.endswith(".onnx"):
+    # Try loading via onnxruntime first (recommended)
+    try:
+      import onnxruntime as ort
+      print(f"[INFO]: Loading ONNX policy model from {path} via onnxruntime...")
+      self._onnx_session = ort.InferenceSession(path, providers=ort.get_available_providers())
+      self._onnx_inputs = self._onnx_session.get_inputs()
+      return {}
+    except ImportError:
+      pass
+
+    # Try loading via OpenCV DNN as fallback
+    try:
+      import cv2
       print(f"[INFO]: Loading ONNX policy model from {path} via OpenCV DNN...")
       self._onnx_net = cv2.dnn.readNetFromONNX(path)
       return {}
-    return original_load(self, path, *args, **kwargs)
+    except ImportError:
+      pass
 
-  def patched_get_inference_policy(self, device=None):
-    if hasattr(self, "_onnx_net"):
-      print("[INFO]: Returning inference policy wrapping ONNX model.")
-      obs_groups = self.alg.get_policy().obs_groups
-      def onnx_policy(obs) -> torch.Tensor:
-        if isinstance(obs, dict) or hasattr(obs, "keys"):
-          obs_list = [obs[g] for g in obs_groups]
-          flat_obs = torch.cat(obs_list, dim=-1)
-        else:
-          flat_obs = obs
-        obs_np = flat_obs.cpu().numpy()
-        self._onnx_net.setInput(obs_np)
-        out = self._onnx_net.forward()
-        return torch.from_numpy(out).to(flat_obs.device)
-      return onnx_policy
-    return original_get_inference_policy(self, device)
+    raise RuntimeError(
+      f"Failed to load ONNX checkpoint: {path}\n"
+      "To run ONNX models directly, please install either 'onnxruntime' or 'opencv-python'.\n"
+      "Please install it using:\n"
+      "    uv pip install onnxruntime\n"
+      "or add it to your project dependencies."
+    )
+  return original_load(self, path, *args, **kwargs)
 
-  MjlabOnPolicyRunner.load = patched_load
-  MjlabOnPolicyRunner.get_inference_policy = patched_get_inference_policy
-except ImportError:
-  print("[INFO]: cv2 (OpenCV) not found. Direct ONNX loading/playing inside play script will be disabled on this machine.")
+def patched_get_inference_policy(self, device=None):
+  if hasattr(self, "_onnx_session"):
+    print("[INFO]: Returning inference policy wrapping ONNX model (via onnxruntime).")
+    obs_groups = self.alg.get_policy().obs_groups
+    def onnx_policy(obs) -> torch.Tensor:
+      if isinstance(obs, dict) or hasattr(obs, "keys"):
+        obs_list = [obs[g] for g in obs_groups]
+        flat_obs = torch.cat(obs_list, dim=-1)
+      else:
+        flat_obs = obs
+      obs_np = flat_obs.cpu().numpy()
+      if obs_np.dtype != 'float32':
+        obs_np = obs_np.astype('float32')
+      input_name = self._onnx_inputs[0].name
+      out = self._onnx_session.run(None, {input_name: obs_np})[0]
+      return torch.from_numpy(out).to(flat_obs.device)
+    return onnx_policy
+
+  elif hasattr(self, "_onnx_net"):
+    print("[INFO]: Returning inference policy wrapping ONNX model (via OpenCV DNN).")
+    obs_groups = self.alg.get_policy().obs_groups
+    def onnx_policy(obs) -> torch.Tensor:
+      if isinstance(obs, dict) or hasattr(obs, "keys"):
+        obs_list = [obs[g] for g in obs_groups]
+        flat_obs = torch.cat(obs_list, dim=-1)
+      else:
+        flat_obs = obs
+      obs_np = flat_obs.cpu().numpy()
+      self._onnx_net.setInput(obs_np)
+      out = self._onnx_net.forward()
+      return torch.from_numpy(out).to(flat_obs.device)
+    return onnx_policy
+
+  return original_get_inference_policy(self, device)
+
+MjlabOnPolicyRunner.load = patched_load
+MjlabOnPolicyRunner.get_inference_policy = patched_get_inference_policy
 
 
 from mjlab.utils.lab_api.tasks.importer import import_packages
