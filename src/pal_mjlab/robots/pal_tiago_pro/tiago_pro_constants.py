@@ -171,7 +171,7 @@ for a in TIAGO_PRO_ARTICULATION.actuators:
       TIAGO_PRO_ACTUATOR_NAMES += (n,)
 
 # Override gripper scale: tuned to 0.01 (formula-derived ~0.001528 is too small for control)
-TIAGO_PRO_ACTION_SCALE["gripper_right_finger_joint"] = 0.1
+TIAGO_PRO_ACTION_SCALE["gripper_right_finger_joint"] = 0.01
 
 
 if __name__ == "__main__":

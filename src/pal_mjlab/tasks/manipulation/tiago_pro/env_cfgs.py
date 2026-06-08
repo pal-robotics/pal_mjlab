@@ -249,7 +249,7 @@ def lift_env_cfg(
 
   cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_both_fingers),
-    weight=3.0,
+    weight=1.0,
     params={
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
@@ -258,11 +258,11 @@ def lift_env_cfg(
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
     weight=-0.5,
-    params={"action_indices": list(range(7))},
+    params={"action_indices": list(range(8))},
   )
   cfg.rewards["joint_torques_l2"] = RewardTermCfg(
     func=mjlab_rewards.joint_torques_l2,
-    weight=-1e-4,
+    weight=-1e-3,
     params={"asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))},
   )
   # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(
