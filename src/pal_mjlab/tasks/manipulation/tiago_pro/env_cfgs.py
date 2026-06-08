@@ -177,7 +177,7 @@ def lift_env_cfg(
     },
   )
 
-  cfg.observations["actor"].terms.pop("object_orientation")
+  cfg.observations["actor"].terms.pop("object_orientation", None)
 
   # cfg.observations["actor"].history_length = 5
   # cfg.observations["critic"].history_length = 5
@@ -501,7 +501,7 @@ def lift_vision_env_cfg(
   )
 
   for name in ("object_position", "object_orientation", "target_object_position"):
-    cfg.observations["actor"].terms.pop(name)
+    cfg.observations["actor"].terms.pop(name, None)
 
   cfg.observations["actor"].terms["goal_position"] = ObservationTermCfg(
     func=manipulation_mdp_pal.target_position_in_robot_base_frame,
@@ -532,7 +532,7 @@ def lift_keypoints_env_cfg(
   )
 
   for name in ("object_position", "object_orientation", "target_object_position"):
-    cfg.observations["actor"].terms.pop(name)
+    cfg.observations["actor"].terms.pop(name, None)
 
   cfg.observations["actor"].terms["goal_position"] = ObservationTermCfg(
     func=manipulation_mdp_pal.target_position_in_robot_base_frame,
