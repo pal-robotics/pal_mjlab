@@ -255,6 +255,14 @@ def lift_env_cfg(
       "site_names": [robot.fingertip_site_pattern],
     },
   )
+  cfg.rewards["object_contact_single_finger_penalty"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_single_finger),
+    weight=-0.1,
+    params={
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
+    },
+  )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
     weight=-1.0,
@@ -396,7 +404,7 @@ def lift_env_cfg(
     func=dr.encoder_bias,
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,)),
-      "bias_range": (-0.01, 0.01),
+      "bias_range": (-0.02, 0.02),
     },
   )
 
