@@ -4,12 +4,11 @@ from typing import Literal
 
 from mjlab.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnvCfg
-from mjlab.envs.mdp import terminations as mdp_term
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp import rewards as mjlab_rewards
+from mjlab.envs.mdp import terminations as mdp_term
 from mjlab.envs.mdp.dr import geom as dr_geom
 from mjlab.managers import (
-  CurriculumTermCfg,
   EventTermCfg,
   ObservationGroupCfg,
   ObservationTermCfg,
@@ -63,6 +62,7 @@ def lift_env_cfg(
   }
 
   from mjlab.envs.mdp.actions import RelativeJointPositionActionCfg
+
   from pal_mjlab.robots import TIAGO_PRO_ACTION_SCALE
 
   cfg.actions.pop("ee_ik", None)
@@ -119,7 +119,7 @@ def lift_env_cfg(
     object_pose_range=manipulation_mdp_pal.LiftingCommandCfg.ObjectPoseRangeCfg(
       x=(0.3, 0.7),
       y=(-0.2, 0.2),
-      yaw=(-0.2, 0.2),
+      yaw=(-0.0, 0.0),
     ),
   )
 
@@ -148,11 +148,6 @@ def lift_env_cfg(
     #   params={"command_name": "lift_height"},
     # )
     ###############
-
-
-
-
-
 
     terms["target_object_position"] = ObservationTermCfg(
       func=manipulation_mdp_pal.target_position_in_robot_base_frame,
@@ -183,7 +178,12 @@ def lift_env_cfg(
   # cfg.observations["critic"].history_length = 5
 
   if not play:
-    for name in ("object_position", "target_object_position", "gripper_pos", "ee_position"):
+    for name in (
+      "object_position",
+      "target_object_position",
+      "gripper_pos",
+      "ee_position",
+    ):
       if name in cfg.observations["actor"].terms:
         cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
 
@@ -255,12 +255,23 @@ def lift_env_cfg(
       "site_names": [robot.fingertip_site_pattern],
     },
   )
-  cfg.rewards["object_contact_single_finger_penalty"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_single_finger),
-    weight=-0.1,
+  # cfg.rewards["object_contact_single_finger_penalty"] = RewardTermCfg(
+  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_single_finger),
+  #   weight=-0.1,
+  #   params={
+  #     "sensor_name": "box_fingertip_contact",
+  #     "site_names": [robot.fingertip_site_pattern],
+  #   },
+  # )
+  cfg.rewards["fingertip_cube_alignment"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(
+      manipulation_mdp_pal.fingertip_cube_alignment_reward
+    ),
+    weight=1.5,
     params={
-      "sensor_name": "box_fingertip_contact",
-      "site_names": [robot.fingertip_site_pattern],
+      "command_name": "lift_height",
+      "asset_cfg": _grasp_cfg,
+      "std": 0.15,
     },
   )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
@@ -271,7 +282,9 @@ def lift_env_cfg(
   cfg.rewards["joint_torques_l2"] = RewardTermCfg(
     func=mjlab_rewards.joint_torques_l2,
     weight=-5e-3,
-    params={"asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))},
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))
+    },
   )
   # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(
   #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.ee_vel_penalty),
@@ -396,7 +409,6 @@ def lift_env_cfg(
       "operation": "abs",
     },
   )
-
 
   # Sim2Real: encoder calibration drift (zero-point offset per joint)
   cfg.events["encoder_bias"] = EventTermCfg(
@@ -548,5 +560,3 @@ def lift_keypoints_env_cfg(
   )
 
   return cfg
-
-

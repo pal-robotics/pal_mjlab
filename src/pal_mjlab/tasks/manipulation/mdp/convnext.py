@@ -81,7 +81,7 @@ class ConvNeXtBackbone(nn.Module):
 
     self.head = nn.Conv2d(64, num_keypoints, kernel_size=1)
     self.spatial_softmax = SpatialSoftmax(32, 32, temperature=0.5)
-    
+
     # 6D Pose Head
     self.pose_head = nn.Sequential(
       nn.Linear(64, 64),
@@ -94,15 +94,15 @@ class ConvNeXtBackbone(nn.Module):
     x = self.stage1(x)
     x = self.downsample(x)
     features = self.stage2(x)
-    
+
     # Keypoint branch
     kps = self.head(features)
     kps = self.spatial_softmax(kps)
-    
+
     # 6D Pose branch
     pooled = torch.mean(features, dim=[2, 3])
     pose = self.pose_head(pooled)
-    
+
     return torch.cat([kps, pose], dim=-1)
 
 

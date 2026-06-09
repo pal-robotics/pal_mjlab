@@ -5,6 +5,7 @@ from mjlab.entity import Entity
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactSensor
+from mjlab.utils.lab_api.math import quat_apply
 
 from pal_mjlab.tasks.manipulation.mdp.commands import LiftingCommand
 from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
@@ -28,9 +29,6 @@ def object_ee_distance(
 
   # Never be a penalization (min clip) and maintain 1.0 max
   return torch.clamp(distance_reward, min=min_reaching_reward, max=1.0)
-
-
-
 
 
 def object_is_lifted(
@@ -149,3 +147,58 @@ def ee_vel_penalty(
   excess_vel = torch.clamp(ee_vel_norm - threshold, min=0.0)
   penalty = torch.exp(scale * excess_vel) - 1.0
   return torch.clamp(penalty, max=max_penalty)
+
+
+def fingertip_cube_alignment_reward(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  asset_cfg: SceneEntityCfg | None = None,
+  std: float = 0.15,
+) -> torch.Tensor:
+  """Rewards the alignment of the fingertips' squeeze direction with the cube's principal axes.
+
+  This only constrains the line connecting the two fingertips to be perpendicular to the cube's faces.
+  """
+  if asset_cfg is None:
+    asset_cfg = SceneEntityCfg("robot")
+  robot: Entity = env.scene[asset_cfg.name]
+  command = env.command_manager.get_term(command_name)
+
+  # 1. Locate fingertip sites and calculate the squeeze axis in the world frame
+  fingertip_site_names = [s for s in robot.site_names if "fingertip" in s]
+  assert len(fingertip_site_names) == 2, "Expected exactly 2 fingertip sites"
+
+  left_idx = robot.site_names.index(fingertip_site_names[0])
+  right_idx = robot.site_names.index(fingertip_site_names[1])
+
+  p_left = robot.data.site_pos_w[:, left_idx]
+  p_right = robot.data.site_pos_w[:, right_idx]
+
+  v_squeeze = p_left - p_right
+  v_squeeze_norm = v_squeeze / torch.norm(v_squeeze, dim=-1, keepdim=True).clamp(
+    min=1e-6
+  )
+
+  # 2. Get box orientation and axes
+  box_quat = command.object_quat_w
+  B = env.num_envs
+  device = env.device
+  unit_x = torch.tensor([1.0, 0.0, 0.0], device=device).expand(B, -1)
+  unit_y = torch.tensor([0.0, 1.0, 0.0], device=device).expand(B, -1)
+  unit_z = torch.tensor([0.0, 0.0, 1.0], device=device).expand(B, -1)
+
+  box_axes = [quat_apply(box_quat, unit) for unit in (unit_x, unit_y, unit_z)]
+
+  # 3. Calculate max absolute similarity between the squeeze axis and box axes
+  similarities = torch.stack(
+    [torch.abs(torch.sum(v_squeeze_norm * box_axis, dim=-1)) for box_axis in box_axes],
+    dim=-1,
+  )
+  alignment = torch.max(similarities, dim=-1).values
+
+  # 4. Scale by distance
+  ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
+  distance = torch.norm(ee_pos_w - command.object_pos_w, dim=-1)
+  distance_scale = torch.exp(-distance / std)
+
+  return alignment * distance_scale
