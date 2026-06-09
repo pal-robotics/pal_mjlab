@@ -93,7 +93,9 @@ class LiftingCommand(CommandTerm):
 
   @property
   def object_bottom_z(self) -> torch.Tensor:
-    box_half_height = self._env.sim.model.geom_size[:, self.object.indexing.geom_ids[0], 2]
+    box_half_height = self._env.sim.model.geom_size[
+      :, self.object.indexing.geom_ids[0], 2
+    ]
     return self.object_pos_w[:, 2] - box_half_height
 
   @property
@@ -121,19 +123,23 @@ class LiftingCommand(CommandTerm):
     lower = torch.tensor([r.x[0], r.y[0], r.z[0]], device=self.device)
     upper = torch.tensor([r.x[1], r.y[1], r.z[1]], device=self.device)
     target_pos = sample_uniform(lower, upper, (n, 3), device=self.device)
-    
+
     # Target positions: X & Y relative to env origins, Z relative to actual randomized table height.
-    self.target_pos[env_ids, 0:2] = target_pos[:, 0:2] + self._env.scene.env_origins[env_ids, 0:2]
+    self.target_pos[env_ids, 0:2] = (
+      target_pos[:, 0:2] + self._env.scene.env_origins[env_ids, 0:2]
+    )
     self.target_pos[env_ids, 2] = table_surface_z + (target_pos[:, 2] - 0.5)
 
     r = self.cfg.object_pose_range
     lower = torch.tensor([r.x[0], r.y[0], 0.0], device=self.device)
     upper = torch.tensor([r.x[1], r.y[1], 0.0], device=self.device)
     pos = sample_uniform(lower, upper, (n, 3), device=self.device)
-    
+
     # Spawn box position: X & Y relative to env origins, Z exactly on the actual table surface.
     pos_x_y = pos[:, 0:2] + self._env.scene.env_origins[env_ids, 0:2]
-    box_half_height = self._env.sim.model.geom_size[env_ids, self.object.indexing.geom_ids[0], 2]
+    box_half_height = self._env.sim.model.geom_size[
+      env_ids, self.object.indexing.geom_ids[0], 2
+    ]
     pos_z = table_surface_z + box_half_height
     pos = torch.cat([pos_x_y, pos_z.unsqueeze(1)], dim=-1)
 

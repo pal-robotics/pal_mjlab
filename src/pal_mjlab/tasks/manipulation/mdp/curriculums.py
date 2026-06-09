@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import torch
 from mjlab.envs import ManagerBasedRlEnv
-from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.envs.mdp.curriculums import _apply_stages
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
 
 
 class observation_curriculum:
