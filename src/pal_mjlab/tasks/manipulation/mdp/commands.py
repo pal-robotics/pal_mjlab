@@ -47,7 +47,7 @@ def get_box_spec() -> mujoco.MjSpec:
     type=mujoco.mjtGeom.mjGEOM_BOX,
     size=(BOX_HALF_X, BOX_HALF_Y, BOX_HALF_Z),
     rgba=(0.8, 0.2, 0.2, 1.0),
-    mass=0.025,
+    mass=0.01,
     solref=(0.001, 1),
     solimp=(0.95, 0.99, 0.001, 0.5, 2),
   )

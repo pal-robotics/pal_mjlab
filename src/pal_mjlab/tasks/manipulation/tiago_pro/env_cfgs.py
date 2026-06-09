@@ -40,8 +40,8 @@ def lift_env_cfg(
   cfg.sim.mujoco.timestep = 0.002
   cfg.sim.mujoco.iterations = 40
   cfg.sim.mujoco.jacobian = "sparse"
-  cfg.sim.nconmax = 5000
-  cfg.sim.njmax = 5000
+  cfg.sim.nconmax = 1500
+  cfg.sim.njmax = 1500
   cfg.decimation = 10
   cfg.episode_length_s = EPISODE_LENGTH
   cfg.viewer.lookat = (0.4, 0.0, 0.55)
@@ -257,12 +257,12 @@ def lift_env_cfg(
   )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
-    weight=-0.5,
+    weight=-1.0,
     params={"action_indices": list(range(8))},
   )
   cfg.rewards["joint_torques_l2"] = RewardTermCfg(
     func=mjlab_rewards.joint_torques_l2,
-    weight=-1e-3,
+    weight=-5e-3,
     params={"asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))},
   )
   # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(
