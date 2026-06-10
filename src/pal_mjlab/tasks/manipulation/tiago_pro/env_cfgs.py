@@ -119,7 +119,7 @@ def lift_env_cfg(
     object_pose_range=manipulation_mdp_pal.LiftingCommandCfg.ObjectPoseRangeCfg(
       x=(0.3, 0.7),
       y=(-0.2, 0.2),
-      yaw=(-0.0, 0.0),
+      yaw=(-0.77, 0.77),
     ),
   )
 
@@ -139,6 +139,14 @@ def lift_env_cfg(
     )
     terms["object_orientation"] = ObservationTermCfg(
       func=manipulation_mdp_pal.object_orientation_in_robot_root_frame,
+      params={"command_name": "lift_height"},
+    )
+    terms["object_horizontal_size"] = ObservationTermCfg(
+      func=manipulation_mdp_pal.object_horizontal_size,
+      params={"command_name": "lift_height"},
+    )
+    terms["object_yaw"] = ObservationTermCfg(
+      func=manipulation_mdp_pal.object_yaw_in_robot_root_frame,
       params={"command_name": "lift_height"},
     )
 
@@ -183,6 +191,8 @@ def lift_env_cfg(
       "target_object_position",
       "gripper_pos",
       "ee_position",
+      "object_horizontal_size",
+      "object_yaw",
     ):
       if name in cfg.observations["actor"].terms:
         cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
@@ -226,7 +236,7 @@ def lift_env_cfg(
     weight=5.0,
     params={
       "command_name": "lift_height",
-      "std": 0.3,
+      "std": 0.5,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
     },
@@ -276,8 +286,8 @@ def lift_env_cfg(
   )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
-    weight=-1.0,
-    params={"action_indices": list(range(8))},
+    weight=-0.5,
+    params={"action_indices": list(range(7))},
   )
   cfg.rewards["joint_torques_l2"] = RewardTermCfg(
     func=mjlab_rewards.joint_torques_l2,
@@ -344,7 +354,19 @@ def lift_env_cfg(
     params={
       "position_range": (-0.1, 0.1),
       "velocity_range": (0.0, 0.0),
-      "asset_cfg": SceneEntityCfg("robot", joint_names=("^(?!torso_lift_joint).*$",)),
+      "asset_cfg": SceneEntityCfg(
+        "robot", joint_names=("^(?!torso_lift_joint|gripper_right).*$",)
+      ),
+    },
+  )
+
+  cfg.events["reset_gripper_joints"] = EventTermCfg(
+    func=mdp.reset_joints_by_offset,
+    mode="reset",
+    params={
+      "position_range": (-0.01, 0.01),
+      "velocity_range": (0.0, 0.0),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=("gripper_right_finger_joint",)),
     },
   )
 
@@ -386,7 +408,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {0: (0.02, 0.02)},
+      "ranges": {0: (0.02, 0.025)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
@@ -395,7 +417,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {1: (0.02, 0.02)},
+      "ranges": {1: (0.02, 0.025)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
@@ -404,7 +426,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {2: (0.0375, 0.0375)},
+      "ranges": {2: (0.025, 0.035)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
