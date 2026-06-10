@@ -183,3 +183,19 @@ def test_track_linear_velocity (mock_env, mock_asset_cfg):
     f"Track linear velocity returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
   )
   assert value[0] == math.exp(-3.0), "Track linear velocity reward returned incorrect value"
+
+
+
+def test_track_angular_velocity (mock_env, mock_asset_cfg):
+  env = mock_env
+    
+  env.scene["robot"].data.root_link_ang_vel_b = torch.ones((env.num_envs, 3), device = env.device)
+
+  env.command_manager = command_manager(env)
+
+  value = track_angular_velocity(env, std = 1.0, command_name="twist", asset_cfg=mock_asset_cfg)
+
+  assert value.shape == (env.num_envs,),(
+    f"Track angular velocity returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == math.exp(-3.0), "Track angular velocity reward returned incorrect value"
