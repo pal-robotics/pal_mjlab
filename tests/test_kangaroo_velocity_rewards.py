@@ -134,10 +134,21 @@ def stateless_reward_config():
   }
 
 
-def test_track_linear_velocity (mock_env, mock_asset_cfg):
-  env = mock_env
-  class command_manager :
-    def __init__(self):
+#---------------------------------------------------------------------------------------------------------#
+#                                                                                                         #
+#                                              TEST  REWARDS                                              #
+#                                                                                                         #
+#---------------------------------------------------------------------------------------------------------#
+
+
+#-------------------------------------#
+#                                     #
+#            Dummy helpers            #
+#                                     #
+#-------------------------------------#
+
+class command_manager :
+    def __init__(self, env):
 
       dummy_vel_command = torch.zeros((env.num_envs, 3), device=env.device)
 
@@ -150,10 +161,21 @@ def test_track_linear_velocity (mock_env, mock_asset_cfg):
         return None
       
       return self.active_terms[command_name]
+
+
+#-------------------------------------#
+#                                     #
+#                TESTS                #
+#                                     #
+#-------------------------------------#
+
+
+def test_track_linear_velocity (mock_env, mock_asset_cfg):
+  env = mock_env
     
   env.scene["robot"].data.root_link_lin_vel_b = torch.ones((env.num_envs, 3), device = env.device)
 
-  env.command_manager = command_manager()
+  env.command_manager = command_manager(env)
 
   value = track_linear_velocity(env, std = 1.0, command_name="twist", asset_cfg=mock_asset_cfg)
 
