@@ -242,3 +242,117 @@ def test_upright_no_terrain_sensors (mock_env, mock_asset_cfg) :
     f"Upright (no terrain sensor, with body ids) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
   )
   assert value[0] == 1.0, "Upright (no terrain sensor, with body ids) reward returned incorrect value"
+
+
+def test_pose (mock_env, mock_asset_cfg):
+  env = mock_env
+
+  mock_asset_cfg.joint_ids = (0, 1, 2, 3)
+  mock_asset_cfg.joint_names = (
+    "joint_left_1",
+    "joint_right_1",
+    "joint_left_2",
+    "joint_right_1"
+  )
+
+  asset = env.scene[mock_asset_cfg.name]
+
+  asset.data.default_joint_pos = torch.tensor(
+    [[0.1, 0.1, 0.2, 0.2]] * env.num_envs, device=env.device
+  )
+
+  asset.data.joint_pos = torch.zeros((env.num_envs, 4), device= env.device)
+
+  mock_asset_cfg.joint_names = (
+    "joint_left_1",
+    "joint_right_1", 
+    "joint_left_2",
+    "joint_right_2",  # fix the typo: was "joint_right_1" twice
+  )
+
+  asset.find_joints = lambda names: (
+    [0, 1, 2, 3],
+    list(mock_asset_cfg.joint_names)
+  )
+
+  cfg = RewardTermCfg(
+    func = None,
+    weight=1.0,
+    params={
+      "std_standing": {
+        r"joint_.*_1" : 0.1,
+        r"joint_.*_2" : 0.1,
+      },
+      "std_walking": {
+        r"joint_.*_1" : 0.2,
+        r"joint_.*_2" : 0.2,
+      },
+      "std_running": {
+        r"joint_.*_1" : 0.4,
+        r"joint_.*_2" : 0.4,
+      },
+      "asset_cfg": mock_asset_cfg,
+    },
+  )
+
+  env.command_manager = command_manager(env)
+
+  pose_term = variable_posture(cfg, env)
+
+  # Standing
+
+  value = pose_term(
+    env= env, 
+    std_standing=None, 
+    std_walking=None, 
+    std_running=None, 
+    asset_cfg=mock_asset_cfg, 
+    command_name="twist",
+    walking_threshold=0.5,
+    running_threshold=1.5,
+  )
+
+  assert value.shape == (env.num_envs,),(
+    f"Pose (standing) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == math.exp(-2.5), f"Pose (standing) reward returned incorrect value"
+
+  # Walking
+
+  env.command_manager.active_terms["twist"][:, 0] += 0.6
+
+  value = pose_term(
+    env= env, 
+    std_standing=None, 
+    std_walking=None, 
+    std_running=None, 
+    asset_cfg=mock_asset_cfg, 
+    command_name="twist",
+    walking_threshold=0.5,
+    running_threshold=1.5,
+  )
+
+  assert value.shape == (env.num_envs,),(
+    f"Pose (walking) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == math.exp(-0.625), f"Pose (walking) reward returned incorrect value"
+
+  # Running
+
+  env.command_manager.active_terms["twist"][:, 0] += 2.0
+
+  value = pose_term(
+    env= env, 
+    std_standing=None, 
+    std_walking=None, 
+    std_running=None, 
+    asset_cfg=mock_asset_cfg, 
+    command_name="twist",
+    walking_threshold=0.5,
+    running_threshold=1.5,
+  )
+
+  assert value.shape == (env.num_envs,),(
+    f"Pose (walking) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == math.exp(-0.15625), f"Pose (walking) reward returned incorrect value"
