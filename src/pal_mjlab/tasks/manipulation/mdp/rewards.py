@@ -215,3 +215,35 @@ def fingertip_cube_alignment_reward(
   distance_scale = torch.exp(-distance / std)
 
   return alignment * distance_scale
+
+
+def gripper_open_during_approach_reward(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  std: float = 0.08,
+  max_open: float = 0.07,
+) -> torch.Tensor:
+  """Rewards keeping the gripper open when far from the object.
+
+  The reward is proportional to the gripper joint opening and scaled by the distance to the object.
+  As the robot gets closer to the object, this reward decays to 0, allowing the gripper to close.
+  """
+  robot = env.scene[asset_cfg.name]
+  command = env.command_manager.get_term(command_name)
+
+  # Get distance between end-effector and object
+  ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
+  distance = torch.norm(ee_pos_w - command.object_pos_w, dim=-1)
+
+  # Get gripper joint position
+  joint_ids, _ = robot.find_joints("gripper_right_finger_joint")
+  gripper_pos = robot.data.joint_pos[:, joint_ids[0]]
+
+  # Scale that goes to 1.0 when far and 0.0 when close
+  approach_scale = 1.0 - torch.exp(-distance / std)
+
+  # Normalized gripper opening
+  normalized_open = torch.clamp(gripper_pos / max_open, 0.0, 1.0)
+
+  return approach_scale * normalized_open
