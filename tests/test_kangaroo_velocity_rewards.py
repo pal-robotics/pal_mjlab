@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import mujoco
 import pytest
 import torch
+import math
 from conftest import get_test_device
 
 from mjlab.actuator import BuiltinPositionActuatorCfg
@@ -92,13 +93,11 @@ def mock_env():
   return env
 
 @pytest.fixture
-def mock_kang_vel_env(device) :
-  cfg = pal_kangaroo_flat_env_cfg()
-  cfg.scene.num_envs = 4
-  env = ManagerBasedRlEnv(cfg=cfg, device=device)
-  env = RslRlVecEnvWrapper(env)
+def mock_asset_cfg():
+  asset_cfg = Mock()
+  asset_cfg.name = "robot"
 
-  return env
+  return asset_cfg
 
 @pytest.fixture
 def class_reward_config():
@@ -135,14 +134,30 @@ def stateless_reward_config():
   }
 
 
-def test_reward_shapes (mock_kang_vel_env : ManagerBasedRlEnv):
-  env = mock_kang_vel_env.unwrapped
-  rew_man = env.reward_manager
+def test_track_linear_velocity (mock_env, mock_asset_cfg):
+  env = mock_env
+  class command_manager :
+    def __init__(self):
 
-  for term_idx, (name, term_cfg) in enumerate(
-      zip(rew_man._term_names, rew_man._term_cfgs, strict=False)
-    ):
+      dummy_vel_command = torch.zeros((env.num_envs, 3), device=env.device)
+
+      self.active_terms = {
+        "twist" : dummy_vel_command,
+      }
+
+    def get_command(self, command_name):
+      if command_name not in self.active_terms.keys():
+        return None
       
-      value = term_cfg.func(rew_man._env, **term_cfg.params)
-      assert value.shape == (env.scene.num_envs,), f"Term '{name}' returned shape {value.shape}, expected ({env.scene.num_envs},)"
-  
+      return self.active_terms[command_name]
+    
+  env.scene["robot"].data.root_link_lin_vel_b = torch.ones((env.num_envs, 3), device = env.device)
+
+  env.command_manager = command_manager()
+
+  value = track_linear_velocity(env, std = 1.0, command_name="twist", asset_cfg=mock_asset_cfg)
+
+  assert value.shape == (env.num_envs,),(
+    f"Track linear velocity returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == math.exp(-3.0), "Track linear velocity reward returned incorrect value"
