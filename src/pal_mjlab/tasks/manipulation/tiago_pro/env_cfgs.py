@@ -282,6 +282,7 @@ def lift_env_cfg(
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
       "std": 0.15,
+      "power": 16,
     },
   )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
