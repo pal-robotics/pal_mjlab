@@ -54,7 +54,7 @@ def site_contact_both_fingers(
   site_names: list[str],
   threshold: float = 0.03,
   asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-  min_dist: float = 0.03,
+  min_dist: float = 0.035,
 ) -> torch.Tensor:
   """Returns 1.0 if all specified sites are within threshold distance of the object, 0.0 otherwise."""
   robot: Entity = env.scene[asset_cfg.name]

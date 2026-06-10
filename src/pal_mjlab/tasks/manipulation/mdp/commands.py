@@ -160,6 +160,18 @@ class LiftingCommand(CommandTerm):
     env_indices = visualizer.get_env_indices(self.num_envs)
     if not env_indices:
       return
+    robot = self._env.scene["robot"]
+    ee_idx = None
+    for target_name in ["gripper_right_grasping_site", "ee_site", "grasping_site"]:
+      if target_name in robot.site_names:
+        ee_idx = robot.site_names.index(target_name)
+        break
+    if ee_idx is None:
+      for idx, name in enumerate(robot.site_names):
+        if "grasping_site" in name or "ee" in name:
+          ee_idx = idx
+          break
+
     for batch in env_indices:
       visualizer.add_sphere(
         center=self.target_pos[batch].cpu().numpy(),
@@ -167,6 +179,14 @@ class LiftingCommand(CommandTerm):
         color=self.cfg.viz.target_color,
         label=f"target_position_{batch}",
       )
+      if ee_idx is not None:
+        ee_pos = robot.data.site_pos_w[batch, ee_idx].cpu().numpy()
+        visualizer.add_sphere(
+          center=ee_pos,
+          radius=0.01,
+          color=(1.0, 0.0, 0.0, 1.0),
+          label=f"ee_position_{batch}",
+        )
 
 
 @dataclass(kw_only=True)

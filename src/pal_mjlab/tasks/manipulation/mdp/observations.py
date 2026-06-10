@@ -198,3 +198,28 @@ def head_camera_keypoints(
     keypoints_2d = keypoints_2d + torch.randn_like(keypoints_2d) * noise_std
 
   return keypoints_2d.reshape(num_envs, -1)
+
+
+def object_horizontal_size(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+) -> torch.Tensor:
+  """Returns the horizontal full size (width, depth) of the object."""
+  command = env.command_manager.get_term(command_name)
+  box = command.object
+  geom_id = box.indexing.geom_ids[0]
+  box_sizes = env.sim.model.geom_size[:, geom_id]
+  return box_sizes[:, :2] * 2.0
+
+
+def object_yaw_in_robot_root_frame(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  asset_cfg: SceneEntityCfg | None = None,
+) -> torch.Tensor:
+  """Returns the relative yaw angle of the object represented as [cos(yaw), sin(yaw)]."""
+  if asset_cfg is None:
+    asset_cfg = SceneEntityCfg("robot")
+  obj_quat = object_orientation_in_robot_root_frame(env, command_name, asset_cfg)
+  _, _, yaw = euler_xyz_from_quat(obj_quat)
+  return torch.stack([torch.cos(yaw), torch.sin(yaw)], dim=-1)
