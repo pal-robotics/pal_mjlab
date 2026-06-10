@@ -353,6 +353,6 @@ def test_pose (mock_env, mock_asset_cfg):
   )
 
   assert value.shape == (env.num_envs,),(
-    f"Pose (walking) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    f"Pose (running) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
   )
-  assert value[0] == math.exp(-0.15625), f"Pose (walking) reward returned incorrect value"
+  assert value[0] == math.exp(-0.15625), f"Pose (running) reward returned incorrect value"
