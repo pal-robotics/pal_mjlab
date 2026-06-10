@@ -199,3 +199,46 @@ def test_track_angular_velocity (mock_env, mock_asset_cfg):
     f"Track angular velocity returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
   )
   assert value[0] == math.exp(-3.0), "Track angular velocity reward returned incorrect value"
+
+
+
+def test_upright_no_terrain_sensors (mock_env, mock_asset_cfg) :
+
+  env = mock_env
+
+  asset = env.scene[mock_asset_cfg.name]
+
+  cfg = RewardTermCfg(
+    func = None,
+    weight=1.0
+  )
+
+  upright_term = upright(cfg, env)
+
+  # NO BODY IDS
+
+  mock_asset_cfg.body_ids = []
+  asset.data.root_link_quat_w = torch.zeros((env.num_envs, 4), device= env.device)
+  asset.data.root_link_quat_w[:,0] += 1.0
+  asset.data.gravity_vec_w = torch.tensor([0.0, 0.0, -1.0], device=env.device).unsqueeze(0).expand(env.num_envs, -1)
+
+  value = upright_term(env= env, std= 1.0, asset_cfg=mock_asset_cfg, terrain_sensor_names= None)
+
+  assert value.shape == (env.num_envs,),(
+    f"Upright (no terrain sensor, without body ids) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == 1.0, "Upright (no terrain sensor, without body ids) reward returned incorrect value"
+
+  # WITH BODY IDS
+
+  mock_asset_cfg.body_ids = [2]
+  asset.data.body_link_quat_w = torch.zeros((env.num_envs, 6, 4), device= env.device)
+  asset.data.body_link_quat_w[:, :, 0] += 1.0
+  asset.data.gravity_vec_w = torch.tensor([0.0, 0.0, -1.0], device=env.device).unsqueeze(0).expand(env.num_envs, -1)
+
+  value = upright_term(env= env, std= 1.0, asset_cfg=mock_asset_cfg, terrain_sensor_names= None)
+
+  assert value.shape == (env.num_envs,),(
+    f"Upright (no terrain sensor, with body ids) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == 1.0, "Upright (no terrain sensor, with body ids) reward returned incorrect value"
