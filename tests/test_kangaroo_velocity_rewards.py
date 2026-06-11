@@ -376,3 +376,22 @@ def test_body_ang_vel (mock_env, mock_asset_cfg):
     f"Body angular velocity penalty returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
   )
   assert value[0] == 1.0, f"Body angular velocity penalty returned incorrect value"
+
+
+def test_angular_momentum (mock_env, mock_asset_cfg):
+  env = mock_env
+
+  env.extras = {
+    "log" :{ }
+  }
+
+  env.scene["sensor_angmom"] = Mock()
+  env.scene["sensor_angmom"].data = torch.zeros((env.num_envs, 3), device= env.device)
+  env.scene["sensor_angmom"].data[:, 0] += 1.0
+
+  value = angular_momentum_penalty(env, "sensor_angmom")
+
+  assert value.shape == (env.num_envs,),(
+    f"Angular momentum penalty returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == 1.0, f"Angular momentum penalty returned incorrect value"
