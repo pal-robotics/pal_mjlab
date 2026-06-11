@@ -170,7 +170,7 @@ class command_manager :
 #-------------------------------------#
 
 
-def test_track_linear_velocity (mock_env, mock_asset_cfg):
+def test_track_linear_velocity_reward (mock_env, mock_asset_cfg):
   env = mock_env
     
   env.scene["robot"].data.root_link_lin_vel_b = torch.ones((env.num_envs, 3), device = env.device)
@@ -186,7 +186,7 @@ def test_track_linear_velocity (mock_env, mock_asset_cfg):
 
 
 
-def test_track_angular_velocity (mock_env, mock_asset_cfg):
+def test_track_angular_velocity_reward (mock_env, mock_asset_cfg):
   env = mock_env
     
   env.scene["robot"].data.root_link_ang_vel_b = torch.ones((env.num_envs, 3), device = env.device)
@@ -202,7 +202,7 @@ def test_track_angular_velocity (mock_env, mock_asset_cfg):
 
 
 
-def test_upright_no_terrain_sensors (mock_env, mock_asset_cfg) :
+def test_upright_no_terrain_sensors_reward (mock_env, mock_asset_cfg) :
 
   env = mock_env
 
@@ -244,7 +244,7 @@ def test_upright_no_terrain_sensors (mock_env, mock_asset_cfg) :
   assert value[0] == 1.0, "Upright (no terrain sensor, with body ids) reward returned incorrect value"
 
 
-def test_pose (mock_env, mock_asset_cfg):
+def test_pose_reward (mock_env, mock_asset_cfg):
   env = mock_env
 
   mock_asset_cfg.joint_ids = (0, 1, 2, 3)
@@ -359,7 +359,7 @@ def test_pose (mock_env, mock_asset_cfg):
 
 
 
-def test_body_ang_vel (mock_env, mock_asset_cfg):
+def test_body_ang_vel_penalty (mock_env, mock_asset_cfg):
   env = mock_env
 
   mock_asset_cfg.body_ids = 1
@@ -378,7 +378,7 @@ def test_body_ang_vel (mock_env, mock_asset_cfg):
   assert value[0] == 1.0, f"Body angular velocity penalty returned incorrect value"
 
 
-def test_angular_momentum (mock_env, mock_asset_cfg):
+def test_angular_momentum_penalty (mock_env, mock_asset_cfg):
   env = mock_env
 
   env.extras = {
@@ -398,7 +398,7 @@ def test_angular_momentum (mock_env, mock_asset_cfg):
 
 
 
-def test_dofs_pos_limits (mock_env, mock_asset_cfg):
+def test_dofs_pos_limits_penalty (mock_env, mock_asset_cfg):
 
   env= mock_env
 
@@ -421,7 +421,7 @@ def test_dofs_pos_limits (mock_env, mock_asset_cfg):
   assert value[0] == 1.0, f"Dofs pos limits returned incorrect value"
 
 
-def test_action_rate_l2 (mock_env):
+def test_action_rate_l2_penalty (mock_env):
   env= mock_env
 
   num_joints = 5
