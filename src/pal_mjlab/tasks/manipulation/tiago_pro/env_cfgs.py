@@ -112,9 +112,9 @@ def lift_env_cfg(
     resampling_time_range=(EPISODE_LENGTH, EPISODE_LENGTH),
     debug_vis=True,
     target_position_range=manipulation_mdp_pal.LiftingCommandCfg.TargetPositionRangeCfg(
-      x=(0.4, 0.6),
-      y=(-0.25, 0.25),
-      z=(0.65, 0.85),
+      x=(0.45, 0.55),
+      y=(-0.05, 0.05),
+      z=(0.65, 0.75),
     ),
     object_pose_range=manipulation_mdp_pal.LiftingCommandCfg.ObjectPoseRangeCfg(
       x=(0.3, 0.7),
@@ -304,7 +304,7 @@ def lift_env_cfg(
   )
   cfg.rewards["joint_torques_l2"] = RewardTermCfg(
     func=mjlab_rewards.joint_torques_l2,
-    weight=-1e-3,
+    weight=-5e-3,
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))
     },
