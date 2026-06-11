@@ -435,3 +435,38 @@ def test_action_rate_l2_penalty (mock_env):
     f"Action rate l2 returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
   )
   assert value[0] == num_joints, f"Action rate l2 returned incorrect value"
+
+
+def test_air_time_reward (mock_env):
+  env= mock_env
+
+  env.extras = {
+    "log" :{ }
+  }
+
+  env.scene["sensor"] = Mock()
+
+  env.scene["sensor"].data.current_air_time = torch.zeros((env.num_envs, 2), device= env.device)
+  env.scene["sensor"].data.current_air_time[:, 1] += 0.25
+
+  env.command_manager = command_manager(env)
+
+  # Unactive
+
+  value = feet_air_time(env, "sensor", command_name="twist")
+
+  assert value.shape == (env.num_envs,),(
+    f"Feet air time (inactive) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == 0.0, f"Feet air time (inactive) returned incorrect value"
+
+  # Active
+
+  env.command_manager.active_terms["twist"][:, 0] += 0.6
+
+  value = feet_air_time(env, "sensor", command_name="twist")
+
+  assert value.shape == (env.num_envs,),(
+    f"Feet air time (active) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == 1.0, f"Feet air time (active) returned incorrect value"
