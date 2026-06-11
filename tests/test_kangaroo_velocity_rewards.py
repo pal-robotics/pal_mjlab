@@ -543,3 +543,78 @@ def test_foot_clearance_penalty (mock_env, mock_asset_cfg):
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
   assert value[0] == pytest.approx(0.01, abs=1e-8), tensor_value_error_message(test_name)
+
+
+def test_foot_swing_height_penalty (mock_env):
+  env = mock_env
+
+  env.extras = {
+    "log" :{ }
+  }
+
+  env.scene["contact_sensor"] = Mock()
+  env.scene["contact_sensor"].data.found = torch.zeros((env.num_envs, 2), device= env.device)
+
+  env.scene["contact_sensor"].compute_first_contact = lambda dt: torch.zeros(
+    (env.num_envs, 2), device=env.device, dtype=torch.bool
+  )
+
+  env.scene["height_sensor"] = Mock(spec=TerrainHeightSensor)
+  env.scene["height_sensor"].num_frames = 2
+  env.scene["height_sensor"].data.heights = torch.zeros((env.num_envs, 2), device= env.device)
+  env.scene["height_sensor"].data.heights[:, 0] += 0.05
+  
+  cfg = RewardTermCfg(
+    func = None,
+    weight=1.0,
+    params={
+      "height_sensor_name" : "height_sensor",
+    }
+  )
+
+  env.command_manager = command_manager(env)
+
+  fsh_term = feet_swing_height(cfg, env)
+
+  # Inactive
+
+  value = fsh_term(env, "contact_sensor", "height_sensor", 0.1, command_name="twist", command_threshold= 0.05)
+
+  test_name = "Feet swing height (inactive)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+
+
+  # Active (no first contact)
+
+  env.command_manager.active_terms["twist"][:, 0] += 0.6
+
+  value = fsh_term(env, "contact_sensor", "height_sensor", 0.1, command_name="twist", command_threshold= 0.05)
+
+  test_name = "Feet swing height (active, no first contact)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+
+
+  # Active (first contact)
+
+  env.scene["height_sensor"].data.heights[:, 0] = 0.0
+
+  env.scene["contact_sensor"].compute_first_contact = lambda dt: torch.ones(
+    (env.num_envs, 2), device=env.device, dtype=torch.bool
+  )
+
+  value = fsh_term(env, "contact_sensor", "height_sensor", 0.1, command_name="twist", command_threshold= 0.05)
+
+  test_name = "Feet swing height (first contact)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(1.25, abs=1e-8), tensor_value_error_message(test_name)
