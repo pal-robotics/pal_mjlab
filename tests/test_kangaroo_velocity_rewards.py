@@ -844,3 +844,87 @@ def test_joint_vel_limits_penalty (mock_env, mock_asset_cfg):
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
   assert value[0] == pytest.approx(1.3, abs=1e-6), tensor_value_error_message(test_name)
+
+
+def test_convex_hull_joint_limnits (mock_env, mock_asset_cfg) :
+  env = mock_env
+
+  env.extras = {
+    "log" :{ }
+  }
+
+  mock_asset_cfg.joint_ids = [0, 1 ,2 ,3]
+
+  mock_asset_cfg.joint_names = (
+    "joint_left_1",
+    "joint_right_1", 
+    "joint_left_2",
+    "joint_right_2",
+  )
+
+  asset= env.scene[mock_asset_cfg.name]
+
+  asset.find_joints = lambda names: (
+    [0, 2] if names == cfg.params["joint_names_group"][0] else [1, 3],
+    list(names),
+  )
+
+  cfg = RewardTermCfg(
+    func = None,
+    weight=1.0,
+    params={
+      "asset_cfg": mock_asset_cfg,
+      "metrics_suffix": "dummy_suffix",
+      "joint_names_group": [
+        [r"joint_left_1", r"joint_left_2"],
+        [r"joint_right_1", r"joint_right_2"],
+      ],
+      "margin": 0.0,
+      "hull_points": torch.tensor([
+        [2.3, 7.1], 
+        [5.8, 1.4], 
+        [9.2, 6.5], 
+        [1.0, 3.8], 
+        [6.4, 9.7]
+      ]),
+    },
+  )
+
+  asset.data.joint_pos = torch.tensor(
+        [[5.0, 5.0, 5.0, 5.0]] * env.num_envs,
+        device=env.device,
+        dtype=torch.float32,
+    )
+
+  reward_term = joint_limits_convex_hull(cfg, env, mock_asset_cfg)
+
+  # All inside
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Convex hull (all inside)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
+
+
+  # All outside
+
+  asset.data.joint_pos = torch.tensor(
+        [[5.8, 5.8, 0.4, 0.4]] * env.num_envs,
+        device=env.device,
+        dtype=torch.float32,
+    )
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Convex hull (all inside)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(1.6, abs=1e-6), tensor_value_error_message(test_name)
+
+  
