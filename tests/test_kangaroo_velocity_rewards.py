@@ -161,6 +161,13 @@ class command_manager :
         return None
       
       return self.active_terms[command_name]
+    
+
+def tensor_shape_error_message (test_name : str, expected, actual):
+  return f"{test_name} returned tensor of wrong shape, expected {expected} got {actual}"
+
+def tensor_value_error_message (test_name : str):
+  return f"{test_name} returned incorrect value"
 
 
 #-------------------------------------#
@@ -179,10 +186,12 @@ def test_track_linear_velocity_reward (mock_env, mock_asset_cfg):
 
   value = track_linear_velocity(env, std = 1.0, command_name="twist", asset_cfg=mock_asset_cfg)
 
+  test_name = "Track linear velocity"
+
   assert value.shape == (env.num_envs,),(
-    f"Track linear velocity returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == math.exp(-3.0), "Track linear velocity reward returned incorrect value"
+  assert value[0] == math.exp(-3.0), tensor_value_error_message(test_name)
 
 
 
@@ -195,10 +204,12 @@ def test_track_angular_velocity_reward (mock_env, mock_asset_cfg):
 
   value = track_angular_velocity(env, std = 1.0, command_name="twist", asset_cfg=mock_asset_cfg)
 
+  test_name = "Track angular velocity"
+
   assert value.shape == (env.num_envs,),(
-    f"Track angular velocity returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == math.exp(-3.0), "Track angular velocity reward returned incorrect value"
+  assert value[0] == math.exp(-3.0), tensor_value_error_message(test_name)
 
 
 
@@ -224,10 +235,12 @@ def test_upright_no_terrain_sensors_reward (mock_env, mock_asset_cfg) :
 
   value = upright_term(env= env, std= 1.0, asset_cfg=mock_asset_cfg, terrain_sensor_names= None)
 
+  test_name = "Upright (no terrain sensor, without body ids)"
+
   assert value.shape == (env.num_envs,),(
-    f"Upright (no terrain sensor, without body ids) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 1.0, "Upright (no terrain sensor, without body ids) reward returned incorrect value"
+  assert value[0] == 1.0, tensor_value_error_message(test_name)
 
   # WITH BODY IDS
 
@@ -238,10 +251,12 @@ def test_upright_no_terrain_sensors_reward (mock_env, mock_asset_cfg) :
 
   value = upright_term(env= env, std= 1.0, asset_cfg=mock_asset_cfg, terrain_sensor_names= None)
 
+  test_name = "Upright (no terrain sensor, with body ids)"
+
   assert value.shape == (env.num_envs,),(
-    f"Upright (no terrain sensor, with body ids) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 1.0, "Upright (no terrain sensor, with body ids) reward returned incorrect value"
+  assert value[0] == 1.0, tensor_value_error_message(test_name)
 
 
 def test_pose_reward (mock_env, mock_asset_cfg):
@@ -312,10 +327,12 @@ def test_pose_reward (mock_env, mock_asset_cfg):
     running_threshold=1.5,
   )
 
+  test_name = "Pose (standing)"
+
   assert value.shape == (env.num_envs,),(
-    f"Pose (standing) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == math.exp(-2.5), f"Pose (standing) reward returned incorrect value"
+  assert value[0] == math.exp(-2.5), tensor_value_error_message(test_name)
 
   # Walking
 
@@ -332,10 +349,12 @@ def test_pose_reward (mock_env, mock_asset_cfg):
     running_threshold=1.5,
   )
 
+  test_name = "Pose (walking)"
+
   assert value.shape == (env.num_envs,),(
-    f"Pose (walking) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == math.exp(-0.625), f"Pose (walking) reward returned incorrect value"
+  assert value[0] == math.exp(-0.625), tensor_value_error_message(test_name)
 
   # Running
 
@@ -352,10 +371,12 @@ def test_pose_reward (mock_env, mock_asset_cfg):
     running_threshold=1.5,
   )
 
+  test_name = "Pose (running)"
+
   assert value.shape == (env.num_envs,),(
-    f"Pose (running) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == math.exp(-0.15625), f"Pose (running) reward returned incorrect value"
+  assert value[0] == math.exp(-0.15625), tensor_value_error_message(test_name)
 
 
 
@@ -372,10 +393,12 @@ def test_body_ang_vel_penalty (mock_env, mock_asset_cfg):
 
   value = body_angular_velocity_penalty(mock_env, mock_asset_cfg)
 
+  test_name = "Body angular velocity penalty"
+
   assert value.shape == (env.num_envs,),(
-    f"Body angular velocity penalty returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 1.0, f"Body angular velocity penalty returned incorrect value"
+  assert value[0] == 1.0, tensor_value_error_message(test_name)
 
 
 def test_angular_momentum_penalty (mock_env, mock_asset_cfg):
@@ -391,10 +414,12 @@ def test_angular_momentum_penalty (mock_env, mock_asset_cfg):
 
   value = angular_momentum_penalty(env, "sensor_angmom")
 
+  test_name = "Angular momentum penalty"
+
   assert value.shape == (env.num_envs,),(
-    f"Angular momentum penalty returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 1.0, f"Angular momentum penalty returned incorrect value"
+  assert value[0] == 1.0, tensor_value_error_message(test_name)
 
 
 
@@ -415,10 +440,12 @@ def test_dofs_pos_limits_penalty (mock_env, mock_asset_cfg):
 
   value = joint_pos_limits(env, mock_asset_cfg)
 
+  test_name = "Dofs pos limits"
+
   assert value.shape == (env.num_envs,),(
-    f"Dofs pos limits returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 1.0, f"Dofs pos limits returned incorrect value"
+  assert value[0] == 1.0, tensor_value_error_message(test_name)
 
 
 def test_action_rate_l2_penalty (mock_env):
@@ -431,10 +458,12 @@ def test_action_rate_l2_penalty (mock_env):
 
   value = action_rate_l2(env)
 
+  test_name = "Action rate l2"
+
   assert value.shape == (env.num_envs,),(
-    f"Action rate l2 returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == num_joints, f"Action rate l2 returned incorrect value"
+  assert value[0] == num_joints, tensor_value_error_message(test_name)
 
 
 def test_air_time_reward (mock_env):
@@ -455,10 +484,12 @@ def test_air_time_reward (mock_env):
 
   value = feet_air_time(env, "sensor", command_name="twist")
 
+  test_name = "Feet air time (inactive)"
+
   assert value.shape == (env.num_envs,),(
-    f"Feet air time (inactive) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 0.0, f"Feet air time (inactive) returned incorrect value"
+  assert value[0] == 0.0, tensor_value_error_message(test_name)
 
   # Active
 
@@ -466,7 +497,9 @@ def test_air_time_reward (mock_env):
 
   value = feet_air_time(env, "sensor", command_name="twist")
 
+  test_name = "Feet air time (active)"
+
   assert value.shape == (env.num_envs,),(
-    f"Feet air time (active) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 1.0, f"Feet air time (active) returned incorrect value"
+  assert value[0] == 1.0, tensor_value_error_message(test_name)
