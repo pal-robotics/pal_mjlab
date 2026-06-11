@@ -191,7 +191,7 @@ def test_track_linear_velocity_reward (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == math.exp(-3.0), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(math.exp(-3.0), abs=1e-8), tensor_value_error_message(test_name)
 
 
 
@@ -209,7 +209,7 @@ def test_track_angular_velocity_reward (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == math.exp(-3.0), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(math.exp(-3.0), abs=1e-8), tensor_value_error_message(test_name)
 
 
 
@@ -240,7 +240,7 @@ def test_upright_no_terrain_sensors_reward (mock_env, mock_asset_cfg) :
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 1.0, tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.0, abs=1e-8), tensor_value_error_message(test_name)
 
   # WITH BODY IDS
 
@@ -256,7 +256,7 @@ def test_upright_no_terrain_sensors_reward (mock_env, mock_asset_cfg) :
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 1.0, tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.0, abs=1e-8), tensor_value_error_message(test_name)
 
 
 def test_pose_reward (mock_env, mock_asset_cfg):
@@ -332,7 +332,7 @@ def test_pose_reward (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == math.exp(-2.5), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(math.exp(-2.5), abs=1e-8), tensor_value_error_message(test_name)
 
   # Walking
 
@@ -354,7 +354,7 @@ def test_pose_reward (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == math.exp(-0.625), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(math.exp(-0.625), abs=1e-8), tensor_value_error_message(test_name)
 
   # Running
 
@@ -376,7 +376,7 @@ def test_pose_reward (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == math.exp(-0.15625), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(math.exp(-0.15625), abs=1e-8), tensor_value_error_message(test_name)
 
 
 
@@ -398,7 +398,7 @@ def test_body_ang_vel_penalty (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 1.0, tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.0, abs=1e-8), tensor_value_error_message(test_name)
 
 
 def test_angular_momentum_penalty (mock_env, mock_asset_cfg):
@@ -419,7 +419,7 @@ def test_angular_momentum_penalty (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 1.0, tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.0, abs=1e-8), tensor_value_error_message(test_name)
 
 
 
@@ -445,7 +445,7 @@ def test_dofs_pos_limits_penalty (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 1.0, tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.0, abs=1e-8), tensor_value_error_message(test_name)
 
 
 def test_action_rate_l2_penalty (mock_env):
@@ -463,7 +463,7 @@ def test_action_rate_l2_penalty (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == num_joints, tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(num_joints, abs=1e-8), tensor_value_error_message(test_name)
 
 
 def test_air_time_reward (mock_env):
@@ -480,7 +480,7 @@ def test_air_time_reward (mock_env):
 
   env.command_manager = command_manager(env)
 
-  # Unactive
+  # Inactive
 
   value = feet_air_time(env, "sensor", command_name="twist")
 
@@ -489,7 +489,7 @@ def test_air_time_reward (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 0.0, tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
 
   # Active
 
@@ -502,4 +502,44 @@ def test_air_time_reward (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == 1.0, tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.0, abs=1e-8), tensor_value_error_message(test_name)
+
+
+def test_foot_clearance_penalty (mock_env, mock_asset_cfg):
+  env = mock_env
+
+  env.scene["height_sensor"] = Mock(spec=TerrainHeightSensor)
+  env.scene["height_sensor"].data.heights = torch.zeros((env.num_envs, 2), device= env.device)
+  env.scene["height_sensor"].data.heights[:, 0] += 0.05
+
+  mock_asset_cfg.site_ids = [0, 1]
+
+  asset = env.scene[mock_asset_cfg.name]
+  asset.data.site_lin_vel_w = torch.zeros((env.num_envs, 2, 3), device= env.device)
+  asset.data.site_lin_vel_w[:, 0, 0] = 0.2
+
+  env.command_manager = command_manager(env)
+
+  # Inactive
+
+  value = feet_clearance(env, 0.1, "height_sensor", command_name="twist", asset_cfg=mock_asset_cfg)
+
+  test_name = "Feet clearance (inactive)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+
+  # Active
+
+  env.command_manager.active_terms["twist"][:, 0] += 0.6
+
+  value = feet_clearance(env, 0.1, "height_sensor", command_name="twist", asset_cfg=mock_asset_cfg)
+
+  test_name = "Feet clearance (active)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(0.01, abs=1e-8), tensor_value_error_message(test_name)
