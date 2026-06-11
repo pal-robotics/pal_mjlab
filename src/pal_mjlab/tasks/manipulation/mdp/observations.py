@@ -200,16 +200,16 @@ def head_camera_keypoints(
   return keypoints_2d.reshape(num_envs, -1)
 
 
-def object_horizontal_size(
+def object_width(
   env: ManagerBasedRlEnv,
   command_name: str,
 ) -> torch.Tensor:
-  """Returns the horizontal full size (width, depth) of the object."""
+  """Returns the horizontal full width of the object."""
   command = env.command_manager.get_term(command_name)
   box = command.object
   geom_id = box.indexing.geom_ids[0]
   box_sizes = env.sim.model.geom_size[:, geom_id]
-  return box_sizes[:, :2] * 2.0
+  return box_sizes[:, 0:1] * 2.0
 
 
 def object_yaw_in_robot_root_frame(

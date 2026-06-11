@@ -193,9 +193,8 @@ def fingertip_cube_alignment_reward(
   device = env.device
   unit_x = torch.tensor([1.0, 0.0, 0.0], device=device).expand(B, -1)
   unit_y = torch.tensor([0.0, 1.0, 0.0], device=device).expand(B, -1)
-  unit_z = torch.tensor([0.0, 0.0, 1.0], device=device).expand(B, -1)
 
-  box_axes_root = [quat_apply(box_quat_root, unit) for unit in (unit_x, unit_y, unit_z)]
+  box_axes_root = [quat_apply(box_quat_root, unit) for unit in (unit_x, unit_y)]
 
   # 3. Calculate max absolute similarity between the squeeze axis and box axes in the root frame
   similarities = torch.stack(
