@@ -618,3 +618,62 @@ def test_foot_swing_height_penalty (mock_env):
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
   assert value[0] == pytest.approx(1.25, abs=1e-8), tensor_value_error_message(test_name)
+
+
+def test_foot_slip_penalty (mock_env, mock_asset_cfg):
+  env= mock_env
+
+  env.extras = {
+    "log" :{ }
+  }
+
+  mock_asset_cfg.site_ids = [0, 1]
+
+  asset = env.scene[mock_asset_cfg.name]
+  asset.data.site_lin_vel_w = torch.zeros((env.num_envs, 2, 3), device= env.device)
+  asset.data.site_lin_vel_w[:, 0, 0] = 0.2
+
+  env.command_manager = command_manager(env)
+
+  env.scene["contact_sensor"] = Mock()
+  env.scene["contact_sensor"].data.found = torch.zeros((env.num_envs, 2), device= env.device)
+
+
+  # Inactive
+
+  value = feet_slip(env, "contact_sensor", "twist", asset_cfg= mock_asset_cfg)
+
+  test_name = "Feet slip (inactive)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+
+
+  # Active (no contacts)
+    
+  env.command_manager.active_terms["twist"][:, 0] += 0.6
+
+  value = feet_slip(env, "contact_sensor", "twist", asset_cfg= mock_asset_cfg)
+
+  test_name = "Feet slip (no contacts)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+
+  # Active (contacts)
+
+  env.scene["contact_sensor"].data.found = torch.ones((env.num_envs, 2), device= env.device)
+
+    
+  value = feet_slip(env, "contact_sensor", "twist", asset_cfg= mock_asset_cfg)
+
+  test_name = "Feet slip (contacts)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(0.04, abs=1e-8), tensor_value_error_message(test_name)
