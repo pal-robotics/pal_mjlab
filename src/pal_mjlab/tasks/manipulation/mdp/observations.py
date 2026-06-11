@@ -209,6 +209,64 @@ def object_width(
   box = command.object
   geom_id = box.indexing.geom_ids[0]
   box_sizes = env.sim.model.geom_size[:, geom_id]
+
+  # Check for fingertip penetration during play (1 env)
+  if env.num_envs == 1:
+    try:
+      robot = env.scene["robot"]
+      fingertip_site_names = [s for s in robot.site_names if "fingertip" in s]
+      if len(fingertip_site_names) == 2:
+        left_idx = robot.site_names.index(fingertip_site_names[0])
+        right_idx = robot.site_names.index(fingertip_site_names[1])
+
+        p_left = robot.data.site_pos_w[:, left_idx]
+        p_right = robot.data.site_pos_w[:, right_idx]
+
+        box_pos = (
+          box.data.root_pos_w
+          if hasattr(box.data, "root_pos_w")
+          else box.data.geom_pos_w[:, 0]
+        )
+        box_quat = (
+          box.data.root_quat_w
+          if hasattr(box.data, "root_quat_w")
+          else box.data.geom_quat_w[:, 0]
+        )
+
+        # Transform to local frame
+        p_left_local = quat_apply(quat_inv(box_quat), p_left - box_pos)
+        p_right_local = quat_apply(quat_inv(box_quat), p_right - box_pos)
+
+        half_x = box_sizes[:, 0]
+        half_y = box_sizes[:, 1]
+        half_z = box_sizes[:, 2]
+
+        # Helper to check and print penetration for a fingertip
+        def check_finger_penetration(name: str, p_local: torch.Tensor):
+          x = p_local[:, 0]
+          y = p_local[:, 1]
+          z = p_local[:, 2]
+
+          is_inside = (torch.abs(x) <= half_x) & (torch.abs(y) <= half_y) & (torch.abs(z) <= half_z)
+
+          if is_inside.any():
+            dist_x = half_x - torch.abs(x)
+            dist_y = half_y - torch.abs(y)
+            dist_z = half_z - torch.abs(z)
+
+            # Stack distances to find which face is closest (where it penetrated)
+            dists = torch.stack([dist_x, dist_y, dist_z], dim=-1)
+            min_axis = torch.argmin(dists, dim=-1).item()
+            min_dist = dists[0, min_axis].item()
+
+            if min_axis == 2 and z.item() > 0:
+              print(f"[PENETRATION DETECTED] {name} fingertip penetrated TOP surface! Depth: {min_dist:.4f} m")
+
+        check_finger_penetration("Left", p_left_local)
+        check_finger_penetration("Right", p_right_local)
+    except Exception as e:
+      pass
+
   return box_sizes[:, 0:1] * 2.0
 
 

@@ -483,6 +483,11 @@ def lift_env_cfg(
     params={"sensor_name": "ee_ground_collision", "force_threshold": 1.0},
   )
 
+  cfg.terminations["top_surface_penetration"] = TerminationTermCfg(
+    func=manipulation_mdp_pal.top_surface_penetration_term,
+    params={"command_name": "lift_height", "threshold": 0.005},
+  )
+
   # cfg.terminations["arm_contact_while_lifting"] = TerminationTermCfg(
   #   func=manipulation_mdp_pal.arm_contact_while_lifting_term,
   #   params={

@@ -11,9 +11,9 @@ from mjlab.managers.command_manager import CommandTerm, CommandTermCfg
 from mjlab.sensor import ContactSensor
 from mjlab.utils.lab_api.math import quat_from_euler_xyz, sample_uniform
 
-TABLE_HEIGHT = 0.5
+TABLE_HEIGHT = 0.45
 TABLE_HALF_X = 0.35
-TABLE_HALF_Y = 0.35
+TABLE_HALF_Y = 0.35  
 
 BOX_HALF_X = 0.025
 BOX_HALF_Y = 0.025
@@ -32,8 +32,8 @@ def get_table_spec() -> mujoco.MjSpec:
     type=mujoco.mjtGeom.mjGEOM_BOX,
     size=(TABLE_HALF_X, TABLE_HALF_Y, TABLE_HEIGHT / 2),
     rgba=(0.1, 0.1, 0.1, 1.0),
-    solref=(-12000, -800),
-    solimp=(0.99, 0.995, 0.001, 0.1, 6),
+    solref=(-13000, -800),
+    solimp=(0.99, 0.995, 0.001, 0.01, 60),
   )
   return spec
 

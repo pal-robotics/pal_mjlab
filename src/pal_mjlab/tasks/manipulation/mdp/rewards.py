@@ -246,3 +246,75 @@ def gripper_open_during_approach_reward(
   normalized_open = torch.clamp(gripper_pos / max_open, 0.0, 1.0)
 
   return approach_scale * normalized_open
+
+
+def top_surface_penetration_term(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  threshold: float = 0.008,
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+  """Terminates the episode if either fingertip penetrates the top surface of the cube beyond the threshold."""
+  robot: Entity = env.scene[asset_cfg.name]
+  command = env.command_manager.get_term(command_name)
+  box = command.object
+  geom_id = box.indexing.geom_ids[0]
+  box_sizes = env.sim.model.geom_size[:, geom_id]
+
+  # Locate fingertip sites
+  fingertip_site_names = [s for s in robot.site_names if "fingertip" in s]
+  assert len(fingertip_site_names) == 2, "Expected exactly 2 fingertip sites"
+
+  left_idx = robot.site_names.index(fingertip_site_names[0])
+  right_idx = robot.site_names.index(fingertip_site_names[1])
+
+  p_left = robot.data.site_pos_w[:, left_idx]
+  p_right = robot.data.site_pos_w[:, right_idx]
+
+  box_pos = (
+    box.data.root_pos_w
+    if hasattr(box.data, "root_pos_w")
+    else box.data.geom_pos_w[:, 0]
+  )
+  box_quat = (
+    box.data.root_quat_w
+    if hasattr(box.data, "root_quat_w")
+    else box.data.geom_quat_w[:, 0]
+  )
+
+  # Transform to local frame
+  p_left_local = quat_apply(quat_inv(box_quat), p_left - box_pos)
+  p_right_local = quat_apply(quat_inv(box_quat), p_right - box_pos)
+
+  half_x = box_sizes[:, 0]
+  half_y = box_sizes[:, 1]
+  half_z = box_sizes[:, 2]
+
+  # Helper to compute penetration depth for a given fingertip
+  def get_top_penetration_depth(p_local: torch.Tensor) -> torch.Tensor:
+    x = p_local[:, 0]
+    y = p_local[:, 1]
+    z = p_local[:, 2]
+
+    is_inside = (torch.abs(x) <= half_x) & (torch.abs(y) <= half_y) & (torch.abs(z) <= half_z)
+
+    # Distances to each face
+    dist_x = half_x - torch.abs(x)
+    dist_y = half_y - torch.abs(y)
+    dist_z = half_z - torch.abs(z)
+
+    dists = torch.stack([dist_x, dist_y, dist_z], dim=-1)
+    min_dist, min_axis = torch.min(dists, dim=-1)
+
+    # Condition: inside, closest to top face (min_axis == 2) and in upper half (z > 0)
+    is_top_penetration = is_inside & (min_axis == 2) & (z > 0)
+
+    # Return penetration depth if top penetration, else 0.0
+    return torch.where(is_top_penetration, min_dist, torch.zeros_like(min_dist))
+
+  left_depth = get_top_penetration_depth(p_left_local)
+  right_depth = get_top_penetration_depth(p_right_local)
+
+  # Terminate if left or right penetration depth exceeds threshold
+  terminated = (left_depth > threshold) | (right_depth > threshold)
+  return terminated.float()
