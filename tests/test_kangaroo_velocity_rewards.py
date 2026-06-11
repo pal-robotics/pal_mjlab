@@ -677,3 +677,67 @@ def test_foot_slip_penalty (mock_env, mock_asset_cfg):
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
   assert value[0] == pytest.approx(0.04, abs=1e-8), tensor_value_error_message(test_name)
+
+
+def test_soft_lanfing_penalty (mock_env):
+  env = mock_env
+
+  env.extras = {
+    "log" :{ }
+  }
+
+  env.command_manager = command_manager(env)
+
+
+  env.scene["contact_sensor"] = Mock()
+  env.scene["contact_sensor"].data.found = torch.zeros((env.num_envs, 2), device= env.device)
+
+  env.scene["contact_sensor"].data.force = torch.zeros((env.num_envs, 2, 3), device= env.device)
+  env.scene["contact_sensor"].data.force[:, 0, 2] += 10.0
+  env.scene["contact_sensor"].data.force[:, 1, 2] += 5.0
+
+  env.scene["contact_sensor"].compute_first_contact = lambda dt: torch.zeros(
+    (env.num_envs, 2), device=env.device, dtype=torch.bool
+  )
+
+
+  # Inactive
+
+  value = soft_landing(env, "contact_sensor", "twist")
+
+  test_name = "Soft landing (inactive)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+
+
+  # Active (no first contacts)
+
+  env.command_manager.active_terms["twist"][:, 0] += 0.6
+
+  value = soft_landing(env, "contact_sensor", "twist")
+
+  test_name = "Soft landing (active)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+
+
+  # Active (first contacts)
+
+  env.scene["contact_sensor"].compute_first_contact = lambda dt: torch.ones(
+    (env.num_envs, 2), device=env.device, dtype=torch.bool
+  )
+
+  value = soft_landing(env, "contact_sensor", "twist")
+
+  test_name = "Soft landing (active)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(15.0, abs=1e-8), tensor_value_error_message(test_name)
