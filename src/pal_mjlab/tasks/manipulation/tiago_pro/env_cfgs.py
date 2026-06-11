@@ -37,10 +37,10 @@ def lift_env_cfg(
   robot = robot_cfg()
 
   cfg.sim.mujoco.timestep = 0.002
-  cfg.sim.mujoco.iterations = 40
+  cfg.sim.mujoco.iterations = 250
   cfg.sim.mujoco.jacobian = "sparse"
-  cfg.sim.nconmax = 1500
-  cfg.sim.njmax = 1500
+  cfg.sim.nconmax = 2000
+  cfg.sim.njmax = 2000
   cfg.decimation = 10
   cfg.episode_length_s = EPISODE_LENGTH
   cfg.viewer.lookat = (0.4, 0.0, 0.55)
