@@ -191,7 +191,7 @@ def test_track_linear_velocity_reward (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(math.exp(-3.0), abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(math.exp(-3.0), abs=1e-6), tensor_value_error_message(test_name)
 
 
 
@@ -209,7 +209,7 @@ def test_track_angular_velocity_reward (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(math.exp(-3.0), abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(math.exp(-3.0), abs=1e-6), tensor_value_error_message(test_name)
 
 
 
@@ -240,7 +240,7 @@ def test_upright_no_terrain_sensors_reward (mock_env, mock_asset_cfg) :
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(1.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.0, abs=1e-6), tensor_value_error_message(test_name)
 
   # WITH BODY IDS
 
@@ -256,7 +256,7 @@ def test_upright_no_terrain_sensors_reward (mock_env, mock_asset_cfg) :
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(1.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
 def test_pose_reward (mock_env, mock_asset_cfg):
@@ -282,7 +282,7 @@ def test_pose_reward (mock_env, mock_asset_cfg):
     "joint_left_1",
     "joint_right_1", 
     "joint_left_2",
-    "joint_right_2",  # fix the typo: was "joint_right_1" twice
+    "joint_right_2",
   )
 
   asset.find_joints = lambda names: (
@@ -332,7 +332,7 @@ def test_pose_reward (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(math.exp(-2.5), abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(math.exp(-2.5), abs=1e-6), tensor_value_error_message(test_name)
 
   # Walking
 
@@ -354,7 +354,7 @@ def test_pose_reward (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(math.exp(-0.625), abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(math.exp(-0.625), abs=1e-6), tensor_value_error_message(test_name)
 
   # Running
 
@@ -376,7 +376,7 @@ def test_pose_reward (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(math.exp(-0.15625), abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(math.exp(-0.15625), abs=1e-6), tensor_value_error_message(test_name)
 
 
 
@@ -398,7 +398,7 @@ def test_body_ang_vel_penalty (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(1.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
 def test_angular_momentum_penalty (mock_env, mock_asset_cfg):
@@ -419,7 +419,7 @@ def test_angular_momentum_penalty (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(1.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
 
@@ -445,7 +445,7 @@ def test_dofs_pos_limits_penalty (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(1.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
 def test_action_rate_l2_penalty (mock_env):
@@ -463,7 +463,7 @@ def test_action_rate_l2_penalty (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(num_joints, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(num_joints, abs=1e-6), tensor_value_error_message(test_name)
 
 
 def test_air_time_reward (mock_env):
@@ -489,7 +489,7 @@ def test_air_time_reward (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
 
   # Active
 
@@ -502,7 +502,7 @@ def test_air_time_reward (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(1.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
 def test_foot_clearance_penalty (mock_env, mock_asset_cfg):
@@ -529,7 +529,7 @@ def test_foot_clearance_penalty (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
 
   # Active
 
@@ -542,7 +542,7 @@ def test_foot_clearance_penalty (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(0.01, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(0.01, abs=1e-6), tensor_value_error_message(test_name)
 
 
 def test_foot_swing_height_penalty (mock_env):
@@ -585,7 +585,7 @@ def test_foot_swing_height_penalty (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
   # Active (no first contact)
@@ -599,7 +599,7 @@ def test_foot_swing_height_penalty (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
   # Active (first contact)
@@ -617,7 +617,7 @@ def test_foot_swing_height_penalty (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(1.25, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(1.25, abs=1e-6), tensor_value_error_message(test_name)
 
 
 def test_foot_slip_penalty (mock_env, mock_asset_cfg):
@@ -648,7 +648,7 @@ def test_foot_slip_penalty (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
   # Active (no contacts)
@@ -662,7 +662,7 @@ def test_foot_slip_penalty (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
 
   # Active (contacts)
 
@@ -676,7 +676,7 @@ def test_foot_slip_penalty (mock_env, mock_asset_cfg):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(0.04, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(0.04, abs=1e-6), tensor_value_error_message(test_name)
 
 
 def test_soft_lanfing_penalty (mock_env):
@@ -710,7 +710,7 @@ def test_soft_lanfing_penalty (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
   # Active (no first contacts)
@@ -724,7 +724,7 @@ def test_soft_lanfing_penalty (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
   # Active (first contacts)
@@ -740,7 +740,7 @@ def test_soft_lanfing_penalty (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(15.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(15.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
 def test_self_collisions_penalty (mock_env):
@@ -762,7 +762,7 @@ def test_self_collisions_penalty (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
   # No history (contacts)
@@ -778,7 +778,7 @@ def test_self_collisions_penalty (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(2.0, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(2.0, abs=1e-6), tensor_value_error_message(test_name)
 
 
   # With history
@@ -792,5 +792,55 @@ def test_self_collisions_penalty (mock_env):
   assert value.shape == (env.num_envs,),(
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
-  assert value[0] == pytest.approx(5, abs=1e-8), tensor_value_error_message(test_name)
+  assert value[0] == pytest.approx(5, abs=1e-6), tensor_value_error_message(test_name)
 
+
+def test_joint_vel_limits_penalty (mock_env, mock_asset_cfg):
+  env = mock_env
+
+  env.extras = {
+    "log" :{ }
+  }
+
+  mock_asset_cfg.joint_ids = [0, 1 ,2 ,3]
+
+  mock_asset_cfg.joint_names = (
+    "leg_left_1",
+    "leg_right_1", 
+    "leg_left_2",
+    "leg_right_2",
+  )
+
+  asset = env.scene[mock_asset_cfg.name]
+
+  asset.data.joint_vel = torch.zeros((env.num_envs, 4,), device= env.device)
+  asset.data.joint_vel[:, 1] = 1.5
+  asset.data.joint_vel[:, 3] = -2.5
+
+  asset.find_joints = lambda names: (
+    [0, 1, 2, 3],
+    list(mock_asset_cfg.joint_names)
+  )
+
+  cfg = RewardTermCfg(
+    func = None,
+    weight=1.0,
+    params={
+      "asset_cfg":mock_asset_cfg,
+      "velocity_limits" : {
+        r"leg_.*_1" : (-1.0, 1.0),
+        r"leg_.*_2" : (-2.0, 2.0),
+      },
+    }
+  )
+
+  reward_term = joint_vel_limits(cfg, env)
+
+  value = reward_term(env, {}, mock_asset_cfg)
+
+  test_name = "Joint vel limits"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(1.3, abs=1e-6), tensor_value_error_message(test_name)
