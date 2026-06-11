@@ -356,3 +356,23 @@ def test_pose (mock_env, mock_asset_cfg):
     f"Pose (running) returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
   )
   assert value[0] == math.exp(-0.15625), f"Pose (running) reward returned incorrect value"
+
+
+
+def test_body_ang_vel (mock_env, mock_asset_cfg):
+  env = mock_env
+
+  mock_asset_cfg.body_ids = 1
+
+  asset = env.scene[mock_asset_cfg.name]
+  asset.data.body_link_ang_vel_w = torch.zeros((env.num_envs, 5, 3), device= env.device)
+  
+  asset.data.body_link_ang_vel_w[:, mock_asset_cfg.body_ids, 0] += 1.0
+  asset.data.body_link_ang_vel_w[:, mock_asset_cfg.body_ids, 2] += 1.0 
+
+  value = body_angular_velocity_penalty(mock_env, mock_asset_cfg)
+
+  assert value.shape == (env.num_envs,),(
+    f"Body angular velocity penalty returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == 1.0, f"Body angular velocity penalty returned incorrect value"
