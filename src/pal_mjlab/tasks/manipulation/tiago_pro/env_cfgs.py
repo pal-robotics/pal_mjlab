@@ -141,8 +141,8 @@ def lift_env_cfg(
       func=manipulation_mdp_pal.object_orientation_in_robot_root_frame,
       params={"command_name": "lift_height"},
     )
-    terms["object_horizontal_size"] = ObservationTermCfg(
-      func=manipulation_mdp_pal.object_horizontal_size,
+    terms["object_width"] = ObservationTermCfg(
+      func=manipulation_mdp_pal.object_width,
       params={"command_name": "lift_height"},
     )
     terms["object_yaw"] = ObservationTermCfg(
@@ -191,7 +191,7 @@ def lift_env_cfg(
       "target_object_position",
       "gripper_pos",
       "ee_position",
-      "object_horizontal_size",
+      "object_width",
       "object_yaw",
     ):
       if name in cfg.observations["actor"].terms:
@@ -271,7 +271,7 @@ def lift_env_cfg(
 
   cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_both_fingers),
-    weight=1.5,
+    weight=1.0,
     params={
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
