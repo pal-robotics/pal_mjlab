@@ -420,3 +420,18 @@ def test_dofs_pos_limits (mock_env, mock_asset_cfg):
   )
   assert value[0] == 1.0, f"Dofs pos limits returned incorrect value"
 
+
+def test_action_rate_l2 (mock_env):
+  env= mock_env
+
+  num_joints = 5
+
+  env.action_manager.action = torch.ones((env.num_envs, num_joints), device= env.device)
+  env.action_manager.prev_action = torch.zeros((env.num_envs, num_joints), device= env.device)
+
+  value = action_rate_l2(env)
+
+  assert value.shape == (env.num_envs,),(
+    f"Action rate l2 returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == num_joints, f"Action rate l2 returned incorrect value"
