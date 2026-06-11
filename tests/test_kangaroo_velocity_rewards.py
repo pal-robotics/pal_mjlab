@@ -741,3 +741,56 @@ def test_soft_lanfing_penalty (mock_env):
     tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
   )
   assert value[0] == pytest.approx(15.0, abs=1e-8), tensor_value_error_message(test_name)
+
+
+def test_self_collisions_penalty (mock_env):
+  env= mock_env
+
+  n_contact_sites = 6
+
+  env.scene["contact_sensor"] = Mock()
+  env.scene["contact_sensor"].data.found = torch.zeros((env.num_envs, n_contact_sites), device= env.device)
+
+  # No history (no contacts)
+
+  env.scene["contact_sensor"].data.force_history = None
+
+  value = self_collision_cost(env, "contact_sensor")
+
+  test_name = "Self collisions (no force history)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(0.0, abs=1e-8), tensor_value_error_message(test_name)
+
+
+  # No history (contacts)
+
+  env.scene["contact_sensor"].data.force_history = None
+  env.scene["contact_sensor"].data.found[:, 0] = 1.0
+  env.scene["contact_sensor"].data.found[:, 1] = 1.0
+
+  value = self_collision_cost(env, "contact_sensor")
+
+  test_name = "Self collisions (no force history)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(2.0, abs=1e-8), tensor_value_error_message(test_name)
+
+
+  # With history
+
+  env.scene["contact_sensor"].data.force_history = torch.ones((env.num_envs, n_contact_sites, 5, 3)) * 11.0
+
+  value = self_collision_cost(env, "contact_sensor")
+
+  test_name = "Self collisions (force history)"
+
+  assert value.shape == (env.num_envs,),(
+    tensor_shape_error_message(test_name, (env.num_envs,), value.shape)
+  )
+  assert value[0] == pytest.approx(5, abs=1e-8), tensor_value_error_message(test_name)
+
