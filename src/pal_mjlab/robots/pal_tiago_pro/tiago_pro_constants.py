@@ -126,6 +126,13 @@ FULL_COLLISION = CollisionCfg(
   friction=(0.7,),
 )
 
+FINGERTIP_COLLISION = CollisionCfg(
+  geom_names_expr=(".*fingertip.*",),
+  condim=3,
+  priority=1,
+  friction=(1.0,),
+)
+
 ##
 # Articulation Config
 ##
@@ -148,7 +155,7 @@ def get_tiago_pro_robot_cfg() -> EntityCfg:
   """Get a fresh TIAGo Pro robot configuration instance."""
   return EntityCfg(
     init_state=INIT_STATE,
-    collisions=(FULL_COLLISION,),
+    collisions=(FULL_COLLISION, FINGERTIP_COLLISION),
     spec_fn=get_spec,
     articulation=TIAGO_PRO_ARTICULATION,
   )
