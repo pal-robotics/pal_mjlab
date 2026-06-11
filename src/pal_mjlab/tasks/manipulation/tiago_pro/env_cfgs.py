@@ -379,7 +379,7 @@ def lift_env_cfg(
     params={
       "position_range": (-0.01, 0.01),
       "velocity_range": (0.0, 0.0),
-      "asset_cfg": SceneEntityCfg("robot", joint_names=("gripper_right_finger_joint",)),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=("gripper_right.*",)),
     },
   )
 

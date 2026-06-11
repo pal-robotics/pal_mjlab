@@ -317,4 +317,4 @@ def top_surface_penetration_term(
 
   # Terminate if left or right penetration depth exceeds threshold
   terminated = (left_depth > threshold) | (right_depth > threshold)
-  return terminated.float()
+  return terminated
