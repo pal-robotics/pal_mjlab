@@ -395,3 +395,28 @@ def test_angular_momentum (mock_env, mock_asset_cfg):
     f"Angular momentum penalty returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
   )
   assert value[0] == 1.0, f"Angular momentum penalty returned incorrect value"
+
+
+
+def test_dofs_pos_limits (mock_env, mock_asset_cfg):
+
+  env= mock_env
+
+  mock_asset_cfg.joint_ids = [0, 1, 2]
+
+  asset = env.scene[mock_asset_cfg.name]
+
+  asset.data.joint_pos = torch.zeros((env.num_envs, 3), device= env.device)
+  asset.data.soft_joint_pos_limits = torch.ones((env.num_envs, 3, 2), device= env.device)
+  asset.data.soft_joint_pos_limits[:, :, 0] *= -1.0
+
+  asset.data.joint_pos[:, 1] += 1.5
+  asset.data.joint_pos[:, 2] -= 1.5
+
+  value = joint_pos_limits(env, mock_asset_cfg)
+
+  assert value.shape == (env.num_envs,),(
+    f"Dofs pos limits returned tensor of wrong shape, expected {(env.num_envs,)} got {value.shape}"
+  )
+  assert value[0] == 1.0, f"Dofs pos limits returned incorrect value"
+
