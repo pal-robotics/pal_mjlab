@@ -245,24 +245,24 @@ def lift_env_cfg(
   # )
   cfg.rewards["object_goal_tracking"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance),
-    weight=5.0,
+    weight=3.0,
     params={
       "command_name": "lift_height",
-      "std": 0.3,
+      "std": 0.5,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
     },
   )
-  # cfg.rewards["object_goal_tracking_fine_grained"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance),
-  #   weight=10.0,
-  #   params={
-  #     "command_name": "lift_height",
-  #     "std": 0.05,
-  #     "sensor_name": "box_fingertip_contact",
-  #     "site_names": [robot.fingertip_site_pattern],
-  #   },
-  # )
+  cfg.rewards["object_goal_tracking_fine_grained"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance),
+    weight=5.0,
+    params={
+      "command_name": "lift_height",
+      "std": 0.05,
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
+    },
+  )
   cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
     func=manipulation_mdp_pal.contact_penalty,
     weight=-0.5,
