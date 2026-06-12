@@ -226,7 +226,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.gripper_open_during_approach_reward
     ),
-    weight=1.0,
+    weight=1.5,
     params={
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
@@ -304,7 +304,7 @@ def lift_env_cfg(
   )
   cfg.rewards["joint_torques_l2"] = RewardTermCfg(
     func=mjlab_rewards.joint_torques_l2,
-    weight=-5e-3,
+    weight=-1e-3,
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))
     },
