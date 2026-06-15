@@ -7,6 +7,7 @@ from mjlab.managers import MetricsTermCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import (
@@ -40,6 +41,11 @@ from pal_mjlab.robots import (
   get_kangaroo_robot_cfg,
 )
 from pal_mjlab.tasks.velocity import mdp
+from mjlab.terrains.terrain_generator import SubTerrainCfg, TerrainGeneratorCfg
+from mjlab.terrains.config import pyramid_stairs, pyramid_stairs_inv, flat, random_spread_boxes
+from mjlab.utils.noise import UniformNoiseCfg as Unoise
+import math
+from mjlab.sensor import RayCastSensorCfg
 
 
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -95,7 +101,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
 
   # Remove the default terrain scan sensor
-  cfg.scene.sensors = tuple(s for s in cfg.scene.sensors if s.name != "terrain_scan")
+  # cfg.scene.sensors = tuple(s for s in cfg.scene.sensors if s.name != "terrain_scan")
 
   cfg.scene.sensors = (cfg.scene.sensors or ()) + (
     feet_ground_cfg,
@@ -130,18 +136,18 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # -- Observations
 
   cfg.observations["actor"].terms["height_scan"] = None
-  cfg.observations["critic"].terms["height_scan"] = None
+  # cfg.observations["critic"].terms["height_scan"] = None
   cfg.observations["actor"].terms["base_lin_vel"] = None
   cfg.observations["actor"].terms["projected_gravity"] = None
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
-    noise=Unoise(n_min=-0.05, n_max=0.05),
+    noise=Unoise(n_min=-0.035, n_max=0.035),
   )
   cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
     params={"sensor_name": "robot/imu_lin_acc"},
-    noise=Unoise(n_min=-0.5, n_max=0.5),
+    noise=Unoise(n_min=-0.075, n_max=0.075)
   )
   cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
@@ -449,5 +455,318 @@ def pal_kangaroo_grippers_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
   assert isinstance(joint_pos_action, JointPositionActionCfg)
   joint_pos_action.scale = KANGAROO_GRIPPERS_ACTION_SCALE
   joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
+
+  return cfg
+
+def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO LOWER BODY stairs terrain velocity configuration."""
+
+  ### MAKE LOWER BODY
+
+  cfg = pal_kangaroo_rough_env_cfg(play=play)
+
+  for pose_type in ("std_walking", "std_running"):
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_1_.*"]
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_4_.*"]
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_(?![14]_joint)\d+_joint"]
+
+  cfg.scene.entities = {"robot": get_kangaroo_lower_body_robot_cfg()}
+
+  joint_pos_action = cfg.actions["joint_pos"]
+  assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action.scale = KANGAROO_LOWER_BODY_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_ACTUATOR_NAMES
+
+  ### SENSORS
+
+  # Configure the terrain scan with the pelvis
+  for sensor in cfg.scene.sensors or ():
+    if sensor.name == "terrain_scan":
+      assert isinstance(sensor, RayCastSensorCfg)
+      sensor.frame = ObjRef(type="body", name="pelvis_2_link", entity="robot")
+
+  ### OBSERVATIONS
+
+  # OBSERVATION LAG (sensor lag)
+  cfg.observations["actor"].terms["base_ang_vel"].delay_min_lag = 0
+  cfg.observations["actor"].terms["base_ang_vel"].delay_max_lag = 2
+  cfg.observations["actor"].terms["base_lin_acc"].delay_min_lag = 0
+  cfg.observations["actor"].terms["base_lin_acc"].delay_max_lag = 1
+  cfg.observations["actor"].terms["imu_projected_gravity"].delay_min_lag = 0
+  cfg.observations["actor"].terms["imu_projected_gravity"].delay_max_lag = 2
+  cfg.observations["actor"].terms["joint_pos"].delay_min_lag = 0
+  cfg.observations["actor"].terms["joint_pos"].delay_max_lag = 1
+  cfg.observations["actor"].terms["joint_vel"].delay_min_lag = 0
+  cfg.observations["actor"].terms["joint_vel"].delay_max_lag = 1
+
+  # OBSERVATION NOISE
+  cfg.observations["actor"].terms["imu_projected_gravity"].noise = Unoise(n_min=-0.02, n_max=0.02) # IMU noise even lower
+  cfg.observations["actor"].terms["base_ang_vel"].noise = Unoise(n_min=-0.02, n_max=0.02) # 10 times smaller
+  cfg.observations["actor"].terms["base_lin_acc"].noise = Unoise(n_min=-0.05, n_max=0.05) # Reduce more
+  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.15, n_max=0.15)
+
+  # OBSERVATION history (to better infer dynamics)
+
+  # Only applied to the most important observations
+  cfg.observations["actor"].terms["base_ang_vel"].history_length = 3
+  cfg.observations["critic"].terms["base_ang_vel"].history_length = 3
+
+  cfg.observations["actor"].terms["base_lin_acc"].history_length = 3
+  cfg.observations["critic"].terms["base_lin_acc"].history_length = 3
+
+  cfg.observations["actor"].terms["imu_projected_gravity"].history_length = 3
+  cfg.observations["critic"].terms["imu_projected_gravity"].history_length = 3
+
+  cfg.observations["actor"].terms["joint_pos"].history_length = 3
+  cfg.observations["critic"].terms["joint_pos"].history_length = 3
+
+  cfg.observations["actor"].terms["joint_vel"].history_length = 3
+  cfg.observations["critic"].terms["joint_vel"].history_length = 3
+
+  ### COMMANDS
+
+  # Forward range
+  forward_cfg = UniformVelocityCommandCfg(
+    entity_name="robot",
+    resampling_time_range=(6.0, 9.0),
+    rel_standing_envs=0.1,
+    rel_forward_envs=0.0,
+    rel_heading_envs=1.0,
+    heading_command=True,
+    heading_control_stiffness=0.5,
+    debug_vis=True,
+    viz=UniformVelocityCommandCfg.VizCfg(z_offset=1.15),
+    ranges=UniformVelocityCommandCfg.Ranges(
+      lin_vel_x=(0.2, 0.3),
+      lin_vel_y=(0.0, 0.0),
+      ang_vel_z=(-0.5, 0.5), # When heading = true, it is the clip value
+      heading=(-math.pi, math.pi),
+    ),
+  )
+
+  backward_cfg = UniformVelocityCommandCfg(
+    entity_name="robot",
+    resampling_time_range=(6.0, 9.0),
+    rel_standing_envs=0.1,
+    rel_forward_envs=0.0,
+    rel_heading_envs=1.0,
+    heading_command=True,
+    heading_control_stiffness=0.5,
+    debug_vis=True,
+    viz=UniformVelocityCommandCfg.VizCfg(z_offset=1.15),
+    ranges=UniformVelocityCommandCfg.Ranges(
+      lin_vel_x=(-0.3, -0.2),
+      lin_vel_y=(0.0, 0.0),
+      ang_vel_z=(-0.5, 0.5), # When heading = true, it is the clip value
+      heading=(-math.pi, math.pi),
+    ),
+  )
+  
+  # Replace by the piecewise twist
+  cfg.commands["twist"] = mdp.PieceWiseVelocityCommandCfg(
+    pieces={
+      "forward_twist": mdp.PieceCommandCfg(cmd=forward_cfg),
+      "backward_twist": mdp.PieceCommandCfg(cmd=backward_cfg)
+    }
+  )
+
+  ### REWARDS
+
+  # Penalizes tilt relative to the terrain surface normal.
+  cfg.rewards["upright"].params["terrain_sensor_names"] = ("terrain_scan",)
+
+  # Extra clearance to go over steps
+  cfg.rewards["foot_clearance"].params["target_height"] = 0.3 # 0.2
+  cfg.rewards["foot_swing_height"].params["target_height"] = 0.3 # 0.2
+
+  # Make air time activate more and more weight
+  cfg.rewards["air_time"].weight = 0.5
+  cfg.rewards["air_time"].params["threshold_min"] = 0.1
+  cfg.rewards["air_time"].params["threshold_max"] = 1.0
+  cfg.rewards["air_time"].params["command_threshold"] = 0.05 # Gate of the reward
+
+  # Use improved deocupled ang vel z-xy reward / penalties
+  cfg.rewards["track_angular_velocity"].func = mdp.ang_vel_z_exp
+  cfg.rewards["body_ang_vel"].func = mdp.ang_vel_xy_l2
+
+  # Stricter tracking std, 0.5 of the reward at error ≈ std·√ln2
+  cfg.rewards["track_linear_velocity"].params["std"] = 0.15  # 0.12 m/s
+  cfg.rewards["track_angular_velocity"].params["std"] = 0.15  # 0.12 rad/s
+
+  ### EVENTS
+
+  # SPAWN
+
+  # Safer spawning close to the center (to avoid directly spawning unbalanced most of the time)
+  cfg.events["reset_base"].params["pose_range"] = {
+    "x": (-0.05, 0.05),
+    "y": (-0.05, 0.05),
+    "z": (0.01, 0.05),
+    "yaw": (-0.1, 0.1),
+  }
+
+  ### CURRICULUM
+
+  # TERRAIN
+  
+  # Use a better progess ratio based promotion function
+  cfg.curriculum["terrain_levels"].func = mdp.terrain_levels_vel
+  assert cfg.scene.terrain is not None
+  assert cfg.scene.terrain.terrain_generator is not None
+  cfg.scene.terrain.terrain_type = "generator"
+  cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
+    size=(3.0, 3.0),
+    num_rows=12,
+    num_cols=15,
+    border_width=20.0,
+    curriculum=True,
+    sub_terrains={
+      "flat": flat(proportion=0.1),
+      "pebbles": random_spread_boxes(
+        proportion=0.1,
+        num_boxes=350,
+        box_width_range=(0.02, 0.05),
+        box_length_range=(0.02, 0.05),
+        box_height_range=(0.02, 0.05),
+        platform_width=0.5,
+        border_width=0.0,
+      ),
+      "random_obstacles": random_spread_boxes(
+        proportion=0.1,
+        num_boxes=30,
+        box_width_range=(0.2, 0.6),
+        box_length_range=(0.2, 0.6),
+        box_height_range=(0.02, 0.06),
+        platform_width=0.5,
+        border_width=0.0,
+      ),
+      "easy_stairs_50": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.02, 0.05),
+        step_width=0.5,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "easy_stairs_40": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.02, 0.05),
+        step_width=0.4,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "easy_stairs_30": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.02, 0.05),
+        step_width=0.3,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "mid_stairs_50": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.05, 0.1),
+        step_width=0.5,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "mid_stairs_40": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.05, 0.1),
+        step_width=0.4,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "mid_stairs_30": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.05, 0.1),
+        step_width=0.3,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "hard_stairs_50": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.1, 0.15),
+        step_width=0.5,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "hard_stairs_40": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.1, 0.15),
+        step_width=0.4,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "hard_stairs_30": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.1, 0.15),
+        step_width=0.3,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "super_hard_stairs_50": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.15, 0.2),
+        step_width=0.5,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "super_hard_stairs_40": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.15, 0.2),
+        step_width=0.4,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "super_hard_stairs_30": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.15, 0.2),
+        step_width=0.3,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+    },
+  )
+
+  # VELOCITY COMMAND
+
+  cfg.curriculum["command_vel"] = CurriculumTermCfg(
+    func=mdp.piecewise_commands_vel,
+    params={
+      "command_name": "twist",
+      "piece_stages": {
+        "forward_twist": [
+          {"step": 0, "lin_vel_x": (0.2, 0.3)},
+          {"step": 5000 * 24, "lin_vel_x": (0.2, 0.4)},
+          {"step": 10000 * 24, "lin_vel_x": (0.2, 0.5)},
+          {"step": 20000 * 24, "lin_vel_x": (0.2, 0.6)},
+        ],
+        "backward_twist": [
+          {"step": 0, "lin_vel_x": (-0.3, -0.2)},
+          {"step": 5000 * 24, "lin_vel_x": (-0.4, -0.2)},
+          {"step": 10000 * 24, "lin_vel_x": (-0.5, -0.2)},
+          {"step": 20000 * 24, "lin_vel_x": (-0.6, -0.2)},        
+        ],
+      },
+    },
+  )
+
+  # PLAY
+  if play:
+    # Disable command curriculum.
+    assert "command_vel" in cfg.curriculum
+    del cfg.curriculum["command_vel"]
+
+    twist_cmd = cfg.commands["twist"]
+    assert isinstance(twist_cmd, mdp.PieceWiseVelocityCommandCfg)
+
+    forward_cmd = twist_cmd.pieces["forward_twist"].cmd
+    assert isinstance(forward_cmd, UniformVelocityCommandCfg)
+    forward_cmd.ranges.lin_vel_x = (0.2, 0.6)
+    forward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
+
+    backward_cmd = twist_cmd.pieces["backward_twist"].cmd
+    assert isinstance(backward_cmd, UniformVelocityCommandCfg)
+    backward_cmd.ranges.lin_vel_x = (-0.6, -0.2)
+    backward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
 
   return cfg
