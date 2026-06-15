@@ -112,6 +112,37 @@ def object_contact_both_fingers(
   return sensor.data.found.all(dim=-1).float()
 
 
+def object_contact_both_fingers_once(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  site_names: list[str],
+  threshold: float = 0.03,
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  min_dist: float = 0.035,
+) -> torch.Tensor:
+  """Returns a one-off 1.0 reward when contact is achieved for both fingertips, exactly once per episode."""
+  # 1. Get current contact state
+  contact_both = site_contact_both_fingers(
+    env, sensor_name, site_names, threshold=threshold, asset_cfg=asset_cfg, min_dist=min_dist
+  ).bool()
+
+  # 2. Initialize state buffer on the env if not present
+  if not hasattr(env, "_contact_reward_given") or env._contact_reward_given.shape != contact_both.shape:
+    env._contact_reward_given = torch.zeros_like(contact_both, dtype=torch.bool)
+
+  # 3. Reset the tracking flag for any reset environment (episode_length == 0)
+  reset_mask = (env.episode_length_buf == 0)
+  env._contact_reward_given[reset_mask] = False
+
+  # 4. Trigger reward only if contact is achieved AND reward hasn't been given yet
+  reward_trigger = contact_both & ~env._contact_reward_given
+
+  # 5. Mark as given
+  env._contact_reward_given[reward_trigger] = True
+
+  return reward_trigger.float()
+
+
 def contact_sensor_found(
   env: ManagerBasedRlEnv,
   sensor_name: str,

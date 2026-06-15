@@ -214,7 +214,7 @@ def lift_env_cfg(
   _grasp_cfg = SceneEntityCfg("robot", site_names=(robot.ee_site,))
   cfg.rewards["reaching_object"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_ee_distance),
-    weight=3.0,
+    weight=1.0,
     params={
       "std": 0.15,
       "min_reaching_reward": 0.0,
@@ -226,7 +226,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.gripper_open_during_approach_reward
     ),
-    weight=1.5,
+    weight=0.5,
     params={
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
@@ -245,24 +245,24 @@ def lift_env_cfg(
   # )
   cfg.rewards["object_goal_tracking"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance),
-    weight=3.0,
+    weight=1.0,
     params={
       "command_name": "lift_height",
-      "std": 0.5,
+      "std": 0.3,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
     },
   )
-  cfg.rewards["object_goal_tracking_fine_grained"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance),
-    weight=5.0,
-    params={
-      "command_name": "lift_height",
-      "std": 0.05,
-      "sensor_name": "box_fingertip_contact",
-      "site_names": [robot.fingertip_site_pattern],
-    },
-  )
+  # cfg.rewards["object_goal_tracking_fine_grained"] = RewardTermCfg(
+  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance),
+  #   weight=5.0,
+  #   params={
+  #     "command_name": "lift_height",
+  #     "std": 0.05,
+  #     "sensor_name": "box_fingertip_contact",
+  #     "site_names": [robot.fingertip_site_pattern],
+  #   },
+  # )
   cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
     func=manipulation_mdp_pal.contact_penalty,
     weight=-0.5,
@@ -270,8 +270,8 @@ def lift_env_cfg(
   )
 
   cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_both_fingers),
-    weight=1.0,
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_contact_both_fingers_once),
+    weight=5.0,
     params={
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
@@ -304,7 +304,7 @@ def lift_env_cfg(
   )
   cfg.rewards["joint_torques_l2"] = RewardTermCfg(
     func=mjlab_rewards.joint_torques_l2,
-    weight=-1e-3,
+    weight=-5e-4,
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))
     },

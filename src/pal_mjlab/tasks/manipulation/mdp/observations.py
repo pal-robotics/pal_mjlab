@@ -10,6 +10,20 @@ from mjlab.utils.lab_api.math import euler_xyz_from_quat, quat_apply, quat_inv, 
 from pal_mjlab.tasks.manipulation.mdp.commands import LiftingCommand
 
 
+def _get_cached_value(env: ManagerBasedRlEnv, cache_name: str, true_value: torch.Tensor) -> torch.Tensor:
+  """Caches and returns the observation value, updating it only every 3 steps (when episode_length_buf % 3 == 0)."""
+  if not hasattr(env, cache_name):
+    setattr(env, cache_name, true_value.clone())
+  else:
+    cached_val = getattr(env, cache_name)
+    if cached_val.shape != true_value.shape or cached_val.device != true_value.device:
+      setattr(env, cache_name, true_value.clone())
+    else:
+      update_mask = (env.episode_length_buf % 3 == 0)
+      cached_val[update_mask] = true_value[update_mask]
+  return getattr(env, cache_name)
+
+
 def object_position_in_robot_root_frame(
   env: ManagerBasedRlEnv,
   command_name: str,
@@ -17,10 +31,11 @@ def object_position_in_robot_root_frame(
 ) -> torch.Tensor:
   robot: Entity = env.scene[asset_cfg.name]
   command: LiftingCommand = env.command_manager.get_term(command_name)
-  return quat_apply(
+  true_pos = quat_apply(
     quat_inv(robot.data.root_link_quat_w),
     command.object_pos_w - robot.data.root_link_pos_w,
   )
+  return _get_cached_value(env, "_cached_object_pos", true_pos)
 
 
 def object_orientation_in_robot_root_frame(
@@ -267,7 +282,8 @@ def object_width(
     except Exception as e:
       pass
 
-  return box_sizes[:, 0:1] * 2.0
+  true_width = box_sizes[:, 0:1] * 2.0
+  return _get_cached_value(env, "_cached_object_width", true_width)
 
 
 def object_yaw_in_robot_root_frame(
@@ -280,4 +296,5 @@ def object_yaw_in_robot_root_frame(
     asset_cfg = SceneEntityCfg("robot")
   obj_quat = object_orientation_in_robot_root_frame(env, command_name, asset_cfg)
   _, _, yaw = euler_xyz_from_quat(obj_quat)
-  return torch.stack([torch.cos(yaw), torch.sin(yaw)], dim=-1)
+  true_yaw = torch.stack([torch.cos(yaw), torch.sin(yaw)], dim=-1)
+  return _get_cached_value(env, "_cached_object_yaw", true_yaw)
