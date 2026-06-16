@@ -282,7 +282,7 @@ def object_width(
     except Exception as e:
       pass
 
-  true_width = box_sizes[:, 0:1] * 2.0
+  true_width = box_sizes[:, 1:2] * 2.0
   return _get_cached_value(env, "_cached_object_width", true_width)
 
 
