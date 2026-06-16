@@ -581,8 +581,8 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
 
   # Make air time activate more and more weight
   cfg.rewards["air_time"].weight = 0.5
-  cfg.rewards["air_time"].params["threshold_min"] = 0.1
-  cfg.rewards["air_time"].params["threshold_max"] = 1.0
+  cfg.rewards["air_time"].params["threshold_min"] = 0.3
+  cfg.rewards["air_time"].params["threshold_max"] = 0.6
   cfg.rewards["air_time"].params["command_threshold"] = 0.05 # Gate of the reward
 
   # Use improved deocupled ang vel z-xy reward / penalties
@@ -702,7 +702,7 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
 
     backward_cmd = twist_cmd.pieces["backward_twist"].cmd
     assert isinstance(backward_cmd, UniformVelocityCommandCfg)
-    backward_cmd.ranges.lin_vel_x = (-0.5, -0.5)
+    backward_cmd.ranges.lin_vel_x = (-0.25, -0.25)
     backward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
 
   return cfg
