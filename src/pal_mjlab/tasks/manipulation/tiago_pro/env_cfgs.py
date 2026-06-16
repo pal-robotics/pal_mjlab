@@ -189,13 +189,15 @@ def lift_env_cfg(
     for name in (
       "object_position",
       "target_object_position",
-      "gripper_pos",
       "ee_position",
       "object_width",
       "object_yaw",
     ):
       if name in cfg.observations["actor"].terms:
         cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
+
+    if "gripper_pos" in cfg.observations["actor"].terms:
+      cfg.observations["actor"].terms["gripper_pos"].noise = Unoise(n_min=-0.003, n_max=0.003)
 
     cfg.observations["actor"].terms["joint_pos"].noise = Unoise(n_min=-0.02, n_max=0.02)
     cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.05, n_max=0.05)
@@ -226,7 +228,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.gripper_open_during_approach_reward
     ),
-    weight=0.5,
+    weight=1.5,
     params={
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
@@ -245,7 +247,7 @@ def lift_env_cfg(
   # )
   cfg.rewards["object_goal_tracking"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance),
-    weight=1.0,
+    weight=3.0,
     params={
       "command_name": "lift_height",
       "std": 0.3,
@@ -268,10 +270,15 @@ def lift_env_cfg(
     weight=-0.5,
     params={"sensor_names": ["gripper_table_contact"]},
   )
+  cfg.rewards["object_table_sliding_penalty"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_table_sliding_penalty),
+    weight=-1.0,
+    params={"command_name": "lift_height"},
+  )
 
   cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_contact_both_fingers_once),
-    weight=5.0,
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_both_fingers),
+    weight=1.0,
     params={
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
@@ -300,7 +307,7 @@ def lift_env_cfg(
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
     weight=-0.5,
-    params={"action_indices": list(range(7))},
+    params={"action_indices": list(range(8))},
   )
   cfg.rewards["joint_torques_l2"] = RewardTermCfg(
     func=mjlab_rewards.joint_torques_l2,
