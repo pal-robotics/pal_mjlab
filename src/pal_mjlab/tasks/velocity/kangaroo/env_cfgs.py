@@ -577,7 +577,10 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
 
   # Extra clearance to go over steps
   cfg.rewards["foot_clearance"].params["target_height"] = 0.3 # 0.2
+  cfg.rewards["foot_clearance"].weight = -3.0 # -2.0
+
   cfg.rewards["foot_swing_height"].params["target_height"] = 0.3 # 0.2
+  cfg.rewards["foot_swing_height"].weight = -0.5 # -0.25
 
   # Make air time activate more and more weight
   cfg.rewards["air_time"].weight = 0.5
