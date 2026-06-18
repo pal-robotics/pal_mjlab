@@ -45,6 +45,7 @@ Here are the different tasks implemented for Kangaroo, which are relative to obj
 | 14 | Mjlab-Velocity-Rough-Pal-Kangaroo-Hands  
 
 
+
 The full list of tasks can be checked anytime with ::  
 
     bash  
