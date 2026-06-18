@@ -81,7 +81,7 @@ Here is a table with the rewards used in the baseline of the velocity tracking t
 
 +--------------------------------+--------+----------------------+
 | Name                           | Weight |         Type         |
-+--------------------------------+--------+----------------------+
++================================+========+======================+
 | track_linear_velocity          |    2.0 | objective            |
 +--------------------------------+--------+----------------------+
 | track_angular_velocity         |    2.0 | objective            |
