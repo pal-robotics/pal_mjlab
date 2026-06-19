@@ -508,20 +508,22 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   # OBSERVATION history (to better infer dynamics)
 
   # Only applied to the most important observations
-  cfg.observations["actor"].terms["base_ang_vel"].history_length = 3
-  cfg.observations["critic"].terms["base_ang_vel"].history_length = 3
+  cfg.observations["actor"].history_length = 3
+  cfg.observations["critic"].history_length = 3
+  # cfg.observations["actor"].terms["base_ang_vel"].history_length = 3
+  # cfg.observations["critic"].terms["base_ang_vel"].history_length = 3
 
-  cfg.observations["actor"].terms["base_lin_acc"].history_length = 3
-  cfg.observations["critic"].terms["base_lin_acc"].history_length = 3
+  # cfg.observations["actor"].terms["base_lin_acc"].history_length = 3
+  # cfg.observations["critic"].terms["base_lin_acc"].history_length = 3
 
-  cfg.observations["actor"].terms["imu_projected_gravity"].history_length = 3
-  cfg.observations["critic"].terms["imu_projected_gravity"].history_length = 3
+  # cfg.observations["actor"].terms["imu_projected_gravity"].history_length = 3
+  # cfg.observations["critic"].terms["imu_projected_gravity"].history_length = 3
 
-  cfg.observations["actor"].terms["joint_pos"].history_length = 3
-  cfg.observations["critic"].terms["joint_pos"].history_length = 3
+  # cfg.observations["actor"].terms["joint_pos"].history_length = 3
+  # cfg.observations["critic"].terms["joint_pos"].history_length = 3
 
-  cfg.observations["actor"].terms["joint_vel"].history_length = 3
-  cfg.observations["critic"].terms["joint_vel"].history_length = 3
+  # cfg.observations["actor"].terms["joint_vel"].history_length = 3
+  # cfg.observations["critic"].terms["joint_vel"].history_length = 3
 
   ### COMMANDS
 
@@ -533,14 +535,14 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     rel_forward_envs=0.0,
     rel_heading_envs=1.0,
     heading_command=True,
-    heading_control_stiffness=0.5,
+    heading_control_stiffness=3.0,
     debug_vis=True,
     viz=UniformVelocityCommandCfg.VizCfg(z_offset=1.15),
     ranges=UniformVelocityCommandCfg.Ranges(
       lin_vel_x=(0.2, 0.3),
       lin_vel_y=(0.0, 0.0),
-      ang_vel_z=(-0.5, 0.5), # When heading = true, it is the clip value
-      heading=(-math.pi, math.pi),
+      ang_vel_z=(-0.3, 0.3), # When heading = true, it is the clip value
+      heading=(0.0, 0.0), # We want to go straight to the stairs
     ),
   )
 
@@ -565,7 +567,7 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   # Replace by the piecewise twist
   cfg.commands["twist"] = mdp.PieceWiseVelocityCommandCfg(
     pieces={
-      # "forward_twist": mdp.PieceCommandCfg(cmd=forward_cfg),
+      "forward_twist": mdp.PieceCommandCfg(cmd=forward_cfg),
       "backward_twist": mdp.PieceCommandCfg(cmd=backward_cfg)
     }
   )
@@ -573,14 +575,14 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   ### REWARDS
 
   # Penalizes tilt relative to the terrain surface normal.
-  cfg.rewards["upright"].params["terrain_sensor_names"] = ("terrain_scan",)
+  # cfg.rewards["upright"].params["terrain_sensor_names"] = ("terrain_scan",)
 
   # Extra clearance to go over steps
   cfg.rewards["foot_clearance"].params["target_height"] = 0.3 # 0.2
-  cfg.rewards["foot_clearance"].weight = -3.0 # -2.0
+  # cfg.rewards["foot_clearance"].weight = -3.0 # -2.0
 
   cfg.rewards["foot_swing_height"].params["target_height"] = 0.3 # 0.2
-  cfg.rewards["foot_swing_height"].weight = -0.5 # -0.25
+  # cfg.rewards["foot_swing_height"].weight = -0.5 # -0.25
 
   # Make air time activate more and more weight
   cfg.rewards["air_time"].weight = 0.5
@@ -674,12 +676,11 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     params={
       "command_name": "twist",
       "piece_stages": {
-        # "forward_twist": [
-        #   {"step": 0, "lin_vel_x": (0.2, 0.3)},
-        #   {"step": 5000 * 24, "lin_vel_x": (0.2, 0.4)},
-        #   {"step": 10000 * 24, "lin_vel_x": (0.2, 0.5)},
-        #   {"step": 20000 * 24, "lin_vel_x": (0.2, 0.6)},
-        # ],
+        "forward_twist": [
+          {"step": 0, "lin_vel_x": (0.2, 0.3)},
+          {"step": 10000 * 24, "lin_vel_x": (0.2, 0.4)},
+          {"step": 20000 * 24, "lin_vel_x": (0.2, 0.5)},
+        ],
         "backward_twist": [
           {"step": 0, "lin_vel_x": (-0.3, -0.2)},
           {"step": 10000 * 24, "lin_vel_x": (-0.4, -0.2)},
