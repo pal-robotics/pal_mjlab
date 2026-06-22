@@ -72,3 +72,7 @@ To run inference to evaluate results ::
 
     bash  
     uv run play {task_id} {other parameters}  
+
+|
+
+In the kangaroo_constants.py file, user may define stifness and damping for all joints.
