@@ -25,7 +25,7 @@ from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from pal_mjlab.robots.pal_tiago_pro.tiago_pro import TiagoProRobot
 from pal_mjlab.tasks.manipulation import mdp as manipulation_mdp_pal
 
-EPISODE_LENGTH = 6
+EPISODE_LENGTH = 10
 
 
 def lift_env_cfg(
@@ -36,12 +36,12 @@ def lift_env_cfg(
   cfg = make_lift_cube_env_cfg()
   robot = robot_cfg()
 
-  cfg.sim.mujoco.timestep = 0.002
-  cfg.sim.mujoco.iterations = 250
+  cfg.sim.mujoco.timestep = 0.005 #0.002
+  cfg.sim.mujoco.iterations = 20
   cfg.sim.mujoco.jacobian = "sparse"
-  cfg.sim.nconmax = 2000
-  cfg.sim.njmax = 2000
-  cfg.decimation = 10
+  cfg.sim.nconmax = 50
+  cfg.sim.njmax = 80
+  cfg.decimation = 4   #10
   cfg.episode_length_s = EPISODE_LENGTH
   cfg.viewer.lookat = (0.4, 0.0, 0.55)
   cfg.viewer.distance = 1.7
@@ -119,7 +119,7 @@ def lift_env_cfg(
     object_pose_range=manipulation_mdp_pal.LiftingCommandCfg.ObjectPoseRangeCfg(
       x=(0.3, 0.7),
       y=(-0.2, 0.2),
-      yaw=(-0.77, 0.77),
+      yaw=(-0.785, 0.785),
     ),
   )
 
@@ -190,7 +190,6 @@ def lift_env_cfg(
       "object_position",
       "target_object_position",
       "ee_position",
-      "object_width",
       "object_yaw",
     ):
       if name in cfg.observations["actor"].terms:
@@ -198,6 +197,12 @@ def lift_env_cfg(
 
     if "gripper_pos" in cfg.observations["actor"].terms:
       cfg.observations["actor"].terms["gripper_pos"].noise = Unoise(n_min=-0.003, n_max=0.003)
+
+    if "object_width" in cfg.observations["actor"].terms:
+      cfg.observations["actor"].terms["object_width"].noise = Unoise(n_min=-0.005, n_max=0.005)
+
+    if "object_yaw" in cfg.observations["actor"].terms:
+      cfg.observations["actor"].terms["object_yaw"].noise = Unoise(n_min=-0.05, n_max=0.05)
 
     cfg.observations["actor"].terms["joint_pos"].noise = Unoise(n_min=-0.02, n_max=0.02)
     cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.05, n_max=0.05)
@@ -216,7 +221,7 @@ def lift_env_cfg(
   _grasp_cfg = SceneEntityCfg("robot", site_names=(robot.ee_site,))
   cfg.rewards["reaching_object"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_ee_distance),
-    weight=1.0,
+    weight=3.0,
     params={
       "std": 0.15,
       "min_reaching_reward": 0.0,
@@ -228,23 +233,23 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.gripper_open_during_approach_reward
     ),
-    weight=1.5,
+    weight=1.0,
     params={
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
-      "std": 0.08,
+      "std": 0.02,
       "max_open": 0.07,
     },
   )
-  # cfg.rewards["lifting_object"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_is_lifted),
-  #   weight=1.0,
-  #   params={
-  #     "command_name": "lift_height",
-  #     "sensor_name": "box_fingertip_contact",
-  #     "site_names": [robot.fingertip_site_pattern],
-  #   },
-  # )
+  cfg.rewards["lifting_object"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_is_lifted),
+    weight=1.0,
+    params={
+      "command_name": "lift_height",
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
+    },
+  )
   cfg.rewards["object_goal_tracking"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance),
     weight=3.0,
@@ -253,6 +258,7 @@ def lift_env_cfg(
       "std": 0.3,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
+      "coordinate_weights": (1.0, 1.0, 3.0),
     },
   )
   # cfg.rewards["object_goal_tracking_fine_grained"] = RewardTermCfg(
@@ -270,11 +276,11 @@ def lift_env_cfg(
     weight=-0.5,
     params={"sensor_names": ["gripper_table_contact"]},
   )
-  cfg.rewards["object_table_sliding_penalty"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_table_sliding_penalty),
-    weight=-1.0,
-    params={"command_name": "lift_height"},
-  )
+  # cfg.rewards["object_table_sliding_penalty"] = RewardTermCfg(
+  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_table_sliding_penalty),
+  #   weight=-1.0,
+  #   params={"command_name": "lift_height"},
+  # )
 
   cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_both_fingers),
@@ -306,9 +312,18 @@ def lift_env_cfg(
   )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
-    weight=-0.5,
+    weight=-0.1,
     params={"action_indices": list(range(8))},
   )
+  cfg.rewards["arm_right_1_joint_limit_penalty"] = RewardTermCfg(
+    func=manipulation_mdp_pal.arm_right_1_joint_limit_penalty,
+    weight=-0.5,
+    params={
+      "asset_cfg": SceneEntityCfg("robot"),
+      "threshold": -0.35,
+    },
+  )
+
   cfg.rewards["joint_torques_l2"] = RewardTermCfg(
     func=mjlab_rewards.joint_torques_l2,
     weight=-5e-4,
@@ -409,7 +424,7 @@ def lift_env_cfg(
         body_names=("table",),
         geom_names=("table_geom",),
       ),
-      "height_range": (-0.025, 0.025),
+      "height_range": (-0.05, 0.05),
     },
   )
 
@@ -428,7 +443,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {0: (0.02, 0.025)},
+      "ranges": {0: (0.015, 0.03)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
@@ -437,7 +452,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {1: (0.02, 0.025)},
+      "ranges": {1: (0.015, 0.03)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
@@ -446,7 +461,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {2: (0.025, 0.035)},
+      "ranges": {2: (0.02, 0.04)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
@@ -458,7 +473,7 @@ def lift_env_cfg(
     func=dr.encoder_bias,
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,)),
-      "bias_range": (-0.02, 0.02),
+      "bias_range": (-0.01, 0.01),
     },
   )
 
@@ -492,7 +507,7 @@ def lift_env_cfg(
 
   cfg.terminations["top_surface_penetration"] = TerminationTermCfg(
     func=manipulation_mdp_pal.top_surface_penetration_term,
-    params={"command_name": "lift_height", "threshold": 0.005},
+    params={"command_name": "lift_height", "threshold": 0.0005},
   )
 
   # cfg.terminations["arm_contact_while_lifting"] = TerminationTermCfg(

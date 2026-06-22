@@ -10,7 +10,8 @@ requires-python = ">=3.10,<3.14"
 dependencies = [
     "mjlab>=1.5.2",
     "moviepy>=2.0",
-    "onnxruntime"
+    "onnxruntime",
+    "setuptools<82",
 ]
 
 [build-system]

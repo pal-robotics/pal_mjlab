@@ -32,8 +32,8 @@ def get_table_spec() -> mujoco.MjSpec:
     type=mujoco.mjtGeom.mjGEOM_BOX,
     size=(TABLE_HALF_X, TABLE_HALF_Y, TABLE_HEIGHT / 2),
     rgba=(0.1, 0.1, 0.1, 1.0),
-    solref=(-13000, -800),
-    solimp=(0.99, 0.995, 0.001, 0.01, 60),
+    solref=(0.001, 1),
+    solimp=(0.95, 0.99, 0.001, 0.5, 2),
   )
   return spec
 
@@ -48,8 +48,8 @@ def get_box_spec() -> mujoco.MjSpec:
     size=(BOX_HALF_X, BOX_HALF_Y, BOX_HALF_Z),
     rgba=(0.8, 0.2, 0.2, 1.0),
     mass=0.01,
-    solref=(0.001, 1),
-    solimp=(0.95, 0.99, 0.001, 0.5, 2),
+    solref=(-10000, -700),
+    solimp=(0.99, 0.995, 0.001, 0.5, 2),
   )
   return spec
 
