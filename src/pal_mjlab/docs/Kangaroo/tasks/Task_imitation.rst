@@ -127,3 +127,13 @@ An episode is terminated when certain conditions are met. In this case, those co
 - illegal contacts
 
 - excessive deviation from reference motion (early termination on tracking failure)
+
+
+Motion file
+-----------
+
+For motion tracking, a motion must be provided in a .npz format. A script is provided to transform motions
+ in .csv format into .npz, and GMR has support for retargetting motions to PAL Robotics' Kangaroo bipedal 
+ platform. You must make sure the motion file contains tranitions at the same framerate as the control frequency 
+ during training (if control is 50Hz, motion should be 50Hz). Difference in framerate between control and motion
+ can result in unexpected and most likely unstable behaviors, or training getting stuck early on.
