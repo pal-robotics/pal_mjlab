@@ -3,7 +3,13 @@
 PAL Kangaroo
 ============
 
-Kangaroo is one of PAL Robotics' humanoid platforms.  
+Kangaroo is PAL Robotics' humanoid research platform designed for whole-body
+locomotion and manipulation. The simulator supports multiple hardware
+configurations, ranging from a lower-body-only model to full-body models with
+different arm configurations.
+
+The environments are implemented on top of mjlab and provide standardized
+training tasks for reinforcement learning.
 
 With 14 DOFS in the lower body and various arm configurations (0 DOFS, 4 DOFS, 7 DOFS, ...) Kangaroo has the capability to perform many human inspired tasks.
 

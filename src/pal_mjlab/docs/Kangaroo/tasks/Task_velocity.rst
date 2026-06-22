@@ -6,6 +6,25 @@ PAL Kangaroo - Velocity tracking task
 The velocity tracking environment configuration for Kangaroo is overwritten over mjlab's built-in environment.
 
 
+Commands
+--------
+
+Here, a velocity command describe a desired linear horizontal velocity in the robot's frame, cartesian space, and a desired angular velocity around the Z-axis (yaw).
+
+Therefore, velocity command has 3 components :
+
+- X-aligned velocity (m/s)
+
+- Y-aligned velocity (m/s)
+
+- Angular velocity around Z axis (rad/s)
+
+|
+
+This command is independent of the robot's roll and pitch orientation, and independent of its world position.
+
+|
+
 Observations
 ------------
 
@@ -122,3 +141,14 @@ Here is a table with the rewards used in the baseline of the velocity tracking t
 Every reward tries to shape behavior to track objectives, respect limits, minimize costs or tune behavior in a certain direction. 
 Although baseline rewards with their given default weights work consistenly, it is not guaranteed to be the best solution, reward 
 weights can be tweaked to achieve different kinds of behaviors.
+
+Terminations
+------------
+
+An episode is terminated when certain conditions are met. In this case, those conditions are the following :
+
+- episode boundary (max episode length)
+
+- fell over (unrecoverable roll/pitch tilt)
+
+- illegal contacts
