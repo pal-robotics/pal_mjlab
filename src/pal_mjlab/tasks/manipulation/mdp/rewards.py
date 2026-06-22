@@ -37,9 +37,9 @@ def object_is_lifted(
   sensor_name: str,
   site_names: list[str],
   asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-  min_weight: float = 0.5,
-  max_weight: float = 5.0,
-  lift_threshold: float = 0.05,
+  min_weight: float = 0.1,
+  max_weight: float = 1.5,
+  lift_threshold: float = 0.03,
 ) -> torch.Tensor:
   command: LiftingCommand = env.command_manager.get_term(command_name)
 
@@ -64,14 +64,19 @@ def object_goal_distance(
   sensor_name: str,
   site_names: list[str],
   asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  coordinate_weights: tuple[float, float, float] = (1.0, 1.0, 1.0),
 ) -> torch.Tensor:
   command: LiftingCommand = env.command_manager.get_term(command_name)
   contact_both = site_contact_both_fingers(
     env, sensor_name, site_names, asset_cfg=asset_cfg
   ).bool()
 
-  distance = torch.norm(command.target_pos - command.object_pos_w, dim=-1)
+  diff = command.target_pos - command.object_pos_w
+  weights = torch.tensor(coordinate_weights, device=env.device)
+  weighted_diff = diff * weights
+  distance = torch.norm(weighted_diff, dim=-1)
   return (~command.object_on_table & contact_both) * (1.0 - torch.tanh(distance / std))
+
 
 
 def contact_penalty(env: ManagerBasedRlEnv, sensor_names: list[str]) -> torch.Tensor:
@@ -333,3 +338,27 @@ def object_table_sliding_penalty(
   speed_xy = torch.norm(lin_vel_xy, dim=-1)
   # Only penalize when the object is on the table
   return command.object_on_table.float() * speed_xy
+
+
+def arm_right_1_joint_limit_penalty(
+  env: ManagerBasedRlEnv,
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  threshold: float = -0.4,
+  scale: float = 4.0,
+  max_penalty: float = 10.0,
+) -> torch.Tensor:
+  """Penalizes the right arm joint 1 when its position relative to the default configuration drops below a threshold.
+
+  The penalty grows exponentially with respect to the violation.
+  """
+  robot: Entity = env.scene[asset_cfg.name]
+  joint_ids, _ = robot.find_joints("arm_right_1_joint")
+  joint_pos = robot.data.joint_pos[:, joint_ids[0]]
+  default_joint_pos = robot.data.default_joint_pos[:, joint_ids[0]]
+
+  joint_pos_rel = joint_pos - default_joint_pos
+  violation = torch.clamp(threshold - joint_pos_rel, min=0.0)
+  penalty = torch.exp(scale * violation) - 1.0
+  return torch.clamp(penalty, max=max_penalty)
+
+
