@@ -133,6 +133,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         ObjRef(type="site", name=s, entity="robot") for s in site_names
       )
       sensor.pattern = RingPatternCfg.single_ring(radius=0.03, num_samples=6)
+      # sensor.pattern = GridPatternCfg(size=(0.2, 0.08), resolution=0.04)
 
   # -- Observations
 
@@ -482,6 +483,7 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   # due to https://github.com/google-deepmind/mujoco_warp/blob/c62864ed2bf816c0a724d4cbf153921188f78eae/mujoco_warp/_src/io.py#L649-L660
   # for collision-rich envs, it is recommended to be manually set through experimentation
   cfg.sim.nconmax = 200
+  cfg.sim.njmax = 300
 
   ### SENSORS
 
@@ -542,21 +544,6 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   cfg.observations["critic"].history_length = 3
   cfg.observations["critic"].terms["height_scan"].history_length = 0
 
-  # cfg.observations["actor"].terms["base_ang_vel"].history_length = 3
-  # cfg.observations["critic"].terms["base_ang_vel"].history_length = 3
-
-  # cfg.observations["actor"].terms["base_lin_acc"].history_length = 3
-  # cfg.observations["critic"].terms["base_lin_acc"].history_length = 3
-
-  # cfg.observations["actor"].terms["imu_projected_gravity"].history_length = 3
-  # cfg.observations["critic"].terms["imu_projected_gravity"].history_length = 3
-
-  # cfg.observations["actor"].terms["joint_pos"].history_length = 3
-  # cfg.observations["critic"].terms["joint_pos"].history_length = 3
-
-  # cfg.observations["actor"].terms["joint_vel"].history_length = 3
-  # cfg.observations["critic"].terms["joint_vel"].history_length = 3
-
   ### COMMANDS
 
   # Forward range
@@ -606,17 +593,14 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
 
   ### REWARDS
 
-  # Penalizes tilt relative to the terrain surface normal.
-  # cfg.rewards["upright"].params["terrain_sensor_names"] = ("terrain_scan",)
-
   # Extra clearance to go over steps
-  cfg.rewards["foot_clearance"].params["target_height"] = 0.2
-  cfg.rewards["foot_swing_height"].params["target_height"] = 0.2
+  cfg.rewards["foot_clearance"].params["target_height"] = 0.3
+  cfg.rewards["foot_swing_height"].params["target_height"] = 0.3
 
   # Make air time activate more and more weight
   cfg.rewards["air_time"].weight = 0.5
   cfg.rewards["air_time"].params["threshold_min"] = 0.3
-  cfg.rewards["air_time"].params["threshold_max"] = 0.6
+  cfg.rewards["air_time"].params["threshold_max"] = 0.7
   cfg.rewards["air_time"].params["command_threshold"] = 0.05 # Gate of the reward
 
   # Use improved deocupled ang vel z-xy reward / penalties
@@ -707,13 +691,13 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
       "piece_stages": {
         "forward_twist": [
           {"step": 0, "lin_vel_x": (0.2, 0.3)},
-          {"step": 10000 * 24, "lin_vel_x": (0.2, 0.4)},
-          {"step": 20000 * 24, "lin_vel_x": (0.2, 0.5)},
+          {"step": 5000 * 24, "lin_vel_x": (0.2, 0.4)},
+          {"step": 10000 * 24, "lin_vel_x": (0.2, 0.5)},
         ],
         # "backward_twist": [
         #   {"step": 0, "lin_vel_x": (-0.3, -0.2)},
-        #   {"step": 10000 * 24, "lin_vel_x": (-0.4, -0.2)},
-        #   {"step": 20000 * 24, "lin_vel_x": (-0.5, -0.2)},
+        #   {"step": 5000 * 24, "lin_vel_x": (-0.4, -0.2)},
+        #   {"step": 10000 * 24, "lin_vel_x": (-0.5, -0.2)},
         # ],
       },
     },
