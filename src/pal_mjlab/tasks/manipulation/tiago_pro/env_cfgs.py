@@ -9,6 +9,7 @@ from mjlab.envs.mdp import rewards as mjlab_rewards
 from mjlab.envs.mdp import terminations as mdp_term
 from mjlab.envs.mdp.dr import geom as dr_geom
 from mjlab.managers import (
+  CurriculumTermCfg,
   EventTermCfg,
   ObservationGroupCfg,
   ObservationTermCfg,
@@ -186,23 +187,45 @@ def lift_env_cfg(
   # cfg.observations["critic"].history_length = 5
 
   if not play:
+    # ------------------------------------------------------------------
+    # Stochastic occlusion dropout for actor object observations.
+    # Replace the omniscient ground-truth obs with versions that randomly
+    # zero the output, simulating camera self-occlusion (e.g. by gripper).
+    # The critic keeps its ground-truth terms unchanged.
+    # ------------------------------------------------------------------
+    _P_DROP = 0.3  # fraction of steps per env where the obs is zeroed
+
+    if "object_position" in cfg.observations["actor"].terms:
+      cfg.observations["actor"].terms["object_position"] = ObservationTermCfg(
+        func=manipulation_mdp_pal.object_position_in_robot_root_frame_dropout,
+        params={"command_name": "lift_height", "p_drop": _P_DROP},
+        noise=Unoise(n_min=-0.01, n_max=0.01),
+      )
+
+    if "object_yaw" in cfg.observations["actor"].terms:
+      cfg.observations["actor"].terms["object_yaw"] = ObservationTermCfg(
+        func=manipulation_mdp_pal.object_yaw_in_robot_root_frame_dropout,
+        params={"command_name": "lift_height", "p_drop": _P_DROP},
+        noise=Unoise(n_min=-0.05, n_max=0.05),
+      )
+
+    if "object_width" in cfg.observations["actor"].terms:
+      cfg.observations["actor"].terms["object_width"] = ObservationTermCfg(
+        func=manipulation_mdp_pal.object_width_dropout,
+        params={"command_name": "lift_height", "p_drop": _P_DROP},
+        noise=Unoise(n_min=-0.005, n_max=0.005),
+      )
+
+    # Noise for remaining actor terms (dropout terms already have noise set above)
     for name in (
-      "object_position",
       "target_object_position",
       "ee_position",
-      "object_yaw",
     ):
       if name in cfg.observations["actor"].terms:
         cfg.observations["actor"].terms[name].noise = Unoise(n_min=-0.01, n_max=0.01)
 
     if "gripper_pos" in cfg.observations["actor"].terms:
       cfg.observations["actor"].terms["gripper_pos"].noise = Unoise(n_min=-0.003, n_max=0.003)
-
-    if "object_width" in cfg.observations["actor"].terms:
-      cfg.observations["actor"].terms["object_width"].noise = Unoise(n_min=-0.005, n_max=0.005)
-
-    if "object_yaw" in cfg.observations["actor"].terms:
-      cfg.observations["actor"].terms["object_yaw"].noise = Unoise(n_min=-0.05, n_max=0.05)
 
     cfg.observations["actor"].terms["joint_pos"].noise = Unoise(n_min=-0.02, n_max=0.02)
     cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.05, n_max=0.05)
@@ -349,6 +372,27 @@ def lift_env_cfg(
 
   ### CURRICULUMS
   cfg.curriculum.clear()
+
+  if not play:
+    # Ramp up the occlusion dropout probability over training.
+    # Stage thresholds are in total env steps (num_envs × policy steps).
+    # Adjust the step breakpoints to match your training schedule.
+    _occlusion_stages = [
+      {"step": 0,           "params": {"p_drop": 0.0}},   # warm-up: no dropout
+      {"step": 500 * 24,   "params": {"p_drop": 0.2}},  # light dropout starts
+      {"step": 2000 * 24,  "params": {"p_drop": 0.40}},  # moderate
+      {"step": 5000 * 24,  "params": {"p_drop": 0.60}},  # heavy
+    ]
+    for _term_name in ("object_position", "object_yaw", "object_width"):
+      if _term_name in cfg.observations["actor"].terms:
+        cfg.curriculum[f"occlusion_dropout_{_term_name}"] = CurriculumTermCfg(
+          func=manipulation_mdp_pal.observation_curriculum,
+          params={
+            "group_name": "actor",
+            "term_name": _term_name,
+            "stages": _occlusion_stages,
+          },
+        )
 
   # cfg.curriculum["reaching_object_std"] = CurriculumTermCfg(
   #   func=mdp.reward_curriculum,

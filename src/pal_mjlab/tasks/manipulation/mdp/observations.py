@@ -281,3 +281,71 @@ def object_yaw_in_robot_root_frame(
   obj_quat = object_orientation_in_robot_root_frame(env, command_name, asset_cfg)
   _, _, yaw = euler_xyz_from_quat(obj_quat)
   return torch.stack([torch.cos(yaw), torch.sin(yaw)], dim=-1)
+
+
+# ---------------------------------------------------------------------------
+# Occlusion-dropout wrappers
+# ---------------------------------------------------------------------------
+
+def _get_shared_occlusion_mask(env: ManagerBasedRlEnv, p_drop: float) -> torch.Tensor:
+  """Return a per-environment boolean occlusion mask, shared across obs terms.
+
+  The mask is resampled exactly once per policy step (keyed on
+  ``env.common_step_counter``), so every obs function that calls this within
+  the same step will see the **same** mask — guaranteeing all-or-nothing
+  dropout across position, yaw, and width simultaneously.
+  """
+  step = env.common_step_counter
+  cached = getattr(env, "_occlusion_cache", None)
+  if cached is None or cached[0] != step:
+    mask = torch.rand(env.num_envs, device=env.device) < p_drop
+    env._occlusion_cache = (step, mask)
+  return env._occlusion_cache[1]  # shape: (num_envs,)
+
+
+def _apply_shared_occlusion_dropout(
+  obs: torch.Tensor,
+  env: ManagerBasedRlEnv,
+  p_drop: float,
+) -> torch.Tensor:
+  """Zero the observation for environments selected by the shared mask.
+
+  All obs functions that call this within the same policy step share one
+  Bernoulli draw, so position / yaw / width are always occluded together.
+  """
+  if p_drop <= 0.0:
+    return obs
+  mask = _get_shared_occlusion_mask(env, p_drop).unsqueeze(-1)  # (num_envs, 1)
+  return torch.where(mask, torch.zeros_like(obs), obs)
+
+
+def object_position_in_robot_root_frame_dropout(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  p_drop: float = 0.3,
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+) -> torch.Tensor:
+  """Object position in robot root frame with shared stochastic occlusion dropout."""
+  obs = object_position_in_robot_root_frame(env, command_name, asset_cfg)
+  return _apply_shared_occlusion_dropout(obs, env, p_drop)
+
+
+def object_yaw_in_robot_root_frame_dropout(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  p_drop: float = 0.3,
+  asset_cfg: SceneEntityCfg | None = None,
+) -> torch.Tensor:
+  """Object yaw (cos/sin) in robot root frame with shared stochastic occlusion dropout."""
+  obs = object_yaw_in_robot_root_frame(env, command_name, asset_cfg)
+  return _apply_shared_occlusion_dropout(obs, env, p_drop)
+
+
+def object_width_dropout(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  p_drop: float = 0.3,
+) -> torch.Tensor:
+  """Object width with shared stochastic occlusion dropout."""
+  obs = object_width(env, command_name)
+  return _apply_shared_occlusion_dropout(obs, env, p_drop)
