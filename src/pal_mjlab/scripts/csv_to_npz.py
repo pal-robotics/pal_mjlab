@@ -17,6 +17,7 @@ from mjlab.viewer.offscreen_renderer import OffscreenRenderer
 from mjlab.viewer.viewer_config import ViewerConfig
 from pal_mjlab.tasks.tracking.kangaroo.env_cfgs import (
   pal_kangaroo_flat_tracking_env_cfg,
+  pal_kangaroo_hands_flat_env_cfg,
 )
 from pal_mjlab.tasks.tracking.kangaroo_lower_body.env_cfgs import (
   pal_kangaroo_lower_body_flat_tracking_env_cfg,
@@ -101,6 +102,39 @@ ROBOT_CONFIGS = {
     "joint_names": [
       "pelvis_1_joint",
       "pelvis_2_joint",
+      "leg_left_1_joint",
+      "leg_left_2_joint",
+      "leg_left_3_joint",
+      "leg_left_length_joint",
+      "leg_left_4_joint",
+      "leg_left_5_joint",
+      "leg_left_femur_joint",
+      "leg_left_knee_joint",
+      "leg_right_1_joint",
+      "leg_right_2_joint",
+      "leg_right_3_joint",
+      "leg_right_length_joint",
+      "leg_right_4_joint",
+      "leg_right_5_joint",
+      "leg_right_femur_joint",
+      "leg_right_knee_joint",
+    ],
+  },
+  "kangaroo_hands": {
+    "env_cfg_fn": pal_kangaroo_hands_flat_env_cfg,
+    "joint_names": [
+      "pelvis_1_joint",
+      "pelvis_2_joint",
+      "arm_left_1_joint",
+      "arm_left_2_joint",
+      "arm_left_3_joint",
+      "arm_left_4_joint",
+      "arm_left_5_joint",
+      "arm_right_1_joint",
+      "arm_right_2_joint",
+      "arm_right_3_joint",
+      "arm_right_4_joint",
+      "arm_right_5_joint",
       "leg_left_1_joint",
       "leg_left_2_joint",
       "leg_left_3_joint",
