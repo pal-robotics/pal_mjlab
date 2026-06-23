@@ -210,12 +210,12 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
     cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
         func=mdp.imu_projected_gravity,
         params={"sensor_name": "robot/imu_quat"},
-        noise=Unoise(n_min=-0.035, n_max=0.035),
+        noise=Unoise(n_min=-0.02, n_max=0.02),
     )
     cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
         func=mdp.builtin_sensor,
         params={"sensor_name": "robot/imu_lin_acc"},
-        noise=Unoise(n_min=-0.075, n_max=0.075),
+        noise=Unoise(n_min=-0.05, n_max=0.05),
     )
     cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
         func=mdp.imu_projected_gravity,
