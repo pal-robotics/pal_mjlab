@@ -15,8 +15,11 @@ from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
   HIP_XY_CONVEX_HULL_POINTS,
   KANGAROO_ACTION_SCALE,
+  KANGAROO_HANDS_ACTION_SCALE,
   KANGAROO_ACTUATOR_NAMES,
+  KANGAROO_HANDS_ACTUATOR_NAMES,
   get_kangaroo_robot_cfg,
+  get_kangaroo_hands_robot_cfg,
 )
 from pal_mjlab.tasks.velocity import mdp
 
@@ -173,5 +176,24 @@ def pal_kangaroo_flat_tracking_env_cfg(
     motion_cmd.velocity_range = {}
 
     motion_cmd.sampling_mode = "start"
+
+  return cfg
+
+
+
+
+def pal_kangaroo_hands_flat_env_cfg(
+  has_state_estimation: bool = True,
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO with hands (5 DoF per arms) rough terrain velocity configuration."""
+  cfg = pal_kangaroo_flat_tracking_env_cfg(has_state_estimation=has_state_estimation, play=play)
+
+  cfg.scene.entities = {"robot": get_kangaroo_hands_robot_cfg()}
+
+  joint_pos_action = cfg.actions["joint_pos"]
+  assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action.scale = KANGAROO_HANDS_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_HANDS_ACTUATOR_NAMES
 
   return cfg
