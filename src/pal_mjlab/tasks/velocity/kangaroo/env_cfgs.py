@@ -560,7 +560,7 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     ranges=UniformVelocityCommandCfg.Ranges(
       lin_vel_x=(0.2, 0.3),
       lin_vel_y=(0.0, 0.0),
-      ang_vel_z=(-0.3, 0.3), # When heading = true, it is the clip value
+      ang_vel_z=(-0.5, 0.5), # When heading = true, it is the clip value
       heading=(0.0, 0.0), # We want to go straight to the stairs
     ),
   )
@@ -578,7 +578,7 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     ranges=UniformVelocityCommandCfg.Ranges(
       lin_vel_x=(-0.3, -0.2),
       lin_vel_y=(0.0, 0.0),
-      ang_vel_z=(-0.3, 0.3), # When heading = true, it is the clip value, small corrections
+      ang_vel_z=(-0.5, 0.5), # When heading = true, it is the clip value, small corrections
       heading=(0.0, 0.0), # We want to go straight to the stairs
     ),
   )
@@ -586,16 +586,16 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   # Replace by the piecewise twist
   cfg.commands["twist"] = mdp.PieceWiseVelocityCommandCfg(
     pieces={
-      "forward_twist": mdp.PieceCommandCfg(cmd=forward_cfg),
-      # "backward_twist": mdp.PieceCommandCfg(cmd=backward_cfg)
+      # "forward_twist": mdp.PieceCommandCfg(cmd=forward_cfg),
+      "backward_twist": mdp.PieceCommandCfg(cmd=backward_cfg)
     }
   )
 
   ### REWARDS
 
   # Extra clearance to go over steps
-  cfg.rewards["foot_clearance"].params["target_height"] = 0.3
-  cfg.rewards["foot_swing_height"].params["target_height"] = 0.3
+  cfg.rewards["foot_clearance"].params["target_height"] = 0.2
+  cfg.rewards["foot_swing_height"].params["target_height"] = 0.2
 
   # Make air time activate more and more weight
   cfg.rewards["air_time"].weight = 0.5
@@ -689,16 +689,16 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     params={
       "command_name": "twist",
       "piece_stages": {
-        "forward_twist": [
-          {"step": 0, "lin_vel_x": (0.2, 0.3)},
-          {"step": 5000 * 24, "lin_vel_x": (0.2, 0.4)},
-          {"step": 10000 * 24, "lin_vel_x": (0.2, 0.5)},
-        ],
-        # "backward_twist": [
-        #   {"step": 0, "lin_vel_x": (-0.3, -0.2)},
-        #   {"step": 5000 * 24, "lin_vel_x": (-0.4, -0.2)},
-        #   {"step": 10000 * 24, "lin_vel_x": (-0.5, -0.2)},
+        # "forward_twist": [
+        #   {"step": 0, "lin_vel_x": (0.2, 0.3)},
+        #   {"step": 5000 * 24, "lin_vel_x": (0.2, 0.4)},
+        #   {"step": 10000 * 24, "lin_vel_x": (0.2, 0.5)},
         # ],
+        "backward_twist": [
+          {"step": 0, "lin_vel_x": (-0.3, -0.2)},
+          {"step": 5000 * 24, "lin_vel_x": (-0.4, -0.2)},
+          {"step": 10000 * 24, "lin_vel_x": (-0.5, -0.2)},
+        ],
       },
     },
   )
@@ -712,14 +712,14 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, mdp.PieceWiseVelocityCommandCfg)
 
-    forward_cmd = twist_cmd.pieces["forward_twist"].cmd
-    assert isinstance(forward_cmd, UniformVelocityCommandCfg)
-    forward_cmd.ranges.lin_vel_x = (0.2, 0.5)
-    forward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
+    # forward_cmd = twist_cmd.pieces["forward_twist"].cmd
+    # assert isinstance(forward_cmd, UniformVelocityCommandCfg)
+    # forward_cmd.ranges.lin_vel_x = (0.2, 0.5)
+    # forward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
 
-    # backward_cmd = twist_cmd.pieces["backward_twist"].cmd
-    # assert isinstance(backward_cmd, UniformVelocityCommandCfg)
-    # backward_cmd.ranges.lin_vel_x = (-0.25, -0.25)
-    # backward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
+    backward_cmd = twist_cmd.pieces["backward_twist"].cmd
+    assert isinstance(backward_cmd, UniformVelocityCommandCfg)
+    backward_cmd.ranges.lin_vel_x = (-0.5, -0.2)
+    backward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
 
   return cfg
