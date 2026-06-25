@@ -14,17 +14,15 @@ PPO is an on-policy actor-critic algorithm that alternates between collecting ro
 
 The key idea is the clipped surrogate objective:
 
-.. math::
+.. image:: https://latex.codecogs.com/png.latex?L%5E%7BCLIP%7D(%5Ctheta)%20%3D%20%5Chat%7B%5Cmathbb%7BE%7D%7D_t%20%5Cleft%5B%20%5Cmin%20%5Cleft(%20r_t(%5Ctheta)%20%5Chat%7BA%7D_t%2C%5C%20%5Ctext%7Bclip%7D(r_t(%5Ctheta)%2C%5C%201%20-%20%5Cepsilon%2C%5C%201%20%2B%20%5Cepsilon)%20%5Chat%7BA%7D_t%20%5Cright)%20%5Cright%5D
+   :alt: L^CLIP objective
 
-   L^{CLIP}(\theta) = \hat{\mathbb{E}}_t \left[ \min \left( r_t(\theta) \hat{A}_t,\ \text{clip}(r_t(\theta),\ 1 - \epsilon,\ 1 + \epsilon) \hat{A}_t \right) \right]
-
-where :math:`r_t(\theta) = \frac{\pi_\theta(a_t | s_t)}{\pi_{\theta_{old}}(a_t | s_t)}` is the probability ratio and :math:`\hat{A}_t` is the estimated advantage at timestep :math:`t`. The clip parameter :math:`\epsilon` limits how far the new policy can deviate from the old one.
+where ``r_t(θ) = π_θ(a_t|s_t) / π_θ_old(a_t|s_t)`` is the probability ratio and ``Â_t`` is the estimated advantage at timestep ``t``. The clip parameter ``ε`` limits how far the new policy can deviate from the old one.
 
 The full objective also includes a value function loss and an entropy bonus:
 
-.. math::
-
-   L(\theta) = L^{CLIP}(\theta) - c_1 L^{VF}(\theta) + c_2 S[\pi_\theta](s_t)
+.. image:: https://latex.codecogs.com/png.latex?L(%5Ctheta)%20%3D%20L%5E%7BCLIP%7D(%5Ctheta)%20-%20c_1%20L%5E%7BVF%7D(%5Ctheta)%20%2B%20c_2%20S%5B%5Cpi_%5Ctheta%5D(s_t)
+   :alt: L full objective
 
 Algorithm Flow
 --------------
