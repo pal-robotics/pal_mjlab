@@ -9,9 +9,7 @@ hierarchy, you compose modular building blocks — observations, rewards,
 terminations, actions, and events — and snap them together into one flat config
 object.
 
-This document walks through each piece and shows how they fit together. For a
-complete worked example, see the :doc:`Cartpole tutorial
-</source/tutorials/cartpole>`.
+This document walks through each piece and shows how they fit together.
 
 Overview
 --------
