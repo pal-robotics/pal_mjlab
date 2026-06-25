@@ -141,7 +141,7 @@
                 <inertial pos="-0.0569665 -5.4131e-05 -0.148821" quat="0.698616 0.0970713 0.0960701 0.702341" mass="1.02238" diaginertia="0.00215347 0.00207236 0.000258578" />
                 <joint name="leg_left_knee_joint" axis="0 -1 0" range="0.349066 2.44346" />
                 <geom class="visual" mesh="leg_tibia_link" />
-                <geom name="leg_left_knee_collision" size="0.04" fromto="-0.1483 0.0 -0.3 0.0571 0.0 -0.0033" class="collision"/>
+                <geom name="leg_left_knee_collision" size="0.04" fromto="-0.1483 0.0 -0.335 0.0571 0.0 -0.005" class="collision"/>
                 <geom name="leg_left_knee_bar_collision" class="collision" size="0.05" fromto="-0.05 -0.0 0.0 -0.15 0.0 -0.3"/>
               </body>
             </body>
@@ -220,7 +220,7 @@
                 <inertial pos="-0.0569665 -5.4131e-05 -0.148821" quat="0.698616 0.0970713 0.0960701 0.702341" mass="1.02238" diaginertia="0.00215347 0.00207236 0.000258578" />
                 <joint name="leg_right_knee_joint" axis="0 -1 0" range="0.349066 2.44346" />
                 <geom class="visual" mesh="leg_tibia_link" />
-                <geom name="leg_right_knee_collision" size="0.04" fromto="-0.1483 0.0 -0.3 0.0571 0.0 -0.0033" class="collision"/>
+                <geom name="leg_right_knee_collision" size="0.04" fromto="-0.1483 0.0 -0.335 0.0571 0.0 -0.005" class="collision"/>
                 <geom name="leg_right_knee_bar_collision" class="collision" size="0.05" fromto="-0.05 -0.0 0.0 -0.15 0.0 -0.3"/>
               </body>
             </body>
