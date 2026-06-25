@@ -4,12 +4,13 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
-from mjlab.managers.observation_manager import ObservationGroupCfg
+from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
 from mjlab.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
+from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
@@ -90,6 +91,26 @@ def pal_kangaroo_flat_tracking_env_cfg(
     "arm_right_2_link",
     "arm_right_3_link",
     "arm_right_tip_link",
+  )
+
+  # ── Observations ──────────────────────────────────────────────────────────
+  cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
+      func=mdp.imu_projected_gravity,
+      params={"sensor_name": "robot/imu_quat"},
+      noise=Unoise(n_min=-0.02, n_max=0.02),
+  )
+  cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
+      func=mdp.builtin_sensor,
+      params={"sensor_name": "robot/imu_lin_acc"},
+      noise=Unoise(n_min=-0.05, n_max=0.05),
+  )
+  cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
+      func=mdp.imu_projected_gravity,
+      params={"sensor_name": "robot/imu_quat"},
+  )
+  cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
+      func=mdp.builtin_sensor,
+      params={"sensor_name": "robot/imu_lin_acc"},
   )
 
   # The hull points should correspond to the respective joints defined in the joint_names_group order
