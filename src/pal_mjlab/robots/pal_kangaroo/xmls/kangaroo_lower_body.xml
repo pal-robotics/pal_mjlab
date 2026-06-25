@@ -120,6 +120,10 @@
                       <geom name="leg_left_ankle_coupling_collision" class="foot_capsule" size="0.04" fromto="0.012 0.0 0.042 0.012 0.0 0.08" />
                       <geom name="leg_left_ankle_bar_collision" class="foot_capsule" size="0.03" fromto="-0.04 -0.035 0.115 -0.04 0.035 0.115" />
                     </body>
+                    <body name="leg_left_foot_collision_avoidance_capsule_link">
+                      <geom name="left_foot_avoidance_collision_0"  class="foot_capsule" size="0.03" fromto="-0.0880 -0.055 0.02 0.112 -0.0550 0.02"/>
+                      <geom name="left_foot_avoidance_collision_1" class="foot_capsule" size="0.03" fromto="-0.0880  0.055 0.02 0.112  0.0550 0.02"/>
+                    </body>
                   </body>
                   <geom mesh="leg_ankle" class="visual" pos="" quat=""/>
                   <site name="leg_left_5_link" pos="0 0 0" quat="1.0 0 0 0"/>
@@ -199,6 +203,10 @@
                       <geom name="leg_right_ankle_coupling_collision" class="foot_capsule" size="0.04" fromto="0.012 0.0 0.042 0.012 0.0 0.08" />
                       <geom name="leg_right_ankle_bar_collision" class="foot_capsule" size="0.03" fromto="-0.04 -0.035 0.115 -0.04 0.035 0.115" />
                     </body>
+                    <body name="leg_right_foot_collision_avoidance_capsule_link">
+                      <geom name="right_foot_avoidance_collision_0"  class="foot_capsule" size="0.03" fromto="-0.0880 -0.055 0.02 0.112 -0.0550 0.02"/>
+                      <geom name="right_foot_avoidance_collision_1" class="foot_capsule" size="0.03" fromto="-0.0880  0.055 0.02 0.112  0.0550 0.02"/>
+                    </body>
                   </body>
                   <geom mesh="leg_ankle" class="visual" pos="" quat=""/>
                   <site name="leg_right_5_link" pos="0 0 0" quat="1.0 0 0 0"/>
@@ -239,10 +247,12 @@
     <!-- Left leg closed chain -->
     <exclude body1="leg_left_1_link" body2="leg_left_femur_link"/>
     <exclude body1="leg_left_ankle_link" body2="leg_left_knee_link"/>
+    <exclude body1="leg_left_foot_collision_avoidance_capsule_link" body2="terrain"/>
     
     <!-- Right leg closed chain -->
     <exclude body1="leg_right_1_link" body2="leg_right_femur_link"/>
     <exclude body1="leg_right_ankle_link" body2="leg_right_knee_link"/>
+    <exclude body1="leg_right_foot_collision_avoidance_capsule_link" body2="terrain"/>
   </contact>
   
   <sensor>
