@@ -598,9 +598,8 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   cfg.rewards["foot_swing_height"].params["target_height"] = 0.2
 
   # Make air time activate more and more weight
-  cfg.rewards["air_time"].weight = 0.5
-  cfg.rewards["air_time"].params["threshold_min"] = 0.3
-  cfg.rewards["air_time"].params["threshold_max"] = 0.6
+  cfg.rewards["air_time"].params["threshold_min"] = 0.2
+  cfg.rewards["air_time"].params["threshold_max"] = 0.45
   cfg.rewards["air_time"].params["command_threshold"] = 0.05 # Gate of the reward
 
   # Use improved deocupled ang vel z-xy reward / penalties
