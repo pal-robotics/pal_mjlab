@@ -610,6 +610,23 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   cfg.rewards["track_linear_velocity"].params["std"] = 0.15  # 0.12 m/s
   cfg.rewards["track_angular_velocity"].params["std"] = 0.15  # 0.12 rad/s
 
+  # Smoothness ablations: default off, enabled from CLI for batch experiments.
+  cfg.rewards["action_rate_l2"] = RewardTermCfg(
+    func=mdp.action_rate_l2,
+    weight=0.0,
+    params={},
+  )
+  cfg.rewards["action_acc_l2"] = RewardTermCfg(
+    func=mdp.action_acc_l2,
+    weight=0.0,
+    params={},
+  )
+  cfg.rewards["joint_accel"] = RewardTermCfg(
+    func=mdp.joint_acc_l2,
+    weight=0.0,
+    params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))},
+  )
+
   ### EVENTS
 
   # SPAWN
@@ -634,14 +651,46 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
     size=(3.0, 3.0),
     num_rows=12,
-    num_cols=2,
+    num_cols=10,
     border_width=20.0,
     curriculum=True,
     sub_terrains={
       "flat": flat(proportion=0.1),
+      "pebbles": random_spread_boxes(
+        proportion=0.1,
+        num_boxes=350,
+        box_width_range=(0.02, 0.05),
+        box_length_range=(0.02, 0.05),
+        box_height_range=(0.02, 0.05),
+        platform_width=0.5,
+        border_width=0.0,
+      ),
+      "random_obstacles": random_spread_boxes(
+        proportion=0.1,
+        num_boxes=30,
+        box_width_range=(0.2, 0.6),
+        box_length_range=(0.2, 0.6),
+        box_height_range=(0.02, 0.06),
+        platform_width=0.5,
+        border_width=0.0,
+      ),
+      "easy_stairs": pyramid_stairs_inv(
+        proportion=0.2,
+        step_height_range=(0.05, 0.1),
+        step_width=0.3,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "mid_stairs": pyramid_stairs_inv(
+        proportion=0.2,
+        step_height_range=(0.1, 0.15),
+        step_width=0.3,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
       "hard_stairs": pyramid_stairs_inv(
-        proportion=0.9,
-        step_height_range=(0.13, 0.2),
+        proportion=0.3,
+        step_height_range=(0.15, 0.2),
         step_width=0.3,
         platform_width=0.5,
         border_width=0.1,

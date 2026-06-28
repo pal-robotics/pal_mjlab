@@ -68,6 +68,16 @@ def stand_still_joint_deviation_l1(
   return penalty
 
 
+def joint_acc_l2(
+  env: ManagerBasedRlEnv,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Penalize squared joint accelerations."""
+  asset: Entity = env.scene[asset_cfg.name]
+  joint_acc = asset.data.joint_acc[:, asset_cfg.joint_ids]
+  return torch.sum(torch.square(joint_acc), dim=1)
+
+
 class joint_limits_convex_hull:
   """
   joint_limits_convex_hull is mainly to penalize the commands that are outside the convex hull of the joint limits.
