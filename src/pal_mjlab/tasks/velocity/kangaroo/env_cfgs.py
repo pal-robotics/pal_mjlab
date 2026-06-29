@@ -492,8 +492,8 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     name="terrain_scan",
     frame=ObjRef(type="body", name="", entity="robot"),  # Set per-robot.
     ray_alignment="yaw",
-    pattern=GridPatternCfg(size=(1.2, 0.6), resolution=0.2),
-    max_distance=1.0,
+    pattern=GridPatternCfg(size=(1.2, 0.6), resolution=0.1),
+    max_distance=2.0,
     exclude_parent_body=True,
     include_geom_groups=(0,),  # Terrain only.
     debug_vis=True,
@@ -611,21 +611,21 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   cfg.rewards["track_angular_velocity"].params["std"] = 0.15  # 0.12 rad/s
 
   # Smoothness ablations: default off, enabled from CLI for batch experiments.
-  cfg.rewards["action_rate_l2"] = RewardTermCfg(
-    func=mdp.action_rate_l2,
-    weight=0.0,
-    params={},
-  )
-  cfg.rewards["action_acc_l2"] = RewardTermCfg(
-    func=mdp.action_acc_l2,
-    weight=0.0,
-    params={},
-  )
-  cfg.rewards["joint_accel"] = RewardTermCfg(
-    func=mdp.joint_acc_l2,
-    weight=0.0,
-    params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))},
-  )
+  # cfg.rewards["action_rate_l2"] = RewardTermCfg(
+  #   func=mdp.action_rate_l2,
+  #   weight=0.0,
+  #   params={},
+  # )
+  # cfg.rewards["action_acc_l2"] = RewardTermCfg(
+  #   func=mdp.action_acc_l2,
+  #   weight=0.0,
+  #   params={},
+  # )
+  # cfg.rewards["joint_accel"] = RewardTermCfg(
+  #   func=mdp.joint_acc_l2,
+  #   weight=0.0,
+  #   params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))},
+  # )
 
   ### EVENTS
 
