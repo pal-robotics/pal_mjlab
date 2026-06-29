@@ -287,7 +287,11 @@ def object_yaw_in_robot_root_frame(
 # Occlusion-dropout wrappers
 # ---------------------------------------------------------------------------
 
-def _get_shared_occlusion_mask(env: ManagerBasedRlEnv, p_drop: float) -> torch.Tensor:
+def _get_shared_occlusion_mask(
+  env: ManagerBasedRlEnv,
+  p_drop: float | str,
+  command_name: str = "lift_height",
+) -> torch.Tensor:
   """Return a per-environment boolean occlusion mask, shared across obs terms.
 
   The mask is resampled exactly once per policy step (keyed on
@@ -298,7 +302,27 @@ def _get_shared_occlusion_mask(env: ManagerBasedRlEnv, p_drop: float) -> torch.T
   step = env.common_step_counter
   cached = getattr(env, "_occlusion_cache", None)
   if cached is None or cached[0] != step:
-    mask = torch.rand(env.num_envs, device=env.device) < p_drop
+    if isinstance(p_drop, str) and p_drop == "dynamic":
+      # Compute dynamic p_drop based on distance to the object
+      robot = env.scene["robot"]
+      ee_idx = robot.site_names.index("gripper_right_grasping_site")
+      ee_pos_w = robot.data.site_pos_w[:, ee_idx]
+      
+      command = env.command_manager.get_term(command_name)
+      object_pos_w = command.object_pos_w
+      
+      dist = torch.norm(ee_pos_w - object_pos_w, dim=-1)
+      
+      # Linear mapping: far (>= 0.6m) -> 0.0, close (<= 0.05m) -> 0.75
+      p_drop_tensor = 0.75 * (1.0 - (dist - 0.05) / (0.6 - 0.05))
+      p_drop_tensor = torch.clamp(p_drop_tensor, min=0.0, max=0.75)
+    else:
+      p_drop_tensor = p_drop
+
+    if isinstance(p_drop_tensor, float) and p_drop_tensor <= 0.0:
+      mask = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+    else:
+      mask = torch.rand(env.num_envs, device=env.device) < p_drop_tensor
     env._occlusion_cache = (step, mask)
   return env._occlusion_cache[1]  # shape: (num_envs,)
 
@@ -306,46 +330,47 @@ def _get_shared_occlusion_mask(env: ManagerBasedRlEnv, p_drop: float) -> torch.T
 def _apply_shared_occlusion_dropout(
   obs: torch.Tensor,
   env: ManagerBasedRlEnv,
-  p_drop: float,
+  p_drop: float | str,
+  command_name: str = "lift_height",
 ) -> torch.Tensor:
   """Zero the observation for environments selected by the shared mask.
 
   All obs functions that call this within the same policy step share one
   Bernoulli draw, so position / yaw / width are always occluded together.
   """
-  if p_drop <= 0.0:
+  if isinstance(p_drop, float) and p_drop <= 0.0:
     return obs
-  mask = _get_shared_occlusion_mask(env, p_drop).unsqueeze(-1)  # (num_envs, 1)
+  mask = _get_shared_occlusion_mask(env, p_drop, command_name=command_name).unsqueeze(-1)  # (num_envs, 1)
   return torch.where(mask, torch.zeros_like(obs), obs)
 
 
 def object_position_in_robot_root_frame_dropout(
   env: ManagerBasedRlEnv,
   command_name: str,
-  p_drop: float = 0.3,
+  p_drop: float | str = 0.3,
   asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
   """Object position in robot root frame with shared stochastic occlusion dropout."""
   obs = object_position_in_robot_root_frame(env, command_name, asset_cfg)
-  return _apply_shared_occlusion_dropout(obs, env, p_drop)
+  return _apply_shared_occlusion_dropout(obs, env, p_drop, command_name=command_name)
 
 
 def object_yaw_in_robot_root_frame_dropout(
   env: ManagerBasedRlEnv,
   command_name: str,
-  p_drop: float = 0.3,
+  p_drop: float | str = 0.3,
   asset_cfg: SceneEntityCfg | None = None,
 ) -> torch.Tensor:
   """Object yaw (cos/sin) in robot root frame with shared stochastic occlusion dropout."""
   obs = object_yaw_in_robot_root_frame(env, command_name, asset_cfg)
-  return _apply_shared_occlusion_dropout(obs, env, p_drop)
+  return _apply_shared_occlusion_dropout(obs, env, p_drop, command_name=command_name)
 
 
 def object_width_dropout(
   env: ManagerBasedRlEnv,
   command_name: str,
-  p_drop: float = 0.3,
+  p_drop: float | str = 0.3,
 ) -> torch.Tensor:
   """Object width with shared stochastic occlusion dropout."""
   obs = object_width(env, command_name)
-  return _apply_shared_occlusion_dropout(obs, env, p_drop)
+  return _apply_shared_occlusion_dropout(obs, env, p_drop, command_name=command_name)

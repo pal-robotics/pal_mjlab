@@ -362,3 +362,129 @@ def arm_right_1_joint_limit_penalty(
   return torch.clamp(penalty, max=max_penalty)
 
 
+_CRITICAL_CONFIGS_CACHE = {}
+
+
+def occlusion_similarity_penalty(
+  env: ManagerBasedRlEnv,
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  sigma: float = 0.4,
+  num_configs: int = 35,
+  config_file_path: str | None = None,
+) -> torch.Tensor:
+  """Penalizes the robot joint configuration if it is similar to any of the top critical self-occlusion configurations.
+
+  Uses a weighted sum of Gaussian RBFs: Sum_i w_i * exp( -||theta - c_i||^2 / (2 * sigma^2) )
+  """
+  global _CRITICAL_CONFIGS_CACHE
+
+  import os
+
+  if config_file_path is None or not os.path.exists(config_file_path):
+    # Fallback to the package-relative path
+    package_dir = os.path.dirname(os.path.abspath(__file__))
+    fallback_path = os.path.join(package_dir, "critical_configurations.json")
+    if os.path.exists(fallback_path):
+      config_file_path = fallback_path
+
+  cache_key = (config_file_path, num_configs, env.device)
+  if cache_key not in _CRITICAL_CONFIGS_CACHE:
+    import json
+
+    if config_file_path is None or not os.path.exists(config_file_path):
+      raise FileNotFoundError(f"Critical configurations file not found at {config_file_path}")
+
+    with open(config_file_path, "r") as f:
+      data = json.load(f)
+
+    selected_configs = data["critical_configurations"][:num_configs]
+    configs_list = []
+    weights_list = []
+
+    total_percentage = sum(c["percentage"] for c in selected_configs)
+
+    for c in selected_configs:
+      configs_list.append(c["joints"])
+      weights_list.append(c["percentage"] / total_percentage)
+
+    # Convert to PyTorch tensors and move to device
+    configs_tensor = torch.tensor(configs_list, dtype=torch.float32, device=env.device)
+    weights_tensor = torch.tensor(weights_list, dtype=torch.float32, device=env.device)
+
+    _CRITICAL_CONFIGS_CACHE[cache_key] = (configs_tensor, weights_tensor)
+
+  configs_tensor, weights_tensor = _CRITICAL_CONFIGS_CACHE[cache_key]
+
+  robot: Entity = env.scene[asset_cfg.name]
+  joint_names = [f"arm_right_{i}_joint" for i in range(1, 8)]
+  joint_ids = []
+  for name in joint_names:
+    ids, _ = robot.find_joints(name)
+    joint_ids.append(ids[0])
+
+  # Get robot's current right arm joint positions (shape: num_envs, 7)
+  joint_pos = robot.data.joint_pos[:, joint_ids]
+
+  # Broadcast subtraction to get differences (shape: num_envs, num_configs, 7)
+  diff = joint_pos.unsqueeze(1) - configs_tensor.unsqueeze(0)
+
+  # Squared L2 distance (shape: num_envs, num_configs)
+  dist_sq = torch.sum(torch.square(diff), dim=-1)
+
+  # RBF similarity (shape: num_envs, num_configs)
+  rbf = torch.exp(-dist_sq / (2 * sigma**2))
+
+  # Weighted sum (shape: num_envs,)
+  penalty = torch.sum(weights_tensor.unsqueeze(0) * rbf, dim=-1)
+
+  return penalty
+
+
+# Per-env success-hold counters, keyed by env id so multiple envs don't share state.
+_SUCCESS_HOLD_COUNTERS: dict[int, torch.Tensor] = {}
+
+
+def object_held_at_goal_term(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  hold_time_s: float = 1.0,
+) -> torch.Tensor:
+  """Terminates the episode once the object has been continuously held at the goal
+  for at least *hold_time_s* seconds.
+
+  A counter is incremented each step the success condition is met (object within
+  ``LiftingCommand.cfg.success_threshold`` of the goal and not on the table), and
+  reset to zero when the condition breaks.  The episode terminates when the counter
+  reaches ``ceil(hold_time_s / env.step_dt)``.
+
+  Args:
+    env: The RL environment.
+    command_name: Name of the ``LiftingCommand`` term.
+    hold_time_s: Seconds the object must be continuously held at the goal before
+      the episode is terminated.  Default: 1.0 s.
+
+  Returns:
+    Bool tensor of shape ``(num_envs,)`` — True for environments that have held
+    the object at the goal long enough.
+  """
+  global _SUCCESS_HOLD_COUNTERS
+
+  env_id = id(env)
+  if env_id not in _SUCCESS_HOLD_COUNTERS:
+    _SUCCESS_HOLD_COUNTERS[env_id] = torch.zeros(
+      env.num_envs, dtype=torch.float32, device=env.device
+    )
+
+  counter = _SUCCESS_HOLD_COUNTERS[env_id]
+
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  # compute_success() returns a bool tensor (num_envs,)
+  at_goal = command.compute_success()
+
+  # Increment counter where success, reset where not
+  counter = torch.where(at_goal, counter + 1.0, torch.zeros_like(counter))
+  _SUCCESS_HOLD_COUNTERS[env_id] = counter
+
+  # Number of env steps required
+  hold_steps = hold_time_s / env.step_dt
+  return counter >= hold_steps
