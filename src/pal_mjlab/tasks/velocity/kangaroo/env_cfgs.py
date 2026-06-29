@@ -610,20 +610,31 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   cfg.rewards["track_linear_velocity"].params["std"] = 0.15  # 0.12 m/s
   cfg.rewards["track_angular_velocity"].params["std"] = 0.15  # 0.12 rad/s
 
-  # Smoothness ablations: default off, enabled from CLI for batch experiments.
-  # cfg.rewards["action_rate_l2"] = RewardTermCfg(
-  #   func=mdp.action_rate_l2,
-  #   weight=0.0,
-  #   params={},
-  # )
+  # Smoothness ablations (Batch 6). Goal: reduce vibration / improve stability.
+  #
+  # NOTE: the default action_rate_l2 weight is -0.1 (see make_velocity_env_cfg).
+  # That is the "good default" that keeps the gait smooth. Batch 3 failed because
+  # it re-assigned cfg.rewards["action_rate_l2"] = RewardTermCfg(weight=0.0, ...),
+  # which CLOBBERED the -0.1 default. Each ablation below changes EXACTLY ONE
+  # thing vs the (intact) baseline:
+  #   - B6A1 modifies action_rate_l2 IN PLACE (never re-assign the key).
+  #   - B6A2 / B6A3 leave action_rate_l2 at its -0.1 default and ADD a new term.
+  # Uncomment ONE block per run.
+
+  # --- B6A1: strengthen the proven first-order rate term (-0.1 -> -0.2) ---
+  # cfg.rewards["action_rate_l2"].weight = -0.2
+
+  # --- B6A2: keep -0.1 rate, add action acceleration (jerk) penalty ---
   # cfg.rewards["action_acc_l2"] = RewardTermCfg(
   #   func=mdp.action_acc_l2,
-  #   weight=0.0,
+  #   weight=-0.005,
   #   params={},
   # )
+
+  # --- B6A3: keep -0.1 rate, add joint acceleration penalty ---
   # cfg.rewards["joint_accel"] = RewardTermCfg(
   #   func=mdp.joint_acc_l2,
-  #   weight=0.0,
+  #   weight=-1.0e-7,
   #   params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))},
   # )
 
