@@ -8,6 +8,7 @@ from mjlab.tasks.manipulation import mdp as manipulation_mdp
 from mjlab.utils.lab_api.math import euler_xyz_from_quat, quat_apply, quat_inv, quat_mul
 
 from pal_mjlab.tasks.manipulation.mdp.commands import LiftingCommand
+from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
 
 
 def object_position_in_robot_root_frame(
@@ -314,8 +315,8 @@ def _get_shared_occlusion_mask(
       dist = torch.norm(ee_pos_w - object_pos_w, dim=-1)
       
       # Linear mapping: far (>= 0.6m) -> 0.0, close (<= 0.05m) -> 0.75
-      p_drop_tensor = 0.75 * (1.0 - (dist - 0.05) / (0.6 - 0.05))
-      p_drop_tensor = torch.clamp(p_drop_tensor, min=0.0, max=0.75)
+      p_drop_tensor = 0.4 * (1.0 - (dist - 0.05) / (0.6 - 0.05))
+      p_drop_tensor = torch.clamp(p_drop_tensor, min=0.05, max=0.4)
     else:
       p_drop_tensor = p_drop
 
@@ -374,3 +375,26 @@ def object_width_dropout(
   """Object width with shared stochastic occlusion dropout."""
   obs = object_width(env, command_name)
   return _apply_shared_occlusion_dropout(obs, env, p_drop, command_name=command_name)
+
+
+def object_both__contact_fingers(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  site_names: list[str],
+  threshold: float = 0.05,
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  min_dist: float = 0.0,
+) -> torch.Tensor:
+  """Returns a binary flag [B, 1] indicating if both fingertips are in contact with the object."""
+  contact_both = site_contact_both_fingers(
+    env=env,
+    sensor_name=sensor_name,
+    site_names=site_names,
+    threshold=threshold,
+    asset_cfg=asset_cfg,
+    min_dist=min_dist,
+  )
+  return contact_both.unsqueeze(-1)
+
+
+object_both_contact_fingers = object_both__contact_fingers

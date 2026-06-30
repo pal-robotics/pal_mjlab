@@ -10,16 +10,40 @@ from mjlab.tasks.registry import load_env_cfg, load_rl_cfg
 from mjlab.utils.torch import configure_torch_backends
 from mjlab.viewer import NativeMujocoViewer, ViserPlayViewer
 
+def load_class(class_name: str):
+    """Loads a python class dynamically from its string path, with fallbacks for RSL RL models."""
+    import importlib
+    if class_name == "MLPModel":
+        from rsl_rl.models.mlp_model import MLPModel
+        return MLPModel
+    elif class_name == "CNNModel":
+        from rsl_rl.models.cnn_model import CNNModel
+        return CNNModel
+        
+    if ":" in class_name:
+        module_path, class_attr = class_name.split(":")
+    else:
+        parts = class_name.split(".")
+        if len(parts) > 1:
+            module_path = ".".join(parts[:-1])
+            class_attr = parts[-1]
+        else:
+            raise ValueError(f"Cannot resolve class name: {class_name}")
+            
+    module = importlib.import_module(module_path)
+    return getattr(module, class_attr)
+
 TASK_ID = "Mjlab-Manipulation-Lift-Cube-Pal-Tiago-Pro-v0"
 
 class PrintingPolicy:
-    def __init__(self, action_shape, env_wrapped):
+    def __init__(self, action_shape, env_wrapped, model=None):
         self.action_shape = action_shape
         self.env_wrapped = env_wrapped
         self.inner_env = env_wrapped.unwrapped
         self.obs_manager = self.inner_env.observation_manager
         self.names = self.obs_manager.active_terms.get("actor", [])
         self.shapes = self.obs_manager.group_obs_term_dim.get("actor", [])
+        self.model = model
 
     def __call__(self, obs) -> torch.Tensor:
         # Get current step and time
@@ -43,6 +67,34 @@ class PrintingPolicy:
         print(f"Step: {step:3d} | Time: {t:.2f}s")
         print(f"Object Length (X): {box_full_sizes[0].item():.4f} m | Width (Y): {box_full_sizes[1].item():.4f} m | Height (Z): {box_full_sizes[2].item():.4f} m")
         print(f"Object World Yaw:  {box_yaw_val:.4f} rad ({box_yaw_deg:.2f}°)")
+        
+        # Read fingertip contact sensors (one per gripper finger)
+        try:
+            contact_sensor = self.inner_env.scene["box_fingertip_contact"]
+        except (KeyError, AttributeError, TypeError):
+            contact_sensor = None
+
+        if contact_sensor is not None and contact_sensor.data.found is not None:
+            found = contact_sensor.data.found[0]  # shape: [N] (N=2 for two fingertips)
+            finger_contacts = [f.item() > 0 for f in found]
+            both_contacts = all(finger_contacts)
+            print(f"Finger Contacts: {finger_contacts} | Both Fingers in Contact: {both_contacts}")
+        else:
+            print("Finger Contacts: Sensor not available")
+        # Read reward terms
+        reward_manager = self.inner_env.reward_manager
+        if step > 0 and hasattr(reward_manager, "_step_reward") and reward_manager._step_reward is not None:
+            step_rewards = reward_manager._step_reward[0]  # shape: [num_terms]
+            total_step_reward = step_rewards.sum().item()
+            total_scaled_reward = reward_manager._reward_buf[0].item()
+            print("Reward values (weighted contribution of each term to the transition):")
+            for term_name, val in zip(reward_manager.active_terms, step_rewards.tolist()):
+                print(f"  {term_name:35s}: {val:10.4f}")
+            print(f"  {'Total Step Reward (unscaled)':35s}: {total_step_reward:10.4f}")
+            print(f"  {'Total Step Reward (scaled by dt)':35s}: {total_scaled_reward:10.4f}")
+        else:
+            print("Reward values: No transition yet (initial state)")
+
         print("-" * 80)
 
         # Extract actor observations
@@ -70,12 +122,22 @@ class PrintingPolicy:
                 print(f"  {name:25s} shape={str(shape):8s} value=[{formatted_vals}]")
             cursor += dim
             
-        return torch.zeros(self.action_shape, device=self.inner_env.device)
+        if self.model is not None:
+            from tensordict import TensorDict
+            if not isinstance(obs, TensorDict):
+                obs = TensorDict(obs, batch_size=[1])
+            with torch.no_grad():
+                action = self.model(obs)
+            return action
+        else:
+            return torch.zeros(self.action_shape, device=self.inner_env.device)
 
 def main():
-    parser = argparse.ArgumentParser(description="Play environment with zero agent and print observations.")
+    parser = argparse.ArgumentParser(description="Play environment with checkpoint model and print observations.")
     parser.add_argument("--viewer", type=str, choices=["auto", "native", "viser"], default="auto",
                         help="Viewer backend to use.")
+    parser.add_argument("--checkpoint", type=str, default=None,
+                        help="Path to the checkpoint model weights (e.g. .pt file). If None, runs the zero policy.")
     args = parser.parse_args()
 
     configure_torch_backends()
@@ -90,8 +152,42 @@ def main():
     env = ManagerBasedRlEnv(cfg=env_cfg, device=device, render_mode=None)
     env_wrapped = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
+    # Load checkpoint model if provided
+    model = None
+    if args.checkpoint is not None:
+        from tensordict import TensorDict
+        
+        print("Setting up policy model...")
+        actor_cfg = agent_cfg.actor
+        model_cls = load_class(actor_cfg.class_name)
+        
+        # Initialize with dummy observations to build model
+        obs_dict, _ = env.reset()
+        dummy_obs = TensorDict(obs_dict, batch_size=[1])
+        
+        model = model_cls(
+            obs=dummy_obs,
+            obs_groups=getattr(agent_cfg, "obs_groups", None),
+            obs_set="actor",
+            output_dim=env.action_manager.total_action_dim,
+            hidden_dims=actor_cfg.hidden_dims,
+            activation=actor_cfg.activation,
+            obs_normalization=actor_cfg.obs_normalization,
+            distribution_cfg=actor_cfg.distribution_cfg,
+        ).to(device)
+        
+        checkpoint_path = args.checkpoint
+        if not os.path.exists(checkpoint_path):
+            raise FileNotFoundError(f"Checkpoint path '{checkpoint_path}' does not exist!")
+            
+        print(f"Loading model weights from {checkpoint_path}...")
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint["actor_state_dict"], strict=True)
+        model.eval()
+        print("Model loaded successfully!")
+
     action_shape = env_wrapped.unwrapped.action_space.shape
-    policy = PrintingPolicy(action_shape, env_wrapped)
+    policy = PrintingPolicy(action_shape, env_wrapped, model=model)
 
     # Handle viewer selection
     if args.viewer == "auto":
