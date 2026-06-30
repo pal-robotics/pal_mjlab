@@ -504,6 +504,17 @@ def lift_env_cfg(
     },
   )
 
+  _box_body_cfg = SceneEntityCfg("box", body_names=("box_object",))
+  cfg.events["randomize_box_mass"] = EventTermCfg(
+    func=dr.body_mass,
+    mode="reset",
+    params={
+      "ranges": (0.01, 0.1),
+      "asset_cfg": _box_body_cfg,
+      "operation": "abs",
+    },
+  )
+
   # Sim2Real: encoder calibration drift (zero-point offset per joint)
   cfg.events["encoder_bias"] = EventTermCfg(
     mode="startup",
@@ -578,14 +589,22 @@ def lift_env_cfg(
     cfg.observations["actor"].enable_corruption = False
     cfg.curriculum = {}
 
-  for group in ["actor", "critic"]:
-    cfg.observations[group].terms["object_both__contact_fingers"] = ObservationTermCfg(
-      func=manipulation_mdp_pal.object_both__contact_fingers,
-      params={
-        "sensor_name": "box_fingertip_contact",
-        "site_names": [robot.fingertip_site_pattern],
-      },
-    )
+  cfg.observations["actor"].terms["object_both__contact_fingers"] = ObservationTermCfg(
+    func=manipulation_mdp_pal.object_both__contact_fingers,
+    params={
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
+      "false_negative_rate": 0.0 if play else 0.1,
+    },
+  )
+  cfg.observations["critic"].terms["object_both__contact_fingers"] = ObservationTermCfg(
+    func=manipulation_mdp_pal.object_both__contact_fingers,
+    params={
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
+      "false_negative_rate": 0.0,
+    },
+  )
 
   return cfg
 

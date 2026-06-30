@@ -384,6 +384,7 @@ def object_both__contact_fingers(
   threshold: float = 0.05,
   asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
   min_dist: float = 0.0,
+  false_negative_rate: float = 0.0,
 ) -> torch.Tensor:
   """Returns a binary flag [B, 1] indicating if both fingertips are in contact with the object."""
   contact_both = site_contact_both_fingers(
@@ -394,7 +395,11 @@ def object_both__contact_fingers(
     asset_cfg=asset_cfg,
     min_dist=min_dist,
   )
+  if false_negative_rate > 0.0:
+    mask = (torch.rand_like(contact_both) >= false_negative_rate).float()
+    contact_both = contact_both * mask
   return contact_both.unsqueeze(-1)
 
 
 object_both_contact_fingers = object_both__contact_fingers
+
