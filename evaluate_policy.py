@@ -33,64 +33,108 @@ from mjlab.tasks.manipulation.mdp import camera_rgb, camera_depth
 # Sourcing the filters from the workspace
 sys.path.append("/home/lorenzobarbieri/exchange/tiago_pro_sim_ws/src")
 try:
-    from filters import AdaptiveStaticKF, YawKF, StaticState1DKF, ExponentialMovingAverage
+    from filters import ConstantVelocityKF, AdaptiveStaticKF, YawKF, StaticState1DKF, ExponentialMovingAverage, ExponentialMovingAverageYaw, ExponentialMovingAverage1D
 except ImportError:
     print("Warning: could not import filters from exchange workspace. Implementing fallback filters.")
     # Minimal fallback implementations for safety
-    class AdaptiveStaticKF:
-        def __init__(self, init_pos, q_base=1e-6, r_pos=1e-3, window=10):
-            self.x = np.array([init_pos, 0.0], dtype=np.float32)
+    class ConstantVelocityKF:
+        def __init__(self, init_pos, init_vel=0.0, q_accel=0.05, r_pos=1e-5):
+            self.x = np.array([init_pos, init_vel], dtype=np.float32)
             self.P = np.array([[1.0, 0.0], [0.0, 10.0]], dtype=np.float32)
-            self.q_base = q_base
+            self.q_accel = q_accel
             self.r_pos = r_pos
-            self.current_alpha = 1.0
         def predict(self, dt, q_scale=1.0):
             F = np.array([[1.0, dt], [0.0, 1.0]], dtype=np.float32)
-            Q = (self.q_base * self.current_alpha * q_scale) * np.array([[(dt**3)/3.0, (dt**2)/2.0], [(dt**2)/2.0, dt]], dtype=np.float32)
+            q = self.q_accel * q_scale
+            Q = q * np.array([[(dt**3)/3.0, (dt**2)/2.0], [(dt**2)/2.0, dt]], dtype=np.float32)
             self.x = F @ self.x
             self.P = F @ self.P @ F.T + Q
-        def update(self, z_pos):
+        def update(self, z_pos, r_pos=None):
+            if r_pos is None:
+                r_pos = self.r_pos
             H = np.array([[1.0, 0.0]], dtype=np.float32)
-            R = np.array([[self.r_pos]], dtype=np.float32)
+            R = np.array([[r_pos]], dtype=np.float32)
             innovation = z_pos - (H @ self.x)[0]
-            if abs(innovation) > 0.05: return False
+            if abs(innovation) > 0.05:
+                return False
             S = H @ self.P @ H.T + R
             K = self.P @ H.T / S[0, 0]
             self.x = self.x + K.flatten() * innovation
             self.P = (np.eye(2, dtype=np.float32) - np.outer(K.flatten(), H.flatten())) @ self.P
             return True
-            
+
+    class AdaptiveStaticKF:
+        def __init__(self, init_pos, q_base=1e-7, r_pos=1e-5, window=10):
+            self.x = np.array([init_pos, 0.0], dtype=np.float32)
+            self.P = np.array([[1.0, 0.0], [0.0, 10.0]], dtype=np.float32)
+            self.q_base = q_base
+            self.r_pos = r_pos
+            self.innovations = []
+            self.window = window
+            self.current_alpha = 1.0
+        def predict(self, dt, q_scale=1.0):
+            F = np.array([[1.0, dt], [0.0, 1.0]], dtype=np.float32)
+            q = self.q_base * self.current_alpha * q_scale
+            Q = q * np.array([[(dt**3)/3.0, (dt**2)/2.0], [(dt**2)/2.0, dt]], dtype=np.float32)
+            self.x = F @ self.x
+            self.P = F @ self.P @ F.T + Q
+        def update(self, z_pos, r_pos=None):
+            if r_pos is None:
+                r_pos = self.r_pos
+            H = np.array([[1.0, 0.0]], dtype=np.float32)
+            R = np.array([[r_pos]], dtype=np.float32)
+            innovation = z_pos - (H @ self.x)[0]
+            if abs(innovation) > 0.05:
+                return False
+            self.innovations.append(innovation**2)
+            if len(self.innovations) > self.window:
+                self.innovations.pop(0)
+            S_theoretical = (H @ self.P @ H.T + R)[0, 0]
+            S_empirical   = np.mean(self.innovations)
+            self.current_alpha = max(1.0, S_empirical / S_theoretical)
+            S = H @ self.P @ H.T + R
+            K = self.P @ H.T / S[0, 0]
+            self.x = self.x + K.flatten() * innovation
+            self.P = (np.eye(2, dtype=np.float32) - np.outer(K.flatten(), H.flatten())) @ self.P
+            return True
+
     class YawKF:
-        def __init__(self, init_yaw, q_yaw=0.0001, r_yaw=0.02):
+        def __init__(self, init_yaw, q_yaw=0.001, r_yaw=0.02):
             self.x = np.array([math.cos(init_yaw), math.sin(init_yaw)], dtype=np.float32)
             self.P = np.eye(2, dtype=np.float32) * 1.0
             self.q_yaw = q_yaw
             self.r_yaw = r_yaw
         def predict(self, dt, q_scale=1.0):
-            self.P = self.P + np.eye(2, dtype=np.float32) * (self.q_yaw * q_scale * dt)
-        def update(self, z_yaw):
+            Q = np.eye(2, dtype=np.float32) * (self.q_yaw * q_scale * dt)
+            self.P = self.P + Q
+        def update(self, z_yaw, r_yaw=None):
+            if r_yaw is None:
+                r_yaw = self.r_yaw
             z = np.array([math.cos(z_yaw), math.sin(z_yaw)], dtype=np.float32)
             y = z - self.x
-            S = self.P + np.eye(2, dtype=np.float32) * self.r_yaw
+            S = self.P + np.eye(2, dtype=np.float32) * r_yaw
             K = self.P @ np.linalg.inv(S)
             self.x = self.x + K @ y
             self.P = (np.eye(2, dtype=np.float32) - K) @ self.P
             norm = np.linalg.norm(self.x)
-            if norm > 1e-5: self.x = self.x / norm
+            if norm > 1e-5:
+                self.x = self.x / norm
         def get_yaw(self):
-            return math.atan2(self.x[1], self.x[0])
-            
+            return float(math.atan2(self.x[1], self.x[0]))
+
     class StaticState1DKF:
-        def __init__(self, init_val, q_val=1e-5, r_val=0.005):
+        def __init__(self, init_val, q_val=0.0001, r_val=0.005):
             self.x = float(init_val)
             self.P = 1.0
             self.q_val = q_val
             self.r_val = r_val
         def predict(self, dt, q_scale=1.0):
             self.P = self.P + (self.q_val * q_scale * dt)
-        def update(self, z_val):
+        def update(self, z_val, r_val=None):
+            if r_val is None:
+                r_val = self.r_val
             y = z_val - self.x
-            S = self.P + self.r_val
+            S = self.P + r_val
             K = self.P / S
             self.x = self.x + K * y
             self.P = (1.0 - K) * self.P
@@ -100,10 +144,36 @@ except ImportError:
             self.x = np.array([init_pos, 0.0], dtype=np.float32)
             self.alpha = alpha
         def predict(self, dt, q_scale=1.0):
-            pass  # EMA holds the last state; no motion model
-        def update(self, z_pos, r_pos=None):  # r_pos ignored but accepted for API compatibility
+            pass
+        def update(self, z_pos, r_pos=None):
             self.x[0] = self.alpha * z_pos + (1.0 - self.alpha) * self.x[0]
             self.x[1] = 0.0
+            return True
+
+    class ExponentialMovingAverageYaw:
+        def __init__(self, init_yaw, alpha=0.20):
+            self.x = np.array([math.cos(init_yaw), math.sin(init_yaw)], dtype=np.float32)
+            self.alpha = alpha
+        def predict(self, dt, q_scale=1.0):
+            pass
+        def update(self, z_yaw, r_yaw=None):
+            z = np.array([math.cos(z_yaw), math.sin(z_yaw)], dtype=np.float32)
+            self.x = self.alpha * z + (1.0 - self.alpha) * self.x
+            norm = np.linalg.norm(self.x)
+            if norm > 1e-5:
+                self.x = self.x / norm
+            return True
+        def get_yaw(self):
+            return float(math.atan2(self.x[1], self.x[0]))
+
+    class ExponentialMovingAverage1D:
+        def __init__(self, init_val, alpha=0.20):
+            self.x = float(init_val)
+            self.alpha = alpha
+        def predict(self, dt, q_scale=1.0):
+            pass
+        def update(self, z_val, r_val=None):
+            self.x = self.alpha * z_val + (1.0 - self.alpha) * self.x
             return True
 
 
@@ -129,6 +199,22 @@ def load_class(class_name: str):
             
     module = importlib.import_module(module_path)
     return getattr(module, class_attr)
+def rotate_by_quat_np(v, q):
+    """
+    Rotate vectors v (shape [N, 3] or [3]) by quaternion q (shape [4] as [w, x, y, z]) using Rodrigues' formula.
+    """
+    v_arr = np.array(v, dtype=np.float32)
+    is_single = (v_arr.ndim == 1)
+    if is_single:
+        v_arr = v_arr[np.newaxis, :]
+    w, x, y, z = q[0], q[1], q[2], q[3]
+    q_xyz = np.array([x, y, z], dtype=np.float32)
+    cross1 = np.cross(q_xyz, v_arr)
+    cross2 = np.cross(q_xyz, cross1 + w * v_arr)
+    v_rot = v_arr + 2.0 * cross2
+    if is_single:
+        return v_rot[0]
+    return v_rot
 
 
 def compute_angle_wrt_cube_lateral_surfaces(v: torch.Tensor, cube_quat: torch.Tensor) -> torch.Tensor:
@@ -384,7 +470,6 @@ def evaluate(args):
 
         # Extract camera observations and perform estimation
         est_pos_r = torch.zeros((num_envs, 3), device=device)
-        est_width_r = torch.zeros((num_envs, 1), device=device)
         est_yaw_r = torch.zeros((num_envs, 2), device=device)
         est_quat_r = torch.zeros((num_envs, 4), device=device)
 
@@ -420,7 +505,6 @@ def evaluate(args):
 
             rgb_list = list(rgb_cpu)
 
-            # Run batch YOLO inference
             # Run batch YOLO inference in sub-batches to avoid GPU OOM
             yolo_device = "cuda:0" if torch.cuda.is_available() else "cpu"
             sub_batch_size = 16
@@ -443,19 +527,23 @@ def evaluate(args):
                     area = (x2 - x1) * (y2 - y1)
                     if area > max_area:
                         continue
-                    if conf > 0.25 and conf > best_conf:
+                    if conf > args.yolo_conf and conf > best_conf:
                         best_box = (x1, y1, x2, y2)
                         best_conf = conf
 
                 # Ground truth fallbacks (pre-computed on CPU in batch)
                 gt_pos_w_i = gt_pos_w_cpu[i]
                 gt_yaw_w = gt_yaw_w_cpu[i]
-                gt_width = (box_sizes[i, 1] * 2.0).item()
 
                 success_fit = False
                 px, py, pz = 0.0, 0.0, 0.0
                 theta = 0.0
-                length, width, height = 0.05, 0.05, 0.05
+                length, width, height = args.cube_size[0], args.cube_size[1], args.cube_size[2]
+
+                # Robot pose for transforms
+                robot_pos = robot.data.root_link_pos_w[i].cpu().numpy()
+                robot_quat = robot.data.root_link_quat_w[i].cpu().numpy()
+                q_inv = np.array([robot_quat[0], -robot_quat[1], -robot_quat[2], -robot_quat[3]], dtype=np.float32)
 
                 if best_box is not None:
                     x1, y1, x2, y2 = best_box
@@ -473,6 +561,39 @@ def evaluate(args):
                             inlier_mask = valid_mask & (np.abs(depth_crop - median_depth) < 0.05)
 
                             if np.sum(inlier_mask) >= 5:
+                                # RGB color segmentation (LAB)
+                                rgb_mask = None
+                                try:
+                                    roi = rgb_cpu[i, y1:y2, x1:x2]
+                                    if roi.size > 0:
+                                        roi_lab = cv2.cvtColor(roi, cv2.COLOR_RGB2LAB)
+                                        rh, rw = roi.shape[:2]
+                                        
+                                        # Extract central 50% area
+                                        cy1, cy2 = int(rh * 0.25), int(rh * 0.75)
+                                        cx1, cx2 = int(rw * 0.25), int(rw * 0.75)
+                                        center_pixels = roi_lab[cy1:cy2, cx1:cx2]
+                                        
+                                        if center_pixels.size > 0:
+                                            dominant_color = np.median(center_pixels[:, :, 1:3], axis=(0, 1))
+                                            roi_ab = roi_lab[:, :, 1:3].astype(np.float32)
+                                            diff = roi_ab - dominant_color
+                                            dist = np.sqrt(np.sum(diff**2, axis=-1))
+                                            
+                                            # Create binary mask (dist < 2.0)
+                                            rgb_mask = (dist < 2.0).astype(np.uint8) * 255
+                                            
+                                            # Morphological cleanup
+                                            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+                                            rgb_mask = cv2.morphologyEx(rgb_mask, cv2.MORPH_CLOSE, kernel)
+                                            rgb_mask = cv2.morphologyEx(rgb_mask, cv2.MORPH_OPEN, kernel)
+                                            
+                                            # Resize (depth size is the same, but scale just in case)
+                                            rgb_mask_depth = cv2.resize(rgb_mask, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
+                                            inlier_mask = inlier_mask & (rgb_mask_depth > 0)
+                                except Exception:
+                                    pass
+
                                 # Backproject
                                 u_range = np.arange(x1, x2)
                                 v_range = np.arange(y1, y2)
@@ -482,85 +603,177 @@ def evaluate(args):
                                 valid_u = uu[inlier_mask]
                                 valid_v = vv[inlier_mask]
 
-                                X = (valid_u - cx) * valid_depths / fx
-                                Y = (valid_v - cy) * valid_depths / fy
-                                Z = valid_depths
+                                if len(valid_depths) >= 5:
+                                    X = (valid_u - cx) * valid_depths / fx
+                                    Y = (valid_v - cy) * valid_depths / fy
+                                    Z = valid_depths
 
-                                points_cam = np.stack([X, Y, Z], axis=-1)
-                                points_mujoco = points_cam * np.array([1.0, -1.0, -1.0])
-                                cam_pos_i = cam_pos_cpu[i]
-                                cam_xmat_i = cam_xmat_cpu[i]
-                                points_world = cam_pos_i + np.dot(points_mujoco, cam_xmat_i.T)
+                                    pos_cam = np.array([np.mean(X), np.mean(Y), np.mean(Z)])
+                                    points_cam = np.stack([X, Y, Z], axis=-1)
+                                    
+                                    # Convert to MuJoCo camera coordinate convention
+                                    points_mujoco = points_cam * np.array([1.0, -1.0, -1.0])
+                                    cam_pos_i = cam_pos_cpu[i]
+                                    cam_xmat_i = cam_xmat_cpu[i]
+                                    points_world = cam_pos_i + np.dot(points_mujoco, cam_xmat_i.T)
+                                    
+                                    # Transform to robot base frame
+                                    points_robot = rotate_by_quat_np(points_world - robot_pos, q_inv)
+                                    pos_world = cam_pos_i + np.dot(pos_cam * np.array([1.0, -1.0, -1.0]), cam_xmat_i.T)
+                                    pos_robot = rotate_by_quat_np(pos_world - robot_pos, q_inv)
+                                    px, py, pz = pos_robot[0], pos_robot[1], pos_robot[2]
 
-                                try:
-                                    min_z = np.min(points_world[:, 2])
-                                    above_table_mask = points_world[:, 2] > (min_z + 0.008)
-                                    points_above = points_world[above_table_mask]
+                                    rgb_success = False
+                                    if rgb_mask is not None:
+                                        try:
+                                            contours, _ = cv2.findContours(rgb_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                                            if contours:
+                                                largest_contour = max(contours, key=cv2.contourArea)
+                                                if cv2.contourArea(largest_contour) > 10:
+                                                    rect_2d = cv2.minAreaRect(largest_contour)
+                                                    box_2d = cv2.boxPoints(rect_2d)
+                                                    
+                                                    box_2d[:, 0] += x1
+                                                    box_2d[:, 1] += y1
+                                                    
+                                                    z_cam = pos_cam[2]
+                                                    corners_cam = []
+                                                    for pt in box_2d:
+                                                        u, v = pt
+                                                        u_val = (u - cx) * z_cam / fx
+                                                        v_val = (v - cy) * z_cam / fy
+                                                        corners_cam.append([u_val, v_val, z_cam])
+                                                    corners_cam = np.array(corners_cam)
+                                                    
+                                                    corners_mujoco = corners_cam * np.array([1.0, -1.0, -1.0])
+                                                    corners_world = cam_pos_i + np.dot(corners_mujoco, cam_xmat_i.T)
+                                                    corners_robot = rotate_by_quat_np(corners_world - robot_pos, q_inv)
+                                                    
+                                                    px = float(np.mean(corners_robot[:, 0]))
+                                                    py = float(np.mean(corners_robot[:, 1]))
+                                                    
+                                                    p0, p1, p2, p3 = corners_robot
+                                                    v1 = p1 - p0
+                                                    v2 = p2 - p1
+                                                    
+                                                    angle1 = math.atan2(v1[1], v1[0])
+                                                    angle2 = math.atan2(v2[1], v2[0])
+                                                    
+                                                    def wrap_to_pi_over_2(angle):
+                                                        return (angle + math.pi / 2) % math.pi - math.pi / 2
+                                                    
+                                                    wrapped_angle1 = wrap_to_pi_over_2(angle1)
+                                                    wrapped_angle2 = wrap_to_pi_over_2(angle2)
+                                                    
+                                                    if abs(wrapped_angle1) < abs(wrapped_angle2):
+                                                        theta = wrapped_angle1
+                                                        length = float(np.linalg.norm(v1[:2]))
+                                                        width = float(np.linalg.norm(v2[:2]))
+                                                    else:
+                                                        theta = wrapped_angle2
+                                                        length = float(np.linalg.norm(v2[:2]))
+                                                        width = float(np.linalg.norm(v1[:2]))
+                                                        
+                                                    min_z = np.min(points_robot[:, 2])
+                                                    above_table_mask = points_robot[:, 2] > (min_z + 0.008)
+                                                    points_above_table = points_robot[above_table_mask]
+                                                    if len(points_above_table) > 0:
+                                                        z_coords = points_above_table[:, 2]
+                                                        height = float(np.max(z_coords) - np.min(z_coords)) + 0.008
+                                                    else:
+                                                        height = args.cube_size[2]
+                                                        
+                                                    rgb_success = True
+                                        except Exception:
+                                            pass
 
-                                    if len(points_above) >= 5:
-                                        centroid_above = np.mean(points_above, axis=0)
-                                        dists = np.linalg.norm(points_above - centroid_above, axis=1)
-                                        inlier_pts_mask = dists < 0.055
-                                        filtered = points_above[inlier_pts_mask]
-
-                                        if len(filtered) >= 5:
-                                            coords = filtered[:, :2].astype(np.float32)
-                                            rect = cv2.minAreaRect(coords)
-                                            box_pts = cv2.boxPoints(rect)
-
-                                            px = float(rect[0][0])
-                                            py = float(rect[0][1])
-                                            pz = float(np.mean(filtered[:, 2]))
-
-                                            p0, p1, p2, p3 = box_pts
-                                            v1 = p1 - p0
-                                            v2 = p2 - p1
-                                            angle1 = math.atan2(v1[1], v1[0])
-                                            angle2 = math.atan2(v2[1], v2[0])
-
-                                            def wrap_to_pi_over_2(angle):
-                                                return (angle + math.pi/2) % math.pi - math.pi/2
-
-                                            wrapped_angle1 = wrap_to_pi_over_2(angle1)
-                                            wrapped_angle2 = wrap_to_pi_over_2(angle2)
-
-                                            if abs(wrapped_angle1) < abs(wrapped_angle2):
-                                                theta = wrapped_angle1
-                                                length = float(np.linalg.norm(v1))
-                                                width = float(np.linalg.norm(v2))
-                                            else:
-                                                theta = wrapped_angle2
-                                                length = float(np.linalg.norm(v2))
-                                                width = float(np.linalg.norm(v1))
-
-                                            height = float(np.max(filtered[:, 2]) - np.min(filtered[:, 2])) + 0.008
-                                            success_fit = True
-                                except Exception:
-                                    pass
+                                    if not rgb_success:
+                                        try:
+                                            min_z = np.min(points_robot[:, 2])
+                                            above_table_mask = points_robot[:, 2] > (min_z + 0.008)
+                                            points_above_table = points_robot[above_table_mask]
+                                            
+                                            if len(points_above_table) >= 5:
+                                                centroid_above = np.mean(points_above_table, axis=0)
+                                                dists = np.linalg.norm(points_above_table - centroid_above, axis=1)
+                                                inlier_pts_mask = dists < 0.055
+                                                filtered_points = points_above_table[inlier_pts_mask]
+                                                
+                                                if len(filtered_points) >= 5:
+                                                    coords = filtered_points[:, :2].astype(np.float32)
+                                                    rect = cv2.minAreaRect(coords)
+                                                    box_pts = cv2.boxPoints(rect)
+                                                    
+                                                    px = float(rect[0][0])
+                                                    py = float(rect[0][1])
+                                                    
+                                                    p0, p1, p2, p3 = box_pts
+                                                    v1 = p1 - p0
+                                                    v2 = p2 - p1
+                                                    
+                                                    angle1 = math.atan2(v1[1], v1[0])
+                                                    angle2 = math.atan2(v2[1], v2[0])
+                                                    
+                                                    def wrap_to_pi_over_2(angle):
+                                                        return (angle + math.pi / 2) % math.pi - math.pi / 2
+                                                    
+                                                    wrapped_angle1 = wrap_to_pi_over_2(angle1)
+                                                    wrapped_angle2 = wrap_to_pi_over_2(angle2)
+                                                    
+                                                    if abs(wrapped_angle1) < abs(wrapped_angle2):
+                                                        theta = wrapped_angle1
+                                                        length = float(np.linalg.norm(v1))
+                                                        width = float(np.linalg.norm(v2))
+                                                    else:
+                                                        theta = wrapped_angle2
+                                                        length = float(np.linalg.norm(v2))
+                                                        width = float(np.linalg.norm(v1))
+                                                    
+                                                    z_coords = filtered_points[:, 2]
+                                                    height = float(np.max(z_coords) - np.min(z_coords)) + 0.008
+                                                    success_fit = True
+                                        except Exception:
+                                            pass
+                                    else:
+                                        success_fit = True
 
                 # 2. Kalman / EMA Filter predict and update
-                def _make_pos_filter(init_pos):
-                    if args.pos_filter_type == "ema":
-                        return ExponentialMovingAverage(init_pos, alpha=args.ema_alpha)
-                    else:  # "adaptive" (default)
-                        return AdaptiveStaticKF(init_pos, q_base=1e-4, r_pos=1e-3, window=10)
-
                 if success_fit:
                     if kfs[i] is None:
+                        if args.pos_filter_type == "constant_velocity":
+                            kf_x = ConstantVelocityKF(init_pos=px, init_vel=0.0, q_accel=0.0005, r_pos=1e-4)
+                            kf_y = ConstantVelocityKF(init_pos=py, init_vel=0.0, q_accel=0.0005, r_pos=1e-4)
+                            kf_z = ConstantVelocityKF(init_pos=pz, init_vel=0.0, q_accel=0.0005, r_pos=1e-4)
+                        elif args.pos_filter_type == "ema":
+                            kf_x = ExponentialMovingAverage(init_pos=px, alpha=args.ema_alpha)
+                            kf_y = ExponentialMovingAverage(init_pos=py, alpha=args.ema_alpha)
+                            kf_z = ExponentialMovingAverage(init_pos=pz, alpha=args.ema_alpha)
+                        else:  # "adaptive" (default)
+                            kf_x = AdaptiveStaticKF(init_pos=px, q_base=1e-6, r_pos=1e-3, window=10)
+                            kf_y = AdaptiveStaticKF(init_pos=py, q_base=1e-6, r_pos=1e-3, window=10)
+                            kf_z = AdaptiveStaticKF(init_pos=pz, q_base=1e-6, r_pos=1e-3, window=10)
+
+                        if args.pos_filter_type == "ema":
+                            kf_yaw = ExponentialMovingAverageYaw(init_yaw=theta, alpha=0.10)
+                            kf_len = ExponentialMovingAverage1D(init_val=length, alpha=0.10)
+                            kf_wid = ExponentialMovingAverage1D(init_val=width, alpha=0.10)
+                            kf_hgt = ExponentialMovingAverage1D(init_val=height, alpha=0.10)
+                        else:
+                            kf_yaw = YawKF(init_yaw=theta, q_yaw=0.0001, r_yaw=0.02)
+                            kf_len = StaticState1DKF(init_val=length, q_val=1e-5, r_val=0.005)
+                            kf_wid = StaticState1DKF(init_val=width, q_val=1e-5, r_val=0.005)
+                            kf_hgt = StaticState1DKF(init_val=height, q_val=1e-5, r_val=0.005)
+
                         kfs[i] = {
-                            "kf_x": _make_pos_filter(px),
-                            "kf_y": _make_pos_filter(py),
-                            # Higher uncertainty on Z so it tracks vertical motion during occlusion
-                            "kf_z": _make_pos_filter(pz),
-                            "kf_yaw": YawKF(theta, q_yaw=0.0001, r_yaw=0.02),
-                            "kf_len": StaticState1DKF(length, q_val=1e-5, r_val=0.005),
-                            "kf_wid": StaticState1DKF(width, q_val=1e-5, r_val=0.005),
-                            "kf_hgt": StaticState1DKF(height, q_val=1e-5, r_val=0.005),
+                            "kf_x": kf_x,
+                            "kf_y": kf_y,
+                            "kf_z": kf_z,
+                            "kf_yaw": kf_yaw,
+                            "kf_len": kf_len,
+                            "kf_wid": kf_wid,
+                            "kf_hgt": kf_hgt,
                             "occluded_while_grasping": False,
                         }
-                        est_pos_w_i = np.array([px, py, pz])
-                        est_yaw_w_i = theta
-                        est_width_i = width
                     else:
                         kfs[i]["kf_x"].predict(dt)
                         kfs[i]["kf_y"].predict(dt)
@@ -572,9 +785,6 @@ def evaluate(args):
 
                         u_x = kfs[i]["kf_x"].update(px)
                         u_y = kfs[i]["kf_y"].update(py)
-                        # After a grasp-occlusion, widen Z gate with a large r_pos so the KF
-                        # re-locks onto the lifted cube even if it jumped more than 5cm.
-                        # EMA ignores r_pos (accepted for API compatibility).
                         z_r_pos = 0.15 if kfs[i]["occluded_while_grasping"] else None
                         u_z = kfs[i]["kf_z"].update(pz, r_pos=z_r_pos)
                         kfs[i]["occluded_while_grasping"] = False
@@ -585,17 +795,15 @@ def evaluate(args):
                             kfs[i]["kf_wid"].update(width)
                             kfs[i]["kf_hgt"].update(height)
 
-                        est_pos_w_i = np.array([
-                            kfs[i]["kf_x"].x[0],
-                            kfs[i]["kf_y"].x[0],
-                            kfs[i]["kf_z"].x[0],
-                        ])
-                        est_yaw_w_i = kfs[i]["kf_yaw"].get_yaw()
-                        est_width_i = kfs[i]["kf_wid"].x
+                        px = float(kfs[i]["kf_x"].x[0])
+                        py = float(kfs[i]["kf_y"].x[0])
+                        pz = float(kfs[i]["kf_z"].x[0])
+                        theta = float(kfs[i]["kf_yaw"].get_yaw())
+                        length = float(kfs[i]["kf_len"].x)
+                        width = float(kfs[i]["kf_wid"].x)
+                        height = float(kfs[i]["kf_hgt"].x)
                 else:
                     if kfs[i] is not None:
-                        # During occlusion: XY drift is slow, but Z changes rapidly when lifting.
-                        # Apply a much higher q_scale on Z when contact is confirmed (cube is moving up).
                         z_q_scale = 500.0 if contact_both[i].item() else 10.0
                         kfs[i]["kf_x"].predict(dt, q_scale=10.0)
                         kfs[i]["kf_y"].predict(dt, q_scale=10.0)
@@ -608,35 +816,40 @@ def evaluate(args):
                         if contact_both[i].item():
                             kfs[i]["occluded_while_grasping"] = True
 
-                        est_pos_w_i = np.array([
-                            kfs[i]["kf_x"].x[0],
-                            kfs[i]["kf_y"].x[0],
-                            kfs[i]["kf_z"].x[0],
-                        ])
-                        est_yaw_w_i = kfs[i]["kf_yaw"].get_yaw()
-                        est_width_i = kfs[i]["kf_wid"].x
+                        px = float(kfs[i]["kf_x"].x[0])
+                        py = float(kfs[i]["kf_y"].x[0])
+                        pz = float(kfs[i]["kf_z"].x[0])
+                        theta = float(kfs[i]["kf_yaw"].get_yaw())
+                        length = float(kfs[i]["kf_len"].x)
+                        width = float(kfs[i]["kf_wid"].x)
+                        height = float(kfs[i]["kf_hgt"].x)
                     else:
-                        est_pos_w_i = gt_pos_w_i
-                        est_yaw_w_i = gt_yaw_w
-                        est_width_i = gt_width
+                        gt_pos_r_i = rotate_by_quat_np(gt_pos_w_i - robot_pos, q_inv)
+                        px, py, pz = gt_pos_r_i[0], gt_pos_r_i[1], gt_pos_r_i[2]
+                        
+                        _, _, robot_yaw_w = euler_xyz_from_quat(torch.tensor(robot_quat, device=device).unsqueeze(0))
+                        robot_yaw_w = robot_yaw_w[0].item()
+                        theta = gt_yaw_w - robot_yaw_w
+                        length, width, height = args.cube_size[0], args.cube_size[1], args.cube_size[2]
 
-                # 3. Transform to robot root frame
-                est_pos_w_i_t = torch.tensor(est_pos_w_i, device=device, dtype=torch.float32)
-                robot_pos_w_i = robot.data.root_link_pos_w[i]
-                robot_quat_w_i = robot.data.root_link_quat_w[i]
+                if args.use_yaw_width_gt:
+                    _, _, robot_yaw_w = euler_xyz_from_quat(torch.tensor(robot_quat, device=device).unsqueeze(0))
+                    robot_yaw_w = robot_yaw_w[0].item()
+                    relative_yaw = gt_yaw_w - robot_yaw_w
+                    relative_yaw = (relative_yaw + math.pi/4) % (math.pi/2) - math.pi/4
+                    theta = relative_yaw
+                    length = args.cube_size[0]
+                    width = args.cube_size[1]
+                    height = args.cube_size[2]
 
-                pos_rel = quat_apply(quat_inv(robot_quat_w_i.unsqueeze(0)), (est_pos_w_i_t - robot_pos_w_i).unsqueeze(0))[0]
-                est_pos_r[i] = pos_rel
-                est_width_r[i, 0] = est_width_i
+                if args.exclude_width_prediction:
+                    width = args.cube_size[1]
 
-                # Orientation in robot frame
-                est_quat_w_i = torch.tensor([math.cos(est_yaw_w_i/2), 0.0, 0.0, math.sin(est_yaw_w_i/2)], device=device, dtype=torch.float32)
-                quat_rel = quat_mul(quat_inv(robot_quat_w_i.unsqueeze(0)), est_quat_w_i.unsqueeze(0))[0]
-                est_quat_r[i] = quat_rel
-                _, _, yaw_rel = euler_xyz_from_quat(quat_rel.unsqueeze(0))
-                yaw_rel = yaw_rel[0].item()
-                est_yaw_r[i, 0] = math.cos(yaw_rel)
-                est_yaw_r[i, 1] = math.sin(yaw_rel)
+                # Set outputs in robot base frame
+                est_pos_r[i] = torch.tensor([px, py, pz], device=device, dtype=torch.float32)
+                est_yaw_r[i, 0] = math.cos(theta)
+                est_yaw_r[i, 1] = math.sin(theta)
+                est_quat_r[i] = torch.tensor([math.cos(theta/2), 0.0, 0.0, math.sin(theta/2)], device=device, dtype=torch.float32)
 
         # Step the policy and environment
         current_obs = TensorDict(env.obs_buf, batch_size=[num_envs])
@@ -644,14 +857,12 @@ def evaluate(args):
         # Overwrite observations with YOLO estimates if enabled
         if args.enable_yolo:
             current_obs["actor"][:, 22:25] = est_pos_r    # object_position
-            current_obs["actor"][:, 25:26] = est_width_r  # object_width
-            current_obs["actor"][:, 26:28] = est_yaw_r    # object_yaw
+            current_obs["actor"][:, 25:27] = est_yaw_r    # object_yaw
 
             if "critic" in current_obs.keys():
                 current_obs["critic"][:, 22:25] = est_pos_r    # object_position
                 current_obs["critic"][:, 25:29] = est_quat_r   # object_orientation
-                current_obs["critic"][:, 29:30] = est_width_r  # object_width
-                current_obs["critic"][:, 30:32] = est_yaw_r    # object_yaw
+                current_obs["critic"][:, 29:31] = est_yaw_r    # object_yaw
 
         with torch.no_grad():
             action = model(current_obs)
@@ -743,7 +954,7 @@ def main():
     parser.add_argument(
         "--checkpoint",
         type=str,
-        default="/home/lorenzobarbieri/2026-06-30_10-50-13/model_19999.pt",
+        default="/home/lorenzobarbieri/2026-07-01_10-34-13/model_9000.pt",
         help="Path to policy checkpoint weights (default: 2026-06-25_13-06-56-checkpoints/model_39500.pt)"
     )
     parser.add_argument(
@@ -767,15 +978,40 @@ def main():
     parser.add_argument(
         "--pos_filter_type",
         type=str,
-        default="adaptive",
-        choices=["adaptive", "ema"],
-        help="Type of 3D position filter to use for YOLO estimation: 'adaptive' (Kalman, default) or 'ema' (Exponential Moving Average)."
+        default="ema",
+        choices=["constant_velocity", "adaptive", "ema"],
+        help="Type of 3D position filter to use: 'constant_velocity', 'adaptive' (Kalman), or 'ema' (Exponential Moving Average) (default: ema)."
     )
     parser.add_argument(
         "--ema_alpha",
         type=float,
         default=0.5,
-        help="EMA smoothing factor alpha in [0, 1] (only used when --pos_filter_type=ema, default: 0.20). Higher = less smoothing."
+        help="EMA smoothing factor alpha in [0, 1] (only used when --pos_filter_type=ema, default: 0.5). Higher = less smoothing."
+    )
+    parser.add_argument(
+        "--yolo_conf",
+        type=float,
+        default=0.45,
+        help="YOLO detection confidence threshold (default: 0.45)."
+    )
+    parser.add_argument(
+        "--exclude_width_prediction",
+        action="store_true",
+        default=False,
+        help="Exclude width prediction and use the nominal cube width instead."
+    )
+    parser.add_argument(
+        "--cube_size",
+        nargs=3,
+        type=float,
+        default=[0.04, 0.04, 0.075],
+        help="Nominal cube size in meters (length, width, height) (default: [0.04, 0.04, 0.075])."
+    )
+    parser.add_argument(
+        "--use_yaw_width_gt",
+        action="store_true",
+        default=False,
+        help="Override estimated yaw and dimensions with ground truth values."
     )
     parser.add_argument(
         "--device",

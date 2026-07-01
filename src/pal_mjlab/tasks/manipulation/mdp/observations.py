@@ -333,16 +333,42 @@ def _apply_shared_occlusion_dropout(
   env: ManagerBasedRlEnv,
   p_drop: float | str,
   command_name: str = "lift_height",
+  key: str = "default",
 ) -> torch.Tensor:
-  """Zero the observation for environments selected by the shared mask.
+  """Apply shared occlusion dropout. If occluded, return the last recorded (non-occluded) value.
 
   All obs functions that call this within the same policy step share one
   Bernoulli draw, so position / yaw / width are always occluded together.
   """
+  # Initialize the last value cache on env if it doesn't exist
+  if not hasattr(env, "_last_obs_cache"):
+    env._last_obs_cache = {}
+
+  # If this is the very first step, we must initialize the cache with the current observation
+  if key not in env._last_obs_cache:
+    env._last_obs_cache[key] = obs.clone()
+
+  # Handle resets: reset cached values for any environments that were just reset
+  if hasattr(env, "reset_buf"):
+    reset_mask = env.reset_buf.to(device=obs.device, dtype=torch.bool)
+    if reset_mask.any():
+      mask_exp = reset_mask.unsqueeze(-1) if obs.ndim > 1 else reset_mask
+      env._last_obs_cache[key] = torch.where(mask_exp, obs, env._last_obs_cache[key])
+
   if isinstance(p_drop, float) and p_drop <= 0.0:
+    env._last_obs_cache[key] = obs.clone()
     return obs
-  mask = _get_shared_occlusion_mask(env, p_drop, command_name=command_name).unsqueeze(-1)  # (num_envs, 1)
-  return torch.where(mask, torch.zeros_like(obs), obs)
+
+  mask = _get_shared_occlusion_mask(env, p_drop, command_name=command_name)
+  mask_exp = mask.unsqueeze(-1) if obs.ndim > 1 else mask
+
+  last_val = env._last_obs_cache[key]
+  new_obs = torch.where(mask_exp, last_val, obs)
+  
+  # Update the cache with the returned observation so it persists
+  env._last_obs_cache[key] = new_obs.clone()
+  
+  return new_obs
 
 
 def object_position_in_robot_root_frame_dropout(
@@ -353,7 +379,7 @@ def object_position_in_robot_root_frame_dropout(
 ) -> torch.Tensor:
   """Object position in robot root frame with shared stochastic occlusion dropout."""
   obs = object_position_in_robot_root_frame(env, command_name, asset_cfg)
-  return _apply_shared_occlusion_dropout(obs, env, p_drop, command_name=command_name)
+  return _apply_shared_occlusion_dropout(obs, env, p_drop, command_name=command_name, key="position")
 
 
 def object_yaw_in_robot_root_frame_dropout(
@@ -364,7 +390,7 @@ def object_yaw_in_robot_root_frame_dropout(
 ) -> torch.Tensor:
   """Object yaw (cos/sin) in robot root frame with shared stochastic occlusion dropout."""
   obs = object_yaw_in_robot_root_frame(env, command_name, asset_cfg)
-  return _apply_shared_occlusion_dropout(obs, env, p_drop, command_name=command_name)
+  return _apply_shared_occlusion_dropout(obs, env, p_drop, command_name=command_name, key="yaw")
 
 
 def object_width_dropout(
@@ -374,7 +400,7 @@ def object_width_dropout(
 ) -> torch.Tensor:
   """Object width with shared stochastic occlusion dropout."""
   obs = object_width(env, command_name)
-  return _apply_shared_occlusion_dropout(obs, env, p_drop, command_name=command_name)
+  return _apply_shared_occlusion_dropout(obs, env, p_drop, command_name=command_name, key="width")
 
 
 def object_both__contact_fingers(

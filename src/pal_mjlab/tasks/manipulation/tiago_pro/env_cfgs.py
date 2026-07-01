@@ -195,7 +195,7 @@ def lift_env_cfg(
 
   if not play:
     # During training: apply stochastic occlusion dropout and observation noise to the actor.
-    _P_DROP = 0.4#"dynamic"  # Initial fraction of steps per env where the obs is zeroed (managed by curriculum)
+    _P_DROP = "dynamic"  # Initial fraction of steps per env where the obs is zeroed (managed by curriculum)
 
     # Apply dropout to object tracking terms in the actor observations
     actor_terms = cfg.observations["actor"].terms
@@ -594,7 +594,7 @@ def lift_env_cfg(
     params={
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
-      "false_negative_rate": 0.0 if play else 0.1,
+      "false_negative_rate": 0.0 if play else 0.05,
     },
   )
   cfg.observations["critic"].terms["object_both__contact_fingers"] = ObservationTermCfg(

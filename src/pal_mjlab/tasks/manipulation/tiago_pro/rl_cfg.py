@@ -39,7 +39,7 @@ def lift_ppo_runner_cfg(experiment_name: str = "lift") -> RslRlOnPolicyRunnerCfg
     experiment_name=experiment_name,
     save_interval=500,
     num_steps_per_env=24,
-    max_iterations=50000,
+    max_iterations=30000,
   )
 
 
