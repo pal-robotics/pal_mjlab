@@ -494,3 +494,26 @@ class sound_suppression:
 
     # return the squared sum of change in velocity along the projected gravity direction
     return cost
+
+def ang_vel_z_exp(
+  env: ManagerBasedRlEnv,
+  std: float,
+  command_name: str,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Track commanded yaw rate (z, body frame) with exponential kernel."""
+  asset: Entity = env.scene[asset_cfg.name]
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+  z_error = torch.square(command[:, 2] - asset.data.root_link_ang_vel_b[:, 2])
+  return torch.exp(-z_error / std**2)
+
+
+def ang_vel_xy_l2(
+  env: ManagerBasedRlEnv,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Penalize roll/pitch rates in the body frame."""
+  asset: Entity = env.scene[asset_cfg.name]
+  ang_vel_b = asset.data.root_link_ang_vel_b  # body frame for consistency
+  return torch.sum(torch.square(ang_vel_b[:, :2]), dim=1)

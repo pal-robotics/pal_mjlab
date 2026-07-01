@@ -422,6 +422,10 @@ def pal_kangaroo_lower_body_flat_env_cfg(play: bool = False) -> ManagerBasedRlEn
   joint_pos_action.scale = KANGAROO_LOWER_BODY_ACTION_SCALE
   joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_ACTUATOR_NAMES
 
+  # Use improved deocupled ang vel z-xy reward / penalties
+  cfg.rewards["track_angular_velocity"].func = mdp.ang_vel_z_exp
+  cfg.rewards["body_ang_vel"].func = mdp.ang_vel_xy_l2
+
   return cfg
 
 
