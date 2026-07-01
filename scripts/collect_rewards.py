@@ -181,10 +181,17 @@ def collect_noise(task_name: str, play: bool = False) -> List[Dict[str, Any]]:
                 noise_str = format_value(noise)
             else:
                 noise_str = str(noise)
+            
+            # Extract p_drop if present in term params
+            params = term.params or {}
+            p_drop = params.get("p_drop", None)
+            p_drop_str = format_value(p_drop) if p_drop is not None else "None"
+
             noise_info.append({
                 "group": group_name,
                 "term": term_name,
                 "noise": noise_str,
+                "p_drop": p_drop_str,
             })
     return noise_info
 
@@ -268,15 +275,15 @@ def display_noise(
         return "\n".join(lines)
 
     if output_format == "table":
-        lines.append("| Group | Term | Noise |")
-        lines.append("| :--- | :--- | :--- |")
+        lines.append("| Group | Term | Noise | P_Drop |")
+        lines.append("| :--- | :--- | :--- | :--- |")
         for n in noise:
-            lines.append(f"| {n['group']} | {n['term']} | {n['noise']} |")
+            lines.append(f"| {n['group']} | {n['term']} | {n['noise']} | {n['p_drop']} |")
         lines.append("")
     elif output_format == "csv":
-        lines.append("group,term,noise")
+        lines.append("group,term,noise,p_drop")
         for n in noise:
-            lines.append(f'{n["group"]},{n["term"]},"{n["noise"]}"')
+            lines.append(f'{n["group"]},{n["term"]},"{n["noise"]}",{n["p_drop"]}')
         lines.append("")
     elif output_format == "json":
         import json

@@ -73,9 +73,6 @@ def site_contact_both_fingers(
     apart = dist_between >= min_dist
     both_contact = both_contact & apart
 
-  # if both_contact.any():
-  #     print("\033[92mFLAG: site_contact_both_fingers is TRUE\033[0m")
-
   return both_contact.float()
 
 

@@ -121,7 +121,7 @@ def lift_env_cfg(
     object_pose_range=manipulation_mdp_pal.LiftingCommandCfg.ObjectPoseRangeCfg(
       x=(0.3, 0.7),
       y=(-0.2, 0.2),
-      yaw=(0.0, 0.0),   #yaw=(-0.785, 0.785),
+      yaw=(-0.785, 0.785),   #yaw=(-0.785, 0.785),
     ),
   )
 
@@ -154,10 +154,10 @@ def lift_env_cfg(
       func=manipulation_mdp_pal.object_position_in_robot_root_frame,
       params={"command_name": "lift_height"},
     )
-    terms["object_width"] = ObservationTermCfg(
-      func=manipulation_mdp_pal.object_width,
-      params={"command_name": "lift_height"},
-    )
+    # terms["object_width"] = ObservationTermCfg(
+    #   func=manipulation_mdp_pal.object_width,
+    #   params={"command_name": "lift_height"},
+    # )
     terms["object_yaw"] = ObservationTermCfg(
       func=manipulation_mdp_pal.object_yaw_in_robot_root_frame,
       params={"command_name": "lift_height"},
@@ -195,7 +195,7 @@ def lift_env_cfg(
 
   if not play:
     # During training: apply stochastic occlusion dropout and observation noise to the actor.
-    _P_DROP = "dynamic"  # Initial fraction of steps per env where the obs is zeroed (managed by curriculum)
+    _P_DROP = 0.4#"dynamic"  # Initial fraction of steps per env where the obs is zeroed (managed by curriculum)
 
     # Apply dropout to object tracking terms in the actor observations
     actor_terms = cfg.observations["actor"].terms
@@ -256,7 +256,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.gripper_open_during_approach_reward
     ),
-    weight=1.5,
+    weight=1.0,
     params={
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
@@ -348,7 +348,7 @@ def lift_env_cfg(
   )
   # cfg.rewards["occlusion_similarity_penalty"] = RewardTermCfg(
   #   func=manipulation_mdp_pal.occlusion_similarity_penalty,
-  #   weight=-5.0,
+  #   weight=-5.0, 
   #   params={
   #     "asset_cfg": SceneEntityCfg("robot"),
   #     "sigma": 0.4,
