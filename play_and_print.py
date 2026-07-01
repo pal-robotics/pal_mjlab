@@ -68,17 +68,44 @@ class PrintingPolicy:
         print(f"Object Length (X): {box_full_sizes[0].item():.4f} m | Width (Y): {box_full_sizes[1].item():.4f} m | Height (Z): {box_full_sizes[2].item():.4f} m")
         print(f"Object World Yaw:  {box_yaw_val:.4f} rad ({box_yaw_deg:.2f}°)")
         
-        # Read fingertip contact sensors (one per gripper finger)
+        # Read fingertip contact sensors (one per gripper finger) and compute contact metrics
         try:
             contact_sensor = self.inner_env.scene["box_fingertip_contact"]
         except (KeyError, AttributeError, TypeError):
             contact_sensor = None
 
+        dist_both = False
+        combined_contact = False
+        try:
+            robot_entity = self.inner_env.scene["robot"]
+            box_entity = self.inner_env.scene["box"]
+            from pal_mjlab.robots.pal_tiago_pro.tiago_pro import TiagoProRobot
+            from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
+            
+            robot_cfg = TiagoProRobot()
+            site_ids, _ = robot_entity.find_sites([robot_cfg.fingertip_site_pattern], preserve_order=True)
+            site_pos_w = robot_entity.data.site_pos_w[:, site_ids]
+            obj_pos_w = box_entity.data.geom_pos_w[:, 0].unsqueeze(1)
+            dist_to_obj = torch.norm(site_pos_w - obj_pos_w, dim=-1)
+            dist_both = (dist_to_obj < 0.05).all(dim=-1)[0].item()
+
+            from pal_mjlab.tasks.manipulation.mdp.observations import object_both__contact_fingers
+            combined_contact_tensor = object_both__contact_fingers(
+                env=self.inner_env,
+                sensor_name="box_fingertip_contact",
+                site_names=[robot_cfg.fingertip_site_pattern],
+            )
+            combined_contact = combined_contact_tensor[0, 0].item() > 0
+        except Exception:
+            pass
+
         if contact_sensor is not None and contact_sensor.data.found is not None:
             found = contact_sensor.data.found[0]  # shape: [N] (N=2 for two fingertips)
             finger_contacts = [f.item() > 0 for f in found]
-            both_contacts = all(finger_contacts)
-            print(f"Finger Contacts: {finger_contacts} | Both Fingers in Contact: {both_contacts}")
+            both_contacts_phys = all(finger_contacts)
+            print(f"Finger Contacts (Physical): {finger_contacts} | Both Physical: {both_contacts_phys}")
+            print(f"Distances to object: {dist_to_obj[0].tolist()}")
+            print(f"Both Distance-based: {dist_both} | Both Combined (New Measure): {combined_contact}")
         else:
             print("Finger Contacts: Sensor not available")
         # Read reward terms

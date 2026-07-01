@@ -395,6 +395,18 @@ def object_both__contact_fingers(
     asset_cfg=asset_cfg,
     min_dist=min_dist,
   )
+
+  # Check physical collision sensors
+  try:
+    sensor = env.scene[sensor_name]
+    if getattr(sensor, "data", None) is not None:
+      data = sensor.data
+      if data.found is not None:
+        actual_contact = (data.found > 0).all(dim=-1).float()
+        contact_both = contact_both * actual_contact
+  except KeyError:
+    pass
+
   if false_negative_rate > 0.0:
     mask = (torch.rand_like(contact_both) >= false_negative_rate).float()
     contact_both = contact_both * mask

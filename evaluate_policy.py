@@ -743,7 +743,7 @@ def main():
     parser.add_argument(
         "--checkpoint",
         type=str,
-        default="/home/lorenzobarbieri/2026-06-26_09-56-33-checkpoints/model_21000.pt",
+        default="/home/lorenzobarbieri/2026-06-30_10-50-13/model_19999.pt",
         help="Path to policy checkpoint weights (default: 2026-06-25_13-06-56-checkpoints/model_39500.pt)"
     )
     parser.add_argument(
