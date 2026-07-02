@@ -587,7 +587,7 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   cfg.commands["twist"] = mdp.PieceWiseVelocityCommandCfg(
     pieces={
       "forward_twist": mdp.PieceCommandCfg(cmd=forward_cfg),
-      "backward_twist": mdp.PieceCommandCfg(cmd=backward_cfg)
+      # "backward_twist": mdp.PieceCommandCfg(cmd=backward_cfg)
     }
   )
 
@@ -625,11 +625,11 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   # cfg.rewards["action_rate_l2"].weight = -0.2
 
   # --- B6A2: keep -0.1 rate, add action acceleration (jerk) penalty ---
-  # cfg.rewards["action_acc_l2"] = RewardTermCfg(
-  #   func=mdp.action_acc_l2,
-  #   weight=-0.005,
-  #   params={},
-  # )
+  cfg.rewards["action_acc_l2"] = RewardTermCfg(
+    func=mdp.action_acc_l2,
+    weight=-0.005,
+    params={},
+  )
 
   # --- B6A3: keep -0.1 rate, add joint acceleration penalty ---
   # cfg.rewards["joint_accel"] = RewardTermCfg(
@@ -721,11 +721,11 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
           {"step": 5000 * 24, "lin_vel_x": (0.2, 0.4)},
           {"step": 10000 * 24, "lin_vel_x": (0.2, 0.5)},
         ],
-        "backward_twist": [
-          {"step": 0, "lin_vel_x": (-0.3, -0.2)},
-          {"step": 5000 * 24, "lin_vel_x": (-0.4, -0.2)},
-          {"step": 10000 * 24, "lin_vel_x": (-0.5, -0.2)},
-        ],
+        # "backward_twist": [
+        #   {"step": 0, "lin_vel_x": (-0.3, -0.2)},
+        #   {"step": 5000 * 24, "lin_vel_x": (-0.4, -0.2)},
+        #   {"step": 10000 * 24, "lin_vel_x": (-0.5, -0.2)},
+        # ],
       },
     },
   )
@@ -744,9 +744,9 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     forward_cmd.ranges.lin_vel_x = (0.2, 0.5)
     forward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
 
-    backward_cmd = twist_cmd.pieces["backward_twist"].cmd
-    assert isinstance(backward_cmd, UniformVelocityCommandCfg)
-    backward_cmd.ranges.lin_vel_x = (-0.5, -0.2)
-    backward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
+    # backward_cmd = twist_cmd.pieces["backward_twist"].cmd
+    # assert isinstance(backward_cmd, UniformVelocityCommandCfg)
+    # backward_cmd.ranges.lin_vel_x = (-0.5, -0.2)
+    # backward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
 
   return cfg
