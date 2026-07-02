@@ -586,7 +586,7 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   # Replace by the piecewise twist
   cfg.commands["twist"] = mdp.PieceWiseVelocityCommandCfg(
     pieces={
-      # "forward_twist": mdp.PieceCommandCfg(cmd=forward_cfg),
+      "forward_twist": mdp.PieceCommandCfg(cmd=forward_cfg),
       "backward_twist": mdp.PieceCommandCfg(cmd=backward_cfg)
     }
   )
@@ -716,11 +716,11 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     params={
       "command_name": "twist",
       "piece_stages": {
-        # "forward_twist": [
-        #   {"step": 0, "lin_vel_x": (0.2, 0.3)},
-        #   {"step": 5000 * 24, "lin_vel_x": (0.2, 0.4)},
-        #   {"step": 10000 * 24, "lin_vel_x": (0.2, 0.5)},
-        # ],
+        "forward_twist": [
+          {"step": 0, "lin_vel_x": (0.2, 0.3)},
+          {"step": 5000 * 24, "lin_vel_x": (0.2, 0.4)},
+          {"step": 10000 * 24, "lin_vel_x": (0.2, 0.5)},
+        ],
         "backward_twist": [
           {"step": 0, "lin_vel_x": (-0.3, -0.2)},
           {"step": 5000 * 24, "lin_vel_x": (-0.4, -0.2)},
@@ -739,10 +739,10 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, mdp.PieceWiseVelocityCommandCfg)
 
-    # forward_cmd = twist_cmd.pieces["forward_twist"].cmd
-    # assert isinstance(forward_cmd, UniformVelocityCommandCfg)
-    # forward_cmd.ranges.lin_vel_x = (0.2, 0.5)
-    # forward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
+    forward_cmd = twist_cmd.pieces["forward_twist"].cmd
+    assert isinstance(forward_cmd, UniformVelocityCommandCfg)
+    forward_cmd.ranges.lin_vel_x = (0.2, 0.5)
+    forward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
 
     backward_cmd = twist_cmd.pieces["backward_twist"].cmd
     assert isinstance(backward_cmd, UniformVelocityCommandCfg)
