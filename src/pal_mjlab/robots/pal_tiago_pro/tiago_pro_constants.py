@@ -122,13 +122,14 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 # Collision enabled for all geoms except:
 #   - Left arm:  col_left_*, col_upper_left_arm, col_lower_left_arm, col_ee_left
 #   - Base:      col_base
+#   - Torso/Head:col_torso_head
 #   - Right arm joints 3, 5, 7: col_upper_right_arm, col_lower_right_arm, col_arm_right_7
 # (right arm joint 1 has no collision geom in the XML)
 # Non-matched geoms are disabled automatically (disable_other_geoms=True by default).
 FULL_COLLISION = CollisionCfg(
   geom_names_expr=(
     r"^(?!"
-    r"col_base$"
+    r"col_base$|col_torso_head$"
     r"|col_upper_left_arm$|col_lower_left_arm$|col_ee_left$|col_left_"
     r"|col_upper_right_arm$|col_lower_right_arm$|col_arm_right_7$"
     r").*",

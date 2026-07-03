@@ -315,8 +315,8 @@ def _get_shared_occlusion_mask(
       dist = torch.norm(ee_pos_w - object_pos_w, dim=-1)
       
       # Linear mapping: far (>= 0.6m) -> 0.0, close (<= 0.05m) -> 0.75
-      p_drop_tensor = 0.4 * (1.0 - (dist - 0.05) / (0.6 - 0.05))
-      p_drop_tensor = torch.clamp(p_drop_tensor, min=0.05, max=0.4)
+      p_drop_tensor = 0.2 * (1.0 - (dist - 0.05) / (0.6 - 0.05))
+      p_drop_tensor = torch.clamp(p_drop_tensor, min=0.05, max=0.2)
     else:
       p_drop_tensor = p_drop
 

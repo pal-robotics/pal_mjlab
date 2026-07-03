@@ -480,7 +480,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {0: (0.015, 0.03)},
+      "ranges": {0: (0.01, 0.03)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
@@ -489,7 +489,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {1: (0.015, 0.03)},
+      "ranges": {1: (0.01, 0.03)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
@@ -506,12 +506,11 @@ def lift_env_cfg(
 
   _box_body_cfg = SceneEntityCfg("box", body_names=("box_object",))
   cfg.events["randomize_box_mass"] = EventTermCfg(
-    func=dr.body_mass,
+    func=dr.pseudo_inertia,
     mode="reset",
     params={
-      "ranges": (0.01, 0.1),
+      "alpha_range": (0.0, 1.1513),
       "asset_cfg": _box_body_cfg,
-      "operation": "abs",
     },
   )
 
