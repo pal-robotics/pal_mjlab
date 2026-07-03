@@ -363,6 +363,13 @@ def evaluate(args):
 
     # Initialize Kalman Filters list
     kfs = [None] * num_envs
+    hsv_refs = [None] * num_envs
+    is_grasped = np.zeros(num_envs, dtype=bool)
+    grasp_override_active = np.zeros(num_envs, dtype=bool)
+
+    # Find the grasp site
+    grasp_site_idx, _ = robot.find_sites(["gripper_right_grasping_site"], preserve_order=True)
+    grasp_idx = grasp_site_idx[0]
 
     print(f"Evaluating {args.num_episodes} total episodes with {num_envs} parallel environments...")
     step_count = 0
@@ -459,6 +466,9 @@ def evaluate(args):
                     contact_both_activated[i] = False
                     prev_contact_both[i] = False
                     kfs[i] = None
+                    hsv_refs[i] = None
+                    is_grasped[i] = False
+                    grasp_override_active[i] = False
             
             if episodes_collected >= args.num_episodes:
                 break
@@ -503,6 +513,17 @@ def evaluate(args):
             _, _, gt_yaw_w_all = euler_xyz_from_quat(cube_quat)
             gt_yaw_w_cpu = gt_yaw_w_all.cpu().numpy()
 
+            # Compute end-effector pose in robot base frame (in batch using PyTorch)
+            ee_pos_w = robot.data.site_pos_w[:, grasp_idx]
+            ee_pos_robot = quat_apply(quat_inv(robot.data.root_link_quat_w), ee_pos_w - robot.data.root_link_pos_w)
+            ee_xmat = env.sim.data.site_xmat[:, grasp_idx]
+            _, _, robot_yaw_w = euler_xyz_from_quat(robot.data.root_link_quat_w)
+            ee_yaw_w = torch.atan2(ee_xmat[:, 1, 0], ee_xmat[:, 0, 0])
+            ee_yaw = ee_yaw_w - robot_yaw_w
+            
+            ee_pos_robot_cpu = ee_pos_robot.cpu().numpy()
+            ee_yaw_cpu = ee_yaw.cpu().numpy()
+
             rgb_list = list(rgb_cpu)
 
             # Run batch YOLO inference in sub-batches to avoid GPU OOM
@@ -535,6 +556,17 @@ def evaluate(args):
                 gt_pos_w_i = gt_pos_w_cpu[i]
                 gt_yaw_w = gt_yaw_w_cpu[i]
 
+                # Track grasped status based on contact_both signal
+                is_grasped_signal = contact_both[i].item()
+                if not is_grasped_signal:
+                    grasp_override_active[i] = False
+                    is_grasped[i] = False
+                else:
+                    if not grasp_override_active[i]:
+                        is_grasped[i] = True
+
+                ee_pose_i = (ee_pos_robot_cpu[i, 0], ee_pos_robot_cpu[i, 1], ee_pos_robot_cpu[i, 2], ee_yaw_cpu[i])
+
                 success_fit = False
                 px, py, pz = 0.0, 0.0, 0.0
                 theta = 0.0
@@ -561,34 +593,69 @@ def evaluate(args):
                             inlier_mask = valid_mask & (np.abs(depth_crop - median_depth) < 0.05)
 
                             if np.sum(inlier_mask) >= 5:
-                                # RGB color segmentation (LAB)
+                                # HSV color segmentation
                                 rgb_mask = None
                                 try:
                                     roi = rgb_cpu[i, y1:y2, x1:x2]
                                     if roi.size > 0:
-                                        roi_lab = cv2.cvtColor(roi, cv2.COLOR_RGB2LAB)
+                                        roi_hsv = cv2.cvtColor(roi, cv2.COLOR_RGB2HSV)
                                         rh, rw = roi.shape[:2]
                                         
-                                        # Extract central 50% area
-                                        cy1, cy2 = int(rh * 0.25), int(rh * 0.75)
-                                        cx1, cx2 = int(rw * 0.25), int(rw * 0.75)
-                                        center_pixels = roi_lab[cy1:cy2, cx1:cx2]
+                                        # Extract central 60% area (yolo_depth_pose_hsv uses 0.20 to 0.80)
+                                        cy1, cy2 = int(rh * 0.20), int(rh * 0.80)
+                                        cx1, cx2 = int(rw * 0.20), int(rw * 0.80)
+                                        center_pixels = roi_hsv[cy1:cy2, cx1:cx2]
                                         
                                         if center_pixels.size > 0:
-                                            dominant_color = np.median(center_pixels[:, :, 1:3], axis=(0, 1))
-                                            roi_ab = roi_lab[:, :, 1:3].astype(np.float32)
-                                            diff = roi_ab - dominant_color
-                                            dist = np.sqrt(np.sum(diff**2, axis=-1))
+                                            hues_rad = center_pixels[:, :, 0].astype(np.float32) * (2.0 * np.pi / 180.0)
+                                            sin_mean = np.mean(np.sin(hues_rad))
+                                            cos_mean = np.mean(np.cos(hues_rad))
+                                            cand_h_rad = np.arctan2(sin_mean, cos_mean)
+                                            if cand_h_rad < 0:
+                                                cand_h_rad += 2.0 * np.pi
+                                            cand_h = (cand_h_rad * (180.0 / np.pi) / 2.0) % 180.0
+                                            cand_s = float(np.median(center_pixels[:, :, 1]))
+                                            cand_v = float(np.median(center_pixels[:, :, 2]))
                                             
-                                            # Create binary mask (dist < 2.0)
-                                            rgb_mask = (dist < 2.0).astype(np.uint8) * 255
+                                            if hsv_refs[i] is None:
+                                                hsv_refs[i] = (cand_h, cand_s, cand_v)
+                                            else:
+                                                ref_h, ref_s, ref_v = hsv_refs[i]
+                                                h_dist = abs(cand_h - ref_h)
+                                                h_dist = min(h_dist, 180.0 - h_dist)
+                                                
+                                                hsv_lock_thresh_h = 20.0
+                                                hsv_lock_thresh_sv = 40.0
+                                                hsv_lock_blend = 0.15
+                                                
+                                                if (h_dist < hsv_lock_thresh_h and
+                                                        abs(cand_s - ref_s) < hsv_lock_thresh_sv and
+                                                        abs(cand_v - ref_v) < hsv_lock_thresh_sv):
+                                                    blend = hsv_lock_blend
+                                                    signed_h_diff = ((cand_h - ref_h + 90.0) % 180.0) - 90.0
+                                                    new_h = (ref_h + blend * signed_h_diff) % 180.0
+                                                    new_s = ref_s + blend * (cand_s - ref_s)
+                                                    new_v = ref_v + blend * (cand_v - ref_v)
+                                                    hsv_refs[i] = (new_h, new_s, new_v)
                                             
-                                            # Morphological cleanup
+                                            dominant_h, dominant_s, dominant_v = hsv_refs[i]
+                                            
+                                            diff_h = np.abs(roi_hsv[:, :, 0].astype(np.int32) - dominant_h)
+                                            diff_h = np.minimum(diff_h, 180 - diff_h)
+                                            
+                                            diff_s = np.abs(roi_hsv[:, :, 1].astype(np.int32) - dominant_s)
+                                            diff_v = np.abs(roi_hsv[:, :, 2].astype(np.int32) - dominant_v)
+                                            
+                                            h_mask = diff_h < args.hsv_h_thresh
+                                            s_mask = (diff_s < args.hsv_s_thresh) & (roi_hsv[:, :, 1] > 20)
+                                            v_mask = (diff_v < args.hsv_v_thresh) & (roi_hsv[:, :, 2] > 20)
+                                            
+                                            rgb_mask = (h_mask & s_mask & v_mask).astype(np.uint8) * 255
+                                            
                                             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
                                             rgb_mask = cv2.morphologyEx(rgb_mask, cv2.MORPH_CLOSE, kernel)
                                             rgb_mask = cv2.morphologyEx(rgb_mask, cv2.MORPH_OPEN, kernel)
                                             
-                                            # Resize (depth size is the same, but scale just in case)
                                             rgb_mask_depth = cv2.resize(rgb_mask, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
                                             inlier_mask = inlier_mask & (rgb_mask_depth > 0)
                                 except Exception:
@@ -623,7 +690,6 @@ def evaluate(args):
                                     pos_robot = rotate_by_quat_np(pos_world - robot_pos, q_inv)
                                     px, py, pz = pos_robot[0], pos_robot[1], pos_robot[2]
 
-                                    rgb_success = False
                                     if rgb_mask is not None:
                                         try:
                                             contours, _ = cv2.findContours(rgb_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -651,6 +717,13 @@ def evaluate(args):
                                                     
                                                     px = float(np.mean(corners_robot[:, 0]))
                                                     py = float(np.mean(corners_robot[:, 1]))
+                                                    pz = float(np.mean(corners_robot[:, 2]))
+                                                    
+                                                    # Compute height from the 3D point cloud (camera-distance independent)
+                                                    z_vals = points_robot[:, 2]
+                                                    z_top_pc = float(np.percentile(z_vals, 98))
+                                                    z_bot_pc = float(np.percentile(z_vals, 2))
+                                                    height = max(z_top_pc - z_bot_pc, 0.01)
                                                     
                                                     p0, p1, p2, p3 = corners_robot
                                                     v1 = p1 - p0
@@ -674,68 +747,61 @@ def evaluate(args):
                                                         length = float(np.linalg.norm(v2[:2]))
                                                         width = float(np.linalg.norm(v1[:2]))
                                                         
-                                                    min_z = np.min(points_robot[:, 2])
-                                                    above_table_mask = points_robot[:, 2] > (min_z + 0.008)
-                                                    points_above_table = points_robot[above_table_mask]
-                                                    if len(points_above_table) > 0:
-                                                        z_coords = points_above_table[:, 2]
-                                                        height = float(np.max(z_coords) - np.min(z_coords)) + 0.008
-                                                    else:
-                                                        height = args.cube_size[2]
-                                                        
-                                                    rgb_success = True
-                                        except Exception:
-                                            pass
-
-                                    if not rgb_success:
-                                        try:
-                                            min_z = np.min(points_robot[:, 2])
-                                            above_table_mask = points_robot[:, 2] > (min_z + 0.008)
-                                            points_above_table = points_robot[above_table_mask]
-                                            
-                                            if len(points_above_table) >= 5:
-                                                centroid_above = np.mean(points_above_table, axis=0)
-                                                dists = np.linalg.norm(points_above_table - centroid_above, axis=1)
-                                                inlier_pts_mask = dists < 0.055
-                                                filtered_points = points_above_table[inlier_pts_mask]
-                                                
-                                                if len(filtered_points) >= 5:
-                                                    coords = filtered_points[:, :2].astype(np.float32)
-                                                    rect = cv2.minAreaRect(coords)
-                                                    box_pts = cv2.boxPoints(rect)
-                                                    
-                                                    px = float(rect[0][0])
-                                                    py = float(rect[0][1])
-                                                    
-                                                    p0, p1, p2, p3 = box_pts
-                                                    v1 = p1 - p0
-                                                    v2 = p2 - p1
-                                                    
-                                                    angle1 = math.atan2(v1[1], v1[0])
-                                                    angle2 = math.atan2(v2[1], v2[0])
-                                                    
-                                                    def wrap_to_pi_over_2(angle):
-                                                        return (angle + math.pi / 2) % math.pi - math.pi / 2
-                                                    
-                                                    wrapped_angle1 = wrap_to_pi_over_2(angle1)
-                                                    wrapped_angle2 = wrap_to_pi_over_2(angle2)
-                                                    
-                                                    if abs(wrapped_angle1) < abs(wrapped_angle2):
-                                                        theta = wrapped_angle1
-                                                        length = float(np.linalg.norm(v1))
-                                                        width = float(np.linalg.norm(v2))
-                                                    else:
-                                                        theta = wrapped_angle2
-                                                        length = float(np.linalg.norm(v2))
-                                                        width = float(np.linalg.norm(v1))
-                                                    
-                                                    z_coords = filtered_points[:, 2]
-                                                    height = float(np.max(z_coords) - np.min(z_coords)) + 0.008
                                                     success_fit = True
                                         except Exception:
                                             pass
+
+                # Check EE override if grasped and within threshold
+                if success_fit and is_grasped[i]:
+                    ee_x, ee_y, ee_z, ee_yaw = ee_pose_i
+                    dist_to_ee = math.sqrt((px - ee_x)**2 + (py - ee_y)**2 + (pz - ee_z)**2)
+                    if dist_to_ee > 0.05:
+                        is_grasped[i] = False
+                        grasp_override_active[i] = True
+                    else:
+                        px, py, pz = ee_x, ee_y, ee_z
+                        theta = ee_yaw
+                        if kfs[i] is not None:
+                            for kf, val in [(kfs[i]["kf_x"], px), (kfs[i]["kf_y"], py), (kfs[i]["kf_z"], pz)]:
+                                if hasattr(kf, "x"):
+                                    if isinstance(kf.x, np.ndarray):
+                                        kf.x[0] = val
+                                        if len(kf.x) > 1:
+                                            kf.x[1] = 0.0
                                     else:
-                                        success_fit = True
+                                        kf.x = val
+                            if hasattr(kfs[i]["kf_yaw"], "x"):
+                                if isinstance(kfs[i]["kf_yaw"].x, np.ndarray):
+                                    kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
+                                else:
+                                    kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
+
+                # Fallback: if depth pipeline failed but grasped is True, override to EE pose
+                if not success_fit and is_grasped[i]:
+                    px, py, pz = ee_pose_i[0], ee_pose_i[1], ee_pose_i[2]
+                    theta = ee_pose_i[3]
+                    if kfs[i] is not None:
+                        length = float(kfs[i]["kf_len"].x)
+                        width = float(kfs[i]["kf_wid"].x)
+                        height = float(kfs[i]["kf_hgt"].x)
+                    else:
+                        length, width, height = args.cube_size[0], args.cube_size[1], args.cube_size[2]
+
+                    if kfs[i] is not None:
+                        for kf, val in [(kfs[i]["kf_x"], px), (kfs[i]["kf_y"], py), (kfs[i]["kf_z"], pz)]:
+                            if hasattr(kf, "x"):
+                                if isinstance(kf.x, np.ndarray):
+                                    kf.x[0] = val
+                                    if len(kf.x) > 1:
+                                        kf.x[1] = 0.0
+                                else:
+                                    kf.x = val
+                        if hasattr(kfs[i]["kf_yaw"], "x"):
+                            if isinstance(kfs[i]["kf_yaw"].x, np.ndarray):
+                                kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
+                            else:
+                                kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
+                    success_fit = True
 
                 # 2. Kalman / EMA Filter predict and update
                 if success_fit:
@@ -892,6 +958,9 @@ def evaluate(args):
 
                 # Reset Kalman Filter
                 kfs[i] = None
+                hsv_refs[i] = None
+                is_grasped[i] = False
+                grasp_override_active[i] = False
                 done_env_ids.append(i)
 
         # Refresh initial box Z for envs that just finished (sim will have reset them)
@@ -954,7 +1023,7 @@ def main():
     parser.add_argument(
         "--checkpoint",
         type=str,
-        default="/home/lorenzobarbieri/2026-07-01_10-34-13/model_9000.pt",
+        default="/home/lorenzobarbieri/exchange/tiago_pro_sim_ws/models/spring_completo_06/model_29999.pt",
         help="Path to policy checkpoint weights (default: 2026-06-25_13-06-56-checkpoints/model_39500.pt)"
     )
     parser.add_argument(
@@ -993,6 +1062,24 @@ def main():
         type=float,
         default=0.45,
         help="YOLO detection confidence threshold (default: 0.45)."
+    )
+    parser.add_argument(
+        "--hsv_h_thresh",
+        type=int,
+        default=100,
+        help="Hue threshold for HSV segmentation (default: 30)."
+    )
+    parser.add_argument(
+        "--hsv_s_thresh",
+        type=int,
+        default=100,
+        help="Saturation threshold for HSV segmentation (default: 30)."
+    )
+    parser.add_argument(
+        "--hsv_v_thresh",
+        type=int,
+        default=60,
+        help="Value threshold for HSV segmentation (default: 20)."
     )
     parser.add_argument(
         "--exclude_width_prediction",
