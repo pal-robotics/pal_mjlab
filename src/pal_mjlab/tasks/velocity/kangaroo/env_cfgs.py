@@ -552,16 +552,12 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     resampling_time_range=(6.0, 9.0),
     rel_standing_envs=0.1,
     rel_forward_envs=0.0,
-    rel_heading_envs=1.0,
-    heading_command=True,
-    heading_control_stiffness=3.0,
     debug_vis=True,
     viz=UniformVelocityCommandCfg.VizCfg(z_offset=1.15),
     ranges=UniformVelocityCommandCfg.Ranges(
       lin_vel_x=(0.2, 0.3),
       lin_vel_y=(0.0, 0.0),
-      ang_vel_z=(-0.5, 0.5), # When heading = true, it is the clip value
-      heading=(0.0, 0.0), # We want to go straight to the stairs
+      ang_vel_z=(-0.1, 0.1), # When heading = true, it is the clip value, otherwise normal range
     ),
   )
 
@@ -570,16 +566,12 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     resampling_time_range=(6.0, 9.0),
     rel_standing_envs=0.1,
     rel_forward_envs=0.0,
-    rel_heading_envs=1.0,
-    heading_command=True,
-    heading_control_stiffness=3.0,
     debug_vis=True,
     viz=UniformVelocityCommandCfg.VizCfg(z_offset=1.15),
     ranges=UniformVelocityCommandCfg.Ranges(
       lin_vel_x=(-0.3, -0.2),
       lin_vel_y=(0.0, 0.0),
-      ang_vel_z=(-0.5, 0.5), # When heading = true, it is the clip value, small corrections
-      heading=(0.0, 0.0), # We want to go straight to the stairs
+      ang_vel_z=(-0.1, 0.1), # When heading = true, it is the clip value, otherwise normal range
     ),
   )
   
@@ -587,7 +579,7 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   cfg.commands["twist"] = mdp.PieceWiseVelocityCommandCfg(
     pieces={
       "forward_twist": mdp.PieceCommandCfg(cmd=forward_cfg),
-      # "backward_twist": mdp.PieceCommandCfg(cmd=backward_cfg)
+      "backward_twist": mdp.PieceCommandCfg(cmd=backward_cfg)
     }
   )
 
@@ -625,11 +617,11 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
   # cfg.rewards["action_rate_l2"].weight = -0.2
 
   # --- B6A2: keep -0.1 rate, add action acceleration (jerk) penalty ---
-  cfg.rewards["action_acc_l2"] = RewardTermCfg(
-    func=mdp.action_acc_l2,
-    weight=-0.005,
-    params={},
-  )
+  # cfg.rewards["action_acc_l2"] = RewardTermCfg(
+  #   func=mdp.action_acc_l2,
+  #   weight=-0.005,
+  #   params={},
+  # )
 
   # --- B6A3: keep -0.1 rate, add joint acceleration penalty ---
   # cfg.rewards["joint_accel"] = RewardTermCfg(
@@ -677,7 +669,7 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
         border_width=0.0,
       ),
       "random_obstacles": random_spread_boxes(
-        proportion=0.1,
+        proportion=0.2,
         num_boxes=30,
         box_width_range=(0.2, 0.6),
         box_length_range=(0.2, 0.6),
@@ -685,24 +677,45 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
         platform_width=0.5,
         border_width=0.0,
       ),
-      "easy_stairs": pyramid_stairs_inv(
-        proportion=0.2,
+      "easy_stairs_30": pyramid_stairs_inv(
+        proportion=0.1,
         step_height_range=(0.05, 0.1),
         step_width=0.3,
         platform_width=0.5,
         border_width=0.1,
       ),
-      "mid_stairs": pyramid_stairs_inv(
-        proportion=0.2,
+      "mid_stairs_30": pyramid_stairs_inv(
+        proportion=0.1,
         step_height_range=(0.1, 0.15),
         step_width=0.3,
         platform_width=0.5,
         border_width=0.1,
       ),
-      "hard_stairs": pyramid_stairs_inv(
-        proportion=0.3,
-        step_height_range=(0.15, 0.2),
-        step_width=0.3,
+      "easy_stairs_40": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.05, 0.1),
+        step_width=0.4,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "mid_stairs_40": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.1, 0.15),
+        step_width=0.4,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "easy_stairs_50": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.05, 0.1),
+        step_width=0.5,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "mid_stairs_50": pyramid_stairs_inv(
+        proportion=0.1,
+        step_height_range=(0.1, 0.15),
+        step_width=0.5,
         platform_width=0.5,
         border_width=0.1,
       ),
@@ -718,14 +731,18 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
       "piece_stages": {
         "forward_twist": [
           {"step": 0, "lin_vel_x": (0.2, 0.3)},
-          {"step": 5000 * 24, "lin_vel_x": (0.2, 0.4)},
-          {"step": 10000 * 24, "lin_vel_x": (0.2, 0.5)},
+          {"step": 5000 * 24, "lin_vel_x": (0.2, 0.4), "ang_vel_z": (-0.2, 0.2)},
+          {"step": 10000 * 24, "lin_vel_x": (0.2, 0.5), "ang_vel_z": (-0.3, 0.3)},
+          {"step": 15000 * 24, "ang_vel_z": (-0.4, 0.4)},
+          {"step": 20000 * 24, "ang_vel_z": (-0.5, 0.5)},
+
         ],
-        # "backward_twist": [
-        #   {"step": 0, "lin_vel_x": (-0.3, -0.2)},
-        #   {"step": 5000 * 24, "lin_vel_x": (-0.4, -0.2)},
-        #   {"step": 10000 * 24, "lin_vel_x": (-0.5, -0.2)},
-        # ],
+        "backward_twist": [
+          {"step": 0, "lin_vel_x": (-0.3, -0.2)},
+          {"step": 5000 * 24, "lin_vel_x": (-0.4, -0.2), "ang_vel_z": (-0.2, 0.2)},
+          {"step": 15000 * 24, "ang_vel_z": (-0.4, 0.4)},
+          {"step": 20000 * 24, "ang_vel_z": (-0.5, 0.5)},
+        ],
       },
     },
   )
@@ -742,11 +759,12 @@ def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRl
     forward_cmd = twist_cmd.pieces["forward_twist"].cmd
     assert isinstance(forward_cmd, UniformVelocityCommandCfg)
     forward_cmd.ranges.lin_vel_x = (0.2, 0.5)
-    forward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
+    forward_cmd.ranges.ang_vel_z = (-0.5, 0.5)
 
-    # backward_cmd = twist_cmd.pieces["backward_twist"].cmd
-    # assert isinstance(backward_cmd, UniformVelocityCommandCfg)
-    # backward_cmd.ranges.lin_vel_x = (-0.5, -0.2)
-    # backward_cmd.ranges.heading = (0.0, 0.0) # Straight heading
+
+    backward_cmd = twist_cmd.pieces["backward_twist"].cmd
+    assert isinstance(backward_cmd, UniformVelocityCommandCfg)
+    backward_cmd.ranges.lin_vel_x = (-0.5, -0.2)
+    backward_cmd.ranges.ang_vel_z = (-0.5, 0.5)
 
   return cfg
