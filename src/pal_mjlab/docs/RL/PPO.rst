@@ -1,11 +1,11 @@
 .. _PPO overview:
 
-Proximal Policy Optimisation (PPO)
+Proximal Policy Optimization (PPO)
 ==================================
 
-Mjlab uses rsl_rl's implementation of PPO for Reinforcement Learning.
+mjlab uses `rsl_rl <https://github.com/leggedrobotics/rsl_rl>`_'s implementation of PPO for reinforcement learning.
 
-This document is a quick overview of this algorithm, and the different parameters a user may change to tune learning.
+This document gives a quick overview of the algorithm and of the parameters a user may change to tune learning.
 
 Overview
 --------

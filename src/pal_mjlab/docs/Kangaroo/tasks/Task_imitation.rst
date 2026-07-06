@@ -17,7 +17,7 @@ linear and angular velocities.
 
 |
 
-Unlike velocity tracking, the command is not user-specified at runtime — it is sampled
+Unlike velocity tracking, the command is not user-specified at runtime: it is sampled
 from a motion dataset and streamed to the policy frame by frame during rollouts.
 
 |
@@ -71,13 +71,17 @@ Here is the list of observations used for motion imitation training :
 
 |
 
-Actor observations are sufficient for the policy to infer proper behavior
-for the robot. The critic receives privileged observations --- richer in
-information --- which improve value function accuracy. Since the critic is
-only used during training and not at deployment, this asymmetry has no
-impact on real-world performance.
+Actor observations are limited to signals available on the real robot. The
+critic receives privileged observations --- richer in information, such as
+global body poses and the true base linear velocity --- which improve value
+function accuracy. Since the critic is only used during training and not at
+deployment, this asymmetry has no impact on real-world performance.
 
-| It is essential that simulation observations match deployment observations in order, distribution and units. Otherwise, the robot is likely to behave very erratically.
+.. important::
+
+   Simulation observations must match deployment observations in order,
+   distribution and units. Any mismatch is likely to make the robot behave
+   erratically on hardware.
 
 
 Rewards
@@ -122,18 +126,33 @@ to ensure physically safe behavior.
 Terminations
 ------------
 
-An episode is terminated when certain conditions are met. In this case, those conditions are the following :
+An episode ends when one of the following conditions is met :
 
-- illegal contacts
+- **time out**: the end of the reference motion / maximum episode length is
+  reached (treated as a truncation, not a failure)
 
-- excessive deviation from reference motion (early termination on tracking failure)
+- **anchor deviation**: the anchor body (base link) drifts too far from the
+  reference position or orientation
+
+- **end-effector deviation**: a tracked end-effector body (feet, hands) drifts
+  too far from its reference position
+
+Early termination on tracking failure prevents the policy from wasting samples
+on unrecoverable states and is a key ingredient for stable imitation training.
 
 
 Motion file
 -----------
 
-For motion tracking, a motion must be provided in a .npz format. A script is provided to transform motions
- in .csv format into .npz, and GMR has support for retargetting motions to PAL Robotics' Kangaroo bipedal 
- platform. You must make sure the motion file contains tranitions at the same framerate as the control frequency 
- during training (if control is 50Hz, motion should be 50Hz). Difference in framerate between control and motion
- can result in unexpected and most likely unstable behaviors, or training getting stuck early on.
+The reference motion must be provided as a ``.npz`` file. A script is provided
+to convert motions from ``.csv`` to ``.npz``, and `GMR (General Motion
+Retargeting) <https://github.com/YanjieZe/GMR>`_ supports retargeting motions
+to PAL Robotics' Kangaroo platform.
+
+.. warning::
+
+   The motion file must be sampled at the same framerate as the control
+   frequency used during training (if control runs at 50 Hz, the motion must be
+   50 Hz). A framerate mismatch between control and motion can result in
+   unexpected and most likely unstable behaviors, or training getting stuck
+   early on.

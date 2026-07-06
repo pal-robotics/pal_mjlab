@@ -3,15 +3,20 @@
 PAL Kangaroo - Velocity tracking task
 ======================================
 
-The velocity tracking environment configuration for Kangaroo is overwritten over mjlab's built-in environment.
+The velocity tracking task trains Kangaroo to follow user-specified velocity
+commands while walking. The environment configuration extends mjlab's built-in
+velocity environment, overriding its observations, rewards, events and
+terminations with Kangaroo-specific terms.
 
 
 Commands
 --------
 
-Here, a velocity command describe a desired linear horizontal velocity in the robot's frame, cartesian space, and a desired angular velocity around the Z-axis (yaw).
+A velocity command describes a desired horizontal linear velocity expressed in
+the robot's base frame, together with a desired angular velocity around the
+vertical axis (yaw).
 
-Therefore, velocity command has 3 components :
+The command therefore has 3 components :
 
 - X-aligned velocity (m/s)
 
@@ -21,14 +26,18 @@ Therefore, velocity command has 3 components :
 
 |
 
-This command is independent of the robot's roll and pitch orientation, and independent of its world position.
+The command is independent of the robot's roll and pitch orientation and of its
+world position. During training, commands are resampled periodically from a
+uniform distribution, so the policy learns to transition between velocities.
 
 |
 
 Observations
 ------------
 
-Here is the list of observations used for basic locomotion training :
+Here is the list of observations used for basic locomotion training. Shapes
+correspond to the full-body simple model (26 joints, 22 actuated); for the
+lower-body variant, the joint and action dimensions shrink accordingly.
 
 **Actor :**
 
@@ -84,13 +93,18 @@ Here is the list of observations used for basic locomotion training :
 
 |
 
-Actor observations are sufficient for the policy to infer proper behavior 
-for the robot. The critic receives privileged observations --- richer in 
-information --- which improve value function accuracy. Since the critic is 
-only used during training and not at deployment, this asymmetry has no 
-impact on real-world performance.
+Actor observations are limited to signals available on the real robot (IMU,
+joint encoders, previous actions). The critic receives privileged observations
+--- richer in information, such as the true base linear velocity and foot
+contact states --- which improve value function accuracy. Since the critic is
+only used during training and not at deployment, this asymmetry has no impact
+on real-world performance.
 
-| it is essential that simulation observations match deployment observations in order, distribution and units. Otherwise, the robot is likely to behave very erratically.
+.. important::
+
+   Simulation observations must match deployment observations in order,
+   distribution and units. Any mismatch is likely to make the robot behave
+   erratically on hardware.
 
 
 Rewards
@@ -138,17 +152,22 @@ Here is a table with the rewards used in the baseline of the velocity tracking t
 
 |
 
-Every reward tries to shape behavior to track objectives, respect limits, minimize costs or tune behavior in a certain direction. 
-Although baseline rewards with their given default weights work consistenly, it is not guaranteed to be the best solution, reward 
-weights can be tweaked to achieve different kinds of behaviors.
+Each reward term falls into one of four roles: *objective* terms drive the task
+(track the commanded velocity, stay upright), *limits* terms penalize violations
+of physical constraints (joint ranges, velocity limits, self-collisions),
+*regularization* terms smooth the resulting motion, and *tuning* terms shape the
+gait style (swing height, air time, landing softness). The baseline weights work
+consistently, but they are not guaranteed to be optimal — tweaking them is the
+main lever for obtaining different behaviors.
 
 Terminations
 ------------
 
-An episode is terminated when certain conditions are met. In this case, those conditions are the following :
+An episode ends when one of the following conditions is met :
 
-- episode boundary (max episode length)
+- **time out** — the maximum episode length is reached (treated as a truncation,
+  not a failure)
 
-- fell over (unrecoverable roll/pitch tilt)
+- **fell over** — the base exceeds an unrecoverable roll/pitch tilt
 
-- illegal contacts
+- **illegal contacts** — a femur or knee link touches the terrain

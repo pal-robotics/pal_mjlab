@@ -11,16 +11,24 @@ different arm configurations.
 The environments are implemented on top of mjlab and provide standardized
 training tasks for reinforcement learning.
 
-With 14 DOFS in the lower body and various arm configurations (0 DOFS, 4 DOFS, 7 DOFS, ...) Kangaroo has the capability to perform many human inspired tasks.
+With 14 actuated DoF in the lower body (12 leg + 2 pelvis) and several arm
+configurations, Kangaroo can perform a wide range of human-inspired tasks.
+The available model variants are:
 
-Here, we explore mainly :  
+- **Lower body**: legs and pelvis only, no arms
+- **Simple**: 4 DoF per arm with a fixed forearm
+- **Hands**: 5 DoF per arm with a Seed Robotics hand
+- **Grippers**: 7 DoF per arm with a gripper
 
-- Locomotion  
+The tasks explored here focus mainly on:
 
-- Motion imitation  
+- Locomotion (velocity tracking)
+
+- Motion imitation (reference motion tracking)
 
 
-Here are the different tasks implemented for Kangaroo, which are relative to objective and model :  
+Each registered task pairs an objective (Velocity, Tracking, Reaching), a terrain
+type (Flat, Rough) and a model variant:
 
 +----+---------------------------------------------------------------------------+
 | 1  | Mjlab-Reaching-Flat-Pal-Kangaroo                                          |
@@ -75,7 +83,9 @@ To run inference to evaluate results:
 
 |
 
-In the kangaroo_constants.py file, user may define stifness and damping for all joints.
+Robot-specific parameters: actuator stiffness, damping, effort limits, initial
+pose and collision setup: are defined in ``kangaroo_constants.py`` and can be
+adjusted there for all model variants.
 
 See also
 --------
