@@ -1,7 +1,7 @@
 .. _Kangaroo task_velocity:
 
 PAL Kangaroo - Velocity tracking task
-============
+======================================
 
 The velocity tracking environment configuration for Kangaroo is overwritten over mjlab's built-in environment.
 

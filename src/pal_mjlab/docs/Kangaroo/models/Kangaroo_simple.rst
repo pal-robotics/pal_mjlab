@@ -1,5 +1,7 @@
-Simple model of the Kangaroo :
+.. _Kangaroo model_simple:
 
+Kangaroo - Simple Model
+========================
 
 26 joints :
 

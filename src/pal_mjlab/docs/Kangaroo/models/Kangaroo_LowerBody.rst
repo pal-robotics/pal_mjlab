@@ -1,4 +1,7 @@
-Lower body model of the Kangaroo :
+.. _Kangaroo model_lower_body:
+
+Kangaroo - Lower Body Model
+=============================
 
 The lower-body configuration is a reduced model of the simple model. besides excluded arm joints, the rest is identical.
 
