@@ -31,48 +31,61 @@ Here are the different tasks implemented for Kangaroo, which are relative to obj
 +----+---------------------------------------------------------------------------+
 | 4  | Mjlab-Tracking-Flat-Pal-Kangaroo                                          |
 +----+---------------------------------------------------------------------------+
-| 5  | Mjlab-Tracking-Flat-Pal-Kangaroo-Lower-Body                               |
+| 5  | Mjlab-Tracking-Flat-Pal-Kangaroo-No-State-Estimation                      |
 +----+---------------------------------------------------------------------------+
-| 6  | Mjlab-Tracking-Flat-Pal-Kangaroo-Lower-Body-No-State-Estimation           |
+| 6  | Mjlab-Velocity-Flat-Pal-Kangaroo                                          |
 +----+---------------------------------------------------------------------------+
-| 7  | Mjlab-Tracking-Flat-Pal-Kangaroo-No-State-Estimation                      |
+| 7  | Mjlab-Velocity-Flat-Pal-Kangaroo-Grippers                                 |
 +----+---------------------------------------------------------------------------+
-| 8  | Mjlab-Velocity-Flat-Pal-Kangaroo                                          |
+| 8  | Mjlab-Velocity-Flat-Pal-Kangaroo-Hands                                    |
 +----+---------------------------------------------------------------------------+
-| 9  | Mjlab-Velocity-Flat-Pal-Kangaroo-Grippers                                 |
+| 9  | Mjlab-Velocity-Flat-Pal-Kangaroo-Lower-Body                               |
 +----+---------------------------------------------------------------------------+
-| 10 | Mjlab-Velocity-Flat-Pal-Kangaroo-Hands                                    |
+| 10 | Mjlab-Velocity-Rough-Pal-Kangaroo                                         |
 +----+---------------------------------------------------------------------------+
-| 11 | Mjlab-Velocity-Flat-Pal-Kangaroo-Lower-Body                               |
+| 11 | Mjlab-Velocity-Rough-Pal-Kangaroo-Grippers                                |
 +----+---------------------------------------------------------------------------+
-| 12 | Mjlab-Velocity-Rough-Pal-Kangaroo                                         |
-+----+---------------------------------------------------------------------------+
-| 13 | Mjlab-Velocity-Rough-Pal-Kangaroo-Grippers                                |
-+----+---------------------------------------------------------------------------+
-| 14 | Mjlab-Velocity-Rough-Pal-Kangaroo-Hands                                   |
+| 12 | Mjlab-Velocity-Rough-Pal-Kangaroo-Hands                                   |
 +----+---------------------------------------------------------------------------+
 
 
-The full list of tasks can be checked anytime with ::  
+The full list of tasks can be checked anytime with:
 
-    bash  
-    uv run list-envs  
+.. code-block:: bash
 
-To train a task on Kangaroo, use ::
+   uv run list-envs
 
-    bash  
-    uv run train {task_id} {other parameters}  
+To train a task on Kangaroo, use:
 
-The full list of parameters can be seen using ::
+.. code-block:: bash
 
-    bash  
-    uv run train {task_id} --help  
+   uv run train {task_id} {other parameters}
 
-To run inference to evaluate results ::
+The full list of parameters can be seen using:
 
-    bash  
-    uv run play {task_id} {other parameters}  
+.. code-block:: bash
+
+   uv run train {task_id} --help
+
+To run inference to evaluate results:
+
+.. code-block:: bash
+
+   uv run play {task_id} {other parameters}
 
 |
 
 In the kangaroo_constants.py file, user may define stifness and damping for all joints.
+
+See also
+--------
+
+Models:
+
+- :ref:`Kangaroo model_simple`
+- :ref:`Kangaroo model_lower_body`
+
+Tasks:
+
+- :ref:`Kangaroo task_velocity`
+- :ref:`Kangaroo task_motion_imitation`
