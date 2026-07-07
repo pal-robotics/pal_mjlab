@@ -140,7 +140,7 @@ except ImportError:
             self.P = (1.0 - K) * self.P
 
     class ExponentialMovingAverage:
-        def __init__(self, init_pos, alpha=0.20):
+        def __init__(self, init_pos, alpha=0.40):
             self.x = np.array([init_pos, 0.0], dtype=np.float32)
             self.alpha = alpha
         def predict(self, dt, q_scale=1.0):
@@ -256,6 +256,22 @@ def evaluate(args):
     env_cfg = load_env_cfg(args.task, play=True)
     env_cfg.scene.num_envs = args.num_envs
     
+    # Remove early termination terms (except time_out and object_held_at_goal)
+    for term_name in list(env_cfg.terminations.keys()):
+        if term_name not in ["time_out", "object_held_at_goal"]:
+            print(f"Removing termination condition: {term_name}")
+            del env_cfg.terminations[term_name]
+    
+    # Re-enable the success termination (object_held_at_goal) which is disabled by play=True
+    from mjlab.managers import TerminationTermCfg
+    import pal_mjlab.tasks.manipulation.mdp as manipulation_mdp_pal
+    print("Re-enabling success termination: object_held_at_goal")
+    env_cfg.terminations["object_held_at_goal"] = TerminationTermCfg(
+        func=manipulation_mdp_pal.object_held_at_goal_term,
+        params={"command_name": "lift_height", "hold_time_s": 1.0},
+        time_out=True,
+    )
+    
     # Dynamically add the camera sensor if YOLO is enabled
     if args.enable_yolo:
         print("Dynamically adding head_realsense_camera sensor to scene config...")
@@ -325,12 +341,51 @@ def evaluate(args):
     success_recorded = []
     top_collision_recorded = []
     grasp_and_lift_recorded = []
+    min_pos_error_recorded = []  # best position error seen in each episode [m]
+
+    # Per-episode running minimum position error
+    current_episode_min_pos_error = torch.full((num_envs,), float("inf"), device=device)
 
     # Fingertip angle trigger tracking
     contact_both_activated = np.zeros(num_envs, dtype=bool)
     angles_trigger_squeeze = []
     angles_trigger_left = []
     angles_trigger_right = []
+
+    # -----------------------------------------------------------------------
+    # Observation noise injection (mirrors training noise from env_cfgs.py)
+    # -----------------------------------------------------------------------
+    # Build a mapping: obs_term_name -> (slice_start, slice_end, noise_half_range)
+    # We use the obs manager to find slice positions dynamically.
+    _NOISE_SPECS = {
+        "joint_pos":             0.02,   # Unoise ±0.02
+        "joint_vel":             0.05,   # Unoise ±0.05
+        # "target_object_position": 0.01,  # Unoise ±0.01
+        "ee_position":           0.01,   # Unoise ±0.01
+        "gripper_pos":           0.003,  # Unoise ±0.003
+        # object_position / object_yaw are handled separately (YOLO path uses
+        # its own noise; ground-truth path uses the values below)
+        "object_position":       0.01,   # Unoise ±0.01  (gt-only path)
+        "object_yaw":            0.05,   # Unoise ±0.05  (gt-only path)
+    }
+
+    def _build_noise_slices(obs_manager, group="actor"):
+        """Return list of (name, start, end, half_range) tuples for uniform noise injection."""
+        import math as _math
+        slices = []
+        names = obs_manager.active_terms.get(group, [])
+        shapes = obs_manager.group_obs_term_dim.get(group, [])
+        cursor = 0
+        for name, shape in zip(names, shapes):
+            dim = _math.prod(shape)
+            if name in _NOISE_SPECS:
+                slices.append((name, cursor, cursor + dim, _NOISE_SPECS[name]))
+            cursor += dim
+        return slices
+
+    _noise_slices = _build_noise_slices(env.observation_manager) if args.inject_noise else []
+
+
 
     # Running state trackers for active episodes
     current_episode_success = torch.zeros(num_envs, dtype=torch.bool, device=device)
@@ -424,6 +479,9 @@ def evaluate(args):
             lifted_enough = (current_box_z - initial_box_z) >= LIFT_THRESHOLD_M
             grasp_and_lift_now = contact_both & lifted_enough
 
+        # Track per-episode minimum position error
+        current_episode_min_pos_error = torch.minimum(current_episode_min_pos_error, position_error)
+
         # Update running states for all active episodes
         current_episode_success |= success_now
         current_episode_top_collision |= top_collision
@@ -457,12 +515,14 @@ def evaluate(args):
                     success_recorded.append(current_episode_success[i].item())
                     top_collision_recorded.append(current_episode_top_collision[i].item())
                     grasp_and_lift_recorded.append(current_episode_grasp_and_lift[i].item())
+                    min_pos_error_recorded.append(current_episode_min_pos_error[i].item())
                     episodes_collected += 1
                     
                     # Reset per-env state so the env can contribute another episode
                     current_episode_success[i] = False
                     current_episode_top_collision[i] = False
                     current_episode_grasp_and_lift[i] = False
+                    current_episode_min_pos_error[i] = float("inf")
                     contact_both_activated[i] = False
                     prev_contact_both[i] = False
                     kfs[i] = None
@@ -588,193 +648,179 @@ def evaluate(args):
                         depth_crop = depth_cpu[i, y1:y2, x1:x2]
                         valid_mask = (depth_crop > 0.1) & (depth_crop < 1.5) & np.isfinite(depth_crop)
 
-                        if np.sum(valid_mask) >= 5:
+                        # 1. Run HSV color segmentation first to find the cube pixels
+                        rgb_mask = None
+                        try:
+                            roi = rgb_cpu[i, y1:y2, x1:x2]
+                            if roi.size > 0:
+                                roi_hsv = cv2.cvtColor(roi, cv2.COLOR_RGB2HSV)
+                                rh, rw = roi.shape[:2]
+                                
+                                # Extract central 60% area (yolo_depth_pose_hsv uses 0.20 to 0.80)
+                                cy1, cy2 = int(rh * 0.20), int(rh * 0.80)
+                                cx1, cx2 = int(rw * 0.20), int(rw * 0.80)
+                                center_pixels = roi_hsv[cy1:cy2, cx1:cx2]
+                                
+                                if center_pixels.size > 0:
+                                    hues_rad = center_pixels[:, :, 0].astype(np.float32) * (2.0 * np.pi / 180.0)
+                                    sin_mean = np.mean(np.sin(hues_rad))
+                                    cos_mean = np.mean(np.cos(hues_rad))
+                                    cand_h_rad = np.arctan2(sin_mean, cos_mean)
+                                    if cand_h_rad < 0:
+                                        cand_h_rad += 2.0 * np.pi
+                                    cand_h = (cand_h_rad * (180.0 / np.pi) / 2.0) % 180.0
+                                    cand_s = float(np.median(center_pixels[:, :, 1]))
+                                    cand_v = float(np.median(center_pixels[:, :, 2]))
+                                    
+                                    if hsv_refs[i] is None:
+                                        hsv_refs[i] = (cand_h, cand_s, cand_v)
+                                    else:
+                                        ref_h, ref_s, ref_v = hsv_refs[i]
+                                        h_dist = abs(cand_h - ref_h)
+                                        h_dist = min(h_dist, 180.0 - h_dist)
+                                        
+                                        hsv_lock_thresh_h = 20.0
+                                        hsv_lock_thresh_sv = 40.0
+                                        hsv_lock_blend = 0.15
+                                        
+                                        if (h_dist < hsv_lock_thresh_h and
+                                                abs(cand_s - ref_s) < hsv_lock_thresh_sv and
+                                                abs(cand_v - ref_v) < hsv_lock_thresh_sv):
+                                            blend = hsv_lock_blend
+                                            signed_h_diff = ((cand_h - ref_h + 90.0) % 180.0) - 90.0
+                                            new_h = (ref_h + blend * signed_h_diff) % 180.0
+                                            new_s = ref_s + blend * (cand_s - ref_s)
+                                            new_v = ref_v + blend * (cand_v - ref_v)
+                                            hsv_refs[i] = (new_h, new_s, new_v)
+                                    
+                                    dominant_h, dominant_s, dominant_v = hsv_refs[i]
+                                    
+                                    diff_h = np.abs(roi_hsv[:, :, 0].astype(np.int32) - dominant_h)
+                                    diff_h = np.minimum(diff_h, 180 - diff_h)
+                                    
+                                    diff_s = np.abs(roi_hsv[:, :, 1].astype(np.int32) - dominant_s)
+                                    diff_v = np.abs(roi_hsv[:, :, 2].astype(np.int32) - dominant_v)
+                                    
+                                    h_mask = diff_h < args.hsv_h_thresh
+                                    s_mask = (diff_s < args.hsv_s_thresh) & (roi_hsv[:, :, 1] > 20)
+                                    v_mask = (diff_v < args.hsv_v_thresh) & (roi_hsv[:, :, 2] > 20)
+                                    
+                                    rgb_mask = (h_mask & s_mask & v_mask).astype(np.uint8) * 255
+                                    
+                                    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+                                    rgb_mask = cv2.morphologyEx(rgb_mask, cv2.MORPH_CLOSE, kernel)
+                                    rgb_mask = cv2.morphologyEx(rgb_mask, cv2.MORPH_OPEN, kernel)
+                        except Exception:
+                            pass
+
+                        # 2. Apply depth mapping on the HSV-segmented region
+                        inlier_mask = None
+                        if rgb_mask is not None and np.sum(rgb_mask > 0) >= 5:
+                            rgb_mask_depth = cv2.resize(rgb_mask, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
+                            cube_depth_mask = valid_mask & (rgb_mask_depth > 0)
+                            
+                            if np.sum(cube_depth_mask) >= 5:
+                                median_depth = np.median(depth_crop[cube_depth_mask])
+                                inlier_mask = cube_depth_mask & (np.abs(depth_crop - median_depth) < 0.05)
+                        
+                        # Fallback to pure depth filter if HSV failed entirely
+                        if inlier_mask is None and np.sum(valid_mask) >= 5:
                             median_depth = np.median(depth_crop[valid_mask])
                             inlier_mask = valid_mask & (np.abs(depth_crop - median_depth) < 0.05)
 
-                            if np.sum(inlier_mask) >= 5:
-                                # HSV color segmentation
-                                rgb_mask = None
-                                try:
-                                    roi = rgb_cpu[i, y1:y2, x1:x2]
-                                    if roi.size > 0:
-                                        roi_hsv = cv2.cvtColor(roi, cv2.COLOR_RGB2HSV)
-                                        rh, rw = roi.shape[:2]
-                                        
-                                        # Extract central 60% area (yolo_depth_pose_hsv uses 0.20 to 0.80)
-                                        cy1, cy2 = int(rh * 0.20), int(rh * 0.80)
-                                        cx1, cx2 = int(rw * 0.20), int(rw * 0.80)
-                                        center_pixels = roi_hsv[cy1:cy2, cx1:cx2]
-                                        
-                                        if center_pixels.size > 0:
-                                            hues_rad = center_pixels[:, :, 0].astype(np.float32) * (2.0 * np.pi / 180.0)
-                                            sin_mean = np.mean(np.sin(hues_rad))
-                                            cos_mean = np.mean(np.cos(hues_rad))
-                                            cand_h_rad = np.arctan2(sin_mean, cos_mean)
-                                            if cand_h_rad < 0:
-                                                cand_h_rad += 2.0 * np.pi
-                                            cand_h = (cand_h_rad * (180.0 / np.pi) / 2.0) % 180.0
-                                            cand_s = float(np.median(center_pixels[:, :, 1]))
-                                            cand_v = float(np.median(center_pixels[:, :, 2]))
+                        if inlier_mask is not None and np.sum(inlier_mask) >= 5:
+                            # Backproject
+                            u_range = np.arange(x1, x2)
+                            v_range = np.arange(y1, y2)
+                            uu, vv = np.meshgrid(u_range, v_range)
+
+                            valid_depths = depth_crop[inlier_mask]
+                            valid_u = uu[inlier_mask]
+                            valid_v = vv[inlier_mask]
+
+                            if len(valid_depths) >= 5:
+                                X = (valid_u - cx) * valid_depths / fx
+                                Y = (valid_v - cy) * valid_depths / fy
+                                Z = valid_depths
+
+                                pos_cam = np.array([np.mean(X), np.mean(Y), np.mean(Z)])
+                                points_cam = np.stack([X, Y, Z], axis=-1)
+                                
+                                # Convert to MuJoCo camera coordinate convention
+                                points_mujoco = points_cam * np.array([1.0, -1.0, -1.0])
+                                cam_pos_i = cam_pos_cpu[i]
+                                cam_xmat_i = cam_xmat_cpu[i]
+                                points_world = cam_pos_i + np.dot(points_mujoco, cam_xmat_i.T)
+                                
+                                # Transform to robot base frame
+                                points_robot = rotate_by_quat_np(points_world - robot_pos, q_inv)
+                                pos_world = cam_pos_i + np.dot(pos_cam * np.array([1.0, -1.0, -1.0]), cam_xmat_i.T)
+                                pos_robot = rotate_by_quat_np(pos_world - robot_pos, q_inv)
+                                px, py, pz = pos_robot[0], pos_robot[1], pos_robot[2]
+
+                                if rgb_mask is not None:
+                                    try:
+                                        if len(points_robot) >= 5:
+                                            # Use actual 3D points horizontal coordinates to avoid perspective warping
+                                            coords = points_robot[:, :2].astype(np.float32)
+                                            rect_3d = cv2.minAreaRect(coords)
+                                            box_3d = cv2.boxPoints(rect_3d)
                                             
-                                            if hsv_refs[i] is None:
-                                                hsv_refs[i] = (cand_h, cand_s, cand_v)
+                                            px = float(rect_3d[0][0])
+                                            py = float(rect_3d[0][1])
+                                            pz = float((points_robot[:, 2].max() + points_robot[:, 2].min()) / 2.0)
+                                            
+                                            p0, p1, p2, p3 = box_3d
+                                            v1 = p1 - p0
+                                            v2 = p2 - p1
+                                            
+                                            angle1 = math.atan2(v1[1], v1[0])
+                                            angle2 = math.atan2(v2[1], v2[0])
+                                            
+                                            def wrap_to_pi_over_2(angle):
+                                                return (angle + math.pi / 2) % math.pi - math.pi / 2
+                                            
+                                            wrapped_angle1 = wrap_to_pi_over_2(angle1)
+                                            wrapped_angle2 = wrap_to_pi_over_2(angle2)
+                                            
+                                            if abs(wrapped_angle1) < abs(wrapped_angle2):
+                                                theta = wrapped_angle1
+                                                length = float(np.linalg.norm(v1))
+                                                width = float(np.linalg.norm(v2))
                                             else:
-                                                ref_h, ref_s, ref_v = hsv_refs[i]
-                                                h_dist = abs(cand_h - ref_h)
-                                                h_dist = min(h_dist, 180.0 - h_dist)
-                                                
-                                                hsv_lock_thresh_h = 20.0
-                                                hsv_lock_thresh_sv = 40.0
-                                                hsv_lock_blend = 0.15
-                                                
-                                                if (h_dist < hsv_lock_thresh_h and
-                                                        abs(cand_s - ref_s) < hsv_lock_thresh_sv and
-                                                        abs(cand_v - ref_v) < hsv_lock_thresh_sv):
-                                                    blend = hsv_lock_blend
-                                                    signed_h_diff = ((cand_h - ref_h + 90.0) % 180.0) - 90.0
-                                                    new_h = (ref_h + blend * signed_h_diff) % 180.0
-                                                    new_s = ref_s + blend * (cand_s - ref_s)
-                                                    new_v = ref_v + blend * (cand_v - ref_v)
-                                                    hsv_refs[i] = (new_h, new_s, new_v)
+                                                theta = wrapped_angle2
+                                                length = float(np.linalg.norm(v2))
+                                                width = float(np.linalg.norm(v1))
                                             
-                                            dominant_h, dominant_s, dominant_v = hsv_refs[i]
+                                            # Compute height from the 3D point cloud (camera-distance independent)
+                                            # Outliers already removed by the 5 cm inlier gate above, so max-min suffices.
+                                            z_vals = points_robot[:, 2]
+                                            height = max(float(z_vals.max() - z_vals.min()), 0.01)
                                             
-                                            diff_h = np.abs(roi_hsv[:, :, 0].astype(np.int32) - dominant_h)
-                                            diff_h = np.minimum(diff_h, 180 - diff_h)
-                                            
-                                            diff_s = np.abs(roi_hsv[:, :, 1].astype(np.int32) - dominant_s)
-                                            diff_v = np.abs(roi_hsv[:, :, 2].astype(np.int32) - dominant_v)
-                                            
-                                            h_mask = diff_h < args.hsv_h_thresh
-                                            s_mask = (diff_s < args.hsv_s_thresh) & (roi_hsv[:, :, 1] > 20)
-                                            v_mask = (diff_v < args.hsv_v_thresh) & (roi_hsv[:, :, 2] > 20)
-                                            
-                                            rgb_mask = (h_mask & s_mask & v_mask).astype(np.uint8) * 255
-                                            
-                                            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-                                            rgb_mask = cv2.morphologyEx(rgb_mask, cv2.MORPH_CLOSE, kernel)
-                                            rgb_mask = cv2.morphologyEx(rgb_mask, cv2.MORPH_OPEN, kernel)
-                                            
-                                            rgb_mask_depth = cv2.resize(rgb_mask, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
-                                            inlier_mask = inlier_mask & (rgb_mask_depth > 0)
-                                except Exception:
-                                    pass
+                                            success_fit = True
+                                    except Exception:
+                                        pass
 
-                                # Backproject
-                                u_range = np.arange(x1, x2)
-                                v_range = np.arange(y1, y2)
-                                uu, vv = np.meshgrid(u_range, v_range)
-
-                                valid_depths = depth_crop[inlier_mask]
-                                valid_u = uu[inlier_mask]
-                                valid_v = vv[inlier_mask]
-
-                                if len(valid_depths) >= 5:
-                                    X = (valid_u - cx) * valid_depths / fx
-                                    Y = (valid_v - cy) * valid_depths / fy
-                                    Z = valid_depths
-
-                                    pos_cam = np.array([np.mean(X), np.mean(Y), np.mean(Z)])
-                                    points_cam = np.stack([X, Y, Z], axis=-1)
-                                    
-                                    # Convert to MuJoCo camera coordinate convention
-                                    points_mujoco = points_cam * np.array([1.0, -1.0, -1.0])
-                                    cam_pos_i = cam_pos_cpu[i]
-                                    cam_xmat_i = cam_xmat_cpu[i]
-                                    points_world = cam_pos_i + np.dot(points_mujoco, cam_xmat_i.T)
-                                    
-                                    # Transform to robot base frame
-                                    points_robot = rotate_by_quat_np(points_world - robot_pos, q_inv)
-                                    pos_world = cam_pos_i + np.dot(pos_cam * np.array([1.0, -1.0, -1.0]), cam_xmat_i.T)
-                                    pos_robot = rotate_by_quat_np(pos_world - robot_pos, q_inv)
-                                    px, py, pz = pos_robot[0], pos_robot[1], pos_robot[2]
-
-                                    if rgb_mask is not None:
-                                        try:
-                                            contours, _ = cv2.findContours(rgb_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                                            if contours:
-                                                largest_contour = max(contours, key=cv2.contourArea)
-                                                if cv2.contourArea(largest_contour) > 10:
-                                                    rect_2d = cv2.minAreaRect(largest_contour)
-                                                    box_2d = cv2.boxPoints(rect_2d)
-                                                    
-                                                    box_2d[:, 0] += x1
-                                                    box_2d[:, 1] += y1
-                                                    
-                                                    z_cam = pos_cam[2]
-                                                    corners_cam = []
-                                                    for pt in box_2d:
-                                                        u, v = pt
-                                                        u_val = (u - cx) * z_cam / fx
-                                                        v_val = (v - cy) * z_cam / fy
-                                                        corners_cam.append([u_val, v_val, z_cam])
-                                                    corners_cam = np.array(corners_cam)
-                                                    
-                                                    corners_mujoco = corners_cam * np.array([1.0, -1.0, -1.0])
-                                                    corners_world = cam_pos_i + np.dot(corners_mujoco, cam_xmat_i.T)
-                                                    corners_robot = rotate_by_quat_np(corners_world - robot_pos, q_inv)
-                                                    
-                                                    px = float(np.mean(corners_robot[:, 0]))
-                                                    py = float(np.mean(corners_robot[:, 1]))
-                                                    pz = float(np.mean(corners_robot[:, 2]))
-                                                    
-                                                    # Compute height from the 3D point cloud (camera-distance independent)
-                                                    z_vals = points_robot[:, 2]
-                                                    z_top_pc = float(np.percentile(z_vals, 98))
-                                                    z_bot_pc = float(np.percentile(z_vals, 2))
-                                                    height = max(z_top_pc - z_bot_pc, 0.01)
-                                                    
-                                                    p0, p1, p2, p3 = corners_robot
-                                                    v1 = p1 - p0
-                                                    v2 = p2 - p1
-                                                    
-                                                    angle1 = math.atan2(v1[1], v1[0])
-                                                    angle2 = math.atan2(v2[1], v2[0])
-                                                    
-                                                    def wrap_to_pi_over_2(angle):
-                                                        return (angle + math.pi / 2) % math.pi - math.pi / 2
-                                                    
-                                                    wrapped_angle1 = wrap_to_pi_over_2(angle1)
-                                                    wrapped_angle2 = wrap_to_pi_over_2(angle2)
-                                                    
-                                                    if abs(wrapped_angle1) < abs(wrapped_angle2):
-                                                        theta = wrapped_angle1
-                                                        length = float(np.linalg.norm(v1[:2]))
-                                                        width = float(np.linalg.norm(v2[:2]))
-                                                    else:
-                                                        theta = wrapped_angle2
-                                                        length = float(np.linalg.norm(v2[:2]))
-                                                        width = float(np.linalg.norm(v1[:2]))
-                                                        
-                                                    success_fit = True
-                                        except Exception:
-                                            pass
-
-                # Check EE override if grasped and within threshold
+                # Check EE override if grasped
                 if success_fit and is_grasped[i]:
                     ee_x, ee_y, ee_z, ee_yaw = ee_pose_i
-                    dist_to_ee = math.sqrt((px - ee_x)**2 + (py - ee_y)**2 + (pz - ee_z)**2)
-                    if dist_to_ee > 0.05:
-                        is_grasped[i] = False
-                        grasp_override_active[i] = True
-                    else:
-                        px, py, pz = ee_x, ee_y, ee_z
-                        theta = ee_yaw
-                        if kfs[i] is not None:
-                            for kf, val in [(kfs[i]["kf_x"], px), (kfs[i]["kf_y"], py), (kfs[i]["kf_z"], pz)]:
-                                if hasattr(kf, "x"):
-                                    if isinstance(kf.x, np.ndarray):
-                                        kf.x[0] = val
-                                        if len(kf.x) > 1:
-                                            kf.x[1] = 0.0
-                                    else:
-                                        kf.x = val
-                            if hasattr(kfs[i]["kf_yaw"], "x"):
-                                if isinstance(kfs[i]["kf_yaw"].x, np.ndarray):
-                                    kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
+                    px, py, pz = ee_x, ee_y, ee_z
+                    theta = ee_yaw
+                    if kfs[i] is not None:
+                        kfs[i]["yaw_locked"] = False
+                        for kf, val in [(kfs[i]["kf_x"], px), (kfs[i]["kf_y"], py), (kfs[i]["kf_z"], pz)]:
+                            if hasattr(kf, "x"):
+                                if isinstance(kf.x, np.ndarray):
+                                    kf.x[0] = val
+                                    if len(kf.x) > 1:
+                                        kf.x[1] = 0.0
                                 else:
-                                    kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
+                                    kf.x = val
+                        if hasattr(kfs[i]["kf_yaw"], "x"):
+                            if isinstance(kfs[i]["kf_yaw"].x, np.ndarray):
+                                kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
+                            else:
+                                kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
 
                 # Fallback: if depth pipeline failed but grasped is True, override to EE pose
                 if not success_fit and is_grasped[i]:
@@ -788,6 +834,7 @@ def evaluate(args):
                         length, width, height = args.cube_size[0], args.cube_size[1], args.cube_size[2]
 
                     if kfs[i] is not None:
+                        kfs[i]["yaw_locked"] = False
                         for kf, val in [(kfs[i]["kf_x"], px), (kfs[i]["kf_y"], py), (kfs[i]["kf_z"], pz)]:
                             if hasattr(kf, "x"):
                                 if isinstance(kf.x, np.ndarray):
@@ -813,14 +860,14 @@ def evaluate(args):
                         elif args.pos_filter_type == "ema":
                             kf_x = ExponentialMovingAverage(init_pos=px, alpha=args.ema_alpha)
                             kf_y = ExponentialMovingAverage(init_pos=py, alpha=args.ema_alpha)
-                            kf_z = ExponentialMovingAverage(init_pos=pz, alpha=args.ema_alpha)
+                            kf_z = ExponentialMovingAverage(init_pos=pz, alpha=0.10)
                         else:  # "adaptive" (default)
                             kf_x = AdaptiveStaticKF(init_pos=px, q_base=1e-6, r_pos=1e-3, window=10)
                             kf_y = AdaptiveStaticKF(init_pos=py, q_base=1e-6, r_pos=1e-3, window=10)
                             kf_z = AdaptiveStaticKF(init_pos=pz, q_base=1e-6, r_pos=1e-3, window=10)
 
                         if args.pos_filter_type == "ema":
-                            kf_yaw = ExponentialMovingAverageYaw(init_yaw=theta, alpha=0.10)
+                            kf_yaw = ExponentialMovingAverageYaw(init_yaw=theta, alpha=0.20)
                             kf_len = ExponentialMovingAverage1D(init_val=length, alpha=0.10)
                             kf_wid = ExponentialMovingAverage1D(init_val=width, alpha=0.10)
                             kf_hgt = ExponentialMovingAverage1D(init_val=height, alpha=0.10)
@@ -839,6 +886,9 @@ def evaluate(args):
                             "kf_wid": kf_wid,
                             "kf_hgt": kf_hgt,
                             "occluded_while_grasping": False,
+                            "yaw_locked": False,
+                            "yaw_lock_x": None,
+                            "yaw_lock_y": None,
                         }
                     else:
                         kfs[i]["kf_x"].predict(dt)
@@ -849,6 +899,40 @@ def evaluate(args):
                         kfs[i]["kf_wid"].predict(dt)
                         kfs[i]["kf_hgt"].predict(dt)
 
+                        if args.pos_filter_type == "ema":
+                            # Set alpha dynamically based on whether we are grasping
+                            if is_grasped[i]:
+                                kfs[i]["kf_x"].alpha = 0.001
+                                kfs[i]["kf_y"].alpha = 0.001
+                                kfs[i]["kf_z"].alpha = 0.001
+                                kfs[i]["kf_yaw"].alpha = 0.0
+                            else:
+                                kfs[i]["kf_x"].alpha = args.ema_alpha
+                                kfs[i]["kf_y"].alpha = args.ema_alpha
+                                kfs[i]["kf_z"].alpha = 0.10
+                                kfs[i]["kf_yaw"].alpha = 0.20
+
+                        # --- Yaw Lock Logic ---
+                        last_yaw = kfs[i]["kf_yaw"].get_yaw()
+                        diff_angle = theta - last_yaw
+                        # Cube rotational symmetry of 90 degrees (pi/2), wrap diff to [-pi/4, pi/4]
+                        wrapped_diff = (diff_angle + math.pi / 4) % (math.pi / 2) - math.pi / 4
+
+                        # Check displacement to potentially unlock
+                        if kfs[i]["yaw_locked"]:
+                            curr_filtered_x = kfs[i]["kf_x"].x[0]
+                            curr_filtered_y = kfs[i]["kf_y"].x[0]
+                            dist_moved = math.sqrt((curr_filtered_x - kfs[i]["yaw_lock_x"])**2 + (curr_filtered_y - kfs[i]["yaw_lock_y"])**2)
+                            if dist_moved > 0.02:  # 2 cm
+                                kfs[i]["yaw_locked"] = False
+
+                        # Check angle update to potentially lock (only lock if not grasped/override)
+                        if not kfs[i]["yaw_locked"] and not is_grasped[i]:
+                            if abs(wrapped_diff) > math.radians(5.0):  # 5 degrees
+                                kfs[i]["yaw_locked"] = True
+                                kfs[i]["yaw_lock_x"] = kfs[i]["kf_x"].x[0]
+                                kfs[i]["yaw_lock_y"] = kfs[i]["kf_y"].x[0]
+
                         u_x = kfs[i]["kf_x"].update(px)
                         u_y = kfs[i]["kf_y"].update(py)
                         z_r_pos = 0.15 if kfs[i]["occluded_while_grasping"] else None
@@ -856,7 +940,8 @@ def evaluate(args):
                         kfs[i]["occluded_while_grasping"] = False
 
                         if u_x and u_y and u_z:
-                            kfs[i]["kf_yaw"].update(theta)
+                            if not kfs[i]["yaw_locked"]:
+                                kfs[i]["kf_yaw"].update(theta)
                             kfs[i]["kf_len"].update(length)
                             kfs[i]["kf_wid"].update(width)
                             kfs[i]["kf_hgt"].update(height)
@@ -930,6 +1015,17 @@ def evaluate(args):
                 current_obs["critic"][:, 25:29] = est_quat_r   # object_orientation
                 current_obs["critic"][:, 29:31] = est_yaw_r    # object_yaw
 
+
+        # Inject training-equivalent observation noise if requested
+        if _noise_slices:
+            actor_obs = current_obs["actor"]
+            for (name, s, e, half) in _noise_slices:
+                # Skip object_position / object_yaw when YOLO is active (already handled above)
+                if args.enable_yolo and name in ["object_position", "object_yaw"]:
+                    continue
+                actor_obs[:, s:e] += (torch.rand(num_envs, e - s, device=device) * 2.0 - 1.0) * half
+            current_obs["actor"] = actor_obs
+
         with torch.no_grad():
             action = model(current_obs)
             
@@ -947,12 +1043,14 @@ def evaluate(args):
                 success_recorded.append(current_episode_success[i].item())
                 top_collision_recorded.append(current_episode_top_collision[i].item())
                 grasp_and_lift_recorded.append(current_episode_grasp_and_lift[i].item())
+                min_pos_error_recorded.append(current_episode_min_pos_error[i].item())
                 episodes_collected += 1
 
                 # Reset per-env state so the env can contribute another episode
                 current_episode_success[i] = False
                 current_episode_top_collision[i] = False
                 current_episode_grasp_and_lift[i] = False
+                current_episode_min_pos_error[i] = float("inf")
                 contact_both_activated[i] = False
                 prev_contact_both[i] = False
 
@@ -975,6 +1073,7 @@ def evaluate(args):
     success_recorded_arr = np.array(success_recorded, dtype=bool)
     top_collision_recorded_arr = np.array(top_collision_recorded, dtype=bool)
     grasp_and_lift_recorded_arr = np.array(grasp_and_lift_recorded, dtype=bool)
+    min_pos_error_arr = np.array(min_pos_error_recorded, dtype=np.float32)
     successful_runs = np.sum(success_recorded_arr)
     success_rate = (successful_runs / total_episodes) * 100.0
 
@@ -983,6 +1082,11 @@ def evaluate(args):
 
     total_grasp_and_lift = np.sum(grasp_and_lift_recorded_arr)
     grasp_and_lift_rate = (total_grasp_and_lift / total_episodes) * 100.0
+
+    # Per-threshold success rates based on minimum position error achieved
+    THRESHOLDS_M = [0.01, 0.02, 0.03, 0.04, 0.05]  # 1-5 cm
+    threshold_counts = [int(np.sum(min_pos_error_arr <= t)) for t in THRESHOLDS_M]
+    threshold_rates  = [c / total_episodes * 100.0 for c in threshold_counts]
     
     # Compute mean and standard deviation of angles at trigger
     mean_squeeze = np.mean(angles_trigger_squeeze) if angles_trigger_squeeze else float('nan')
@@ -1005,11 +1109,18 @@ def evaluate(args):
     print(f"Parallel Environments: {num_envs}")
     print(f"Total Episodes Run:    {total_episodes}")
     print(f"Total Steps Simulated: {step_count}")
+    print(f"Obs Noise Injection:   {'ENABLED (training-equivalent)' if args.inject_noise else 'disabled'}")
     print("-" * 80)
     print(f"Success Rate:          {success_rate:.2f}% ({successful_runs}/{total_episodes})")
     print(f"Grasp & Lift (≥1cm):   {total_grasp_and_lift} episodes ({grasp_and_lift_rate:.2f}%)")
     print(f"Top Surface Collisions: {total_top_collisions} episodes ({collision_rate:.2f}%)")
     print(f"Contacts Established:  {num_contacts_made} episodes")
+    print("-" * 80)
+    print("Success Rate by Distance Threshold (best pos-error reached in episode):")
+    print(f"  {'Threshold':>10s} | {'Episodes':>8s} | {'Rate':>7s}")
+    print(f"  {'-'*10}-+-{'-'*8}-+-{'-'*7}")
+    for t, cnt, rate in zip(THRESHOLDS_M, threshold_counts, threshold_rates):
+        print(f"  {t*100:>9.0f}cm | {cnt:>8d} | {rate:>6.2f}%")
     print("-" * 80)
     print("Fingertip Angles wrt Cube Lateral Surfaces (Instant Before Contact):")
     print(f"  Squeeze Axis Angle:  Mean = {mean_squeeze:6.2f}° | Std = {std_squeeze:5.2f}°")
@@ -1023,7 +1134,7 @@ def main():
     parser.add_argument(
         "--checkpoint",
         type=str,
-        default="/home/lorenzobarbieri/exchange/tiago_pro_sim_ws/models/spring_completo_06/model_29999.pt",
+        default="/home/lorenzobarbieri/exchange/tiago_pro_sim_ws/models/spring_dropout_working_completo/model_29999.pt",
         help="Path to policy checkpoint weights (default: 2026-06-25_13-06-56-checkpoints/model_39500.pt)"
     )
     parser.add_argument(
@@ -1041,7 +1152,7 @@ def main():
     parser.add_argument(
         "--num_envs",
         type=int,
-        default=16,
+        default=32,
         help="Number of parallel MuJoCo environments (default: 16)"
     )
     parser.add_argument(
@@ -1054,8 +1165,8 @@ def main():
     parser.add_argument(
         "--ema_alpha",
         type=float,
-        default=0.5,
-        help="EMA smoothing factor alpha in [0, 1] (only used when --pos_filter_type=ema, default: 0.5). Higher = less smoothing."
+        default=0.2,
+        help="EMA smoothing factor alpha in [0, 1] (only used when --pos_filter_type=ema, default: 0.2). Higher = less smoothing."
     )
     parser.add_argument(
         "--yolo_conf",
@@ -1067,19 +1178,19 @@ def main():
         "--hsv_h_thresh",
         type=int,
         default=100,
-        help="Hue threshold for HSV segmentation (default: 30)."
+        help="Hue threshold for HSV segmentation (default: 20)."
     )
     parser.add_argument(
         "--hsv_s_thresh",
         type=int,
         default=100,
-        help="Saturation threshold for HSV segmentation (default: 30)."
+        help="Saturation threshold for HSV segmentation (default: 40)."
     )
     parser.add_argument(
         "--hsv_v_thresh",
         type=int,
-        default=60,
-        help="Value threshold for HSV segmentation (default: 20)."
+        default=80,
+        help="Value threshold for HSV segmentation (default: 40)."
     )
     parser.add_argument(
         "--exclude_width_prediction",
@@ -1091,7 +1202,7 @@ def main():
         "--cube_size",
         nargs=3,
         type=float,
-        default=[0.04, 0.04, 0.075],
+        default=[0.035, 0.035, 0.05],
         help="Nominal cube size in meters (length, width, height) (default: [0.04, 0.04, 0.075])."
     )
     parser.add_argument(
@@ -1117,6 +1228,15 @@ def main():
         action="store_false",
         dest="enable_yolo",
         help="Disable hybrid YOLO-based estimation mode (uses ground truth state feedback)"
+    )
+    parser.add_argument(
+        "--inject_noise",
+        action="store_true",
+        default=False,
+        help="Inject training-equivalent uniform observation noise into the actor obs buffer "
+             "(joint_pos ±0.02, joint_vel ±0.05, ee_position ±0.01, gripper_pos ±0.003, "
+             "target_object_position ±0.01; object_position ±0.01 / object_yaw ±0.05 when "
+             "YOLO is disabled). Default: False."
     )
     parser.add_argument(
         "--yolo_model",
