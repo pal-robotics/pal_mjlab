@@ -161,10 +161,12 @@ def fingertip_cube_alignment_reward(
   asset_cfg: SceneEntityCfg | None = None,
   std: float = 0.15,
   power: int = 1,
+  as_penalty: bool = False,
 ) -> torch.Tensor:
   """Rewards the alignment of the fingertips' squeeze direction with the cube's principal axes, computed in the robot root frame.
 
   This only constrains the line connecting the two fingertips to be perpendicular to the cube's faces.
+  If as_penalty is True, it returns (1.0 - alignment) * distance_scale to penalize misalignment instead.
   """
   if asset_cfg is None:
     asset_cfg = SceneEntityCfg("robot")
@@ -218,6 +220,9 @@ def fingertip_cube_alignment_reward(
   ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
   distance = torch.norm(ee_pos_w - command.object_pos_w, dim=-1)
   distance_scale = torch.exp(-distance / std)
+
+  if as_penalty:
+    return (1.0 - alignment) * distance_scale
 
   return alignment * distance_scale
 

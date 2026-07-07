@@ -37,12 +37,12 @@ def lift_env_cfg(
   cfg = make_lift_cube_env_cfg()
   robot = robot_cfg()
 
-  cfg.sim.mujoco.timestep = 0.005 #0.002
+  cfg.sim.mujoco.timestep = 0.005 #0.005
   cfg.sim.mujoco.iterations = 20
   cfg.sim.mujoco.jacobian = "sparse"
   cfg.sim.nconmax = 50
   cfg.sim.njmax = 80
-  cfg.decimation = 4   #10
+  cfg.decimation = 4   #4
   cfg.episode_length_s = EPISODE_LENGTH
   cfg.viewer.lookat = (0.4, 0.0, 0.55)
   cfg.viewer.distance = 1.7
@@ -100,6 +100,16 @@ def lift_env_cfg(
       ),
       secondary=ContactMatch(mode="subtree", pattern="box_object", entity="box"),
       fields=("found", "pos", "dist"),
+      reduce="none",
+      num_slots=1,
+    ),
+    ContactSensorCfg(
+      name="self_collision",
+      primary=ContactMatch(
+        mode="body", pattern=robot.collision_link_pattern, entity="robot"
+      ),
+      secondary=ContactMatch(mode="body", pattern="head_.*", entity="robot"),
+      fields=("found",),
       reduce="none",
       num_slots=1,
     ),
@@ -194,35 +204,15 @@ def lift_env_cfg(
     cfg.observations["critic"].terms[name].noise = None
 
   if not play:
-    # During training: apply stochastic occlusion dropout and observation noise to the actor.
-    _P_DROP = "dynamic"  # Initial fraction of steps per env where the obs is zeroed (managed by curriculum)
-
-    # Apply dropout to object tracking terms in the actor observations
+    # During training: apply observation noise to the actor.
     actor_terms = cfg.observations["actor"].terms
-    if "object_position" in actor_terms:
-      actor_terms["object_position"] = ObservationTermCfg(
-        func=manipulation_mdp_pal.object_position_in_robot_root_frame_dropout,
-        params={"command_name": "lift_height", "p_drop": _P_DROP},
-        noise=Unoise(n_min=-0.01, n_max=0.01),
-      )
-    if "object_yaw" in actor_terms:
-      actor_terms["object_yaw"] = ObservationTermCfg(
-        func=manipulation_mdp_pal.object_yaw_in_robot_root_frame_dropout,
-        params={"command_name": "lift_height", "p_drop": _P_DROP},
-        noise=Unoise(n_min=-0.05, n_max=0.05),
-      )
-    if "object_width" in actor_terms:
-      actor_terms["object_width"] = ObservationTermCfg(
-        func=manipulation_mdp_pal.object_width_dropout,
-        params={"command_name": "lift_height", "p_drop": _P_DROP},
-        noise=Unoise(n_min=-0.005, n_max=0.005),
-      )
-
-    # Configure observation noise for the remaining actor terms
     actor_noise_configs = {
+      "object_position": Unoise(n_min=-0.01, n_max=0.01),
+      "object_yaw": Unoise(n_min=-0.05, n_max=0.05),
+      "object_width": Unoise(n_min=-0.005, n_max=0.005),
       "joint_pos": Unoise(n_min=-0.02, n_max=0.02),
       "joint_vel": Unoise(n_min=-0.05, n_max=0.05),
-      "target_object_position": Unoise(n_min=-0.01, n_max=0.01),
+      # "target_object_position": Unoise(n_min=-0.01, n_max=0.01),
       "ee_position": Unoise(n_min=-0.01, n_max=0.01),
       "gripper_pos": Unoise(n_min=-0.003, n_max=0.003),
       "object_pose_6d": Unoise(
@@ -296,7 +286,7 @@ def lift_env_cfg(
   # )
   cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
     func=manipulation_mdp_pal.contact_penalty,
-    weight=-0.5,
+    weight=-1.0,
     params={"sensor_names": ["gripper_table_contact"]},
   )
   # cfg.rewards["object_table_sliding_penalty"] = RewardTermCfg(
@@ -325,12 +315,13 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.fingertip_cube_alignment_reward
     ),
-    weight=1.5,
+    weight=-1.5,  # Note: Use a negative weight (e.g. -1.5) if as_penalty=True
     params={
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
       "std": 0.15,
       "power": 16,
+      "as_penalty": True,
     },
   )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
@@ -362,6 +353,11 @@ def lift_env_cfg(
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))
     },
+  )
+  cfg.rewards["self_collisions"] = RewardTermCfg(
+    func=mdp.self_collision_cost,
+    weight=-1.0,
+    params={"sensor_name": "self_collision"},
   )
   # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(
   #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.ee_vel_penalty),
@@ -480,7 +476,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {0: (0.01, 0.03)},
+      "ranges": {0: (0.01, 0.025)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
@@ -489,7 +485,7 @@ def lift_env_cfg(
     func=dr_geom.geom_size,
     mode="reset",
     params={
-      "ranges": {1: (0.01, 0.03)},
+      "ranges": {1: (0.01, 0.025)},
       "asset_cfg": _box_geom_cfg,
       "operation": "abs",
     },
@@ -549,7 +545,7 @@ def lift_env_cfg(
 
   cfg.terminations["ee_ground_collision"] = TerminationTermCfg(
     func=manipulation_mdp.illegal_contact,
-    params={"sensor_name": "ee_ground_collision", "force_threshold": 1.0},
+    params={"sensor_name": "ee_ground_collision", "force_threshold": 0.5},
   )
 
   if not play:
