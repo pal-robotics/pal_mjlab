@@ -365,8 +365,8 @@ def evaluate(args):
         "gripper_pos":           0.003,  # Unoise ±0.003
         # object_position / object_yaw are handled separately (YOLO path uses
         # its own noise; ground-truth path uses the values below)
-        "object_position":       0.01,   # Unoise ±0.01  (gt-only path)
-        "object_yaw":            0.05,   # Unoise ±0.05  (gt-only path)
+        # "object_position":       0.01,   # Unoise ±0.01  (gt-only path)
+        # "object_yaw":            0.05,   # Unoise ±0.05  (gt-only path)
     }
 
     def _build_noise_slices(obs_manager, group="actor"):
@@ -1134,7 +1134,7 @@ def main():
     parser.add_argument(
         "--checkpoint",
         type=str,
-        default="/home/lorenzobarbieri/exchange/tiago_pro_sim_ws/models/spring_dropout_working_completo/model_29999.pt",
+        default="/home/lorenzobarbieri/2026-07-07_13-08-57/model_3500.pt",
         help="Path to policy checkpoint weights (default: 2026-06-25_13-06-56-checkpoints/model_39500.pt)"
     )
     parser.add_argument(
