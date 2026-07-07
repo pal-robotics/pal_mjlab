@@ -315,13 +315,15 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.fingertip_cube_alignment_reward
     ),
-    weight=-1.5,  # Note: Use a negative weight (e.g. -1.5) if as_penalty=True
+    weight=-3.0,  # Note: Use a negative weight (e.g. -1.5) if as_penalty=True
     params={
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
-      "std": 0.15,
-      "power": 16,
+      "std": 0.2,
+      "power": 4,
       "as_penalty": True,
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
     },
   )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(

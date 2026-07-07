@@ -162,6 +162,8 @@ def fingertip_cube_alignment_reward(
   std: float = 0.15,
   power: int = 1,
   as_penalty: bool = False,
+  sensor_name: str | None = None,
+  site_names: list[str] | None = None,
 ) -> torch.Tensor:
   """Rewards the alignment of the fingertips' squeeze direction with the cube's principal axes, computed in the robot root frame.
 
@@ -172,6 +174,17 @@ def fingertip_cube_alignment_reward(
     asset_cfg = SceneEntityCfg("robot")
   robot: Entity = env.scene[asset_cfg.name]
   command = env.command_manager.get_term(command_name)
+
+  # Check if contact is established
+  if sensor_name is not None and site_names is not None:
+    from pal_mjlab.tasks.manipulation.mdp.observations import (
+      object_both__contact_fingers,
+    )
+    contact = object_both__contact_fingers(
+      env, sensor_name, site_names, asset_cfg=asset_cfg
+    ).squeeze(-1)
+  else:
+    contact = torch.zeros(env.num_envs, device=env.device)
 
   # 1. Locate fingertip sites and calculate the squeeze axis in the robot root frame
   fingertip_site_names = [s for s in robot.site_names if "fingertip" in s]
@@ -222,9 +235,11 @@ def fingertip_cube_alignment_reward(
   distance_scale = torch.exp(-distance / std)
 
   if as_penalty:
-    return (1.0 - alignment) * distance_scale
+    reward = (1.0 - alignment) * distance_scale
+  else:
+    reward = alignment * distance_scale
 
-  return alignment * distance_scale
+  return reward * (1.0 - contact)
 
 
 def gripper_open_during_approach_reward(
