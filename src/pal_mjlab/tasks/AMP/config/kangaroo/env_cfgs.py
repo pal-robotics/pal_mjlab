@@ -46,7 +46,8 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   cfg.sim.mujoco.ccd_iterations = 500
   cfg.sim.contact_sensor_maxmatch = 500
-  cfg.sim.nconmax = 60
+  cfg.sim.mujoco.timestep = 0.005
+  cfg.decimation = 4
 
   cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
 
@@ -107,6 +108,7 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
   joint_pos_action.scale = KANGAROO_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_ACTUATOR_NAMES
 
   cfg.viewer.body_name = "pelvis_2_link"
 
