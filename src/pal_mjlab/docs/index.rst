@@ -14,15 +14,15 @@ pal_mjlab Documentation
    :maxdepth: 1
    :caption: Reinforcement Learning
 
-   RL/PPO
-   RL/Training_env_building
+   rl/ppo
+   rl/training_env_building
 
 .. toctree::
    :maxdepth: 1
    :caption: PAL Kangaroo
 
-   Kangaroo/Kangaroo_overview
-   Kangaroo/models/Kangaroo_simple
-   Kangaroo/models/Kangaroo_LowerBody
-   Kangaroo/tasks/Task_velocity
-   Kangaroo/tasks/Task_imitation
+   kangaroo/kangaroo_overview
+   kangaroo/models/kangaroo_simple
+   kangaroo/models/kangaroo_lower_body
+   kangaroo/tasks/task_velocity
+   kangaroo/tasks/task_imitation
