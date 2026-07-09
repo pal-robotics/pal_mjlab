@@ -122,7 +122,7 @@ def lift_env_cfg(
     contact_sensor_name="box_table_contact",
     resampling_time_range=(EPISODE_LENGTH, EPISODE_LENGTH),
     debug_vis=True,
-    success_threshold=0.02,
+    success_threshold=0.01,
     target_position_range=manipulation_mdp_pal.LiftingCommandCfg.TargetPositionRangeCfg(
       x=(0.45, 0.55),
       y=(-0.05, 0.05),
@@ -130,7 +130,7 @@ def lift_env_cfg(
     ),
     object_pose_range=manipulation_mdp_pal.LiftingCommandCfg.ObjectPoseRangeCfg(
       x=(0.3, 0.7),
-      y=(-0.2, 0.2),
+      y=(-0.3, 0.3),
       yaw=(-0.785, 0.785),   #yaw=(-0.785, 0.785),
     ),
   )
@@ -236,10 +236,13 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_ee_distance),
     weight=3.0,
     params={
-      "std": 0.15,
+      "std": 0.3,
       "min_reaching_reward": 0.0,
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
+      "deactivate_on_contact": False,
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
     },
   )
   cfg.rewards["gripper_open_during_approach"] = RewardTermCfg(
@@ -315,12 +318,11 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.fingertip_cube_alignment_reward
     ),
-    weight=-3.0,  # Note: Use a negative weight (e.g. -1.5) if as_penalty=True
+    weight=-5.0,  # Note: Use a negative weight (e.g. -1.5) if as_penalty=True
     params={
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
-      "std": 0.2,
-      "power": 4,
+      "std": 0.3,
       "as_penalty": True,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
@@ -459,7 +461,7 @@ def lift_env_cfg(
         body_names=("table",),
         geom_names=("table_geom",),
       ),
-      "height_range": (-0.05, 0.05),
+      "height_range": (-0.1, 0.1),
     },
   )
 

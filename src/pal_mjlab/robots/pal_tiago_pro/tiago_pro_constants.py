@@ -95,7 +95,9 @@ INIT_STATE = EntityCfg.InitialStateCfg(
     "arm_right_2_joint": -1.7,
     "arm_right_3_joint": 0.71,
     "arm_right_4_joint": -1.14,
-    "arm_right_6_joint": -1.0,
+    "arm_right_5_joint": 2.8,
+    "arm_right_6_joint": 1.0,    #-1
+    "arm_right_7_joint": 0.0,
     "gripper_right_finger_joint": 0.045,
     "gripper_right_inner_finger_left_joint": -0.379495,
     "gripper_right_fingertip_left_joint": 0.417219,
