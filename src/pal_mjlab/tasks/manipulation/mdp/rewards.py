@@ -17,6 +17,9 @@ def object_ee_distance(
   command_name: str,
   asset_cfg: SceneEntityCfg | None = None,
   min_reaching_reward: float = 0.0,
+  deactivate_on_contact: bool = False,
+  sensor_name: str | None = None,
+  site_names: list[str] | None = None,
 ) -> torch.Tensor:
   if asset_cfg is None:
     asset_cfg = SceneEntityCfg("robot")
@@ -28,7 +31,18 @@ def object_ee_distance(
   distance_reward = 1.0 - torch.tanh(distance / std)
 
   # Never be a penalization (min clip) and maintain 1.0 max
-  return torch.clamp(distance_reward, min=min_reaching_reward, max=1.0)
+  reward = torch.clamp(distance_reward, min=min_reaching_reward, max=1.0)
+
+  if deactivate_on_contact and sensor_name is not None and site_names is not None:
+    from pal_mjlab.tasks.manipulation.mdp.observations import (
+      object_both__contact_fingers,
+    )
+    contact = object_both__contact_fingers(
+      env, sensor_name, site_names, asset_cfg=asset_cfg
+    ).squeeze(-1)
+    reward = reward * (1.0 - contact)
+
+  return reward
 
 
 def object_is_lifted(
@@ -165,15 +179,53 @@ def fingertip_cube_alignment_reward(
   sensor_name: str | None = None,
   site_names: list[str] | None = None,
 ) -> torch.Tensor:
-  """Rewards the alignment of the fingertips' squeeze direction with the cube's principal axes, computed in the robot root frame.
+  """Rewards/penalizes the relative yaw misalignment between the gripper squeeze axis and the cube in the robot base frame.
 
-  This only constrains the line connecting the two fingertips to be perpendicular to the cube's faces.
-  If as_penalty is True, it returns (1.0 - alignment) * distance_scale to penalize misalignment instead.
+  The penalty/reward remains active throughout the episode (even after contact).
   """
+  import math
+  from mjlab.utils.lab_api.math import euler_xyz_from_quat
+
   if asset_cfg is None:
     asset_cfg = SceneEntityCfg("robot")
   robot: Entity = env.scene[asset_cfg.name]
   command = env.command_manager.get_term(command_name)
+
+  # 1. Get cube orientation in robot root frame, and extract its yaw
+  from pal_mjlab.tasks.manipulation.mdp.observations import (
+    object_orientation_in_robot_root_frame,
+  )
+  box_quat_root = object_orientation_in_robot_root_frame(env, command_name, asset_cfg)
+  _, _, box_yaw_root = euler_xyz_from_quat(box_quat_root)
+
+  # 2. Locate fingertip sites and calculate the squeeze axis in the robot root frame
+  fingertip_site_names = [s for s in robot.site_names if "fingertip" in s]
+  assert len(fingertip_site_names) == 2, "Expected exactly 2 fingertip sites"
+
+  left_idx = robot.site_names.index(fingertip_site_names[0])
+  right_idx = robot.site_names.index(fingertip_site_names[1])
+
+  p_left = robot.data.site_pos_w[:, left_idx]
+  p_right = robot.data.site_pos_w[:, right_idx]
+
+  v_squeeze_w = p_left - p_right
+  
+  # Rotate squeeze vector to robot root frame and compute its yaw
+  root_rot_w = robot.data.root_link_quat_w
+  v_squeeze_root = quat_apply(quat_inv(root_rot_w), v_squeeze_w)
+  ee_yaw_root = torch.atan2(v_squeeze_root[:, 1], v_squeeze_root[:, 0])
+
+  # 3. Compute relative yaw between the squeeze axis and the box
+  yaw_diff = ee_yaw_root - box_yaw_root
+
+  # Wrap difference to [-pi/4, pi/4] due to 90-degree rotational symmetry of the cube
+  wrapped_yaw_diff = (yaw_diff + math.pi / 4.0) % (math.pi / 2.0) - math.pi / 4.0
+  angle_rad = torch.abs(wrapped_yaw_diff)
+
+  # 4. Scale by distance
+  ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
+  distance = torch.norm(ee_pos_w - command.object_pos_w, dim=-1)
+  distance_scale = torch.exp(-distance / std)
 
   # Check if contact is established
   if sensor_name is not None and site_names is not None:
@@ -186,58 +238,12 @@ def fingertip_cube_alignment_reward(
   else:
     contact = torch.zeros(env.num_envs, device=env.device)
 
-  # 1. Locate fingertip sites and calculate the squeeze axis in the robot root frame
-  fingertip_site_names = [s for s in robot.site_names if "fingertip" in s]
-  assert len(fingertip_site_names) == 2, "Expected exactly 2 fingertip sites"
-
-  left_idx = robot.site_names.index(fingertip_site_names[0])
-  right_idx = robot.site_names.index(fingertip_site_names[1])
-
-  p_left = robot.data.site_pos_w[:, left_idx]
-  p_right = robot.data.site_pos_w[:, right_idx]
-
-  v_squeeze_w = p_left - p_right
-  # Rotate squeeze vector to robot root frame
-  v_squeeze_root = quat_apply(quat_inv(robot.data.root_link_quat_w), v_squeeze_w)
-  v_squeeze_root_norm = v_squeeze_root / torch.norm(
-    v_squeeze_root, dim=-1, keepdim=True
-  ).clamp(min=1e-6)
-
-  # 2. Get relative box orientation and axes in the robot root frame
-  from pal_mjlab.tasks.manipulation.mdp.observations import (
-    object_orientation_in_robot_root_frame,
-  )
-
-  box_quat_root = object_orientation_in_robot_root_frame(env, command_name, asset_cfg)
-
-  B = env.num_envs
-  device = env.device
-  unit_x = torch.tensor([1.0, 0.0, 0.0], device=device).expand(B, -1)
-  unit_y = torch.tensor([0.0, 1.0, 0.0], device=device).expand(B, -1)
-
-  box_axes_root = [quat_apply(box_quat_root, unit) for unit in (unit_x, unit_y)]
-
-  # 3. Calculate max absolute similarity between the squeeze axis and box axes in the root frame
-  similarities = torch.stack(
-    [
-      torch.abs(torch.sum(v_squeeze_root_norm * box_axis_root, dim=-1))
-      for box_axis_root in box_axes_root
-    ],
-    dim=-1,
-  )
-  alignment = torch.max(similarities, dim=-1).values
-  if power != 1:
-    alignment = torch.pow(alignment, power)
-
-  # 4. Scale by distance
-  ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
-  distance = torch.norm(ee_pos_w - command.object_pos_w, dim=-1)
-  distance_scale = torch.exp(-distance / std)
-
   if as_penalty:
-    reward = (1.0 - alignment) * distance_scale
+    # Penalize the yaw misalignment angle (in radians) directly
+    reward = angle_rad * distance_scale
   else:
-    reward = alignment * distance_scale
+    # Reward yaw alignment (mapping angle to [0, pi/4])
+    reward = (math.pi / 4.0 - angle_rad) * distance_scale
 
   return reward * (1.0 - contact)
 

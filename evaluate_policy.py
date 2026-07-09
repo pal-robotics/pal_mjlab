@@ -416,6 +416,15 @@ def evaluate(args):
     site_ids, _ = robot.find_sites(fingertip_site_names, preserve_order=True)
     left_idx, right_idx = site_ids[0], site_ids[1]
 
+    # Map local indices to global simulation site IDs
+    import mujoco
+    left_global_idx = mujoco.mj_name2id(env.sim._mj_model, mujoco.mjtObj.mjOBJ_SITE, f"robot/{fingertip_site_names[0]}")
+    if left_global_idx == -1:
+        left_global_idx = mujoco.mj_name2id(env.sim._mj_model, mujoco.mjtObj.mjOBJ_SITE, fingertip_site_names[0])
+    right_global_idx = mujoco.mj_name2id(env.sim._mj_model, mujoco.mjtObj.mjOBJ_SITE, f"robot/{fingertip_site_names[1]}")
+    if right_global_idx == -1:
+        right_global_idx = mujoco.mj_name2id(env.sim._mj_model, mujoco.mjtObj.mjOBJ_SITE, fingertip_site_names[1])
+
     # Initialize Kalman Filters list
     kfs = [None] * num_envs
     hsv_refs = [None] * num_envs
@@ -425,6 +434,9 @@ def evaluate(args):
     # Find the grasp site
     grasp_site_idx, _ = robot.find_sites(["gripper_right_grasping_site"], preserve_order=True)
     grasp_idx = grasp_site_idx[0]
+    grasp_global_idx = mujoco.mj_name2id(env.sim._mj_model, mujoco.mjtObj.mjOBJ_SITE, "robot/gripper_right_grasping_site")
+    if grasp_global_idx == -1:
+        grasp_global_idx = mujoco.mj_name2id(env.sim._mj_model, mujoco.mjtObj.mjOBJ_SITE, "gripper_right_grasping_site")
 
     print(f"Evaluating {args.num_episodes} total episodes with {num_envs} parallel environments...")
     step_count = 0
@@ -440,8 +452,8 @@ def evaluate(args):
             v_squeeze_norm = v_squeeze / torch.norm(v_squeeze, dim=-1, keepdim=True).clamp(min=1e-6)
             
             # Fingertip site normals (local X axis of each site)
-            xmat_left = env.sim.data.site_xmat[:, left_idx]   # [B, 3, 3]
-            xmat_right = env.sim.data.site_xmat[:, right_idx] # [B, 3, 3]
+            xmat_left = env.sim.data.site_xmat[:, left_global_idx]   # [B, 3, 3]
+            xmat_right = env.sim.data.site_xmat[:, right_global_idx] # [B, 3, 3]
             
             v_left = xmat_left[:, :, 0]
             v_right = -xmat_right[:, :, 0]
@@ -576,7 +588,7 @@ def evaluate(args):
             # Compute end-effector pose in robot base frame (in batch using PyTorch)
             ee_pos_w = robot.data.site_pos_w[:, grasp_idx]
             ee_pos_robot = quat_apply(quat_inv(robot.data.root_link_quat_w), ee_pos_w - robot.data.root_link_pos_w)
-            ee_xmat = env.sim.data.site_xmat[:, grasp_idx]
+            ee_xmat = env.sim.data.site_xmat[:, grasp_global_idx]
             _, _, robot_yaw_w = euler_xyz_from_quat(robot.data.root_link_quat_w)
             ee_yaw_w = torch.atan2(ee_xmat[:, 1, 0], ee_xmat[:, 0, 0])
             ee_yaw = ee_yaw_w - robot_yaw_w
@@ -1134,7 +1146,7 @@ def main():
     parser.add_argument(
         "--checkpoint",
         type=str,
-        default="/home/lorenzobarbieri/2026-07-07_13-08-57/model_3500.pt",
+        default="/home/lorenzobarbieri/2026-07-08_11-02-27/model_19999.pt",
         help="Path to policy checkpoint weights (default: 2026-06-25_13-06-56-checkpoints/model_39500.pt)"
     )
     parser.add_argument(
