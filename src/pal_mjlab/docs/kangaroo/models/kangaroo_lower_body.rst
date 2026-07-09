@@ -5,6 +5,11 @@ Kangaroo - Lower Body Model
 
 The lower-body configuration is a reduced model of the simple model. Besides the excluded arm joints, the rest is identical.
 
+.. image:: /_static/kangaroo_lower_body.png
+   :alt: Kangaroo lower-body model
+   :width: 250px
+   :align: center
+
 18 joints :
 
     14 actuators :

@@ -6,6 +6,11 @@ Kangaroo - Simple Model
 The simple model is the full-body Kangaroo with 4 DoF per arm and a fixed
 forearm. It is the most used model across the different tasks in pal_mjlab.
 
+.. image:: /_static/kangaroo_4dof.png
+   :alt: Kangaroo simple model with 4 DoF arms
+   :width: 300px
+   :align: center
+
 It incorporates a simplified representation of Kangaroo's closed-chain leg
 mechanism: the real linkage is reduced to a serial chain plus four passive
 joints (femur and knee on each leg), while masses and inertias are computed
