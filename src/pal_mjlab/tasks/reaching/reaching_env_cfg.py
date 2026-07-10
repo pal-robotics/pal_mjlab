@@ -1,6 +1,7 @@
 """Reaching task configuration."""
 
 from mjlab.envs import ManagerBasedRlEnvCfg
+from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.action_manager import ActionTermCfg
 from mjlab.managers.command_manager import CommandTermCfg
@@ -12,7 +13,7 @@ from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.scene import SceneCfg
 from mjlab.sim import MujocoCfg, SimulationCfg
-from mjlab.terrains import TerrainImporterCfg
+from mjlab.terrains import TerrainEntityCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
 
@@ -121,13 +122,12 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "reset_frictionloss": EventTermCfg(
       mode="reset",
-      func=mdp.randomize_field,
-      domain_randomization=True,
+      func=dr.dof_frictionloss,
       params={
-        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-        "field": "dof_frictionloss",
-        "ranges": (0.5, 2.0),
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
         "operation": "abs",
+        "ranges": (0.5, 2.0),
+        "shared_random": False,
       },
     ),
   }
@@ -218,30 +218,30 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
   ## --------------------------------------------------------
   curriculum = {
     "action_rate_curr": CurriculumTermCfg(
-      func=mdp.reward_weight,
+      func=mdp.reward_curriculum,
       params={
         "reward_name": "action_rate_l2",
-        "weight_stages": [
+        "stages": [
           {"step": 0, "weight": -0.003},
           {"step": 5_000 * 24, "weight": -0.01},
         ],
       },
     ),
     "orientation_curr_right": CurriculumTermCfg(
-      func=mdp.reward_weight,
+      func=mdp.reward_curriculum,
       params={
         "reward_name": "ee_right_orientation",
-        "weight_stages": [
+        "stages": [
           {"step": 0, "weight": -0.3},
           {"step": 7_500 * 24, "weight": -0.6},
         ],
       },
     ),
     "orientation_curr_left": CurriculumTermCfg(
-      func=mdp.reward_weight,
+      func=mdp.reward_curriculum,
       params={
         "reward_name": "ee_left_orientation",
-        "weight_stages": [
+        "stages": [
           {"step": 0, "weight": -0.3},
           {"step": 7_500 * 24, "weight": -0.6},
         ],
@@ -255,7 +255,7 @@ def make_reaching_env_cfg() -> ManagerBasedRlEnvCfg:
 
   return ManagerBasedRlEnvCfg(
     scene=SceneCfg(
-      terrain=TerrainImporterCfg(
+      terrain=TerrainEntityCfg(
         terrain_type="plane",
         terrain_generator=None,
         max_init_terrain_level=5,

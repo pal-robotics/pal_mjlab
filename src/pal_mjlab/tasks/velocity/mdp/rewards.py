@@ -7,6 +7,7 @@ import torch
 from mjlab.entity import Entity
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.sensor.contact_sensor import ContactSensor
 from mjlab.utils.lab_api.string import (
   resolve_matching_names_values,
 )
@@ -417,5 +418,79 @@ class joint_vel_limits:
 
     env.extras["log"]["Metrics/joint_vel_max"] = torch.max(torch.abs(joint_vel)).item()
     env.extras["log"]["Metrics/joint_vel_limit_violation"] = torch.mean(penalty).item()
-    
+
     return penalty
+
+
+class sound_suppression:
+  """Soft-landing reward that penalizes impulsive contact forces at footstrike.
+
+  Ref: https://arxiv.org/abs/2512.16705 (Disney Olaf paper)
+  """
+
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+    # self.sensor_name = cfg.params["sensor_name"]
+    self.site_names = cfg.params["asset_cfg"].site_names
+    self.prev_site_velocities = torch.zeros(
+      (env.num_envs, len(self.site_names), 3),
+      device=env.device,
+      dtype=torch.float32,
+    )
+    self.step_dt = env.step_dt
+    self.delta_vel_max = (
+      torch.ones(1, device=env.device, dtype=torch.float32)
+      * cfg.params["delta_vel_max"]
+    )
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    asset_cfg: SceneEntityCfg,
+    metrics_sensor_name: str,
+    delta_vel_max: float,
+  ) -> torch.Tensor:
+    # Calculate and set the metrics
+    contact_sensor: ContactSensor = env.scene[metrics_sensor_name]
+    sensor_data = contact_sensor.data
+    assert sensor_data.force is not None
+    forces = sensor_data.force  # [B, N, 3]
+    force_magnitude = torch.norm(forces, dim=-1)  # [B, N]
+    first_contact = contact_sensor.compute_first_contact(dt=env.step_dt)  # [B, N]
+    landing_impact = force_magnitude * first_contact.float()  # [B, N]
+    cost = torch.sum(landing_impact, dim=1)  # [B]
+    num_landings = torch.sum(first_contact.float())
+    mean_landing_force = torch.sum(landing_impact) / torch.clamp(num_landings, min=1)
+    env.extras["log"]["Metrics/landing_force_mean"] = mean_landing_force
+
+    asset: Entity = env.scene[asset_cfg.name]
+    site_velocities = asset.data.site_lin_vel_w[:, asset_cfg.site_ids]
+    change_in_site_velocities = site_velocities - self.prev_site_velocities
+    self.prev_site_velocities = site_velocities.clone()
+    # Calculate the squared sum of change in velocity along the projected gravity direction
+    gravity_vector_w = asset.data.gravity_vec_w
+
+    term = change_in_site_velocities * gravity_vector_w.unsqueeze(1)
+
+    squared_term_along_gravity_vector_w = torch.square(term)
+
+    change_in_velocities_along_gravity_vector_w = squared_term_along_gravity_vector_w[
+      ..., 2
+    ]  # shape (N, M)
+
+    env.extras["log"]["Metrics/delta_v_max"] = torch.max(
+      change_in_velocities_along_gravity_vector_w
+    ).item()
+
+    cost = torch.sum(
+      torch.min(
+        self.delta_vel_max,
+        change_in_velocities_along_gravity_vector_w,
+      ),
+      dim=1,
+    )
+
+    # print(f"The z_component : {change_in_velocities_along_gravity_vector_w} and max_component : {max_of_all_sites} and "
+    # "cost : {cost} and the term is : {term} and squared_term_along_gravity_vector_w : {squared_term_along_gravity_vector_w}")
+
+    # return the squared sum of change in velocity along the projected gravity direction
+    return cost

@@ -9,7 +9,7 @@
     <default class="collision">
         <geom type="capsule" group="3" material="bright_orange" contype="1" conaffinity="1"/>
         <default class="foot_capsule">
-          <geom type="capsule" size="0.01"/>
+          <geom type="capsule" size="0.01" density="0"/>
         </default>
     </default>
   </default>
@@ -104,32 +104,32 @@
                         <site name="ee_left" pos="0.0 0.0 0.0"/>
                         <body name="gripper_left_inner_finger_left_link" pos="-0.013977 -1.11303e-05 0.095832" quat="-0.287351 0.287862 -0.645861 -0.646087">
                           <inertial pos="0 0.024759 0" quat="0.5 0.5 -0.5 0.5" mass="0.018619" diaginertia="4.9573e-06 4.8806e-06 2.5471e-07" />
-                          <joint name="gripper_left_inner_finger_left_joint" pos="0 0 0" axis="0 0 1" range="0 0.802851" />
+                          <!-- <joint name="gripper_left_inner_finger_left_joint" pos="0 0 0" axis="0 0 1" range="0 0.802851" /> -->
                           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="inner_finger" />
                           <body name="gripper_left_fingertip_left_link" pos="0 0.05 0" quat="0.913545 0 0 0.406738">
                             <inertial pos="-0.000864586 0.011929 -2.73244e-11" quat="0.704565 0.704565 0.0599056 0.0599056" mass="0.033503" diaginertia="3.69751e-06 2.84428e-06 1.65117e-06" />
-                            <joint name="gripper_left_fingertip_left_joint" pos="0 0 0" axis="0 0 1" range="-0.802851 0" />
+                            <!-- <joint name="gripper_left_fingertip_left_joint" pos="0 0 0" axis="0 0 1" range="-0.802851 0" /> -->
                             <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" />
                           </body>
                         </body>
                         <body name="gripper_left_outer_finger_left_link" pos="-0.0288 -2.29342e-05 0.0913" quat="-0.287351 0.287862 -0.645861 -0.646087">
                           <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                          <joint name="gripper_left_finger_joint" pos="0 0 0" axis="0 0 1" range="0 0.95" damping="0.03" />
+                          <!-- <joint name="gripper_left_finger_joint" pos="0 0 0" axis="0 0 1" range="0 0.95" damping="0.03" /> -->
                           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="outer_finger" />
                         </body>
                         <body name="gripper_left_inner_finger_right_link" pos="0.013977 1.11303e-05 0.095832" quat="0.646088 0.64586 0.287865 -0.287349">
                           <inertial pos="0 0.024759 0" quat="0.5 0.5 -0.5 0.5" mass="0.018619" diaginertia="4.9573e-06 4.8806e-06 2.5471e-07" />
-                          <joint name="gripper_left_inner_finger_right_joint" pos="0 0 0" axis="0 0 1" range="0 0.802851" />
+                          <!-- <joint name="gripper_left_inner_finger_right_joint" pos="0 0 0" axis="0 0 1" range="0 0.802851" /> -->
                           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="inner_finger" />
                           <body name="gripper_left_fingertip_right_link" pos="0 0.05 0" quat="0.913545 0 0 0.406738">
                             <inertial pos="-0.000864586 0.011929 -2.73244e-11" quat="0.704565 0.704565 0.0599056 0.0599056" mass="0.033503" diaginertia="3.69751e-06 2.84428e-06 1.65117e-06" />
-                            <joint name="gripper_left_fingertip_right_joint" pos="0 0 0" axis="0 0 1" range="-0.802851 0" />
+                            <!-- <joint name="gripper_left_fingertip_right_joint" pos="0 0 0" axis="0 0 1" range="-0.802851 0" /> -->
                             <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" />
                           </body>
                         </body>
                         <body name="gripper_left_outer_finger_right_link" pos="0.0288 2.29342e-05 0.0913" quat="0.646088 0.64586 0.287865 -0.287349">
                           <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                          <joint name="gripper_left_outer_finger_right_joint" pos="0 0 0" axis="0 0 1" range="0 0.95" />
+                          <!-- <joint name="gripper_left_outer_finger_right_joint" pos="0 0 0" axis="0 0 1" range="0 0.95" /> -->
                           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="outer_finger" />
                         </body>
                       </body>
@@ -172,32 +172,32 @@
                         <site name="ee_right" pos="0.0 0.0 0.0"/>
                         <body name="gripper_right_inner_finger_left_link" pos="-0.013977 -1.11303e-05 0.095832" quat="-0.287351 0.287862 -0.645861 -0.646087">
                           <inertial pos="0 0.024759 0" quat="0.5 0.5 -0.5 0.5" mass="0.018619" diaginertia="4.9573e-06 4.8806e-06 2.5471e-07" />
-                          <joint name="gripper_right_inner_finger_left_joint" pos="0 0 0" axis="0 0 1" range="0 0.802851" />
+                          <!-- <joint name="gripper_right_inner_finger_left_joint" pos="0 0 0" axis="0 0 1" range="0 0.802851" /> -->
                           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="inner_finger" />
                           <body name="gripper_right_fingertip_left_link" pos="0 0.05 0" quat="0.913545 0 0 0.406738">
                             <inertial pos="-0.000864586 0.011929 -2.73244e-11" quat="0.704565 0.704565 0.0599056 0.0599056" mass="0.033503" diaginertia="3.69751e-06 2.84428e-06 1.65117e-06" />
-                            <joint name="gripper_right_fingertip_left_joint" pos="0 0 0" axis="0 0 1" range="-0.802851 0" />
+                            <!-- <joint name="gripper_right_fingertip_left_joint" pos="0 0 0" axis="0 0 1" range="-0.802851 0" /> -->
                             <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" />
                           </body>
                         </body>
                         <body name="gripper_right_outer_finger_left_link" pos="-0.0288 -2.29342e-05 0.0913" quat="-0.287351 0.287862 -0.645861 -0.646087">
                           <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                          <joint name="gripper_right_finger_joint" pos="0 0 0" axis="0 0 1" range="0 0.95" damping="0.03" />
+                          <!-- <joint name="gripper_right_finger_joint" pos="0 0 0" axis="0 0 1" range="0 0.95" damping="0.03" /> -->
                           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="outer_finger" />
                         </body>
                         <body name="gripper_right_inner_finger_right_link" pos="0.013977 1.11303e-05 0.095832" quat="0.646088 0.64586 0.287865 -0.287349">
                           <inertial pos="0 0.024759 0" quat="0.5 0.5 -0.5 0.5" mass="0.018619" diaginertia="4.9573e-06 4.8806e-06 2.5471e-07" />
-                          <joint name="gripper_right_inner_finger_right_joint" pos="0 0 0" axis="0 0 1" range="0 0.802851" />
+                          <!-- <joint name="gripper_right_inner_finger_right_joint" pos="0 0 0" axis="0 0 1" range="0 0.802851" /> -->
                           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="inner_finger" />
                           <body name="gripper_right_fingertip_right_link" pos="0 0.05 0" quat="0.913545 0 0 0.406738">
                             <inertial pos="-0.000864586 0.011929 -2.73244e-11" quat="0.704565 0.704565 0.0599056 0.0599056" mass="0.033503" diaginertia="3.69751e-06 2.84428e-06 1.65117e-06" />
-                            <joint name="gripper_right_fingertip_right_joint" pos="0 0 0" axis="0 0 1" range="-0.802851 0" />
+                            <!-- <joint name="gripper_right_fingertip_right_joint" pos="0 0 0" axis="0 0 1" range="-0.802851 0" /> -->
                             <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="fingertip" />
                           </body>
                         </body>
                         <body name="gripper_right_outer_finger_right_link" pos="0.0288 2.29342e-05 0.0913" quat="0.646088 0.64586 0.287865 -0.287349">
                           <inertial pos="-0.00128298 0.0143975 0" quat="0.522876 0.476026 -0.522876 0.476026" mass="0.0159888" diaginertia="6.14973e-06 6.03691e-06 4.38203e-07" />
-                          <joint name="gripper_right_outer_finger_right_joint" pos="0 0 0" axis="0 0 1" range="0 0.95" />
+                          <!-- <joint name="gripper_right_outer_finger_right_joint" pos="0 0 0" axis="0 0 1" range="0 0.95" /> -->
                           <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.752941 0.752941 0.752941 1" mesh="outer_finger" />
                         </body>
                       </body>
@@ -330,12 +330,12 @@
     <connect anchor="0.0 0.0 0.0" body1="leg_left_4_link" body2="leg_left_knee_link" name="leg_left_closed_kin_joint" solref="0.004 1" />
     <connect anchor="0.0 0.0 0.0" body1="leg_right_4_link" body2="leg_right_knee_link" name="leg_right_closed_kin_joint" solref="0.004 1" />
     <!-- grippers -->
-    <connect active="true" anchor="0.01475 -0.001463 0.001" body1="gripper_left_fingertip_right_link" body2="gripper_left_outer_finger_right_link" name="gripper_left_r" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <connect active="true" anchor="0.0145 -0.0015 0.001" body1="gripper_left_fingertip_left_link" body2="gripper_left_outer_finger_left_link" name="gripper_left_l" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="gripper_left_inner_finger_left_joint" joint2="gripper_left_inner_finger_right_joint" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <connect active="true" anchor="0.014 -0.0015 0" body1="gripper_right_fingertip_right_link" body2="gripper_right_outer_finger_right_link" name="gripper_right_r" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <connect active="true" anchor="0.014 -0.001 0" body1="gripper_right_fingertip_left_link" body2="gripper_right_outer_finger_left_link" name="gripper_right_l" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="gripper_right_inner_finger_left_joint" joint2="gripper_right_inner_finger_right_joint" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
+    <!-- <connect active="true" anchor="0.01475 -0.001463 0.001" body1="gripper_left_fingertip_right_link" body2="gripper_left_outer_finger_right_link" name="gripper_left_r" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <connect active="true" anchor="0.0145 -0.0015 0.001" body1="gripper_left_fingertip_left_link" body2="gripper_left_outer_finger_left_link" name="gripper_left_l" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="gripper_left_inner_finger_left_joint" joint2="gripper_left_inner_finger_right_joint" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <connect active="true" anchor="0.014 -0.0015 0" body1="gripper_right_fingertip_right_link" body2="gripper_right_outer_finger_right_link" name="gripper_right_r" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <connect active="true" anchor="0.014 -0.001 0" body1="gripper_right_fingertip_left_link" body2="gripper_right_outer_finger_left_link" name="gripper_right_l" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="gripper_right_inner_finger_left_joint" joint2="gripper_right_inner_finger_right_joint" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
   </equality>
 
   <contact>

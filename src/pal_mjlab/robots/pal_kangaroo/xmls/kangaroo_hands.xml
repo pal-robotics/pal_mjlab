@@ -9,7 +9,7 @@
     <default class="collision">
         <geom type="capsule" group="3" material="bright_orange" contype="1" conaffinity="1"/>
         <default class="foot_capsule">
-          <geom type="capsule" size="0.01"/>
+          <geom type="capsule" size="0.01" density="0"/>
         </default>
     </default>
   </default>
@@ -101,88 +101,88 @@
                     <geom pos="0 0 0.0498" quat="-0.000398673 0 0 1" class="visual" mesh="forearm_link" />
                     <body name="hand_left_palm_base_link" pos="0 0 0.2158" quat="0.707108 -0.000282842 0.707105 0.000282843">
                       <inertial pos="0.00858508 -2.4614e-09 0.000249999" quat="0.5 0.5 -0.5 0.5" mass="0.0509809" diaginertia="1.88432e-05 1.37535e-05 9.79678e-06" />
-                      <joint name="hand_left_palm_roll_joint" axis="0 0 -1" range="-0.785398 0.785398"/>
+                      <!-- <joint name="hand_left_palm_roll_joint" axis="0 0 -1" range="-0.785398 0.785398"/> -->
                       <geom class="visual" mesh="wrist_link" />
                       <body name="hand_left_palm_link" quat="0.707105 -0.707108 0 0">
                         <site name="ee_left" pos="0.0 0.0 0.0"/>
                         <inertial pos="-0.052625 0.000781495 -0.00275893" quat="0.740136 -0.0434134 -7.69336e-05 0.671055" mass="0.0389736" diaginertia="2.76787e-05 1.98299e-05 1.10229e-05" />
-                        <joint name="hand_left_palm_pitch_joint" range="-0.785398 0.785398"/>
+                        <!-- <joint name="hand_left_palm_pitch_joint" range="-0.785398 0.785398"/> -->
                         <geom class="visual" mesh="palm_left_link" />
                         <body name="hand_left_index_prox_link" pos="-0.081291 -0.0045543 -0.036786" quat="0.991128 -0.0829563 -0.0508768 0.0905266">
                           <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                          <joint name="hand_left_index_prox_joint" range="0 1.5708"/>
+                          <!-- <joint name="hand_left_index_prox_joint" range="0 1.5708"/> -->
                           <geom class="visual" mesh="phalanx_link" />
                           <body name="hand_left_index_mid_link" pos="-0.0258748 0 0">
                             <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                            <joint name="hand_left_index_mid_joint" range="0 1.5708"/>
+                            <!-- <joint name="hand_left_index_mid_joint" range="0 1.5708"/> -->
                             <geom class="visual" mesh="phalanx_link" />
                             <body name="hand_left_index_dist_link" pos="-0.0258748 0 0">
                               <inertial pos="-0.01044 -0.00064 -6e-05" quat="0.48992 0.51041 0.454557 0.541145" mass="0.00476" diaginertia="4.20832e-07 3.33472e-07 2.4112e-07" />
-                              <joint name="hand_left_index_dist_joint" range="0 1.5708"/>
+                              <!-- <joint name="hand_left_index_dist_joint" range="0 1.5708"/> -->
                               <geom class="visual" mesh="tip_link" />
                             </body>
                           </body>
                         </body>
                         <body name="hand_left_middle_prox_link" pos="-0.082896 -0.0014507 -0.011829" quat="0.995247 -0.0434532 -0.0038016 0.0870713">
                           <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                          <joint name="hand_left_middle_prox_joint" range="0 1.5708"/>
+                          <!-- <joint name="hand_left_middle_prox_joint" range="0 1.5708"/> -->
                           <geom class="visual" mesh="phalanx_link" />
                           <body name="hand_left_middle_mid_link" pos="-0.0258748 0 0">
                             <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                            <joint name="hand_left_middle_mid_joint" range="0 1.5708"/>
+                            <!-- <joint name="hand_left_middle_mid_joint" range="0 1.5708"/> -->
                             <geom class="visual" mesh="phalanx_link" />
                             <body name="hand_left_middle_dist_link" pos="-0.0258748 0 0">
                               <inertial pos="-0.01044 -0.00064 -6e-05" quat="0.48992 0.51041 0.454557 0.541145" mass="0.00476" diaginertia="4.20832e-07 3.33472e-07 2.4112e-07" />
-                              <joint name="hand_left_middle_dist_joint" range="0 1.5708"/>
+                              <!-- <joint name="hand_left_middle_dist_joint" range="0 1.5708"/> -->
                               <geom class="visual" mesh="tip_link" />
                             </body>
                           </body>
                         </body>
                         <body name="hand_left_ring_prox_link" pos="-0.081871 -0.001367 0.013029" quat="0.994169 0.0387077 0.0471293 0.0889293">
                           <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                          <joint name="hand_left_ring_prox_joint" range="0 1.5708"/>
+                          <!-- <joint name="hand_left_ring_prox_joint" range="0 1.5708"/> -->
                           <geom class="visual" mesh="phalanx_link" />
                           <body name="hand_left_ring_mid_link" pos="-0.0258748 0 0">
                             <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                            <joint name="hand_left_ring_mid_joint" range="0 1.5708"/>
+                            <!-- <joint name="hand_left_ring_mid_joint" range="0 1.5708"/> -->
                             <geom class="visual" mesh="phalanx_link" />
                             <body name="hand_left_ring_dist_link" pos="-0.0258748 0 0">
                               <inertial pos="-0.01044 -0.00064 -6e-05" quat="0.48992 0.51041 0.454557 0.541145" mass="0.00476" diaginertia="4.20832e-07 3.33472e-07 2.4112e-07" />
-                              <joint name="hand_left_ring_dist_joint" range="0 1.5708"/>
+                              <!-- <joint name="hand_left_ring_dist_joint" range="0 1.5708"/> -->
                               <geom class="visual" mesh="tip_link" />
                             </body>
                           </body>
                         </body>
                         <body name="hand_left_small_prox_link" pos="-0.073142 -0.0034204 0.037631" quat="0.987966 0.0789269 0.0940585 0.09406">
                           <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                          <joint name="hand_left_small_prox_joint" range="0 1.5708"/>
+                          <!-- <joint name="hand_left_small_prox_joint" range="0 1.5708"/> -->
                           <geom class="visual" mesh="phalanx_link" />
                           <body name="hand_left_small_mid_link" pos="-0.0258748 0 0">
                             <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                            <joint name="hand_left_small_mid_joint" range="0 1.5708"/>
+                            <!-- <joint name="hand_left_small_mid_joint" range="0 1.5708"/> -->
                             <geom class="visual" mesh="phalanx_link" />
                             <body name="hand_left_small_dist_link" pos="-0.0258748 0 0">
                               <inertial pos="-0.01044 -0.00064 -6e-05" quat="0.48992 0.51041 0.454557 0.541145" mass="0.00476" diaginertia="4.20832e-07 3.33472e-07 2.4112e-07" />
-                              <joint name="hand_left_small_dist_joint" range="0 1.5708"/>
+                              <!-- <joint name="hand_left_small_dist_joint" range="0 1.5708"/> -->
                               <geom class="visual" mesh="tip_link" />
                             </body>
                           </body>
                         </body>
                         <body name="hand_left_thumb_base_link" pos="-0.036652 -0.00068435 -0.017088" quat="0.0907939 0.909338 -0.120867 0.387623">
                           <inertial pos="0.000390468 8.46232e-07 0.0168802" quat="0.998062 0.000353948 -0.0621625 -0.00279882" mass="0.00791208" diaginertia="7.19285e-07 7.0146e-07 4.03537e-07" />
-                          <joint name="hand_left_thumb_base_joint" axis="0 0 -1" range="0 1.5708"/>
+                          <!-- <joint name="hand_left_thumb_base_joint" axis="0 0 -1" range="0 1.5708"/> -->
                           <geom class="visual" mesh="thumb_left_link" />
                           <body name="hand_left_thumb_methacarpal_link" pos="-0.011164 0 0.025271" quat="0.683011 0.683014 0.183013 -0.183013">
                             <inertial pos="-0.00901329 0.000112869 6.41889e-05" quat="0.512912 0.512904 0.486993 0.486507" mass="0.00393723" diaginertia="2.76407e-07 2.34526e-07 1.29465e-07" />
-                            <joint name="hand_left_thumb_methacarpal_joint" range="0 1.5708"/>
+                            <!-- <joint name="hand_left_thumb_methacarpal_joint" range="0 1.5708"/> -->
                             <geom class="visual" mesh="thumb_phalanx_link" />
                             <body name="hand_left_thumb_proximal_link" pos="-0.021586 0 0">
                               <inertial pos="-0.00901329 0.000112869 6.41889e-05" quat="0.512912 0.512904 0.486993 0.486507" mass="0.00393723" diaginertia="2.76407e-07 2.34526e-07 1.29465e-07" />
-                              <joint name="hand_left_thumb_proximal_joint" range="0 1.5708"/>
+                              <!-- <joint name="hand_left_thumb_proximal_joint" range="0 1.5708"/> -->
                               <geom class="visual" mesh="thumb_phalanx_link" />
                               <body name="hand_left_thumb_distal_link" pos="-0.021586 0 0">
                                 <inertial pos="-0.01044 -0.00064 -6e-05" quat="0.48992 0.51041 0.454557 0.541145" mass="0.00476" diaginertia="4.20832e-07 3.33472e-07 2.4112e-07" />
-                                <joint name="hand_left_thumb_distal_joint" range="0 1.5708"/>
+                                <!-- <joint name="hand_left_thumb_distal_joint" range="0 1.5708"/> -->
                                 <geom class="visual" mesh="tip_link" />
                               </body>
                             </body>
@@ -220,88 +220,88 @@
                     <geom pos="0 0 0.0498" quat="-1 0 0 0.000397654" class="visual" mesh="forearm_link" />
                     <body name="hand_right_palm_base_link" pos="0 0 0.2158" quat="0.000280246 -0.707105 0.000280245 0.707108">
                       <inertial pos="0.00858508 -2.4614e-09 0.000249999" quat="0.5 0.5 -0.5 0.5" mass="0.0509809" diaginertia="1.88432e-05 1.37535e-05 9.79678e-06" />
-                      <joint name="hand_right_palm_roll_joint" axis="0 0 -1" range="-0.785398 0.785398"/>
+                      <!-- <joint name="hand_right_palm_roll_joint" axis="0 0 -1" range="-0.785398 0.785398"/> -->
                       <geom class="visual" mesh="wrist_link" />
                       <body name="hand_right_palm_link" quat="0.707105 -0.707108 0 0">
                         <site name="ee_right" pos="0.0 0.0 0.0"/>
                         <inertial pos="-0.052625 0.000781495 -0.00275893" quat="0.740136 -0.0434134 -7.69336e-05 0.671055" mass="0.0389736" diaginertia="2.76787e-05 1.98299e-05 1.10229e-05" />
-                        <joint name="hand_right_palm_pitch_joint" range="-0.785398 0.785398"/>
+                        <!-- <joint name="hand_right_palm_pitch_joint" range="-0.785398 0.785398"/> -->
                         <geom class="visual" mesh="palm_right_link" />
                         <body name="hand_right_index_prox_link" pos="-0.081291 -0.0045543 0.036786" quat="0.991128 0.0829563 0.0508768 0.0905266">
                           <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                          <joint name="hand_right_index_prox_joint" range="0 1.5708"/>
+                          <!-- <joint name="hand_right_index_prox_joint" range="0 1.5708"/> -->
                           <geom class="visual" mesh="phalanx_link" />
                           <body name="hand_right_index_mid_link" pos="-0.0258748 0 0">
                             <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                            <joint name="hand_right_index_mid_joint" range="0 1.5708"/>
+                            <!-- <joint name="hand_right_index_mid_joint" range="0 1.5708"/> -->
                             <geom class="visual" mesh="phalanx_link" />
                             <body name="hand_right_index_dist_link" pos="-0.0258748 0 0">
                               <inertial pos="-0.01044 -0.00064 -6e-05" quat="0.48992 0.51041 0.454557 0.541145" mass="0.00476" diaginertia="4.20832e-07 3.33472e-07 2.4112e-07" />
-                              <joint name="hand_right_index_dist_joint" range="0 1.5708"/>
+                              <!-- <joint name="hand_right_index_dist_joint" range="0 1.5708"/> -->
                               <geom class="visual" mesh="tip_link" />
                             </body>
                           </body>
                         </body>
                         <body name="hand_right_middle_prox_link" pos="-0.082896 -0.0014507 0.011829" quat="0.995247 0.0434532 0.0038016 0.0870713">
                           <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                          <joint name="hand_right_middle_prox_joint" range="0 1.5708"/>
+                          <!-- <joint name="hand_right_middle_prox_joint" range="0 1.5708"/> -->
                           <geom class="visual" mesh="phalanx_link" />
                           <body name="hand_right_middle_mid_link" pos="-0.0258748 0 0">
                             <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                            <joint name="hand_right_middle_mid_joint" range="0 1.5708"/>
+                            <!-- <joint name="hand_right_middle_mid_joint" range="0 1.5708"/> -->
                             <geom class="visual" mesh="phalanx_link" />
                             <body name="hand_right_middle_dist_link" pos="-0.0258748 0 0">
                               <inertial pos="-0.01044 -0.00064 -6e-05" quat="0.48992 0.51041 0.454557 0.541145" mass="0.00476" diaginertia="4.20832e-07 3.33472e-07 2.4112e-07" />
-                              <joint name="hand_right_middle_dist_joint" range="0 1.5708"/>
+                              <!-- <joint name="hand_right_middle_dist_joint" range="0 1.5708"/> -->
                               <geom class="visual" mesh="tip_link" />
                             </body>
                           </body>
                         </body>
                         <body name="hand_right_ring_prox_link" pos="-0.081871 -0.001367 -0.013029" quat="0.994169 -0.0387077 -0.0471293 0.0889293">
                           <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                          <joint name="hand_right_ring_prox_joint" range="0 1.5708"/>
+                          <!-- <joint name="hand_right_ring_prox_joint" range="0 1.5708"/> -->
                           <geom class="visual" mesh="phalanx_link" />
                           <body name="hand_right_ring_mid_link" pos="-0.0258748 0 0">
                             <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                            <joint name="hand_right_ring_mid_joint" range="0 1.5708"/>
+                            <!-- <joint name="hand_right_ring_mid_joint" range="0 1.5708"/> -->
                             <geom class="visual" mesh="phalanx_link" />
                             <body name="hand_right_ring_dist_link" pos="-0.0258748 0 0">
                               <inertial pos="-0.01044 -0.00064 -6e-05" quat="0.48992 0.51041 0.454557 0.541145" mass="0.00476" diaginertia="4.20832e-07 3.33472e-07 2.4112e-07" />
-                              <joint name="hand_right_ring_dist_joint" range="0 1.5708"/>
+                              <!-- <joint name="hand_right_ring_dist_joint" range="0 1.5708"/> -->
                               <geom class="visual" mesh="tip_link" />
                             </body>
                           </body>
                         </body>
                         <body name="hand_right_small_prox_link" pos="-0.073142 -0.0034204 -0.037631" quat="0.987966 -0.0789269 -0.0940585 0.09406">
                           <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                          <joint name="hand_right_small_prox_joint" range="0 1.5708"/>
+                          <!-- <joint name="hand_right_small_prox_joint" range="0 1.5708"/> -->
                           <geom class="visual" mesh="phalanx_link" />
                           <body name="hand_right_small_mid_link" pos="-0.0258748 0 0">
                             <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
-                            <joint name="hand_right_small_mid_joint" range="0 1.5708"/>
+                            <!-- <joint name="hand_right_small_mid_joint" range="0 1.5708"/> -->
                             <geom class="visual" mesh="phalanx_link" />
                             <body name="hand_right_small_dist_link" pos="-0.0258748 0 0">
                               <inertial pos="-0.01044 -0.00064 -6e-05" quat="0.48992 0.51041 0.454557 0.541145" mass="0.00476" diaginertia="4.20832e-07 3.33472e-07 2.4112e-07" />
-                              <joint name="hand_right_small_dist_joint" range="0 1.5708"/>
+                              <!-- <joint name="hand_right_small_dist_joint" range="0 1.5708"/> -->
                               <geom class="visual" mesh="tip_link" />
                             </body>
                           </body>
                         </body>
                         <body name="hand_right_thumb_base_link" pos="-0.036652 -0.00068435 0.017088" quat="0.00427349 0.91385 -0.0798969 -0.398092">
                           <inertial pos="0.000390468 8.46232e-07 0.0168802" quat="0.998062 0.000353948 -0.0621625 -0.00279882" mass="0.00791208" diaginertia="7.19285e-07 7.0146e-07 4.03537e-07" />
-                          <joint name="hand_right_thumb_base_joint" axis="0 0 -1" range="0 1.5708"/>
+                          <!-- <joint name="hand_right_thumb_base_joint" axis="0 0 -1" range="0 1.5708"/> -->
                           <geom class="visual" mesh="thumb_right_link" />
                           <body name="hand_right_thumb_methacarpal_link" pos="-0.011164 0 -0.025271" quat="0.683011 -0.683014 -0.183013 -0.183013">
                             <inertial pos="-0.00901329 0.000112869 6.41889e-05" quat="0.512912 0.512904 0.486993 0.486507" mass="0.00393723" diaginertia="2.76407e-07 2.34526e-07 1.29465e-07" />
-                            <joint name="hand_right_thumb_methacarpal_joint" range="0 1.5708"/>
+                            <!-- <joint name="hand_right_thumb_methacarpal_joint" range="0 1.5708"/> -->
                             <geom class="visual" mesh="thumb_phalanx_link" />
                             <body name="hand_right_thumb_proximal_link" pos="-0.021586 0 0">
                               <inertial pos="-0.00901329 0.000112869 6.41889e-05" quat="0.512912 0.512904 0.486993 0.486507" mass="0.00393723" diaginertia="2.76407e-07 2.34526e-07 1.29465e-07" />
-                              <joint name="hand_right_thumb_proximal_joint" range="0 1.5708"/>
+                              <!-- <joint name="hand_right_thumb_proximal_joint" range="0 1.5708"/> -->
                               <geom class="visual" mesh="thumb_phalanx_link" />
                               <body name="hand_right_thumb_distal_link" pos="-0.021586 0 0">
                                 <inertial pos="-0.01044 -0.00064 -6e-05" quat="0.48992 0.51041 0.454557 0.541145" mass="0.00476" diaginertia="4.20832e-07 3.33472e-07 2.4112e-07" />
-                                <joint name="hand_right_thumb_distal_joint" range="0 1.5708"/>
+                                <!-- <joint name="hand_right_thumb_distal_joint" range="0 1.5708"/> -->
                                 <geom class="visual" mesh="tip_link" />
                               </body>
                             </body>
@@ -437,28 +437,28 @@
     <connect anchor="0.0 0.0 0.0" body1="leg_left_4_link" body2="leg_left_knee_link" name="leg_left_closed_kin_joint" solref="0.004 1" />
     <connect anchor="0.0 0.0 0.0" body1="leg_right_4_link" body2="leg_right_knee_link" name="leg_right_closed_kin_joint" solref="0.004 1" />
     <!-- hands -->
-    <joint joint1="hand_left_thumb_methacarpal_joint" joint2="hand_left_thumb_proximal_joint" name="hand_left_thumb_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_left_thumb_methacarpal_joint" joint2="hand_left_thumb_distal_joint" name="hand_left_thumb_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_left_index_prox_joint" joint2="hand_left_index_mid_joint" name="hand_left_index_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_left_index_prox_joint" joint2="hand_left_index_dist_joint" name="hand_left_index_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_left_middle_prox_joint" joint2="hand_left_middle_mid_joint" name="hand_left_middle_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_left_middle_prox_joint" joint2="hand_left_middle_dist_joint" name="hand_left_middle_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_left_ring_prox_joint" joint2="hand_left_ring_mid_joint" name="hand_left_ring_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_left_ring_prox_joint" joint2="hand_left_ring_dist_joint" name="hand_left_ring_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_left_ring_prox_joint" joint2="hand_left_small_prox_joint" name="hand_left_small_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_left_ring_prox_joint" joint2="hand_left_small_mid_joint" name="hand_left_small_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_left_ring_prox_joint" joint2="hand_left_small_dist_joint" name="hand_left_small_3_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_right_thumb_methacarpal_joint" joint2="hand_right_thumb_proximal_joint" name="hand_right_thumb_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_right_thumb_methacarpal_joint" joint2="hand_right_thumb_distal_joint" name="hand_right_thumb_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_right_index_prox_joint" joint2="hand_right_index_mid_joint" name="hand_right_index_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_right_index_prox_joint" joint2="hand_right_index_dist_joint" name="hand_right_index_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_right_middle_prox_joint" joint2="hand_right_middle_mid_joint" name="hand_right_middle_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_right_middle_prox_joint" joint2="hand_right_middle_dist_joint" name="hand_right_middle_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_right_ring_prox_joint" joint2="hand_right_ring_mid_joint" name="hand_right_ring_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_right_ring_prox_joint" joint2="hand_right_ring_dist_joint" name="hand_right_ring_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_right_ring_prox_joint" joint2="hand_right_small_prox_joint" name="hand_right_small_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_right_ring_prox_joint" joint2="hand_right_small_mid_joint" name="hand_right_small_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
-    <joint joint1="hand_right_ring_prox_joint" joint2="hand_right_small_dist_joint" name="hand_right_small_3_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" />
+    <!-- <joint joint1="hand_left_thumb_methacarpal_joint" joint2="hand_left_thumb_proximal_joint" name="hand_left_thumb_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_left_thumb_methacarpal_joint" joint2="hand_left_thumb_distal_joint" name="hand_left_thumb_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_left_index_prox_joint" joint2="hand_left_index_mid_joint" name="hand_left_index_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_left_index_prox_joint" joint2="hand_left_index_dist_joint" name="hand_left_index_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_left_middle_prox_joint" joint2="hand_left_middle_mid_joint" name="hand_left_middle_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_left_middle_prox_joint" joint2="hand_left_middle_dist_joint" name="hand_left_middle_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_left_ring_prox_joint" joint2="hand_left_ring_mid_joint" name="hand_left_ring_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_left_ring_prox_joint" joint2="hand_left_ring_dist_joint" name="hand_left_ring_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_left_ring_prox_joint" joint2="hand_left_small_prox_joint" name="hand_left_small_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_left_ring_prox_joint" joint2="hand_left_small_mid_joint" name="hand_left_small_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_left_ring_prox_joint" joint2="hand_left_small_dist_joint" name="hand_left_small_3_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_right_thumb_methacarpal_joint" joint2="hand_right_thumb_proximal_joint" name="hand_right_thumb_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_right_thumb_methacarpal_joint" joint2="hand_right_thumb_distal_joint" name="hand_right_thumb_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_right_index_prox_joint" joint2="hand_right_index_mid_joint" name="hand_right_index_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_right_index_prox_joint" joint2="hand_right_index_dist_joint" name="hand_right_index_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_right_middle_prox_joint" joint2="hand_right_middle_mid_joint" name="hand_right_middle_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_right_middle_prox_joint" joint2="hand_right_middle_dist_joint" name="hand_right_middle_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_right_ring_prox_joint" joint2="hand_right_ring_mid_joint" name="hand_right_ring_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_right_ring_prox_joint" joint2="hand_right_ring_dist_joint" name="hand_right_ring_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_right_ring_prox_joint" joint2="hand_right_small_prox_joint" name="hand_right_small_1_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_right_ring_prox_joint" joint2="hand_right_small_mid_joint" name="hand_right_small_2_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
+    <!-- <joint joint1="hand_right_ring_prox_joint" joint2="hand_right_small_dist_joint" name="hand_right_small_3_eq" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1" /> -->
   </equality>
 
   <contact>

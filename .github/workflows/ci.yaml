@@ -22,16 +22,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Setup uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-          version: "0.8.13"
+          version: "0.9.27"
       - name: Run lint
-        run: uvx ruff@0.12.10 check --diff
+        run: uvx ruff@0.14.14 check --diff
       - name: Run format
-        run: uvx ruff@0.12.10 format --diff
+        run: uvx ruff@0.14.14 format --diff
         
 # TODO: make pyright work
   # pyright:

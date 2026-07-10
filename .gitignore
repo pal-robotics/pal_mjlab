@@ -18,6 +18,9 @@ MUJOCO_LOG.TXT
 # IDE
 .vscode
 
+# Docs build output
+docs_build/
+
 # Data
 artifacts/
 *.npz

@@ -1,6 +1,7 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
 from mjlab.envs import ManagerBasedRlEnvCfg
+from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import MetricsTermCfg
 from mjlab.managers.event_manager import EventTermCfg
@@ -8,7 +9,13 @@ from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
-from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.sensor import (
+  ContactMatch,
+  ContactSensorCfg,
+  ObjRef,
+  RingPatternCfg,
+  TerrainHeightSensorCfg,
+)
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
@@ -22,11 +29,17 @@ from pal_mjlab.robots import (
   KANGAROO_GRIPPERS_ACTUATOR_NAMES,
   KANGAROO_HANDS_ACTION_SCALE,
   KANGAROO_HANDS_ACTUATOR_NAMES,
+  KANGAROO_LOWER_BODY_ACTION_SCALE,
+  KANGAROO_LOWER_BODY_ACTUATOR_NAMES,
+  REGEX_ALL_ACTUATED_JOINTS,
+  REGEX_FEMUR_AND_KNEE_LINKS,
+  REGEX_LEG_LENGTH_JOINTS_ONLY,
   get_kangaroo_grippers_robot_cfg,
   get_kangaroo_hands_robot_cfg,
+  get_kangaroo_lower_body_robot_cfg,
   get_kangaroo_robot_cfg,
 )
-from pal_mjlab.tasks.velocity.kangaroo import mdp
+from pal_mjlab.tasks.velocity import mdp
 
 
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -45,9 +58,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     for side in ("left", "right")
     for i in [0, 2, 4, 6, 8, 10]
   )
-  actuated_joints = (
-    r"^(?!leg_.*_femur_joint$|leg_.*_knee_joint$).*$"  # Exclude femur and knee joints.
-  )
+  actuated_joints = REGEX_ALL_ACTUATED_JOINTS  # Exclude femur and knee joints.
 
   feet_ground_cfg = ContactSensorCfg(
     name="feet_ground_contact",
@@ -66,7 +77,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     name="body_ground_contact",
     primary=ContactMatch(
       mode="body",
-      pattern=r"^(leg_left_femur_link|leg_right_femur_link|leg_left_knee_link|leg_right_knee_link)$",
+      pattern=REGEX_FEMUR_AND_KNEE_LINKS,
       entity="robot",
     ),
     secondary=ContactMatch(mode="body", pattern="terrain"),
@@ -82,7 +93,15 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     reduce="none",
     num_slots=1,
   )
-  cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
+
+  # Remove the default terrain scan sensor
+  cfg.scene.sensors = tuple(s for s in cfg.scene.sensors if s.name != "terrain_scan")
+
+  cfg.scene.sensors = (cfg.scene.sensors or ()) + (
+    feet_ground_cfg,
+    self_collision_cfg,
+    body_ground_cfg,
+  )
 
   if cfg.scene.terrain is not None and cfg.scene.terrain.terrain_generator is not None:
     cfg.scene.terrain.terrain_generator.curriculum = True
@@ -99,6 +118,15 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   assert isinstance(twist_cmd, UniformVelocityCommandCfg)
   twist_cmd.viz.z_offset = 1.15
 
+  # Wire foot height scan to per-foot sites.
+  for sensor in cfg.scene.sensors or ():
+    if sensor.name == "foot_height_scan":
+      assert isinstance(sensor, TerrainHeightSensorCfg)
+      sensor.frame = tuple(
+        ObjRef(type="site", name=s, entity="robot") for s in site_names
+      )
+      sensor.pattern = RingPatternCfg.single_ring(radius=0.03, num_samples=6)
+
   # -- Observations
 
   cfg.observations["actor"].terms["height_scan"] = None
@@ -108,7 +136,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
-    noise=Unoise(n_min=-0.5, n_max=0.5),
+    noise=Unoise(n_min=-0.05, n_max=0.05),
   )
   cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
@@ -123,9 +151,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.builtin_sensor,
     params={"sensor_name": "robot/imu_lin_acc"},
   )
-  cfg.observations["critic"].terms["foot_height"].params[
-    "asset_cfg"
-  ].site_names = site_names
+  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.5, n_max=0.5)
 
   ### Disabling the use of history length as we haven't seen much improvements with it
   ### Moreover, our best policy #62 doesn't use any history length
@@ -136,15 +162,16 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
   cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
+
+  # Domain Randomization for joint friction
   cfg.events["joint_friction"] = EventTermCfg(
     mode="startup",
-    func=mdp.randomize_field,
-    domain_randomization=True,
+    func=dr.dof_frictionloss,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-      "field": "dof_frictionloss",
-      "ranges": (-0.008, 0.008),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
       "operation": "add",
+      "ranges": (-0.008, 0.008),
+      "shared_random": False,
     },
   )
   cfg.events["encoder_bias"].params["asset_cfg"].joint_names = [
@@ -152,9 +179,9 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   ]
   cfg.events["leg_length_encoder_bias"] = EventTermCfg(
     mode="startup",
-    func=mdp.randomize_encoder_bias,
+    func=dr.encoder_bias,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=[r"leg_.*_length_.*$"]),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=[REGEX_LEG_LENGTH_JOINTS_ONLY]),
       "bias_range": (-0.005, 0.005),
     },
   )
@@ -197,7 +224,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-  for reward_name in ["foot_clearance", "foot_swing_height", "foot_slip"]:
+  for reward_name in ["foot_clearance", "foot_slip"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
   cfg.rewards["body_ang_vel"].weight = -0.05
   cfg.rewards["angular_momentum"].weight = -0.02
@@ -243,8 +270,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.joint_vel_limits,
     weight=-10.0,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=[r"leg_.*_length_.*$"]),
-      "velocity_limits": {r"leg_.*_length_.*$": (-1.6, 1.6)},
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_LEG_LENGTH_JOINTS_ONLY,)),
+      "velocity_limits": {REGEX_LEG_LENGTH_JOINTS_ONLY: (-1.6, 1.6)},
     },
   )
 
@@ -264,6 +291,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     ),
     "action_rate_l2": MetricsTermCfg(func=mdp.action_rate_l2, params={}),
     "action_acc_l2": MetricsTermCfg(func=mdp.action_acc_l2, params={}),
+    "max_feet_delta_vel_along_gravity": MetricsTermCfg(
+      func=mdp.max_feet_delta_velocity_along_gravity,
+      params={"asset_cfg": SceneEntityCfg("robot", site_names=site_names)},
+    ),
   }
 
   # # All except leg length joints
@@ -274,9 +305,9 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # )
 
   # cfg.curriculum["joint_accel"] = CurriculumTermCfg(
-  #   func=mdp.reward_weight,
+  #   func=mdp.reward_curriculum,
   #   params={"reward_name": "joint_accel",
-  #           "weight_stages": [
+  #           "stages": [
   #               {"step": 0, "weight": 0.0 },
   #               {"step": 2000 * 24, "weight": -1.0e-8},
   #               {"step": 8000 * 24, "weight": -1.0e-7},
@@ -371,6 +402,25 @@ def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.ranges.lin_vel_x = (-1.5, 2.0)
     twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
+
+  return cfg
+
+
+def pal_kangaroo_lower_body_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO with lower_body (Legs + Pelvis) flat terrain velocity configuration."""
+  cfg = pal_kangaroo_flat_env_cfg(play=play)
+
+  for pose_type in ("std_walking", "std_running"):
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_1_.*"]
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_4_.*"]
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_(?![14]_joint)\d+_joint"]
+
+  cfg.scene.entities = {"robot": get_kangaroo_lower_body_robot_cfg()}
+
+  joint_pos_action = cfg.actions["joint_pos"]
+  assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action.scale = KANGAROO_LOWER_BODY_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_ACTUATOR_NAMES
 
   return cfg
 

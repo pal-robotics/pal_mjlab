@@ -6,7 +6,6 @@ import mujoco
 import torch
 from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
-from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
 from pal_mjlab import PAL_MJLAB_SRC_PATH
 
@@ -16,12 +15,25 @@ from pal_mjlab import PAL_MJLAB_SRC_PATH
 # - kangaroo_gripper: simplified model with 7 DoF per arm and a gripper
 # - kangaroo_full: full model with 4 DoF per arm and a fake forearm
 
+REGEX_LEG_LENGTH_JOINTS_ONLY = r"leg_.*_length_joint"
+REGEX_ALL_ACTUATED_JOINTS = r"^(?!leg_.*_femur_joint$|leg_.*_knee_joint$).*$"
+REGEX_FEMUR_AND_KNEE_LINKS = (
+  r"^(leg_left_femur_link|leg_right_femur_link|leg_left_knee_link|leg_right_knee_link)$"
+)
+
 KANGAROO_PATH = PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo" / "xmls"
-KANGAROO_XML = KANGAROO_PATH / "kangaroo_accurate.xml"
+KANGAROO_XML = KANGAROO_PATH / "kangaroo.xml"
+KANGAROO_LOWER_BODY_XML = KANGAROO_PATH / "kangaroo_lower_body.xml"
 KANGAROO_HANDS_XML = KANGAROO_PATH / "kangaroo_hands.xml"
 KANGAROO_GRIPPERS_XML = KANGAROO_PATH / "kangaroo_grippers.xml"
 
-for p in [KANGAROO_PATH, KANGAROO_XML, KANGAROO_HANDS_XML, KANGAROO_GRIPPERS_XML]:
+for p in [
+  KANGAROO_PATH,
+  KANGAROO_XML,
+  KANGAROO_LOWER_BODY_XML,
+  KANGAROO_HANDS_XML,
+  KANGAROO_GRIPPERS_XML,
+]:
   assert p.exists(), f"Missing: {p}"
 
 ##
@@ -130,20 +142,17 @@ XS = _calc_actuator_params(101, 1.3e-5, 25)
 ##
 
 
-def get_assets(meshdir: str) -> dict[str, bytes]:
-  assets = {}
-  update_assets(assets, KANGAROO_PATH / "assets", meshdir)
-  return assets
-
-
 def _load_spec(xml_path: Path) -> mujoco.MjSpec:
   spec = mujoco.MjSpec.from_file(str(xml_path))
-  spec.assets = get_assets(spec.meshdir)
   return spec
 
 
 def get_kangaroo_spec() -> mujoco.MjSpec:
   return _load_spec(KANGAROO_XML)
+
+
+def get_kangaroo_lower_body_spec() -> mujoco.MjSpec:
+  return _load_spec(KANGAROO_LOWER_BODY_XML)
 
 
 def get_kangaroo_hands_spec() -> mujoco.MjSpec:
@@ -181,6 +190,13 @@ KANGAROO_LEG_ACTUATORS = (
 )
 
 # Arms & Torso
+KANGAROO_PELVIS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+  target_names_expr=(
+    "pelvis_1_joint",
+    "pelvis_2_joint",
+  ),
+  **S_PLUS,
+)
 KANGAROO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
   target_names_expr=(
     "arm_.*_1_joint",
@@ -203,6 +219,8 @@ COMMON_ACTUATORS = KANGAROO_LEG_ACTUATORS + (
   KANGAROO_S_PLUS_ACTUATOR_CFG,
   KANGAROO_S_MINUS_ACTUATOR_CFG,
 )
+
+KANGAROO_LOWER_BODY_ACTUATORS = KANGAROO_LEG_ACTUATORS + (KANGAROO_PELVIS_ACTUATOR_CFG,)
 
 ##
 # Initial State
@@ -261,6 +279,10 @@ FULL_COLLISION = CollisionCfg(
 KANGAROO_ARTICULATION = EntityArticulationInfoCfg(
   actuators=COMMON_ACTUATORS, soft_joint_pos_limit_factor=0.9
 )
+KANGAROO_LOWER_BODY_ARTICULATION = EntityArticulationInfoCfg(
+  actuators=KANGAROO_LOWER_BODY_ACTUATORS,
+  soft_joint_pos_limit_factor=0.9,
+)
 KANGAROO_HANDS_ARTICULATION = EntityArticulationInfoCfg(
   actuators=COMMON_ACTUATORS, soft_joint_pos_limit_factor=0.9
 )
@@ -272,6 +294,11 @@ KANGAROO_GRIPPERS_ARTICULATION = EntityArticulationInfoCfg(
 
 _ROBOT_CONFIGS = {
   "kangaroo": (get_kangaroo_spec, KANGAROO_ARTICULATION, FULL_COLLISION),
+  "lower_body": (
+    get_kangaroo_lower_body_spec,
+    KANGAROO_LOWER_BODY_ARTICULATION,
+    FULL_COLLISION,
+  ),
   "hands": (
     get_kangaroo_hands_spec,
     KANGAROO_HANDS_ARTICULATION,
@@ -297,6 +324,10 @@ def _make_robot_cfg(variant: str) -> EntityCfg:
 
 def get_kangaroo_robot_cfg() -> EntityCfg:
   return _make_robot_cfg("kangaroo")
+
+
+def get_kangaroo_lower_body_robot_cfg() -> EntityCfg:
+  return _make_robot_cfg("lower_body")
 
 
 def get_kangaroo_hands_robot_cfg() -> EntityCfg:
@@ -340,6 +371,9 @@ def _build_action_scales(
 
 KANGAROO_ACTION_SCALE, KANGAROO_ACTUATOR_NAMES = _build_action_scales(
   KANGAROO_ARTICULATION, _EXCLUDED_JOINTS
+)
+KANGAROO_LOWER_BODY_ACTION_SCALE, KANGAROO_LOWER_BODY_ACTUATOR_NAMES = (
+  _build_action_scales(KANGAROO_LOWER_BODY_ARTICULATION, _EXCLUDED_JOINTS)
 )
 KANGAROO_HANDS_ACTION_SCALE, KANGAROO_HANDS_ACTUATOR_NAMES = _build_action_scales(
   KANGAROO_HANDS_ARTICULATION
