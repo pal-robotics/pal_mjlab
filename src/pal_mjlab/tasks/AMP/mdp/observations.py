@@ -3,10 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import torch
-
 from mjlab.entity import Entity
 from mjlab.managers.scene_entity_config import SceneEntityCfg
-from mjlab.sensor import ContactSensor, BuiltinSensor, TerrainHeightSensor
+from mjlab.sensor import BuiltinSensor, ContactSensor, TerrainHeightSensor
 from mjlab.utils.lab_api.math import quat_apply_inverse
 
 if TYPE_CHECKING:
@@ -26,6 +25,8 @@ def foot_height(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tensor:
     f"foot_height requires a TerrainHeightSensor, got {type(sensor).__name__}"
   )
   return sensor.data.heights
+
+
 def foot_air_time(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tensor:
   sensor: ContactSensor = env.scene[sensor_name]
   sensor_data = sensor.data
@@ -47,6 +48,7 @@ def foot_contact_forces(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tenso
   assert sensor_data.force is not None
   forces_flat = sensor_data.force.flatten(start_dim=1)  # [B, N*3]
   return torch.sign(forces_flat) * torch.log1p(torch.abs(forces_flat))
+
 
 def imu_projected_gravity(
   env: ManagerBasedRlEnv,
