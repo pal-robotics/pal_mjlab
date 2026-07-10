@@ -1,4 +1,5 @@
 from mjlab.tasks.registry import register_mjlab_task
+
 from pal_mjlab.tasks.AMP.rl import AmpOnPolicyRunner
 
 from .env_cfgs import kangaroo_flat_amp_env_cfg

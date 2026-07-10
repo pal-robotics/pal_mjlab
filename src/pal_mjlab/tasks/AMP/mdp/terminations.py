@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import torch
-
 from mjlab.sensor import ContactSensor
 
 if TYPE_CHECKING:

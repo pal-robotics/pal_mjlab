@@ -28,12 +28,13 @@ from mjlab.sensor import (
   TerrainHeightSensorCfg,
 )
 from mjlab.sim import MujocoCfg, SimulationCfg
-from pal_mjlab.tasks.AMP import mdp
-from pal_mjlab.tasks.AMP.mdp import UniformVelocityCommandCfg
 from mjlab.terrains import TerrainEntityCfg
 from mjlab.terrains.config import ROUGH_TERRAINS_CFG
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
+
+from pal_mjlab.tasks.AMP import mdp
+from pal_mjlab.tasks.AMP.mdp import UniformVelocityCommandCfg
 
 
 def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
@@ -138,12 +139,16 @@ def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
     "joint_pos": ObservationTermCfg(
       func=mdp.joint_pos_abs,
       noise=Unoise(n_min=-0.01, n_max=0.01),
-      params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*"))} # Set per-robot
+      params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*"))
+      },  # Set per-robot
     ),
     "joint_vel": ObservationTermCfg(
       func=mdp.joint_vel_rel,
       noise=Unoise(n_min=-0.01, n_max=0.01),
-      params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*"))} # Set per-robot
+      params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(".*"))
+      },  # Set per-robot
     ),
   }
 
@@ -309,7 +314,6 @@ def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"sensor_name": "robot/root_angmom"},
     ),
     "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
-    
     "soft_landing": RewardTermCfg(
       func=mdp.soft_landing,
       weight=-1e-5,
@@ -319,7 +323,6 @@ def make_amp_env_cfg() -> ManagerBasedRlEnvCfg:
         "command_threshold": 0.05,
       },
     ),
-
     "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.01),
   }
 

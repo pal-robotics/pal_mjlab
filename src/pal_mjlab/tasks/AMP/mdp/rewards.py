@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import torch
-
 from mjlab.entity import Entity
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
@@ -27,7 +26,7 @@ def track_linear_velocity(
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
   """Reward for tracking the commanded base linear velocity.
-  
+
   Projects velocity onto the world horizontal plane using yaw-only rotation,
   so the robot cannot gain reward by flopping forward or gaining vertical velocity.
   """

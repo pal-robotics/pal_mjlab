@@ -1,31 +1,13 @@
 """Kangaroo amp environment configurations."""
 
-
-from pal_mjlab.robots import (
-  ANKLE_XY_CONVEX_HULL_POINTS,
-  HIP_XY_CONVEX_HULL_POINTS,
-  KANGAROO_ACTION_SCALE,
-  KANGAROO_ACTUATOR_NAMES,
-  KANGAROO_GRIPPERS_ACTION_SCALE,
-  KANGAROO_GRIPPERS_ACTUATOR_NAMES,
-  KANGAROO_HANDS_ACTION_SCALE,
-  KANGAROO_HANDS_ACTUATOR_NAMES,
-  REGEX_ALL_ACTUATED_JOINTS,
-  REGEX_FEMUR_AND_KNEE_LINKS,
-  REGEX_LEG_LENGTH_JOINTS_ONLY,
-  get_kangaroo_grippers_robot_cfg,
-  get_kangaroo_hands_robot_cfg,
-  get_kangaroo_robot_cfg,
-)
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs import mdp as envs_mdp
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
-from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.observation_manager import ObservationTermCfg
-from mjlab.managers.termination_manager import TerminationTermCfg
-
+from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import (
   ContactMatch,
   ContactSensorCfg,
@@ -33,11 +15,17 @@ from mjlab.sensor import (
   RingPatternCfg,
   TerrainHeightSensorCfg,
 )
-from pal_mjlab.tasks.AMP import mdp
-from pal_mjlab.tasks.AMP.mdp import UniformVelocityCommandCfg
-from pal_mjlab.tasks.AMP.amp_env_cfg import make_amp_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
+from pal_mjlab.robots import (
+  KANGAROO_ACTION_SCALE,
+  KANGAROO_ACTUATOR_NAMES,
+  REGEX_FEMUR_AND_KNEE_LINKS,
+  get_kangaroo_robot_cfg,
+)
+from pal_mjlab.tasks.AMP import mdp
+from pal_mjlab.tasks.AMP.amp_env_cfg import make_amp_env_cfg
+from pal_mjlab.tasks.AMP.mdp import UniformVelocityCommandCfg
 
 
 def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -51,14 +39,12 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
 
-
   site_names = ("left_foot", "right_foot")
   geom_names = tuple(
     f"{side}_foot{i}_collision"
     for side in ("left", "right")
     for i in [0, 2, 4, 6, 8, 10]
   )
-  actuated_joints = REGEX_ALL_ACTUATED_JOINTS  # Exclude femur and knee joints.
 
   feet_ground_cfg = ContactSensorCfg(
     name="feet_ground_contact",
@@ -152,49 +138,47 @@ def kangaroo_rough_amp_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
   _JOINT_NAMES_FOR_DISCRIM_REGEX = (
-      "pelvis_1_joint",
-      "pelvis_2_joint",
-      "arm_left_1_joint",
-      "arm_left_2_joint",
-      "arm_left_3_joint",
-      "arm_left_4_joint",
-      "arm_right_1_joint",
-      "arm_right_2_joint",
-      "arm_right_3_joint",
-      "arm_right_4_joint",
-      "leg_left_1_joint",
-      "leg_left_2_joint",
-      "leg_left_3_joint",
-      "leg_left_length_joint",
-      "leg_left_4_joint",
-      "leg_left_5_joint",
-      "leg_left_femur_joint",
-      "leg_left_knee_joint",
-      "leg_right_1_joint",
-      "leg_right_2_joint",
-      "leg_right_3_joint",
-      "leg_right_length_joint",
-      "leg_right_4_joint",
-      "leg_right_5_joint",
-      "leg_right_femur_joint",
-      "leg_right_knee_joint",
+    "pelvis_1_joint",
+    "pelvis_2_joint",
+    "arm_left_1_joint",
+    "arm_left_2_joint",
+    "arm_left_3_joint",
+    "arm_left_4_joint",
+    "arm_right_1_joint",
+    "arm_right_2_joint",
+    "arm_right_3_joint",
+    "arm_right_4_joint",
+    "leg_left_1_joint",
+    "leg_left_2_joint",
+    "leg_left_3_joint",
+    "leg_left_length_joint",
+    "leg_left_4_joint",
+    "leg_left_5_joint",
+    "leg_left_femur_joint",
+    "leg_left_knee_joint",
+    "leg_right_1_joint",
+    "leg_right_2_joint",
+    "leg_right_3_joint",
+    "leg_right_length_joint",
+    "leg_right_4_joint",
+    "leg_right_5_joint",
+    "leg_right_femur_joint",
+    "leg_right_knee_joint",
   )
 
-  cfg.observations["discriminator"].terms["joint_pos"].params[
-    "asset_cfg"
-  ] = SceneEntityCfg("robot", joint_names=_JOINT_NAMES_FOR_DISCRIM_REGEX)
+  cfg.observations["discriminator"].terms["joint_pos"].params["asset_cfg"] = (
+    SceneEntityCfg("robot", joint_names=_JOINT_NAMES_FOR_DISCRIM_REGEX)
+  )
 
-  cfg.observations["discriminator"].terms["joint_vel"].params[
-    "asset_cfg"
-  ] = SceneEntityCfg("robot", joint_names=_JOINT_NAMES_FOR_DISCRIM_REGEX)
+  cfg.observations["discriminator"].terms["joint_vel"].params["asset_cfg"] = (
+    SceneEntityCfg("robot", joint_names=_JOINT_NAMES_FOR_DISCRIM_REGEX)
+  )
 
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
-
   cfg.rewards["body_ang_vel"].weight = -0.05
   cfg.rewards["angular_momentum"].weight = -0.02
-
 
   cfg.rewards["self_collisions"] = RewardTermCfg(
     func=mdp.self_collision_cost,
