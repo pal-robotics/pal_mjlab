@@ -256,20 +256,19 @@ def evaluate(args):
     env_cfg = load_env_cfg(args.task, play=True)
     env_cfg.scene.num_envs = args.num_envs
     
-    # Remove early termination terms (except time_out and object_held_at_goal)
+    # Remove early termination terms (except time_out and object_released_on_floor)
     for term_name in list(env_cfg.terminations.keys()):
-        if term_name not in ["time_out", "object_held_at_goal"]:
+        if term_name not in ["time_out", "object_released_on_floor"]:
             print(f"Removing termination condition: {term_name}")
             del env_cfg.terminations[term_name]
     
-    # Re-enable the success termination (object_held_at_goal) which is disabled by play=True
+    # Re-enable the success termination (object_released_on_floor) which is disabled by play=True
     from mjlab.managers import TerminationTermCfg
     import pal_mjlab.tasks.manipulation.mdp as manipulation_mdp_pal
-    print("Re-enabling success termination: object_held_at_goal")
-    env_cfg.terminations["object_held_at_goal"] = TerminationTermCfg(
-        func=manipulation_mdp_pal.object_held_at_goal_term,
-        params={"command_name": "lift_height", "hold_time_s": 1.0},
-        time_out=True,
+    print("Re-enabling success termination: object_released_on_floor")
+    env_cfg.terminations["object_released_on_floor"] = TerminationTermCfg(
+        func=manipulation_mdp_pal.object_released_on_floor_term,
+        params={"command_name": "lift_height", "floor_z": 0.1, "min_grasped_distance": 0.05},
     )
     
     # Dynamically add the camera sensor if YOLO is enabled
@@ -482,9 +481,11 @@ def evaluate(args):
             )
             top_collision = top_collision_float > 0.5
             
-            # E. Check success condition (distance to target position)
+            # E. Check success condition (object is on the floor and grasped distance > 5 cm)
             position_error = torch.norm(command.target_pos - command.object_pos_w, dim=-1)
-            success_now = position_error < command.cfg.success_threshold
+            on_floor = command.object_pos_w[:, 2] < 0.1
+            moved_while_grasped = command.grasped_distance > 0.05
+            success_now = on_floor & moved_while_grasped
 
             # F. Check grasp-and-lift condition: both fingers in contact AND cube ≥1 cm above resting height
             current_box_z = box.data.root_link_pos_w[:, 2]  # [num_envs]
@@ -1146,7 +1147,7 @@ def main():
     parser.add_argument(
         "--checkpoint",
         type=str,
-        default="/home/lorenzobarbieri/2026-07-08_11-02-27/model_19999.pt",
+        default="/home/lorenzobarbieri/local1_meh/model_15000.pt",
         help="Path to policy checkpoint weights (default: 2026-06-25_13-06-56-checkpoints/model_39500.pt)"
     )
     parser.add_argument(

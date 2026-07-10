@@ -9,7 +9,7 @@ from mjlab.entity import Entity
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.managers.command_manager import CommandTerm, CommandTermCfg
 from mjlab.sensor import ContactSensor
-from mjlab.utils.lab_api.math import quat_from_euler_xyz, sample_uniform
+from mjlab.utils.lab_api.math import quat_from_euler_xyz, sample_uniform, quat_apply
 
 TABLE_HEIGHT = 0.45
 TABLE_HALF_X = 0.35
@@ -63,10 +63,16 @@ class LiftingCommand(CommandTerm):
     self.contact_sensor: ContactSensor = env.scene[cfg.contact_sensor_name]
     self.target_pos = torch.zeros(self.num_envs, 3, device=self.device)
     self.episode_success = torch.zeros(self.num_envs, device=self.device)
+    self.reached = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+    self.grasped_distance = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device)
+    self.prev_object_pos_w = self.object_pos_w.clone()
+
     self.metrics["object_height"] = torch.zeros(self.num_envs, device=self.device)
     self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
     self.metrics["at_goal"] = torch.zeros(self.num_envs, device=self.device)
     self.metrics["episode_success"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["reached"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["grasped_distance"] = torch.zeros(self.num_envs, device=self.device)
 
   @property
   def command(self) -> torch.Tensor:
@@ -106,10 +112,26 @@ class LiftingCommand(CommandTerm):
     position_error = torch.norm(self.target_pos - self.object_pos_w, dim=-1)
     at_goal = (position_error < self.cfg.success_threshold).float()
     self.episode_success = torch.maximum(self.episode_success, at_goal)
+    self.reached = self.reached | (position_error < self.cfg.success_threshold)
+
+    # Track grasped distance
+    from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
+    grasped = site_contact_both_fingers(
+      self._env,
+      sensor_name=self.cfg.fingertip_contact_sensor_name,
+      site_names=[self.cfg.fingertip_site_pattern],
+    ).bool()
+
+    step_disp = torch.norm(self.object_pos_w - self.prev_object_pos_w, dim=-1)
+    self.grasped_distance += torch.where(grasped, step_disp, torch.zeros_like(step_disp))
+    self.prev_object_pos_w = self.object_pos_w.clone()
+
     self.metrics["object_height"] = self.object_bottom_z
     self.metrics["position_error"] = position_error
     self.metrics["at_goal"] = at_goal
     self.metrics["episode_success"] = self.episode_success
+    self.metrics["reached"] = self.reached.float()
+    self.metrics["grasped_distance"] = self.grasped_distance
 
   def compute_success(self) -> torch.Tensor:
     return self.metrics["position_error"] < self.cfg.success_threshold
@@ -117,6 +139,8 @@ class LiftingCommand(CommandTerm):
   def _resample_command(self, env_ids: torch.Tensor) -> None:
     n = len(env_ids)
     self.episode_success[env_ids] = 0.0
+    self.reached[env_ids] = False
+    self.grasped_distance[env_ids] = 0.0
     table_surface_z = self.table_surface_z[env_ids]
 
     r = self.cfg.target_position_range
@@ -124,24 +148,32 @@ class LiftingCommand(CommandTerm):
     upper = torch.tensor([r.x[1], r.y[1], r.z[1]], device=self.device)
     target_pos = sample_uniform(lower, upper, (n, 3), device=self.device)
 
-    # Target positions: X & Y relative to env origins, Z relative to actual randomized table height.
-    self.target_pos[env_ids, 0:2] = (
-      target_pos[:, 0:2] + self._env.scene.env_origins[env_ids, 0:2]
-    )
-    self.target_pos[env_ids, 2] = table_surface_z + (target_pos[:, 2] - 0.5)
+    # Target position is centered in base_footprint frame
+    robot = self._env.scene["robot"]
+    robot_pos = robot.data.root_link_pos_w[env_ids]
+    robot_quat = robot.data.root_link_quat_w[env_ids]
+    self.target_pos[env_ids] = quat_apply(robot_quat, target_pos) + robot_pos
+
+    table: Entity = self._env.scene["table"]
+    table_geom_id = table.indexing.geom_ids[0]
+
+    # Table center in world coordinates (shape: (n, 2))
+    table_center_x_y = self._env.sim.data.geom_xpos[env_ids, table_geom_id, 0:2]
 
     r = self.cfg.object_pose_range
     lower = torch.tensor([r.x[0], r.y[0], 0.0], device=self.device)
     upper = torch.tensor([r.x[1], r.y[1], 0.0], device=self.device)
     pos = sample_uniform(lower, upper, (n, 3), device=self.device)
 
-    # Spawn box position: X & Y relative to env origins, Z exactly on the actual table surface.
-    pos_x_y = pos[:, 0:2] + self._env.scene.env_origins[env_ids, 0:2]
+    # Spawn box position: X & Y relative to table center, Z exactly on the actual table surface.
+    pos_x_y = pos[:, 0:2] + table_center_x_y
     box_half_height = self._env.sim.model.geom_size[
       env_ids, self.object.indexing.geom_ids[0], 2
     ]
     pos_z = table_surface_z + box_half_height
     pos = torch.cat([pos_x_y, pos_z.unsqueeze(1)], dim=-1)
+
+    self.prev_object_pos_w[env_ids] = pos
 
     yaw = sample_uniform(r.yaw[0], r.yaw[1], (n,), device=self.device)
     zeros = torch.zeros(n, device=self.device)
@@ -196,6 +228,8 @@ class LiftingCommandCfg(CommandTermCfg):
   table_height: float
   contact_sensor_name: str
   success_threshold: float = 0.05
+  fingertip_contact_sensor_name: str = "box_fingertip_contact"
+  fingertip_site_pattern: str = "gripper_right_fingertip_.*_site"
 
   @dataclass
   class TargetPositionRangeCfg:
@@ -209,8 +243,8 @@ class LiftingCommandCfg(CommandTermCfg):
 
   @dataclass
   class ObjectPoseRangeCfg:
-    x: tuple[float, float] = (0.4, 0.6)
-    y: tuple[float, float] = (-0.1, 0.1)
+    x: tuple[float, float] = (-0.2, 0.2)
+    y: tuple[float, float] = (-0.2, 0.2)
     yaw: tuple[float, float] = (math.pi, math.pi)
 
   object_pose_range: ObjectPoseRangeCfg = field(default_factory=ObjectPoseRangeCfg)
