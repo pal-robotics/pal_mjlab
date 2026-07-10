@@ -1,0 +1,20 @@
+<mujoco model="fake_forearm_right_link">
+  <default>
+    <default class="visual">
+      <geom group="2" type="mesh" contype="0" conaffinity="0"/>
+    </default>
+    <default class="collision">
+      <geom group="3" type="mesh"/>
+    </default>
+  </default>
+  <asset>
+    <material name="mtl_m21" specular="0.20000000000000004" shininess="1.0" rgba="0.29803922 0.29803922 0.29803922 1.0"/>
+    <mesh file="fake_forearm_right_link.obj"/>
+  </asset>
+  <worldbody>
+    <body name="fake_forearm_right_link">
+      <geom material="mtl_m21" mesh="fake_forearm_right_link" class="visual"/>
+      <geom mesh="fake_forearm_right_link" class="collision"/>
+    </body>
+  </worldbody>
+</mujoco>
