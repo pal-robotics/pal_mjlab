@@ -124,13 +124,13 @@ def lift_env_cfg(
     debug_vis=True,
     success_threshold=0.01,
     target_position_range=manipulation_mdp_pal.LiftingCommandCfg.TargetPositionRangeCfg(
-      x=(0.45, 0.55),
-      y=(-0.05, 0.05),
-      z=(0.65, 0.75),
+      x=(0.67, 0.77),
+      y=(-0.766, -0.666),
+      z=(0.55, 0.65),
     ),
     object_pose_range=manipulation_mdp_pal.LiftingCommandCfg.ObjectPoseRangeCfg(
-      x=(0.3, 0.7),
-      y=(-0.3, 0.3),
+      x=(-0.275, 0.275),
+      y=(-0.275, 0.275),
       yaw=(-0.785, 0.785),   #yaw=(-0.785, 0.785),
     ),
   )
@@ -233,10 +233,10 @@ def lift_env_cfg(
   cfg.rewards.clear()
   _grasp_cfg = SceneEntityCfg("robot", site_names=(robot.ee_site,))
   cfg.rewards["reaching_object"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_ee_distance),
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_ee_distance_adaptive),
     weight=3.0,
     params={
-      "std": 0.3,
+      "std": 0.2,
       "min_reaching_reward": 0.0,
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
@@ -258,7 +258,7 @@ def lift_env_cfg(
     },
   )
   cfg.rewards["lifting_object"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_is_lifted),
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_is_lifted_adaptive),
     weight=1.0,
     params={
       "command_name": "lift_height",
@@ -267,11 +267,11 @@ def lift_env_cfg(
     },
   )
   cfg.rewards["object_goal_tracking"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance),
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance_adaptive),
     weight=3.0,
     params={
       "command_name": "lift_height",
-      "std": 0.3,
+      "std": 0.2,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
       "coordinate_weights": (1.0, 1.0, 3.0),
@@ -299,11 +299,12 @@ def lift_env_cfg(
   # )
 
   cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_both_fingers),
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_contact_both_fingers_adaptive),
     weight=1.0,
     params={
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
+      "command_name": "lift_height",
     },
   )
   # cfg.rewards["object_contact_single_finger_penalty"] = RewardTermCfg(
@@ -316,7 +317,7 @@ def lift_env_cfg(
   # )
   cfg.rewards["fingertip_cube_alignment"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(
-      manipulation_mdp_pal.fingertip_cube_alignment_reward
+      manipulation_mdp_pal.fingertip_cube_alignment_reward_adaptive
     ),
     weight=-5.0,  # Note: Use a negative weight (e.g. -1.5) if as_penalty=True
     params={
@@ -326,6 +327,21 @@ def lift_env_cfg(
       "as_penalty": True,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
+    },
+  )
+  cfg.rewards["release_cube"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.release_cube_reward),
+    weight=5.0,
+    params={
+      "command_name": "lift_height",
+      "max_open": 0.08,
+    },
+  )
+  cfg.rewards["object_falling"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_falling_reward),
+    weight=5.0,
+    params={
+      "command_name": "lift_height",
     },
   )
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
@@ -557,10 +573,9 @@ def lift_env_cfg(
       func=manipulation_mdp_pal.top_surface_penetration_term,
       params={"command_name": "lift_height", "threshold": 0.0005},
     )
-    cfg.terminations["object_held_at_goal"] = TerminationTermCfg(
-      func=manipulation_mdp_pal.object_held_at_goal_term,
-      params={"command_name": "lift_height", "hold_time_s": 1.0},
-      time_out=True,  
+    cfg.terminations["object_released_on_floor"] = TerminationTermCfg(
+      func=manipulation_mdp_pal.object_released_on_floor_term,
+      params={"command_name": "lift_height", "floor_z": 0.1, "min_grasped_distance": 0.05},
     )
 
   # cfg.terminations["arm_contact_while_lifting"] = TerminationTermCfg(

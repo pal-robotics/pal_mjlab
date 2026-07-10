@@ -514,3 +514,175 @@ def object_held_at_goal_term(
   # Number of env steps required
   hold_steps = hold_time_s / env.step_dt
   return counter >= hold_steps
+
+
+def object_released_on_floor_term(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  floor_z: float = 0.1,
+  min_grasped_distance: float = 0.05,
+) -> torch.Tensor:
+  """Terminates the episode when the object is on the floor (z < floor_z)
+  and has moved more than min_grasped_distance meters while grasped during the episode.
+  """
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  on_floor = command.object_pos_w[:, 2] < floor_z
+  moved_while_grasped = command.grasped_distance > min_grasped_distance
+  return on_floor & moved_while_grasped
+
+
+def object_goal_distance_adaptive(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  std: float,
+  sensor_name: str,
+  site_names: list[str],
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  coordinate_weights: tuple[float, float, float] = (1.0, 1.0, 1.0),
+) -> torch.Tensor:
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  contact_both = site_contact_both_fingers(
+    env, sensor_name, site_names, asset_cfg=asset_cfg
+  ).bool()
+
+  diff = command.target_pos - command.object_pos_w
+  weights = torch.tensor(coordinate_weights, device=env.device)
+  weighted_diff = diff * weights
+  distance = torch.norm(weighted_diff, dim=-1)
+  
+  # Only reward goal tracking if the goal has NOT been reached yet
+  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device))
+  return (~reached & ~command.object_on_table & contact_both) * (1.0 - torch.tanh(distance / std))
+
+
+def object_is_lifted_adaptive(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  sensor_name: str,
+  site_names: list[str],
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  min_weight: float = 0.1,
+  max_weight: float = 1.5,
+  lift_threshold: float = 0.03,
+) -> torch.Tensor:
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+
+  fingers_close = site_contact_both_fingers(
+    env, sensor_name, site_names, asset_cfg=asset_cfg
+  ).bool()
+
+  elevation = command.object_bottom_z - command.table_surface_z
+  elevation = torch.clamp(elevation, min=0.0, max=lift_threshold)
+
+  ratio = max_weight / min_weight
+  scale = min_weight * (ratio ** (elevation / lift_threshold))
+
+  is_lifted = (~command.object_on_table & fingers_close).float()
+  
+  # Only reward lifting if the goal has NOT been reached yet
+  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device))
+  return (~reached).float() * is_lifted * scale
+
+
+def object_ee_distance_adaptive(
+  env: ManagerBasedRlEnv,
+  std: float,
+  command_name: str,
+  asset_cfg: SceneEntityCfg | None = None,
+  min_reaching_reward: float = 0.0,
+  deactivate_on_contact: bool = False,
+  sensor_name: str | None = None,
+  site_names: list[str] | None = None,
+) -> torch.Tensor:
+  if asset_cfg is None:
+    asset_cfg = SceneEntityCfg("robot")
+  robot: Entity = env.scene[asset_cfg.name]
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
+  distance = torch.norm(ee_pos_w - command.object_pos_w, dim=-1)
+
+  distance_reward = 1.0 - torch.tanh(distance / std)
+  reward = torch.clamp(distance_reward, min=min_reaching_reward, max=1.0)
+
+  if deactivate_on_contact and sensor_name is not None and site_names is not None:
+    from pal_mjlab.tasks.manipulation.mdp.observations import (
+      object_both__contact_fingers,
+    )
+    contact = object_both__contact_fingers(
+      env, sensor_name, site_names, asset_cfg=asset_cfg
+    ).squeeze(-1)
+    reward = reward * (1.0 - contact)
+
+  # Only reward reaching if the goal has NOT been reached yet
+  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device))
+  return (~reached).float() * reward
+
+
+def fingertip_cube_alignment_reward_adaptive(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  asset_cfg: SceneEntityCfg | None = None,
+  std: float = 0.15,
+  power: int = 1,
+  as_penalty: bool = False,
+  sensor_name: str | None = None,
+  site_names: list[str] | None = None,
+) -> torch.Tensor:
+  reward = fingertip_cube_alignment_reward(
+    env=env,
+    command_name=command_name,
+    asset_cfg=asset_cfg,
+    std=std,
+    power=power,
+    as_penalty=as_penalty,
+    sensor_name=sensor_name,
+    site_names=site_names,
+  )
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device))
+  return (~reached).float() * reward
+
+
+def release_cube_reward(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  max_open: float = 0.08,
+) -> torch.Tensor:
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)).float()
+
+  # Get gripper joint position
+  robot = env.scene[asset_cfg.name]
+  joint_ids, _ = robot.find_joints("gripper_right_finger_joint")
+  gripper_pos = robot.data.joint_pos[:, joint_ids[0]]
+
+  # We reward opening the gripper when reached is True
+  normalized_open = torch.clamp(gripper_pos / max_open, 0.0, 1.0)
+  return reached * normalized_open
+
+
+def object_falling_reward(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+) -> torch.Tensor:
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)).float()
+
+  # We reward the object falling lower once reached is True
+  height_diff = torch.clamp(0.6 - command.object_pos_w[:, 2], min=0.0) / 0.6
+  return reached * height_diff
+
+
+def object_contact_both_fingers_adaptive(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  site_names: list[str],
+  command_name: str = "lift_height",
+) -> torch.Tensor:
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  contact = site_contact_both_fingers(
+    env, sensor_name, site_names
+  ).float()
+  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device))
+  return (~reached).float() * contact
