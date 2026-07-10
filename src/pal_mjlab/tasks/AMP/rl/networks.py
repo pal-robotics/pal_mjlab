@@ -11,7 +11,7 @@ from torch import nn
 class DiscriminatorCfg :
   n_obs : int = 1
 
-  hidden_dim : int = 256
+  hidden_dim : int = 128
 
   use_layer_norm : bool = True
 
