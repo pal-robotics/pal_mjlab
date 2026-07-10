@@ -7,7 +7,6 @@ import mujoco
 import pytest
 import torch
 import warp as wp
-
 from mjlab.entity import Entity, EntityArticulationInfoCfg, EntityCfg
 from mjlab.scene import Scene, SceneCfg
 from mjlab.sim.sim import Simulation, SimulationCfg
