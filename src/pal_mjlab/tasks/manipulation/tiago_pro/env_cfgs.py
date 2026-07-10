@@ -292,11 +292,11 @@ def lift_env_cfg(
     weight=-1.0,
     params={"sensor_names": ["gripper_table_contact"]},
   )
-  # cfg.rewards["object_table_sliding_penalty"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_table_sliding_penalty),
-  #   weight=-1.0,
-  #   params={"command_name": "lift_height"},
-  # )
+  cfg.rewards["object_table_sliding_penalty"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_table_sliding_penalty_adaptive),
+    weight=-5.0,
+    params={"command_name": "lift_height"},
+  )
 
   cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_contact_both_fingers_adaptive),

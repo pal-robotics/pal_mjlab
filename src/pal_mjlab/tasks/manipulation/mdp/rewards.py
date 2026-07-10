@@ -686,3 +686,20 @@ def object_contact_both_fingers_adaptive(
   ).float()
   reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device))
   return (~reached).float() * contact
+
+
+def object_table_sliding_penalty_adaptive(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+) -> torch.Tensor:
+  """Penalizes the linear velocity of the object (in the XY plane) when it is on the table,
+  only before the target has been reached.
+  """
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device))
+  
+  obj = command.object
+  lin_vel_xy = obj.data.root_link_lin_vel_w[:, :2]
+  speed_xy = torch.norm(lin_vel_xy, dim=-1)
+  
+  return (~reached).float() * command.object_on_table.float() * speed_xy
