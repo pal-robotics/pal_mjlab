@@ -115,41 +115,6 @@ def make_scene_and_sim(
   return scene, sim
 
 
-# =============================================================================
-# XML Fixture Loaders
-# =============================================================================
-
-
-@pytest.fixture
-def fixed_base_box_xml() -> str:
-  """Load fixed base box XML fixture."""
-  return load_fixture_xml("fixed_base_box")
-
-
-@pytest.fixture
-def floating_base_box_xml() -> str:
-  """Load floating base box XML fixture."""
-  return load_fixture_xml("floating_base_box")
-
-
-@pytest.fixture
-def fixed_base_articulated_xml() -> str:
-  """Load fixed base articulated robot XML fixture."""
-  return load_fixture_xml("fixed_base_articulated")
-
-
-@pytest.fixture
-def floating_base_articulated_xml() -> str:
-  """Load floating base articulated robot XML fixture."""
-  return load_fixture_xml("floating_base_articulated")
-
-
-@pytest.fixture
-def biped_xml() -> str:
-  """Load biped robot XML fixture with ground plane."""
-  return load_fixture_xml("biped")
-
-
 @pytest.fixture
 def robot_with_floor_xml() -> str:
   """XML for a floating body above a ground plane."""
