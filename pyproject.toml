@@ -11,7 +11,9 @@ dependencies = [
     "mjlab>=1.5.2",
     "moviepy>=2.0",
     "onnxruntime",
+    "opencv-python>=5.0.0.93",
     "setuptools<82",
+    "ultralytics>=8.4.93",
 ]
 
 [build-system]

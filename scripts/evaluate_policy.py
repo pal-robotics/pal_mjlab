@@ -219,7 +219,8 @@ def rotate_by_quat_np(v, q):
 
 def compute_angle_wrt_cube_lateral_surfaces(v: torch.Tensor, cube_quat: torch.Tensor) -> torch.Tensor:
     """
-    Computes the angle (in degrees) between a vector v and the closest lateral surface of the cube.
+    Computes the angle (in degrees) between a vector v and the closest lateral surface of the cube
+    projected onto the horizontal plane (evaluating 2D alignment).
     
     Args:
         v: Tensor of shape [B, 3] representing fingertip normals or squeeze axis in world frame.
@@ -234,9 +235,13 @@ def compute_angle_wrt_cube_lateral_surfaces(v: torch.Tensor, cube_quat: torch.Te
     # 2. Rotate the vector into the cube's local frame
     v_local = quat_apply(quat_inv(cube_quat), v_norm)  # [B, 3]
     
+    # Project onto local XY plane and re-normalize to isolate horizontal (yaw) misalignment
+    v_local_2d = v_local[:, :2]
+    v_local_2d_norm = v_local_2d / torch.norm(v_local_2d, dim=-1, keepdim=True).clamp(min=1e-6)
+    
     # 3. The cube's lateral surfaces are perpendicular to the local X and Y axes.
     # The cosine of the angle wrt the closest lateral normal is the max absolute dot product with X or Y.
-    cos_theta = torch.max(torch.abs(v_local[:, 0]), torch.abs(v_local[:, 1]))
+    cos_theta = torch.max(torch.abs(v_local_2d_norm[:, 0]), torch.abs(v_local_2d_norm[:, 1]))
     cos_theta = torch.clamp(cos_theta, -1.0, 1.0)
     
     # 4. Compute angle in degrees
@@ -291,37 +296,44 @@ def evaluate(args):
     # 2. Initialize Environment
     print("Initializing Mujoco Environment...")
     env = ManagerBasedRlEnv(cfg=env_cfg, device=device, render_mode=None)
-    
-    # 3. Instantiate Policy Model
-    print("Setting up MLP model...")
-    actor_cfg = rl_cfg.actor
-    model_cls = load_class(actor_cfg.class_name)
-    
-    # Initialize with dummy observations to build model
     obs_dict, _ = env.reset()
-    dummy_obs = TensorDict(obs_dict, batch_size=[args.num_envs])
     
-    model = model_cls(
-        obs=dummy_obs,
-        obs_groups=getattr(rl_cfg, "obs_groups", None),
-        obs_set="actor",
-        output_dim=env.action_manager.total_action_dim,
-        hidden_dims=actor_cfg.hidden_dims,
-        activation=actor_cfg.activation,
-        obs_normalization=actor_cfg.obs_normalization,
-        distribution_cfg=actor_cfg.distribution_cfg,
-    ).to(device)
-
-    # 4. Load Checkpoint Weights
-    checkpoint_path = args.checkpoint
+    # 3. Load Checkpoint & Instantiate Policy Model
+    checkpoint_path = args.checkpoint.strip()
     if not os.path.exists(checkpoint_path):
         print(f"Error: Checkpoint path '{checkpoint_path}' does not exist!", file=sys.stderr)
         sys.exit(1)
+
+    is_onnx = checkpoint_path.endswith(".onnx")
+    if is_onnx:
+        import onnxruntime
+        print(f"Loading ONNX model from {checkpoint_path}...")
+        model = onnxruntime.InferenceSession(checkpoint_path)
+        print("ONNX model loaded successfully!")
+    else:
+        print("Setting up MLP model...")
+        actor_cfg = rl_cfg.actor
+        model_cls = load_class(actor_cfg.class_name)
         
-    print(f"Loading model weights from {checkpoint_path}...")
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    model.load_state_dict(checkpoint["actor_state_dict"], strict=True)
-    model.eval()
+        # Initialize with dummy observations to build model
+        dummy_obs = TensorDict(obs_dict, batch_size=[args.num_envs])
+        
+        model = model_cls(
+            obs=dummy_obs,
+            obs_groups=getattr(rl_cfg, "obs_groups", None),
+            obs_set="actor",
+            output_dim=env.action_manager.total_action_dim,
+            hidden_dims=actor_cfg.hidden_dims,
+            activation=actor_cfg.activation,
+            obs_normalization=actor_cfg.obs_normalization,
+            distribution_cfg=actor_cfg.distribution_cfg,
+        ).to(device)
+        
+        print(f"Loading model weights from {checkpoint_path}...")
+        checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+        model.load_state_dict(checkpoint["actor_state_dict"], strict=True)
+        model.eval()
+
 
     # Load YOLO model if enabled
     yolo_model = None
@@ -349,8 +361,6 @@ def evaluate(args):
     # Fingertip angle trigger tracking
     contact_both_activated = np.zeros(num_envs, dtype=bool)
     angles_trigger_squeeze = []
-    angles_trigger_left = []
-    angles_trigger_right = []
 
     # -----------------------------------------------------------------------
     # Observation noise injection (mirrors training noise from env_cfgs.py)
@@ -394,8 +404,6 @@ def evaluate(args):
 
     # Storing previous step values for angle trigger (instant before contact)
     prev_squeeze_angles = torch.zeros(num_envs, device=device)
-    prev_left_angles = torch.zeros(num_envs, device=device)
-    prev_right_angles = torch.zeros(num_envs, device=device)
     prev_contact_both = torch.zeros(num_envs, dtype=torch.bool, device=device)
 
     robot = env.scene["robot"]
@@ -451,20 +459,11 @@ def evaluate(args):
             v_squeeze = p_left - p_right
             v_squeeze_norm = v_squeeze / torch.norm(v_squeeze, dim=-1, keepdim=True).clamp(min=1e-6)
             
-            # Fingertip site normals (local X axis of each site)
-            xmat_left = env.sim.data.site_xmat[:, left_global_idx]   # [B, 3, 3]
-            xmat_right = env.sim.data.site_xmat[:, right_global_idx] # [B, 3, 3]
-            
-            v_left = xmat_left[:, :, 0]
-            v_right = -xmat_right[:, :, 0]
-            
             # Cube orientation
             cube_quat = box.data.root_link_quat_w             # [B, 4]
             
             # B. Compute current fingertip angles wrt cube lateral surfaces
             squeeze_angles = compute_angle_wrt_cube_lateral_surfaces(v_squeeze_norm, cube_quat)
-            left_angles = compute_angle_wrt_cube_lateral_surfaces(v_left, cube_quat)
-            right_angles = compute_angle_wrt_cube_lateral_surfaces(v_right, cube_quat)
             
             # C. Check contact_both_fingers condition
             contact_both_float = site_contact_both_fingers(
@@ -483,6 +482,7 @@ def evaluate(args):
             top_collision = top_collision_float > 0.5
             
             # E. Check success condition (reached must be true)
+            position_error = torch.norm(command.target_pos - command.object_pos_w, dim=-1)
             success_now = command.reached
 
             # F. Check grasp-and-lift condition: both fingers in contact AND cube ≥1 cm above resting height
@@ -507,13 +507,9 @@ def evaluate(args):
                 contact_both_activated[i] = True
                 # Record angles from the previous step (instant before contact)
                 angles_trigger_squeeze.append(prev_squeeze_angles[i].item())
-                angles_trigger_left.append(prev_left_angles[i].item())
-                angles_trigger_right.append(prev_right_angles[i].item())
 
         # Update previous step values
         prev_squeeze_angles = squeeze_angles.clone()
-        prev_left_angles = left_angles.clone()
-        prev_right_angles = right_angles.clone()
         prev_contact_both = contact_both.clone()
 
         # F. Early success truncation: if an environment has achieved success,
@@ -812,11 +808,15 @@ def evaluate(args):
                                     except Exception:
                                         pass
 
-                # Check EE override if grasped
-                if success_fit and is_grasped[i]:
-                    ee_x, ee_y, ee_z, ee_yaw = ee_pose_i
-                    px, py, pz = ee_x, ee_y, ee_z
-                    theta = ee_yaw
+                if is_grasped[i]:
+                    # Bypass filter predict/update entirely and use raw EE position and gripper yaw directly
+                    px, py, pz = ee_pos_robot_cpu[i, 0], ee_pos_robot_cpu[i, 1], ee_pos_robot_cpu[i, 2]
+                    theta = ee_yaw_cpu[i]
+                    length = args.cube_size[0]
+                    width = args.cube_size[1]
+                    height = args.cube_size[2]
+                    
+                    # Keep filter state synchronized in case grasp is lost
                     if kfs[i] is not None:
                         kfs[i]["yaw_locked"] = False
                         for kf, val in [(kfs[i]["kf_x"], px), (kfs[i]["kf_y"], py), (kfs[i]["kf_z"], pz)]:
@@ -828,171 +828,133 @@ def evaluate(args):
                                 else:
                                     kf.x = val
                         if hasattr(kfs[i]["kf_yaw"], "x"):
-                            if isinstance(kfs[i]["kf_yaw"].x, np.ndarray):
-                                kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
+                            kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
+                        kfs[i]["kf_len"].x = length
+                        kfs[i]["kf_wid"].x = width
+                        kfs[i]["kf_hgt"].x = height
+                else:
+                    # Normal non-grasped processing
+                    if success_fit:
+                        if kfs[i] is None:
+                            if args.pos_filter_type == "constant_velocity":
+                                kf_x = ConstantVelocityKF(init_pos=px, init_vel=0.0, q_accel=0.0005, r_pos=1e-4)
+                                kf_y = ConstantVelocityKF(init_pos=py, init_vel=0.0, q_accel=0.0005, r_pos=1e-4)
+                                kf_z = ConstantVelocityKF(init_pos=pz, init_vel=0.0, q_accel=0.0005, r_pos=1e-4)
+                            elif args.pos_filter_type == "ema":
+                                kf_x = ExponentialMovingAverage(init_pos=px, alpha=args.ema_alpha)
+                                kf_y = ExponentialMovingAverage(init_pos=py, alpha=args.ema_alpha)
+                                kf_z = ExponentialMovingAverage(init_pos=pz, alpha=0.10)
+                            else:  # "adaptive" (default)
+                                kf_x = AdaptiveStaticKF(init_pos=px, q_base=1e-6, r_pos=1e-3, window=10)
+                                kf_y = AdaptiveStaticKF(init_pos=py, q_base=1e-6, r_pos=1e-3, window=10)
+                                kf_z = AdaptiveStaticKF(init_pos=pz, q_base=1e-6, r_pos=1e-3, window=10)
+
+                            if args.pos_filter_type == "ema":
+                                kf_yaw = ExponentialMovingAverageYaw(init_yaw=theta, alpha=0.20)
+                                kf_len = ExponentialMovingAverage1D(init_val=length, alpha=0.10)
+                                kf_wid = ExponentialMovingAverage1D(init_val=width, alpha=0.10)
+                                kf_hgt = ExponentialMovingAverage1D(init_val=height, alpha=0.10)
                             else:
-                                kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
+                                kf_yaw = YawKF(init_yaw=theta, q_yaw=0.0001, r_yaw=0.02)
+                                kf_len = StaticState1DKF(init_val=length, q_val=1e-5, r_val=0.005)
+                                kf_wid = StaticState1DKF(init_val=width, q_val=1e-5, r_val=0.005)
+                                kf_hgt = StaticState1DKF(init_val=height, q_val=1e-5, r_val=0.005)
 
-                # Fallback: if depth pipeline failed but grasped is True, override to EE pose
-                if not success_fit and is_grasped[i]:
-                    px, py, pz = ee_pose_i[0], ee_pose_i[1], ee_pose_i[2]
-                    theta = ee_pose_i[3]
-                    if kfs[i] is not None:
-                        length = float(kfs[i]["kf_len"].x)
-                        width = float(kfs[i]["kf_wid"].x)
-                        height = float(kfs[i]["kf_hgt"].x)
-                    else:
-                        length, width, height = args.cube_size[0], args.cube_size[1], args.cube_size[2]
-
-                    if kfs[i] is not None:
-                        kfs[i]["yaw_locked"] = False
-                        for kf, val in [(kfs[i]["kf_x"], px), (kfs[i]["kf_y"], py), (kfs[i]["kf_z"], pz)]:
-                            if hasattr(kf, "x"):
-                                if isinstance(kf.x, np.ndarray):
-                                    kf.x[0] = val
-                                    if len(kf.x) > 1:
-                                        kf.x[1] = 0.0
-                                else:
-                                    kf.x = val
-                        if hasattr(kfs[i]["kf_yaw"], "x"):
-                            if isinstance(kfs[i]["kf_yaw"].x, np.ndarray):
-                                kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
-                            else:
-                                kfs[i]["kf_yaw"].x = np.array([math.cos(theta), math.sin(theta)], dtype=np.float32)
-                    success_fit = True
-
-                # 2. Kalman / EMA Filter predict and update
-                if success_fit:
-                    if kfs[i] is None:
-                        if args.pos_filter_type == "constant_velocity":
-                            kf_x = ConstantVelocityKF(init_pos=px, init_vel=0.0, q_accel=0.0005, r_pos=1e-4)
-                            kf_y = ConstantVelocityKF(init_pos=py, init_vel=0.0, q_accel=0.0005, r_pos=1e-4)
-                            kf_z = ConstantVelocityKF(init_pos=pz, init_vel=0.0, q_accel=0.0005, r_pos=1e-4)
-                        elif args.pos_filter_type == "ema":
-                            kf_x = ExponentialMovingAverage(init_pos=px, alpha=args.ema_alpha)
-                            kf_y = ExponentialMovingAverage(init_pos=py, alpha=args.ema_alpha)
-                            kf_z = ExponentialMovingAverage(init_pos=pz, alpha=0.10)
-                        else:  # "adaptive" (default)
-                            kf_x = AdaptiveStaticKF(init_pos=px, q_base=1e-6, r_pos=1e-3, window=10)
-                            kf_y = AdaptiveStaticKF(init_pos=py, q_base=1e-6, r_pos=1e-3, window=10)
-                            kf_z = AdaptiveStaticKF(init_pos=pz, q_base=1e-6, r_pos=1e-3, window=10)
-
-                        if args.pos_filter_type == "ema":
-                            kf_yaw = ExponentialMovingAverageYaw(init_yaw=theta, alpha=0.20)
-                            kf_len = ExponentialMovingAverage1D(init_val=length, alpha=0.10)
-                            kf_wid = ExponentialMovingAverage1D(init_val=width, alpha=0.10)
-                            kf_hgt = ExponentialMovingAverage1D(init_val=height, alpha=0.10)
+                            kfs[i] = {
+                                "kf_x": kf_x,
+                                "kf_y": kf_y,
+                                "kf_z": kf_z,
+                                "kf_yaw": kf_yaw,
+                                "kf_len": kf_len,
+                                "kf_wid": kf_wid,
+                                "kf_hgt": kf_hgt,
+                                "occluded_while_grasping": False,
+                                "yaw_locked": False,
+                                "yaw_lock_x": None,
+                                "yaw_lock_y": None,
+                            }
                         else:
-                            kf_yaw = YawKF(init_yaw=theta, q_yaw=0.0001, r_yaw=0.02)
-                            kf_len = StaticState1DKF(init_val=length, q_val=1e-5, r_val=0.005)
-                            kf_wid = StaticState1DKF(init_val=width, q_val=1e-5, r_val=0.005)
-                            kf_hgt = StaticState1DKF(init_val=height, q_val=1e-5, r_val=0.005)
+                            kfs[i]["kf_x"].predict(dt)
+                            kfs[i]["kf_y"].predict(dt)
+                            kfs[i]["kf_z"].predict(dt)
+                            kfs[i]["kf_yaw"].predict(dt)
+                            kfs[i]["kf_len"].predict(dt)
+                            kfs[i]["kf_wid"].predict(dt)
+                            kfs[i]["kf_hgt"].predict(dt)
 
-                        kfs[i] = {
-                            "kf_x": kf_x,
-                            "kf_y": kf_y,
-                            "kf_z": kf_z,
-                            "kf_yaw": kf_yaw,
-                            "kf_len": kf_len,
-                            "kf_wid": kf_wid,
-                            "kf_hgt": kf_hgt,
-                            "occluded_while_grasping": False,
-                            "yaw_locked": False,
-                            "yaw_lock_x": None,
-                            "yaw_lock_y": None,
-                        }
-                    else:
-                        kfs[i]["kf_x"].predict(dt)
-                        kfs[i]["kf_y"].predict(dt)
-                        kfs[i]["kf_z"].predict(dt)
-                        kfs[i]["kf_yaw"].predict(dt)
-                        kfs[i]["kf_len"].predict(dt)
-                        kfs[i]["kf_wid"].predict(dt)
-                        kfs[i]["kf_hgt"].predict(dt)
-
-                        if args.pos_filter_type == "ema":
-                            # Set alpha dynamically based on whether we are grasping
-                            if is_grasped[i]:
-                                kfs[i]["kf_x"].alpha = 0.001
-                                kfs[i]["kf_y"].alpha = 0.001
-                                kfs[i]["kf_z"].alpha = 0.001
-                                kfs[i]["kf_yaw"].alpha = 0.0
-                            else:
+                            if args.pos_filter_type == "ema":
                                 kfs[i]["kf_x"].alpha = args.ema_alpha
                                 kfs[i]["kf_y"].alpha = args.ema_alpha
                                 kfs[i]["kf_z"].alpha = 0.10
                                 kfs[i]["kf_yaw"].alpha = 0.20
 
-                        # --- Yaw Lock Logic ---
-                        last_yaw = kfs[i]["kf_yaw"].get_yaw()
-                        diff_angle = theta - last_yaw
-                        # Cube rotational symmetry of 90 degrees (pi/2), wrap diff to [-pi/4, pi/4]
-                        wrapped_diff = (diff_angle + math.pi / 4) % (math.pi / 2) - math.pi / 4
+                            # --- Yaw Lock Logic ---
+                            last_yaw = kfs[i]["kf_yaw"].get_yaw()
+                            diff_angle = theta - last_yaw
+                            wrapped_diff = (diff_angle + math.pi / 4) % (math.pi / 2) - math.pi / 4
 
-                        # Check displacement to potentially unlock
-                        if kfs[i]["yaw_locked"]:
-                            curr_filtered_x = kfs[i]["kf_x"].x[0]
-                            curr_filtered_y = kfs[i]["kf_y"].x[0]
-                            dist_moved = math.sqrt((curr_filtered_x - kfs[i]["yaw_lock_x"])**2 + (curr_filtered_y - kfs[i]["yaw_lock_y"])**2)
-                            if dist_moved > 0.02:  # 2 cm
-                                kfs[i]["yaw_locked"] = False
+                            if kfs[i]["yaw_locked"]:
+                                curr_filtered_x = kfs[i]["kf_x"].x[0]
+                                curr_filtered_y = kfs[i]["kf_y"].x[0]
+                                dist_moved = math.sqrt((curr_filtered_x - kfs[i]["yaw_lock_x"])**2 + (curr_filtered_y - kfs[i]["yaw_lock_y"])**2)
+                                if dist_moved > 0.02:  # 2 cm
+                                    kfs[i]["yaw_locked"] = False
 
-                        # Check angle update to potentially lock (only lock if not grasped/override)
-                        if not kfs[i]["yaw_locked"] and not is_grasped[i]:
-                            if abs(wrapped_diff) > math.radians(5.0):  # 5 degrees
-                                kfs[i]["yaw_locked"] = True
-                                kfs[i]["yaw_lock_x"] = kfs[i]["kf_x"].x[0]
-                                kfs[i]["yaw_lock_y"] = kfs[i]["kf_y"].x[0]
-
-                        u_x = kfs[i]["kf_x"].update(px)
-                        u_y = kfs[i]["kf_y"].update(py)
-                        z_r_pos = 0.15 if kfs[i]["occluded_while_grasping"] else None
-                        u_z = kfs[i]["kf_z"].update(pz, r_pos=z_r_pos)
-                        kfs[i]["occluded_while_grasping"] = False
-
-                        if u_x and u_y and u_z:
                             if not kfs[i]["yaw_locked"]:
-                                kfs[i]["kf_yaw"].update(theta)
-                            kfs[i]["kf_len"].update(length)
-                            kfs[i]["kf_wid"].update(width)
-                            kfs[i]["kf_hgt"].update(height)
+                                if abs(wrapped_diff) > math.radians(5.0):  # 5 degrees
+                                    kfs[i]["yaw_locked"] = True
+                                    kfs[i]["yaw_lock_x"] = kfs[i]["kf_x"].x[0]
+                                    kfs[i]["yaw_lock_y"] = kfs[i]["kf_y"].x[0]
 
-                        px = float(kfs[i]["kf_x"].x[0])
-                        py = float(kfs[i]["kf_y"].x[0])
-                        pz = float(kfs[i]["kf_z"].x[0])
-                        theta = float(kfs[i]["kf_yaw"].get_yaw())
-                        length = float(kfs[i]["kf_len"].x)
-                        width = float(kfs[i]["kf_wid"].x)
-                        height = float(kfs[i]["kf_hgt"].x)
-                else:
-                    if kfs[i] is not None:
-                        z_q_scale = 500.0 if contact_both[i].item() else 10.0
-                        kfs[i]["kf_x"].predict(dt, q_scale=10.0)
-                        kfs[i]["kf_y"].predict(dt, q_scale=10.0)
-                        kfs[i]["kf_z"].predict(dt, q_scale=z_q_scale)
-                        kfs[i]["kf_yaw"].predict(dt, q_scale=10.0)
-                        kfs[i]["kf_len"].predict(dt, q_scale=10.0)
-                        kfs[i]["kf_wid"].predict(dt, q_scale=10.0)
-                        kfs[i]["kf_hgt"].predict(dt, q_scale=10.0)
+                            u_x = kfs[i]["kf_x"].update(px)
+                            u_y = kfs[i]["kf_y"].update(py)
+                            z_r_pos = 0.15 if kfs[i]["occluded_while_grasping"] else None
+                            u_z = kfs[i]["kf_z"].update(pz, r_pos=z_r_pos)
+                            kfs[i]["occluded_while_grasping"] = False
 
-                        if contact_both[i].item():
-                            kfs[i]["occluded_while_grasping"] = True
+                            if u_x and u_y and u_z:
+                                if not kfs[i]["yaw_locked"]:
+                                    kfs[i]["kf_yaw"].update(theta)
+                                kfs[i]["kf_len"].update(length)
+                                kfs[i]["kf_wid"].update(width)
+                                kfs[i]["kf_hgt"].update(height)
 
-                        px = float(kfs[i]["kf_x"].x[0])
-                        py = float(kfs[i]["kf_y"].x[0])
-                        pz = float(kfs[i]["kf_z"].x[0])
-                        theta = float(kfs[i]["kf_yaw"].get_yaw())
-                        length = float(kfs[i]["kf_len"].x)
-                        width = float(kfs[i]["kf_wid"].x)
-                        height = float(kfs[i]["kf_hgt"].x)
+                            px = float(kfs[i]["kf_x"].x[0])
+                            py = float(kfs[i]["kf_y"].x[0])
+                            pz = float(kfs[i]["kf_z"].x[0])
+                            theta = float(kfs[i]["kf_yaw"].get_yaw())
+                            length = float(kfs[i]["kf_len"].x)
+                            width = float(kfs[i]["kf_wid"].x)
+                            height = float(kfs[i]["kf_hgt"].x)
                     else:
-                        gt_pos_r_i = rotate_by_quat_np(gt_pos_w_i - robot_pos, q_inv)
-                        px, py, pz = gt_pos_r_i[0], gt_pos_r_i[1], gt_pos_r_i[2]
-                        
-                        _, _, robot_yaw_w = euler_xyz_from_quat(torch.tensor(robot_quat, device=device).unsqueeze(0))
-                        robot_yaw_w = robot_yaw_w[0].item()
-                        theta = gt_yaw_w - robot_yaw_w
-                        length, width, height = args.cube_size[0], args.cube_size[1], args.cube_size[2]
+                        if kfs[i] is not None:
+                            z_q_scale = 500.0 if contact_both[i].item() else 10.0
+                            kfs[i]["kf_x"].predict(dt, q_scale=10.0)
+                            kfs[i]["kf_y"].predict(dt, q_scale=10.0)
+                            kfs[i]["kf_z"].predict(dt, q_scale=z_q_scale)
+                            kfs[i]["kf_yaw"].predict(dt, q_scale=10.0)
+                            kfs[i]["kf_len"].predict(dt, q_scale=10.0)
+                            kfs[i]["kf_wid"].predict(dt, q_scale=10.0)
+                            kfs[i]["kf_hgt"].predict(dt, q_scale=10.0)
+
+                            if contact_both[i].item():
+                                kfs[i]["occluded_while_grasping"] = True
+
+                            px = float(kfs[i]["kf_x"].x[0])
+                            py = float(kfs[i]["kf_y"].x[0])
+                            pz = float(kfs[i]["kf_z"].x[0])
+                            theta = float(kfs[i]["kf_yaw"].get_yaw())
+                            length = float(kfs[i]["kf_len"].x)
+                            width = float(kfs[i]["kf_wid"].x)
+                            height = float(kfs[i]["kf_hgt"].x)
+                        else:
+                            gt_pos_r_i = rotate_by_quat_np(gt_pos_w_i - robot_pos, q_inv)
+                            px, py, pz = gt_pos_r_i[0], gt_pos_r_i[1], gt_pos_r_i[2]
+                            
+                            _, _, robot_yaw_w = euler_xyz_from_quat(torch.tensor(robot_quat, device=device).unsqueeze(0))
+                            robot_yaw_w = robot_yaw_w[0].item()
+                            theta = gt_yaw_w - robot_yaw_w
+                            length, width, height = args.cube_size[0], args.cube_size[1], args.cube_size[2]
 
                 if args.use_yaw_width_gt:
                     _, _, robot_yaw_w = euler_xyz_from_quat(torch.tensor(robot_quat, device=device).unsqueeze(0))
@@ -1037,8 +999,26 @@ def evaluate(args):
                 actor_obs[:, s:e] += (torch.rand(num_envs, e - s, device=device) * 2.0 - 1.0) * half
             current_obs["actor"] = actor_obs
 
-        with torch.no_grad():
-            action = model(current_obs)
+        if is_onnx:
+            obs_tensor = current_obs["actor"]
+            obs_numpy = obs_tensor.cpu().numpy()
+            input_shape = model.get_inputs()[0].shape
+            # If the model expects batch size 1 but we have multiple envs, run individually
+            if len(input_shape) > 0 and input_shape[0] == 1 and num_envs > 1:
+                outs = []
+                for idx in range(num_envs):
+                    ort_inputs = {model.get_inputs()[0].name: obs_numpy[idx : idx + 1]}
+                    ort_outs = model.run(None, ort_inputs)
+                    outs.append(ort_outs[0])
+                action = torch.tensor(np.concatenate(outs, axis=0), device=device)
+            else:
+                ort_inputs = {model.get_inputs()[0].name: obs_numpy}
+                ort_outs = model.run(None, ort_inputs)
+                action = torch.tensor(ort_outs[0], device=device)
+        else:
+            with torch.no_grad():
+                action = model(current_obs)
+
             
         _, _, terminated, truncated, _ = env.step(action)
         dones = terminated | truncated
@@ -1095,19 +1075,13 @@ def evaluate(args):
     grasp_and_lift_rate = (total_grasp_and_lift / total_episodes) * 100.0
 
     # Per-threshold success rates based on minimum position error achieved
-    THRESHOLDS_M = [0.01, 0.02, 0.03, 0.04, 0.05]  # 1-5 cm
+    THRESHOLDS_M = [0.02, 0.03, 0.04, 0.05]  # 2-5 cm
     threshold_counts = [int(np.sum(min_pos_error_arr <= t)) for t in THRESHOLDS_M]
     threshold_rates  = [c / total_episodes * 100.0 for c in threshold_counts]
     
     # Compute mean and standard deviation of angles at trigger
     mean_squeeze = np.mean(angles_trigger_squeeze) if angles_trigger_squeeze else float('nan')
     std_squeeze = np.std(angles_trigger_squeeze) if angles_trigger_squeeze else float('nan')
-    
-    mean_left = np.mean(angles_trigger_left) if angles_trigger_left else float('nan')
-    std_left = np.std(angles_trigger_left) if angles_trigger_left else float('nan')
-    
-    mean_right = np.mean(angles_trigger_right) if angles_trigger_right else float('nan')
-    std_right = np.std(angles_trigger_right) if angles_trigger_right else float('nan')
     
     num_contacts_made = len(angles_trigger_squeeze)
 
@@ -1133,10 +1107,8 @@ def evaluate(args):
     for t, cnt, rate in zip(THRESHOLDS_M, threshold_counts, threshold_rates):
         print(f"  {t*100:>9.0f}cm | {cnt:>8d} | {rate:>6.2f}%")
     print("-" * 80)
-    print("Fingertip Angles wrt Cube Lateral Surfaces (Instant Before Contact):")
+    print("Fingertip Alignment (Instant Before Contact):")
     print(f"  Squeeze Axis Angle:  Mean = {mean_squeeze:6.2f}° | Std = {std_squeeze:5.2f}°")
-    print(f"  Left Finger Normal:  Mean = {mean_left:6.2f}° | Std = {std_left:5.2f}°")
-    print(f"  Right Finger Normal: Mean = {mean_right:6.2f}° | Std = {std_right:5.2f}°")
     print("=" * 80 + "\n")
 
 
@@ -1145,7 +1117,7 @@ def main():
     parser.add_argument(
         "--checkpoint",
         type=str,
-        default="/home/lorenzobarbieri/local1_meh/model_15000.pt",
+        default="/home/lorenzobarbieri/exchange/tiago_pro_sim_ws/models_multiple_cubes/spring1.onnx",
         help="Path to policy checkpoint weights (default: 2026-06-25_13-06-56-checkpoints/model_39500.pt)"
     )
     parser.add_argument(
@@ -1157,7 +1129,7 @@ def main():
     parser.add_argument(
         "--num_episodes",
         type=int,
-        default=100,
+        default=1000,
         help="Total number of evaluation episodes to collect (default: 100)"
     )
     parser.add_argument(

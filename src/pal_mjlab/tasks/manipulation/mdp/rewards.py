@@ -11,133 +11,12 @@ from pal_mjlab.tasks.manipulation.mdp.commands import LiftingCommand
 from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
 
 
-def object_ee_distance(
-  env: ManagerBasedRlEnv,
-  std: float,
-  command_name: str,
-  asset_cfg: SceneEntityCfg | None = None,
-  min_reaching_reward: float = 0.0,
-  deactivate_on_contact: bool = False,
-  sensor_name: str | None = None,
-  site_names: list[str] | None = None,
-) -> torch.Tensor:
-  if asset_cfg is None:
-    asset_cfg = SceneEntityCfg("robot")
-  robot: Entity = env.scene[asset_cfg.name]
-  command: LiftingCommand = env.command_manager.get_term(command_name)
-  ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
-  distance = torch.norm(ee_pos_w - command.object_pos_w, dim=-1)
-
-  distance_reward = 1.0 - torch.tanh(distance / std)
-
-  # Never be a penalization (min clip) and maintain 1.0 max
-  reward = torch.clamp(distance_reward, min=min_reaching_reward, max=1.0)
-
-  if deactivate_on_contact and sensor_name is not None and site_names is not None:
-    from pal_mjlab.tasks.manipulation.mdp.observations import (
-      object_both__contact_fingers,
-    )
-    contact = object_both__contact_fingers(
-      env, sensor_name, site_names, asset_cfg=asset_cfg
-    ).squeeze(-1)
-    reward = reward * (1.0 - contact)
-
-  return reward
-
-
-def object_is_lifted(
-  env: ManagerBasedRlEnv,
-  command_name: str,
-  sensor_name: str,
-  site_names: list[str],
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-  min_weight: float = 0.1,
-  max_weight: float = 1.5,
-  lift_threshold: float = 0.03,
-) -> torch.Tensor:
-  command: LiftingCommand = env.command_manager.get_term(command_name)
-
-  fingers_close = site_contact_both_fingers(
-    env, sensor_name, site_names, asset_cfg=asset_cfg
-  ).bool()
-
-  elevation = command.object_bottom_z - command.table_surface_z
-  elevation = torch.clamp(elevation, min=0.0, max=lift_threshold)
-
-  ratio = max_weight / min_weight
-  scale = min_weight * (ratio ** (elevation / lift_threshold))
-
-  is_lifted = (~command.object_on_table & fingers_close).float()
-  return is_lifted * scale
-
-
-def object_goal_distance(
-  env: ManagerBasedRlEnv,
-  command_name: str,
-  std: float,
-  sensor_name: str,
-  site_names: list[str],
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-  coordinate_weights: tuple[float, float, float] = (1.0, 1.0, 1.0),
-) -> torch.Tensor:
-  command: LiftingCommand = env.command_manager.get_term(command_name)
-  contact_both = site_contact_both_fingers(
-    env, sensor_name, site_names, asset_cfg=asset_cfg
-  ).bool()
-
-  diff = command.target_pos - command.object_pos_w
-  weights = torch.tensor(coordinate_weights, device=env.device)
-  weighted_diff = diff * weights
-  distance = torch.norm(weighted_diff, dim=-1)
-  return (~command.object_on_table & contact_both) * (1.0 - torch.tanh(distance / std))
-
-
-
 def contact_penalty(env: ManagerBasedRlEnv, sensor_names: list[str]) -> torch.Tensor:
   contact = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
   for name in sensor_names:
     sensor: ContactSensor = env.scene[name]
     contact |= sensor.data.found.any(dim=-1)
   return contact.float()
-
-
-def arm_contact_while_lifting_term(
-  env: ManagerBasedRlEnv,
-  sensor_names: list[str],
-  command_name: str,
-  sensor_name: str,
-  site_names: list[str],
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-) -> torch.Tensor:
-  contact = torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
-  for name in sensor_names:
-    sensor: ContactSensor = env.scene[name]
-    contact |= sensor.data.found.any(dim=-1)
-  lifted = object_is_lifted(
-    env=env,
-    command_name=command_name,
-    sensor_name=sensor_name,
-    site_names=site_names,
-    asset_cfg=asset_cfg,
-  ).bool()
-  return (contact & lifted).float()
-
-
-def object_contact_both_fingers(
-  env: ManagerBasedRlEnv,
-  sensor_name: str,
-) -> torch.Tensor:
-  sensor: ContactSensor = env.scene[sensor_name]
-  return sensor.data.found.all(dim=-1).float()
-
-
-
-def contact_sensor_found(
-  env: ManagerBasedRlEnv,
-  sensor_name: str,
-) -> torch.Tensor:
-  sensor: ContactSensor = env.scene[sensor_name]
-  return sensor.data.found.float()
 
 
 def action_rate_l2(
@@ -151,22 +30,6 @@ def action_rate_l2(
       - env.action_manager.prev_action[:, action_indices]
     )
   return torch.sum(torch.square(action_diff), dim=1)
-
-
-def ee_vel_penalty(
-  env: ManagerBasedRlEnv,
-  threshold: float = 0.06,
-  scale: float = 50.0,
-  max_penalty: float = 10.0,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-) -> torch.Tensor:
-  robot: Entity = env.scene[asset_cfg.name]
-  ee_lin_vel_w = robot.data.site_lin_vel_w[:, asset_cfg.site_ids].squeeze(1)
-  ee_vel_norm = torch.linalg.norm(ee_lin_vel_w, dim=-1)
-
-  excess_vel = torch.clamp(ee_vel_norm - threshold, min=0.0)
-  penalty = torch.exp(scale * excess_vel) - 1.0
-  return torch.clamp(penalty, max=max_penalty)
 
 
 def fingertip_cube_alignment_reward(
@@ -352,19 +215,6 @@ def top_surface_penetration_term(
   return terminated
 
 
-def object_table_sliding_penalty(
-  env: ManagerBasedRlEnv,
-  command_name: str,
-) -> torch.Tensor:
-  """Penalizes the linear velocity of the object (in the XY plane) when it is on the table."""
-  command: LiftingCommand = env.command_manager.get_term(command_name)
-  obj: Entity = command.object
-  # Linear velocity in the horizontal (XY) plane in world frame
-  lin_vel_xy = obj.data.root_link_lin_vel_w[:, :2]
-  speed_xy = torch.norm(lin_vel_xy, dim=-1)
-  # Only penalize when the object is on the table
-  return command.object_on_table.float() * speed_xy
-
 
 def arm_right_1_joint_limit_penalty(
   env: ManagerBasedRlEnv,
@@ -387,133 +237,6 @@ def arm_right_1_joint_limit_penalty(
   penalty = torch.exp(scale * violation) - 1.0
   return torch.clamp(penalty, max=max_penalty)
 
-
-_CRITICAL_CONFIGS_CACHE = {}
-
-
-def occlusion_similarity_penalty(
-  env: ManagerBasedRlEnv,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
-  sigma: float = 0.4,
-  num_configs: int = 35,
-  config_file_path: str | None = None,
-) -> torch.Tensor:
-  """Penalizes the robot joint configuration if it is similar to any of the top critical self-occlusion configurations.
-
-  Uses a weighted sum of Gaussian RBFs: Sum_i w_i * exp( -||theta - c_i||^2 / (2 * sigma^2) )
-  """
-  global _CRITICAL_CONFIGS_CACHE
-
-  import os
-
-  if config_file_path is None or not os.path.exists(config_file_path):
-    # Fallback to the package-relative path
-    package_dir = os.path.dirname(os.path.abspath(__file__))
-    fallback_path = os.path.join(package_dir, "critical_configurations.json")
-    if os.path.exists(fallback_path):
-      config_file_path = fallback_path
-
-  cache_key = (config_file_path, num_configs, env.device)
-  if cache_key not in _CRITICAL_CONFIGS_CACHE:
-    import json
-
-    if config_file_path is None or not os.path.exists(config_file_path):
-      raise FileNotFoundError(f"Critical configurations file not found at {config_file_path}")
-
-    with open(config_file_path, "r") as f:
-      data = json.load(f)
-
-    selected_configs = data["critical_configurations"][:num_configs]
-    configs_list = []
-    weights_list = []
-
-    total_percentage = sum(c["percentage"] for c in selected_configs)
-
-    for c in selected_configs:
-      configs_list.append(c["joints"])
-      weights_list.append(c["percentage"] / total_percentage)
-
-    # Convert to PyTorch tensors and move to device
-    configs_tensor = torch.tensor(configs_list, dtype=torch.float32, device=env.device)
-    weights_tensor = torch.tensor(weights_list, dtype=torch.float32, device=env.device)
-
-    _CRITICAL_CONFIGS_CACHE[cache_key] = (configs_tensor, weights_tensor)
-
-  configs_tensor, weights_tensor = _CRITICAL_CONFIGS_CACHE[cache_key]
-
-  robot: Entity = env.scene[asset_cfg.name]
-  joint_names = [f"arm_right_{i}_joint" for i in range(1, 8)]
-  joint_ids = []
-  for name in joint_names:
-    ids, _ = robot.find_joints(name)
-    joint_ids.append(ids[0])
-
-  # Get robot's current right arm joint positions (shape: num_envs, 7)
-  joint_pos = robot.data.joint_pos[:, joint_ids]
-
-  # Broadcast subtraction to get differences (shape: num_envs, num_configs, 7)
-  diff = joint_pos.unsqueeze(1) - configs_tensor.unsqueeze(0)
-
-  # Squared L2 distance (shape: num_envs, num_configs)
-  dist_sq = torch.sum(torch.square(diff), dim=-1)
-
-  # RBF similarity (shape: num_envs, num_configs)
-  rbf = torch.exp(-dist_sq / (2 * sigma**2))
-
-  # Weighted sum (shape: num_envs,)
-  penalty = torch.sum(weights_tensor.unsqueeze(0) * rbf, dim=-1)
-
-  return penalty
-
-
-# Per-env success-hold counters, keyed by env id so multiple envs don't share state.
-_SUCCESS_HOLD_COUNTERS: dict[int, torch.Tensor] = {}
-
-
-def object_held_at_goal_term(
-  env: ManagerBasedRlEnv,
-  command_name: str,
-  hold_time_s: float = 1.0,
-) -> torch.Tensor:
-  """Terminates the episode once the object has been continuously held at the goal
-  for at least *hold_time_s* seconds.
-
-  A counter is incremented each step the success condition is met (object within
-  ``LiftingCommand.cfg.success_threshold`` of the goal and not on the table), and
-  reset to zero when the condition breaks.  The episode terminates when the counter
-  reaches ``ceil(hold_time_s / env.step_dt)``.
-
-  Args:
-    env: The RL environment.
-    command_name: Name of the ``LiftingCommand`` term.
-    hold_time_s: Seconds the object must be continuously held at the goal before
-      the episode is terminated.  Default: 1.0 s.
-
-  Returns:
-    Bool tensor of shape ``(num_envs,)`` — True for environments that have held
-    the object at the goal long enough.
-  """
-  global _SUCCESS_HOLD_COUNTERS
-
-  env_id = id(env)
-  if env_id not in _SUCCESS_HOLD_COUNTERS:
-    _SUCCESS_HOLD_COUNTERS[env_id] = torch.zeros(
-      env.num_envs, dtype=torch.float32, device=env.device
-    )
-
-  counter = _SUCCESS_HOLD_COUNTERS[env_id]
-
-  command: LiftingCommand = env.command_manager.get_term(command_name)
-  # compute_success() returns a bool tensor (num_envs,)
-  at_goal = command.compute_success()
-
-  # Increment counter where success, reset where not
-  counter = torch.where(at_goal, counter + 1.0, torch.zeros_like(counter))
-  _SUCCESS_HOLD_COUNTERS[env_id] = counter
-
-  # Number of env steps required
-  hold_steps = hold_time_s / env.step_dt
-  return counter >= hold_steps
 
 
 def object_released_on_floor_term(
