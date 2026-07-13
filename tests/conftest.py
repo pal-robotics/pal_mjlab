@@ -1,7 +1,6 @@
 """Shared test fixtures and utilities."""
 
 import os
-from pathlib import Path
 
 import mujoco
 import pytest
@@ -44,8 +43,6 @@ def create_entity_with_actuator(xml_string: str, actuator_cfg):
     articulation=EntityArticulationInfoCfg(actuators=(actuator_cfg,)),
   )
   return Entity(cfg)
-
-
 
 
 def initialize_entity(entity: Entity, device: str, num_envs: int = 1):

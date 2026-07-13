@@ -453,7 +453,7 @@ def test_dofs_pos_limits_penalty(mock_env, mock_asset_cfg):
     test_name, (env.num_envs,), value.shape
   )
   assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
-  
+
   asset.data.joint_pos[:, 1] += 1.5
   asset.data.joint_pos[:, 2] -= 1.5
 
