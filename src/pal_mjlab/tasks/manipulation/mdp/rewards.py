@@ -519,8 +519,6 @@ def object_held_at_goal_term(
 def object_released_on_floor_term(
   env: ManagerBasedRlEnv,
   command_name: str,
-  floor_z: float = 0.1,
-  min_grasped_distance: float = 0.05,
 ) -> torch.Tensor:
   """Terminates the episode when the object has reached the target."""
   command: LiftingCommand = env.command_manager.get_term(command_name)

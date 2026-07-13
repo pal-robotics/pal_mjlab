@@ -575,7 +575,8 @@ def lift_env_cfg(
     )
     cfg.terminations["object_released_on_floor"] = TerminationTermCfg(
       func=manipulation_mdp_pal.object_released_on_floor_term,
-      params={"command_name": "lift_height", "floor_z": 0.1, "min_grasped_distance": 0.05},
+      params={"command_name": "lift_height"},
+      time_out=True,
     )
 
   # cfg.terminations["arm_contact_while_lifting"] = TerminationTermCfg(
