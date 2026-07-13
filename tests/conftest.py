@@ -29,28 +29,6 @@ def get_test_device() -> str:
   return "cuda" if torch.cuda.is_available() else "cpu"
 
 
-@pytest.fixture
-def fixtures_dir() -> Path:
-  """Path to test fixtures directory."""
-  return Path(__file__).parent / "fixtures"
-
-
-def load_fixture_xml(fixture_name: str) -> str:
-  """Load XML content from fixture file.
-
-  Args:
-    fixture_name: Name of the fixture file (without .xml extension) or full path.
-
-  Returns:
-    XML content as string.
-  """
-  fixtures_path = Path(__file__).parent / "fixtures"
-  if not fixture_name.endswith(".xml"):
-    fixture_name = f"{fixture_name}.xml"
-  fixture_file = fixtures_path / fixture_name
-  return fixture_file.read_text()
-
-
 def create_entity_with_actuator(xml_string: str, actuator_cfg):
   """Create entity with actuator from XML string.
 
