@@ -1931,7 +1931,7 @@ docs = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "mjlab", specifier = ">=1.4.0" }]
+requires-dist = [{ name = "mjlab", specifier = ">=1.5.0" }]
 
 [package.metadata.requires-dev]
 dev = [{ name = "ruff", specifier = ">=0.14.14" }]
