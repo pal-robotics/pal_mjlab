@@ -227,7 +227,7 @@ KANGAROO_LOWER_BODY_ACTUATORS = KANGAROO_LEG_ACTUATORS + (KANGAROO_PELVIS_ACTUAT
 ##
 
 INIT_STATE = EntityCfg.InitialStateCfg(
-  pos=(0.0, 0.0, 0.945),
+  pos=(0.0, 0.0, 0.9),
   joint_pos={
     "leg_left_1_joint": -0.012,
     "leg_right_1_joint": 0.012,
@@ -327,7 +327,10 @@ def get_kangaroo_robot_cfg() -> EntityCfg:
 
 
 def get_kangaroo_lower_body_robot_cfg() -> EntityCfg:
-  return _make_robot_cfg("lower_body")
+  lower_body_cfg = _make_robot_cfg("lower_body")
+  # This is needed for the new feet
+  lower_body_cfg.init_state.pos = (0.0, 0.0, 0.945)
+  return lower_body_cfg
 
 
 def get_kangaroo_hands_robot_cfg() -> EntityCfg:
