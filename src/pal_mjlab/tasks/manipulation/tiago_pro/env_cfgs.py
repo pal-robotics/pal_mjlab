@@ -122,7 +122,7 @@ def lift_env_cfg(
     contact_sensor_name="box_table_contact",
     resampling_time_range=(EPISODE_LENGTH, EPISODE_LENGTH),
     debug_vis=True,
-    success_threshold=0.03,
+    success_threshold=0.04,
     target_position_range=manipulation_mdp_pal.LiftingCommandCfg.TargetPositionRangeCfg(
       x=(0.67, 0.77),
       y=(-0.766, -0.666),
@@ -189,15 +189,6 @@ def lift_env_cfg(
       params={"asset_cfg": SceneEntityCfg("robot", site_names=(robot.ee_site,))},
     )
 
-  # Critic-specific additional observations
-  # cfg.observations["critic"].terms["finger_contact"] = ObservationTermCfg(
-  #   func=manipulation_mdp_pal.site_contact_found,
-  #   params={
-  #     "sensor_name": "box_fingertip_contact",
-  #     "site_names": [robot.fingertip_site_pattern],
-  #   },
-  # )
-
   # 2. Noise & Dropout Configuration
   # Ensure all critic observations are completely clean (no noise).
   for name in cfg.observations["critic"].terms:
@@ -209,16 +200,11 @@ def lift_env_cfg(
     actor_noise_configs = {
       "object_position": Unoise(n_min=-0.01, n_max=0.01),
       "object_yaw": Unoise(n_min=-0.05, n_max=0.05),
-      "object_width": Unoise(n_min=-0.005, n_max=0.005),
       "joint_pos": Unoise(n_min=-0.02, n_max=0.02),
       "joint_vel": Unoise(n_min=-0.05, n_max=0.05),
       # "target_object_position": Unoise(n_min=-0.01, n_max=0.01),
       "ee_position": Unoise(n_min=-0.01, n_max=0.01),
       "gripper_pos": Unoise(n_min=-0.003, n_max=0.003),
-      "object_pose_6d": Unoise(
-        n_min=(-0.01, -0.01, -0.01, -0.05, -0.05, -0.05),
-        n_max=(0.01, 0.01, 0.01, 0.05, 0.05, 0.05),
-      ),
     }
     for name, noise_cfg in actor_noise_configs.items():
       if name in actor_terms:
@@ -277,21 +263,13 @@ def lift_env_cfg(
       "coordinate_weights": (1.0, 1.0, 3.0),
     },
   )
-  # cfg.rewards["object_goal_tracking_fine_grained"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance),
-  #   weight=5.0,
-  #   params={
-  #     "command_name": "lift_height",
-  #     "std": 0.05,
-  #     "sensor_name": "box_fingertip_contact",
-  #     "site_names": [robot.fingertip_site_pattern],
-  #   },
-  # )
+
   cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
     func=manipulation_mdp_pal.contact_penalty,
     weight=-1.0,
     params={"sensor_names": ["gripper_table_contact"]},
   )
+
   cfg.rewards["object_table_sliding_penalty"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_table_sliding_penalty_adaptive),
     weight=-5.0,
@@ -307,14 +285,7 @@ def lift_env_cfg(
       "command_name": "lift_height",
     },
   )
-  # cfg.rewards["object_contact_single_finger_penalty"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.site_contact_single_finger),
-  #   weight=-0.1,
-  #   params={
-  #     "sensor_name": "box_fingertip_contact",
-  #     "site_names": [robot.fingertip_site_pattern],
-  #   },
-  # )
+
   cfg.rewards["fingertip_cube_alignment"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.fingertip_cube_alignment_reward_adaptive
@@ -329,6 +300,7 @@ def lift_env_cfg(
       "site_names": [robot.fingertip_site_pattern],
     },
   )
+
   cfg.rewards["release_cube"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.release_cube_reward),
     weight=5.0,
@@ -337,6 +309,7 @@ def lift_env_cfg(
       "max_open": 0.08,
     },
   )
+
   cfg.rewards["object_falling"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_falling_reward),
     weight=5.0,
@@ -344,11 +317,13 @@ def lift_env_cfg(
       "command_name": "lift_height",
     },
   )
+
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
     weight=-0.1,
     params={"action_indices": list(range(8))},
   )
+
   cfg.rewards["arm_right_1_joint_limit_penalty"] = RewardTermCfg(
     func=manipulation_mdp_pal.arm_right_1_joint_limit_penalty,
     weight=-0.5,
@@ -357,15 +332,6 @@ def lift_env_cfg(
       "threshold": -0.35,
     },
   )
-  # cfg.rewards["occlusion_similarity_penalty"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.occlusion_similarity_penalty,
-  #   weight=-5.0, 
-  #   params={
-  #     "asset_cfg": SceneEntityCfg("robot"),
-  #     "sigma": 0.4,
-  #     "num_configs": 35,
-  #   },
-  # )
 
   cfg.rewards["joint_torques_l2"] = RewardTermCfg(
     func=mjlab_rewards.joint_torques_l2,
@@ -379,46 +345,10 @@ def lift_env_cfg(
     weight=-1.0,
     params={"sensor_name": "self_collision"},
   )
-  # cfg.rewards["ee_vel_penalty"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.ee_vel_penalty),
-  #   weight=-1.0,
-  #   params={
-  #     "threshold": 0.06,
-  #     "scale": 50.0,
-  #     "max_penalty": 10.0,
-  #     "asset_cfg": _grasp_cfg,
-  #   },
-  # )
-  # cfg.rewards["ee_ground_collision_termination_penalty"] = RewardTermCfg(
-  #   func=manipulation_mdp.illegal_contact,
-  #   weight=-10.0,
-  #   params={"sensor_name": "ee_ground_collision", "force_threshold": 1.0},
-  # )
+
 
   ### CURRICULUMS
   cfg.curriculum.clear()
-
-  # if not play:
-  #   # Ramp up the occlusion dropout probability over training.
-  #   # Stage thresholds are in total env steps (num_envs × policy steps).
-  #   # Adjust the step breakpoints to match your training schedule.
-  #   _occlusion_stages = [
-  #     {"step": 0,           "params": {"p_drop": 0.0}},   # warm-up: no dropout
-  #     {"step": 1000 * 24,   "params": {"p_drop": 0.2}},  # light dropout starts
-  #     {"step": 5000 * 24,  "params": {"p_drop": 0.33}},  # moderate
-  #     {"step": 10000 * 24,  "params": {"p_drop": 0.40}},  # heavy
-  #   ]
-  #   for _term_name in ("object_position",):
-  #     if _term_name in cfg.observations["actor"].terms:
-  #       cfg.curriculum[f"occlusion_dropout_{_term_name}"] = CurriculumTermCfg(
-  #         func=manipulation_mdp_pal.observation_curriculum,
-  #         params={
-  #           "group_name": "actor",
-  #           "term_name": _term_name,
-  #           "stages": _occlusion_stages,
-  #         },
-  #       )
-    # pass
 
 
   ##### DOMAIN RANDOMIZATION ON THE GRIPPER
@@ -555,19 +485,6 @@ def lift_env_cfg(
   #### TERMINATIONS
   cfg.terminations["nan_term"] = TerminationTermCfg(func=mdp_term.nan_detection)
 
-  # cfg.terminations["object_dropped"] = TerminationTermCfg(
-  #   func=mdp_term.root_height_below_minimum,
-  #   params={
-  #     "minimum_height": manipulation_mdp_pal.TABLE_HEIGHT - 0.1,
-  #     "asset_cfg": SceneEntityCfg("box"),
-  #   },
-  # )
-
-  cfg.terminations["ee_ground_collision"] = TerminationTermCfg(
-    func=manipulation_mdp.illegal_contact,
-    params={"sensor_name": "ee_ground_collision", "force_threshold": 0.5},
-  )
-
   if not play:
     cfg.terminations["top_surface_penetration"] = TerminationTermCfg(
       func=manipulation_mdp_pal.top_surface_penetration_term,
@@ -578,17 +495,6 @@ def lift_env_cfg(
       params={"command_name": "lift_height"},
       time_out=True,
     )
-
-  # cfg.terminations["arm_contact_while_lifting"] = TerminationTermCfg(
-  #   func=manipulation_mdp_pal.arm_contact_while_lifting_term,
-  #   params={
-  #     "sensor_names": ["ee_ground_collision", "gripper_table_contact"],
-  #     "command_name": "lift_height",
-  #     "sensor_name": "box_fingertip_contact",
-  #     "site_names": [robot.fingertip_site_pattern],
-  #     "asset_cfg": _grasp_cfg,
-  #   },
-  # )
 
   for s in cfg.scene.sensors:
     if isinstance(s, ContactSensorCfg) and s.name == "ee_ground_collision":
@@ -619,92 +525,6 @@ def lift_env_cfg(
       "site_names": [robot.fingertip_site_pattern],
       "false_negative_rate": 0.0,
     },
-  )
-
-  return cfg
-
-
-def lift_vision_env_cfg(
-  cam_type: Literal["rgb", "depth", "rgbd"],
-  cam_source: Literal["head", "wrist"] = "head",
-  play: bool = False,
-  robot_cfg=TiagoProRobot,
-) -> ManagerBasedRlEnvCfg:
-  cfg = lift_env_cfg(play=play, robot_cfg=robot_cfg, cam_source=cam_source)
-  robot = robot_cfg()
-
-  cfg.scene.sensors = (cfg.scene.sensors or ()) + (
-    CameraSensorCfg(
-      name=f"{cam_source}_realsense_camera",
-      height=128,
-      width=128,
-      data_types=("rgb", "depth"),
-      camera_name=f"robot/{robot.head_camera_name if cam_source == 'head' else robot.wrist_camera_name}",
-    ),
-  )
-
-  cfg.viewer.camera = f"robot/{robot.head_camera_name if cam_source == 'head' else robot.wrist_camera_name}"
-  obs_sensor_name = f"{cam_source}_realsense_camera"
-
-  terms = {}
-  if cam_type == "rgbd":
-    terms[f"{cam_source}_camera_rgbd"] = ObservationTermCfg(
-      func=manipulation_mdp_pal.camera_rgbd, params={"sensor_name": obs_sensor_name}
-    )
-  elif cam_type == "rgb":
-    terms[f"{cam_source}_camera_rgb"] = ObservationTermCfg(
-      func=manipulation_mdp.camera_rgb, params={"sensor_name": obs_sensor_name}
-    )
-  elif cam_type == "depth":
-    terms[f"{cam_source}_camera_depth"] = ObservationTermCfg(
-      func=manipulation_mdp.camera_depth,
-      params={"sensor_name": obs_sensor_name, "cutoff_distance": 1.5},
-    )
-
-  cfg.observations["camera"] = ObservationGroupCfg(
-    terms=terms,
-    enable_corruption=False,
-    concatenate_terms=True,
-    nan_policy="sanitize",
-  )
-
-  for name in ("object_position", "object_orientation", "target_object_position"):
-    cfg.observations["actor"].terms.pop(name, None)
-
-  cfg.observations["actor"].terms["goal_position"] = ObservationTermCfg(
-    func=manipulation_mdp_pal.target_position_in_robot_base_frame,
-    params={"command_name": "lift_height"},
-  )
-
-  return cfg
-
-
-def lift_keypoints_env_cfg(
-  play: bool = False,
-  robot_cfg=TiagoProRobot,
-) -> ManagerBasedRlEnvCfg:
-  cfg = lift_env_cfg(play=play, robot_cfg=robot_cfg, cam_source="head")
-
-  terms = {
-    "head_camera_keypoints": ObservationTermCfg(
-      func=manipulation_mdp_pal.head_camera_keypoints,
-      params={"noise_std": 0.0 if play else 0.015},
-    )
-  }
-
-  cfg.observations["camera"] = ObservationGroupCfg(
-    terms=terms,
-    enable_corruption=False,
-    concatenate_terms=True,
-    nan_policy="sanitize",
-  )
-
-  for name in ("object_position", "object_orientation", "target_object_position"):
-    cfg.observations["actor"].terms.pop(name, None)
-
-  cfg.observations["actor"].terms["goal_position"] = ObservationTermCfg(
-    func=manipulation_mdp_pal.target_position_in_robot_base_frame,
-    params={"command_name": "lift_height"},
   )
 
   return cfg

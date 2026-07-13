@@ -753,6 +753,31 @@ class PrintingPolicy:
         _, _, robot_yaw_w = euler_xyz_from_quat(robot_entity.data.root_link_quat_w)
         box_yaw_r = wrap_angle(box_yaw_val - robot_yaw_w[0].item())
         box_yaw_r_deg = math.degrees(box_yaw_r)
+
+        # Calculate squeeze axis angle for printing
+        squeeze_axis_angle_deg = None
+        fingertip_site_names = [s for s in robot_entity.site_names if "fingertip" in s]
+        if len(fingertip_site_names) == 2:
+            left_idx = robot_entity.site_names.index(fingertip_site_names[0])
+            right_idx = robot_entity.site_names.index(fingertip_site_names[1])
+            p_left = robot_entity.data.site_pos_w[0, left_idx]
+            p_right = robot_entity.data.site_pos_w[0, right_idx]
+            v_squeeze_w = p_left - p_right
+            v_squeeze_t = v_squeeze_w.unsqueeze(0)
+            box_quat_t = box_entity.data.root_link_quat_w[0].unsqueeze(0)
+            
+            v_squeeze_local = quat_apply(quat_inv(box_quat_t), v_squeeze_t)
+            v_local_2d = v_squeeze_local.clone()
+            v_local_2d[:, 2] = 0.0
+            norm_2d = torch.norm(v_local_2d, dim=-1, keepdim=True)
+            if norm_2d.item() > 1e-4:
+                v_local_2d_norm = v_local_2d / norm_2d
+                cos_theta = torch.max(
+                    torch.abs(v_local_2d_norm[:, 0]),
+                    torch.abs(v_local_2d_norm[:, 1])
+                )
+                cos_theta = torch.clamp(cos_theta, -1.0, 1.0)
+                squeeze_axis_angle_deg = torch.rad2deg(torch.acos(cos_theta)).item()
         
         print("\n" + "=" * 80)
         print(f"Step: {step:3d} | Time: {t:.2f}s")
@@ -761,6 +786,8 @@ class PrintingPolicy:
         print(f"Object World Yaw:  {box_yaw_val:.4f} rad ({box_yaw_deg:.2f}°)")
         print(f"Object Robot Pos:  [{box_pos_r[0]:.4f}, {box_pos_r[1]:.4f}, {box_pos_r[2]:.4f}] m")
         print(f"Object Robot Yaw:  {box_yaw_r:.4f} rad ({box_yaw_r_deg:.2f}°)")
+        if squeeze_axis_angle_deg is not None:
+            print(f"Squeeze Axis Angle: {squeeze_axis_angle_deg:.2f}°")
         print(f"Object Mass: {box_mass.item():.4f} kg")
         
         target_pos_w = self.command.target_pos[0].cpu().numpy()
@@ -962,6 +989,69 @@ def main():
 
     # Initialize environment
     env = ManagerBasedRlEnv(cfg=env_cfg, device=device, render_mode=None)
+    
+    def update_visualizers(visualizer):
+        robot = env.scene["robot"]
+        box = env.scene["box"]
+        
+        fingertip_site_names = [s for s in robot.site_names if "fingertip" in s]
+        if len(fingertip_site_names) == 2:
+            left_idx = robot.site_names.index(fingertip_site_names[0])
+            right_idx = robot.site_names.index(fingertip_site_names[1])
+            
+            p_left = robot.data.site_pos_w[0, left_idx].cpu().numpy()
+            p_right = robot.data.site_pos_w[0, right_idx].cpu().numpy()
+            
+            v_squeeze = p_left - p_right
+            v_squeeze_len = np.linalg.norm(v_squeeze)
+            if v_squeeze_len > 1e-4:
+                # Squeeze axis arrow from right finger to left finger
+                # Color: Orange (1.0, 0.5, 0.0, 0.8)
+                visualizer.add_arrow(
+                    start=p_right,
+                    end=p_left,
+                    color=(1.0, 0.5, 0.0, 0.8),
+                    width=0.008
+                )
+                
+                # Target face normal of the box
+                box_pos = box.data.root_link_pos_w[0].cpu().numpy()
+                box_quat = box.data.root_link_quat_w[0].cpu().numpy()
+                
+                v_squeeze_t = torch.tensor(v_squeeze, dtype=torch.float32, device=device).unsqueeze(0)
+                box_quat_t = box.data.root_link_quat_w[0].unsqueeze(0)
+                
+                v_squeeze_local_t = quat_apply(quat_inv(box_quat_t), v_squeeze_t)
+                v_local_2d_t = v_squeeze_local_t.clone()
+                v_local_2d_t[:, 2] = 0.0
+                norm_2d = torch.norm(v_local_2d_t, dim=-1, keepdim=True)
+                if norm_2d.item() > 1e-4:
+                    v_local_2d_norm_t = v_local_2d_t / norm_2d
+                    v_local_2d_norm = v_local_2d_norm_t[0].cpu().numpy()
+                    
+                    if abs(v_local_2d_norm[0]) > abs(v_local_2d_norm[1]):
+                        closest_local_normal = np.array([np.sign(v_local_2d_norm[0]), 0.0, 0.0], dtype=np.float32)
+                    else:
+                        closest_local_normal = np.array([0.0, np.sign(v_local_2d_norm[1]), 0.0], dtype=np.float32)
+                        
+                    closest_local_normal_t = torch.tensor(closest_local_normal, dtype=torch.float32, device=device).unsqueeze(0)
+                    closest_normal_w_t = quat_apply(box_quat_t, closest_local_normal_t)
+                    closest_normal_w = closest_normal_w_t[0].cpu().numpy()
+                    
+                    # Target face normal starting from box_pos
+                    arrow_len = 0.15
+                    normal_start = box_pos
+                    normal_end = box_pos + closest_normal_w * arrow_len
+                    
+                    # Color: Cyan (0.0, 0.8, 0.8, 0.8)
+                    visualizer.add_arrow(
+                        start=normal_start,
+                        end=normal_end,
+                        color=(0.0, 0.8, 0.8, 0.8),
+                        width=0.008
+                    )
+
+    env.update_visualizers = update_visualizers
     env_wrapped = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
 
     # If requested, run a headless mass scan instead of the interactive viewer.
@@ -973,7 +1063,7 @@ def main():
     # Load checkpoint model if provided
     model = None
     if args.checkpoint is not None:
-        checkpoint_path = args.checkpoint
+        checkpoint_path = args.checkpoint.strip()
         if not os.path.exists(checkpoint_path):
             raise FileNotFoundError(f"Checkpoint path '{checkpoint_path}' does not exist!")
             
