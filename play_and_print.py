@@ -262,6 +262,15 @@ class PrintingPolicy:
         self.is_grasped = False
         self.grasp_override_active = False
 
+        # Grab scene references
+        self.robot = self.inner_env.scene["robot"]
+        self.box = self.inner_env.scene["box"]
+        self.command = self.inner_env.command_manager.get_term("lift_height")
+        
+        # Find the grasp site
+        grasp_site_idx, _ = self.robot.find_sites(["gripper_right_grasping_site"], preserve_order=True)
+        self.grasp_idx = grasp_site_idx[0]
+
         # Load YOLO model if enabled
         self.yolo_model = None
         if args.enable_yolo:
@@ -271,15 +280,6 @@ class PrintingPolicy:
             yolo_device = "cuda:0" if torch.cuda.is_available() else "cpu"
             self.yolo_model.to(yolo_device)
             print(f"YOLO model loaded successfully on device: {yolo_device}")
-
-            # Grab scene references
-            self.robot = self.inner_env.scene["robot"]
-            self.box = self.inner_env.scene["box"]
-            self.command = self.inner_env.command_manager.get_term("lift_height")
-            
-            # Find the grasp site
-            grasp_site_idx, _ = self.robot.find_sites(["gripper_right_grasping_site"], preserve_order=True)
-            self.grasp_idx = grasp_site_idx[0]
 
     def __call__(self, obs) -> torch.Tensor:
         # Get current step and time
@@ -338,13 +338,20 @@ class PrintingPolicy:
             ee_pos_robot_cpu = ee_pos_robot.cpu().numpy()[0]
             ee_yaw_cpu = ee_yaw.cpu().numpy()[0]
             
-            # Track grasped status based on contact_both signal
-            contact_both_float = site_contact_both_fingers(
-                env=self.inner_env,
-                sensor_name="box_fingertip_contact",
-                site_names=["gripper_right_fingertip_.*_site"]
-            )
-            contact_both_val = contact_both_float[0].item() > 0.5
+            # Track grasped status based on the flag given in input to the policy
+            cursor = 0
+            contact_idx = -1
+            for name, shape in zip(self.names, self.shapes):
+                dim = math.prod(shape)
+                if name == "object_both__contact_fingers":
+                    contact_idx = cursor
+                    break
+                cursor += dim
+            
+            if contact_idx != -1:
+                contact_both_val = obs["actor"][0, contact_idx].item() > 0.5
+            else:
+                contact_both_val = False
             
             if not contact_both_val:
                 self.grasp_override_active = False
@@ -756,6 +763,14 @@ class PrintingPolicy:
         print(f"Object Robot Yaw:  {box_yaw_r:.4f} rad ({box_yaw_r_deg:.2f}°)")
         print(f"Object Mass: {box_mass.item():.4f} kg")
         
+        target_pos_w = self.command.target_pos[0].cpu().numpy()
+        reached = self.command.reached[0].item()
+        at_goal_time = self.command.at_goal_time[0].item()
+        grasped_dist = self.command.grasped_distance[0].item()
+        print(f"Goal Position:     [{target_pos_w[0]:.4f}, {target_pos_w[1]:.4f}, {target_pos_w[2]:.4f}] m")
+        print(f"Goal Reached:      {reached} (Time at Goal: {at_goal_time:.2f}s)")
+        print(f"Grasped Distance:  {grasped_dist:.4f} m")
+        
         # Read fingertip contact sensors (one per gripper finger) and compute contact metrics
         try:
             contact_sensor = self.inner_env.scene["box_fingertip_contact"]
@@ -836,12 +851,21 @@ class PrintingPolicy:
             cursor += dim
             
         if self.model is not None:
+            import onnxruntime
             from tensordict import TensorDict
-            if not isinstance(obs, TensorDict):
-                obs = TensorDict(obs, batch_size=[1])
-            with torch.no_grad():
-                action = self.model(obs)
-            return action
+            if isinstance(self.model, onnxruntime.InferenceSession):
+                obs_tensor = obs["actor"] if isinstance(obs, dict) or isinstance(obs, TensorDict) else obs
+                obs_numpy = obs_tensor.cpu().numpy()
+                ort_inputs = {self.model.get_inputs()[0].name: obs_numpy}
+                ort_outs = self.model.run(None, ort_inputs)
+                action = torch.tensor(ort_outs[0], device=self.inner_env.device)
+                return action
+            else:
+                if not isinstance(obs, TensorDict):
+                    obs = TensorDict(obs, batch_size=[1])
+                with torch.no_grad():
+                    action = self.model(obs)
+                return action
         else:
             return torch.zeros(self.action_shape, device=self.inner_env.device)
 
@@ -949,36 +973,41 @@ def main():
     # Load checkpoint model if provided
     model = None
     if args.checkpoint is not None:
-        from tensordict import TensorDict
-        
-        print("Setting up policy model...")
-        actor_cfg = agent_cfg.actor
-        model_cls = load_class(actor_cfg.class_name)
-        
-        # Initialize with dummy observations to build model
-        obs_dict, _ = env.reset()
-        dummy_obs = TensorDict(obs_dict, batch_size=[1])
-        
-        model = model_cls(
-            obs=dummy_obs,
-            obs_groups=getattr(agent_cfg, "obs_groups", None),
-            obs_set="actor",
-            output_dim=env.action_manager.total_action_dim,
-            hidden_dims=actor_cfg.hidden_dims,
-            activation=actor_cfg.activation,
-            obs_normalization=actor_cfg.obs_normalization,
-            distribution_cfg=actor_cfg.distribution_cfg,
-        ).to(device)
-        
         checkpoint_path = args.checkpoint
         if not os.path.exists(checkpoint_path):
             raise FileNotFoundError(f"Checkpoint path '{checkpoint_path}' does not exist!")
             
-        print(f"Loading model weights from {checkpoint_path}...")
-        checkpoint = torch.load(checkpoint_path, map_location=device)
-        model.load_state_dict(checkpoint["actor_state_dict"], strict=True)
-        model.eval()
-        print("Model loaded successfully!")
+        if checkpoint_path.endswith(".onnx"):
+            import onnxruntime
+            print(f"Loading ONNX model from {checkpoint_path}...")
+            model = onnxruntime.InferenceSession(checkpoint_path)
+            print("ONNX model loaded successfully!")
+        else:
+            from tensordict import TensorDict
+            print("Setting up policy model...")
+            actor_cfg = agent_cfg.actor
+            model_cls = load_class(actor_cfg.class_name)
+            
+            # Initialize with dummy observations to build model
+            obs_dict, _ = env.reset()
+            dummy_obs = TensorDict(obs_dict, batch_size=[1])
+            
+            model = model_cls(
+                obs=dummy_obs,
+                obs_groups=getattr(agent_cfg, "obs_groups", None),
+                obs_set="actor",
+                output_dim=env.action_manager.total_action_dim,
+                hidden_dims=actor_cfg.hidden_dims,
+                activation=actor_cfg.activation,
+                obs_normalization=actor_cfg.obs_normalization,
+                distribution_cfg=actor_cfg.distribution_cfg,
+            ).to(device)
+            
+            print(f"Loading model weights from {checkpoint_path}...")
+            checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+            model.load_state_dict(checkpoint["actor_state_dict"], strict=True)
+            model.eval()
+            print("Model loaded successfully!")
 
     action_shape = env_wrapped.unwrapped.action_space.shape
     policy = PrintingPolicy(action_shape, env_wrapped, args, model=model)

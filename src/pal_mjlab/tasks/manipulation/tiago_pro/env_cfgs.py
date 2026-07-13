@@ -122,7 +122,7 @@ def lift_env_cfg(
     contact_sensor_name="box_table_contact",
     resampling_time_range=(EPISODE_LENGTH, EPISODE_LENGTH),
     debug_vis=True,
-    success_threshold=0.01,
+    success_threshold=0.03,
     target_position_range=manipulation_mdp_pal.LiftingCommandCfg.TargetPositionRangeCfg(
       x=(0.67, 0.77),
       y=(-0.766, -0.666),
