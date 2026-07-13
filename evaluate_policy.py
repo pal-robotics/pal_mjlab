@@ -268,7 +268,8 @@ def evaluate(args):
     print("Re-enabling success termination: object_released_on_floor")
     env_cfg.terminations["object_released_on_floor"] = TerminationTermCfg(
         func=manipulation_mdp_pal.object_released_on_floor_term,
-        params={"command_name": "lift_height", "floor_z": 0.1, "min_grasped_distance": 0.05},
+        params={"command_name": "lift_height"},
+        time_out=True,
     )
     
     # Dynamically add the camera sensor if YOLO is enabled
