@@ -731,7 +731,7 @@ def test_foot_slip_penalty(mock_env, mock_asset_cfg):
   )
 
 
-def test_soft_lanfing_penalty(mock_env):
+def test_soft_landing_penalty(mock_env):
   env = mock_env
 
   env.extras = {"log": {}}
