@@ -22,20 +22,13 @@ import tkinter.font as tkfont
 import re
 
 import mjlab
-import mjlab.tasks  # noqa: F401
 
 
-from mjlab.envs import ManagerBasedRlEnv
-from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper
-from mjlab.tasks.registry import list_tasks, load_env_cfg, load_rl_cfg, load_runner_cls
-from mjlab.tasks.tracking.mdp import MotionCommandCfg
 from mjlab.utils.os import get_wandb_checkpoint_path
 from mjlab.utils.torch import configure_torch_backends
-from mjlab.utils.wrappers import VideoRecorder
-from mjlab.viewer import NativeMujocoViewer, ViserPlayViewer
 
 
-LOG_ROOT = Path("../hpc_remote_logs").resolve()
+LOG_ROOT = Path("./logs").resolve()
 
 def find_latest_checkpoints():
   checkpoints_dict = {}  # key = (exp_folder, run_folder), value = (step, path)
@@ -266,7 +259,43 @@ def open_menu():
         global tasks
         tasks = re.findall(r'\|\s*\d+\s*\|\s*([\w-]+)\s*\|', output)
 
-      launch_process("uv run list_envs", consoles[selected_console.get()], label="list_envs", on_complete=on_complete)
+      launch_process("uv run list-envs", consoles[selected_console.get()], label="list-envs", on_complete=on_complete)
+
+    def run_tsp():
+      launch_process("tsp", consoles[selected_console.get()], label="tsp")
+
+    def run_tsp_t():
+      launch_process("tsp -t", consoles[selected_console.get()], label="tsp -t")
+
+    def run_tsp_remove():
+      win = tk.Toplevel(root)
+      win.title("Remove tsp Job")
+      win.configure(bg=BG)
+      win.geometry("360x180")
+      win.resizable(False, False)
+
+      tk.Label(win, text="tsp Job ID:", font=label_font,
+               bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(20, 6))
+      id_entry = tk.Entry(win, font=label_font)
+      id_entry.pack(fill="x", padx=20, pady=(0, 16))
+      id_entry.focus_set()
+
+      def confirm():
+        job_id = id_entry.get().strip()
+        if not job_id:
+          append_to_console(consoles[selected_console.get()], "✗ No job id entered\n", "status")
+          return
+        win.destroy()
+        launch_process(f"tsp -r {job_id}", consoles[selected_console.get()], label=f"tsp-r:{job_id}")
+
+      id_entry.bind("<Return>", lambda e: confirm())
+
+      btn = tk.Button(win, text="✕  Remove Job", font=btn_font,
+                      bg=DANGER, fg=BG,
+                      relief="flat", cursor="hand2",
+                      padx=12, pady=8,
+                      command=confirm)
+      btn.pack(padx=20, pady=(0, 20))
 
     def run_deploy():
       if not tasks:
@@ -377,55 +406,13 @@ def open_menu():
                       command=confirm)
       btn.pack(padx=20, pady=(0, 20))
 
-    def syncronize():
-      launch_process(
-          f"cd .. ; hpc tensorboard --checkpoints mn5",
-          consoles[selected_console.get()],
-          label="Sync"
-        )
-
-    def launch_hpc_training(experiment_name, environment_name, custom_job_name, extra_opts, menu_console, description = ""):
-      """
-      Launches the HPC training workflow sequentially using launch_process:
-        1) Build SIF
-        2) Deploy SIF
-        3) Schedule training job on MN5
-      """
-      commands = [
-        f"cd .. ; hpc job build pal_mjlab -o {experiment_name}.sif",
-        f"cd .. ; hpc deploy mn5 {experiment_name}.sif",
-        f'hpc job schedule --name {custom_job_name} mn5 {experiment_name}.sif "python -m mjlab.scripts.train {environment_name} --env.scene.num-envs 4096 --agent.run-name {custom_job_name} --agent.logger tensorboard --agent.save-interval 500 {extra_opts}"'
-      ]
-
-      save_training_snapshot(environment_name, custom_job_name, extra_opts, description)
-
-      def run_next(index=0):
-        if index >= len(commands):
-          # all done
-          menu_console.after(0, append_to_console, menu_console, "All HPC steps finished.\n", "status")
-          menu_console.after(0, menu_console.see, tk.END)
-          return
-
-        cmd = commands[index]
-        label = f"hpc:{index}:{cmd}"  # unique label per step
-
-        # Launch the command
-        def on_complete(output):
-          # After this command finishes, run the next
-          run_next(index + 1)
-
-        launch_process(cmd, menu_console, label=label, on_complete=on_complete)
-
-      # Start the first command
-      run_next(0)
-
-    def run_hpc_train():
+    def run_train():
       if not tasks:
         append_to_console(consoles[selected_console.get()], "✗ No tasks loaded, click 'List Tasks' first\n", "status")
         return
 
       win = tk.Toplevel(root)
-      win.title("HPC Train Policy")
+      win.title("Train Policy")
       win.configure(bg=BG)
       win.geometry("800x700")
       win.resizable(False, True)
@@ -475,105 +462,6 @@ def open_menu():
 
       desc_text.config(yscrollcommand=desc_scrollbar.set)
 
-
-      def confirm():
-        experiment_name = exp_entry.get().strip()
-        custom_job_name = job_entry.get().strip()
-        environment_name = selected_task.get()
-        if not (experiment_name and custom_job_name and environment_name):
-          append_to_console(consoles[selected_console.get()], "✗ All three fields are required\n", "status")
-          return
-        lines = options_text.get("1.0", tk.END).splitlines()
-        extra_opts = " ".join(f"--{line.strip()}" for line in lines if line.strip())
-        description = desc_text.get("1.0", tk.END)
-        win.destroy()
-        launch_hpc_training(experiment_name, environment_name, custom_job_name, extra_opts, consoles[selected_console.get()], description)
-
-      btn = tk.Button(win, text="▶  Start HPC Training", font=btn_font,
-                      bg=ACCENT, fg=BG, relief="flat", cursor="hand2",
-                      padx=12, pady=8, command=confirm)
-      btn.pack(padx=20, pady=(0,20))
-
-    def run_train():
-      if not tasks:
-        append_to_console(consoles[selected_console.get()], "✗ No tasks loaded, click 'List Tasks' first\n", "status")
-        return
-
-      win = tk.Toplevel(root)
-      win.title("Train Policy")
-      win.configure(bg=BG)
-      win.geometry("800x700")
-      win.resizable(False, True)
-      win.minsize(800, 600)
-
-      # Experiment name
-      tk.Label(win, text="Experiment Name:", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(20,6))
-      exp_entry = tk.Entry(win, font=label_font)
-      exp_entry.pack(fill="x", padx=20, pady=(0,16))
-
-      # Custom job name
-      tk.Label(win, text="Custom Job Name:", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(0,6))
-      job_entry = tk.Entry(win, font=label_font)
-      job_entry.pack(fill="x", padx=20, pady=(0,16))
-
-      # Environment dropdown
-      tk.Label(win, text="Select Environment:", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(0,6))
-      selected_task = tk.StringVar(value=tasks[0] if tasks else "")
-      dropdown_task = tk.OptionMenu(win, selected_task, *tasks)
-      dropdown_task.pack(fill="x", padx=20, pady=(0,16))
-
-      # Options label
-      tk.Label(win, text="Options:", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(0,6))
-      # Frame to hold Text + scrollbar
-      text_frame = tk.Frame(win)
-      text_frame.pack(fill="both", padx=20, pady=(0,16), expand=True)
-
-      options_text = tk.Text(text_frame, height=5, font=label_font, wrap=tk.WORD)
-      options_text.pack(side="left", fill="both", expand=True)
-
-      scrollbar = tk.Scrollbar(text_frame, command=options_text.yview)
-      scrollbar.pack(side="right", fill="y")
-
-      options_text.config(yscrollcommand=scrollbar.set)
-
-      check_var = tk.BooleanVar(value=False)  # False = unchecked, True = checked
-
-      tk.Label(win, text="Local :", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(0,6))
-      checkbox = tk.Checkbutton(
-          win,
-          text="Local training",
-          variable=check_var,
-          onvalue=True,
-          offvalue=False,
-          font=label_font,
-          bg=BG,
-          fg="#e8eaf0",
-          activebackground=BG,
-          activeforeground="#00d4aa",  
-          selectcolor=BG,               
-          relief="flat",
-          anchor="w",                   
-          padx=5,
-          pady=2,
-          bd=0,
-          highlightthickness=0,
-      )
-      checkbox.pack(fill="x", padx=20, pady=(0,16))
-
-      # Description label
-      tk.Label(win, text="Decription:", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(0,6))
-      # Frame to hold Text + scrollbar
-      desc_text_frame = tk.Frame(win)
-      desc_text_frame.pack(fill="both", padx=20, pady=(0,16), expand=True)
-
-      desc_text = tk.Text(desc_text_frame, height=5, font=label_font, wrap=tk.WORD)
-      desc_text.pack(side="left", fill="both", expand=True)
-
-      desc_scrollbar = tk.Scrollbar(desc_text_frame, command=desc_text.yview)
-      desc_scrollbar.pack(side="right", fill="y")
-
-      desc_text.config(yscrollcommand=desc_scrollbar.set)
-
       def confirm():
         experiment_name = exp_entry.get().strip()
         custom_job_name = job_entry.get().strip()
@@ -586,18 +474,14 @@ def open_menu():
         extra_opts = " ".join(f"--{line.strip()}" for line in lines if line.strip())
         description = desc_text.get("1.0", tk.END)
 
-        if (check_var.get()):
-          label = f"local_train:{custom_job_name}:{environment_name}"
-          cmd = f'uv run train {environment_name} {extra_opts}'
-        else :
-          label = f"hpc_train:{custom_job_name}:{environment_name}"
-          cmd = f'hpc job schedule --name {custom_job_name} mn5 {experiment_name}.sif "python -m mjlab.scripts.train {environment_name} --env.scene.num-envs 4096 --agent.logger tensorboard --agent.run-name {custom_job_name} --agent.save-interval 500 {extra_opts}"'
-          save_training_snapshot(environment_name, custom_job_name, extra_opts, description)
+        label = f"train:{custom_job_name}:{environment_name}"
+        cmd = f'tsp uv run train {environment_name} --agent.run-name {custom_job_name} {extra_opts}'
+        save_training_snapshot(environment_name, custom_job_name, extra_opts, description)
+
         win.destroy()
-        
         launch_process(cmd, consoles[selected_console.get()], label=label)
 
-      btn = tk.Button(win, text="▶  Start HPC Training", font=btn_font,
+      btn = tk.Button(win, text="▶  Start Training", font=btn_font,
                       bg=ACCENT, fg=BG, relief="flat", cursor="hand2",
                       padx=12, pady=8, command=confirm)
       btn.pack(padx=20, pady=(0,20))
@@ -643,13 +527,16 @@ def open_menu():
       ).pack(anchor="w", padx=20)
 
     tk.Frame(left, bg=PANEL, height=8).pack(fill="x", padx=16)
-    make_button(left, "List Files",    ACCENT,  run_ls)
-    make_button(left, "Build - Train Policy", ACCENT2, run_hpc_train)
-    make_button(left, "Prebuilt - Train Policy", ACCENT, run_train)
+    make_button(left, "List Files",    ACCENT2,  run_ls)
+    make_button(left, "Train Policy", ACCENT, run_train)
     make_button(left, "List tasks",  ACCENT2, run_list_envs)
     make_button(left, "▶  Deploy", ACCENT, run_deploy)
-    make_button(left, "MN Tensorboard", ACCENT2, syncronize)
 
+    tk.Frame(left, bg=MUTED, height=1).pack(fill="x", padx=16, pady=(8, 4))
+    tk.Label(left, text="Job Queue (tsp):", font=label_font, bg=PANEL, fg=MUTED).pack(anchor="w", padx=16, pady=(0, 2))
+    make_button(left, "Check tsp",      ACCENT2, run_tsp)
+    make_button(left, "Check tsp -t",   ACCENT2, run_tsp_t)
+    make_button(left, "Remove tsp Job", DANGER,  run_tsp_remove)
 
     tk.Label(left, text="Running Processes:", font=label_font, bg=PANEL, fg=MUTED).pack(anchor="w", padx=16, pady=(16, 4))
 
