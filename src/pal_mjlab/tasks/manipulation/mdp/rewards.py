@@ -522,13 +522,9 @@ def object_released_on_floor_term(
   floor_z: float = 0.1,
   min_grasped_distance: float = 0.05,
 ) -> torch.Tensor:
-  """Terminates the episode when the object is on the floor (z < floor_z)
-  and has moved more than min_grasped_distance meters while grasped during the episode.
-  """
+  """Terminates the episode when the object has reached the target."""
   command: LiftingCommand = env.command_manager.get_term(command_name)
-  on_floor = command.object_pos_w[:, 2] < floor_z
-  moved_while_grasped = command.grasped_distance > min_grasped_distance
-  return on_floor & moved_while_grasped
+  return command.reached
 
 
 def object_goal_distance_adaptive(

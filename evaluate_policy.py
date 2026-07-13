@@ -318,7 +318,7 @@ def evaluate(args):
         sys.exit(1)
         
     print(f"Loading model weights from {checkpoint_path}...")
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["actor_state_dict"], strict=True)
     model.eval()
 
@@ -481,11 +481,8 @@ def evaluate(args):
             )
             top_collision = top_collision_float > 0.5
             
-            # E. Check success condition (object is on the floor and grasped distance > 5 cm)
-            position_error = torch.norm(command.target_pos - command.object_pos_w, dim=-1)
-            on_floor = command.object_pos_w[:, 2] < 0.1
-            moved_while_grasped = command.grasped_distance > 0.05
-            success_now = on_floor & moved_while_grasped
+            # E. Check success condition (reached must be true)
+            success_now = command.reached
 
             # F. Check grasp-and-lift condition: both fingers in contact AND cube ≥1 cm above resting height
             current_box_z = box.data.root_link_pos_w[:, 2]  # [num_envs]

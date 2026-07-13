@@ -64,6 +64,7 @@ class LiftingCommand(CommandTerm):
     self.target_pos = torch.zeros(self.num_envs, 3, device=self.device)
     self.episode_success = torch.zeros(self.num_envs, device=self.device)
     self.reached = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+    self.at_goal_time = torch.zeros(self.num_envs, device=self.device)
     self.grasped_distance = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device)
     self.prev_object_pos_w = self.object_pos_w.clone()
 
@@ -110,9 +111,14 @@ class LiftingCommand(CommandTerm):
 
   def _update_metrics(self) -> None:
     position_error = torch.norm(self.target_pos - self.object_pos_w, dim=-1)
-    at_goal = (position_error < self.cfg.success_threshold).float()
-    self.episode_success = torch.maximum(self.episode_success, at_goal)
-    self.reached = self.reached | (position_error < self.cfg.success_threshold)
+    at_goal = position_error < self.cfg.success_threshold
+    
+    # Increment at_goal_time if at goal, else reset to 0.0
+    self.at_goal_time = torch.where(at_goal, self.at_goal_time + self._env.step_dt, torch.zeros_like(self.at_goal_time))
+    
+    # reached becomes True if at_goal_time >= 1.0 second
+    self.reached = self.reached | (self.at_goal_time >= 1.0)
+    self.episode_success = torch.maximum(self.episode_success, self.reached.float())
 
     # Track grasped distance
     from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
@@ -128,7 +134,7 @@ class LiftingCommand(CommandTerm):
 
     self.metrics["object_height"] = self.object_bottom_z
     self.metrics["position_error"] = position_error
-    self.metrics["at_goal"] = at_goal
+    self.metrics["at_goal"] = at_goal.float()
     self.metrics["episode_success"] = self.episode_success
     self.metrics["reached"] = self.reached.float()
     self.metrics["grasped_distance"] = self.grasped_distance
@@ -140,6 +146,7 @@ class LiftingCommand(CommandTerm):
     n = len(env_ids)
     self.episode_success[env_ids] = 0.0
     self.reached[env_ids] = False
+    self.at_goal_time[env_ids] = 0.0
     self.grasped_distance[env_ids] = 0.0
     table_surface_z = self.table_surface_z[env_ids]
 
