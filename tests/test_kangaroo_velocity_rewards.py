@@ -995,9 +995,127 @@ def test_convex_hull_joint_limnits(mock_env, mock_asset_cfg):
 
   value = reward_term(env, **cfg.params)
 
-  test_name = "Convex hull (all inside)"
+  test_name = "Convex hull (all outside)"
 
   assert value.shape == (env.num_envs,), tensor_shape_error_message(
     test_name, (env.num_envs,), value.shape
   )
   assert value[0] == pytest.approx(1.6, abs=1e-6), tensor_value_error_message(test_name)
+
+  # On the hull boundary (both groups exactly at vertex (5.8, 1.4))
+
+  asset.data.joint_pos = torch.tensor(
+    [[5.8, 5.8, 1.4, 1.4]] * env.num_envs,
+    device=env.device,
+    dtype=torch.float32,
+  )
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Convex hull (on the boundary)"
+
+  assert value.shape == (env.num_envs,), tensor_shape_error_message(
+    test_name, (env.num_envs,), value.shape
+  )
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
+
+  # Mixed: left group inside at (5.0, 5.0), right group outside at (5.8, 0.4)
+  # Only the right group contributes: 0.8
+
+  asset.data.joint_pos = torch.tensor(
+    [[5.0, 5.8, 5.0, 0.4]] * env.num_envs,
+    device=env.device,
+    dtype=torch.float32,
+  )
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Convex hull (one group inside, one outside)"
+
+  assert value.shape == (env.num_envs,), tensor_shape_error_message(
+    test_name, (env.num_envs,), value.shape
+  )
+  assert value[0] == pytest.approx(0.8, abs=1e-5), tensor_value_error_message(test_name)
+
+  # Asymmetric violations: left group at (5.8, -0.6) contributes 3.2,
+  # right group at (5.8, 0.4) contributes 0.8
+
+  asset.data.joint_pos = torch.tensor(
+    [[5.8, 5.8, -0.6, 0.4]] * env.num_envs,
+    device=env.device,
+    dtype=torch.float32,
+  )
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Convex hull (asymmetric violations)"
+
+  assert value.shape == (env.num_envs,), tensor_shape_error_message(
+    test_name, (env.num_envs,), value.shape
+  )
+  assert value[0] == pytest.approx(4.0, abs=1e-5), tensor_value_error_message(test_name)
+
+  # Far outside: both groups at the origin (0.0, 0.0)
+  # Max facet violation is 3.8460369213 per group -> 2 * 3.8460369213**2
+
+  asset.data.joint_pos = torch.tensor(
+    [[0.0, 0.0, 0.0, 0.0]] * env.num_envs,
+    device=env.device,
+    dtype=torch.float32,
+  )
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Convex hull (far outside)"
+
+  assert value.shape == (env.num_envs,), tensor_shape_error_message(
+    test_name, (env.num_envs,), value.shape
+  )
+  assert value[0] == pytest.approx(29.584, abs=1e-4), tensor_value_error_message(
+    test_name
+  )
+
+  # With margin: the hull is shrunk by 0.5, so a point exactly on the original
+  # boundary now violates by the margin -> 2 * 0.5**2 = 0.5
+
+  cfg_margin = RewardTermCfg(
+    func=None,
+    weight=1.0,
+    params={**cfg.params, "margin": 0.5, "metrics_suffix": "dummy_suffix_margin"},
+  )
+
+  asset.data.joint_pos = torch.tensor(
+    [[5.8, 5.8, 1.4, 1.4]] * env.num_envs,
+    device=env.device,
+    dtype=torch.float32,
+  )
+
+  reward_term_margin = pal_mjlab_r.joint_limits_convex_hull(
+    cfg_margin, env, mock_asset_cfg
+  )
+
+  value = reward_term_margin(env, **cfg_margin.params)
+
+  test_name = "Convex hull (margin, on original boundary)"
+
+  assert value.shape == (env.num_envs,), tensor_shape_error_message(
+    test_name, (env.num_envs,), value.shape
+  )
+  assert value[0] == pytest.approx(0.5, abs=1e-5), tensor_value_error_message(test_name)
+
+  # With margin: a point deep inside stays penalty-free
+
+  asset.data.joint_pos = torch.tensor(
+    [[5.0, 5.0, 5.0, 5.0]] * env.num_envs,
+    device=env.device,
+    dtype=torch.float32,
+  )
+
+  value = reward_term_margin(env, **cfg_margin.params)
+
+  test_name = "Convex hull (margin, deep inside)"
+
+  assert value.shape == (env.num_envs,), tensor_shape_error_message(
+    test_name, (env.num_envs,), value.shape
+  )
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
