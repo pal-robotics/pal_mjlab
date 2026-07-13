@@ -46,21 +46,6 @@ def create_entity_with_actuator(xml_string: str, actuator_cfg):
   return Entity(cfg)
 
 
-def create_entity_from_fixture(fixture_name: str, actuator_cfg=None):
-  """Create entity from fixture file.
-
-  Args:
-    fixture_name: Name of the fixture file (without .xml extension).
-    actuator_cfg: Optional actuator configuration.
-
-  Returns:
-    Entity instance.
-  """
-  xml_string = load_fixture_xml(fixture_name)
-  if actuator_cfg is not None:
-    return create_entity_with_actuator(xml_string, actuator_cfg)
-  cfg = EntityCfg(spec_fn=lambda: mujoco.MjSpec.from_string(xml_string))
-  return Entity(cfg)
 
 
 def initialize_entity(entity: Entity, device: str, num_envs: int = 1):
