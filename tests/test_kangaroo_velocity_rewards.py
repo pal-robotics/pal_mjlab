@@ -872,8 +872,34 @@ def test_joint_vel_limits_penalty(mock_env, mock_asset_cfg):
     ),
     device=env.device,
   )
+
+  asset.find_joints = lambda names: ([0, 1, 2, 3], list(mock_asset_cfg.joint_names))
+
+  cfg = RewardTermCfg(
+    func=None,
+    weight=1.0,
+    params={
+      "asset_cfg": mock_asset_cfg,
+      "velocity_limits": {
+        r"leg_.*_1": (-1.0, 1.7),
+        r"leg_.*_2": (-2.5, 2.0),
+      },
+    },
+  )
+
+  reward_term = pal_mjlab_r.joint_vel_limits(cfg, env)
+
+  value = reward_term(env, {}, mock_asset_cfg)
+
+  test_name = "Joint vel limits (within the limits)"
+
+  assert value.shape == (env.num_envs,), tensor_shape_error_message(
+    test_name, (env.num_envs,), value.shape
+  )
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
+
   asset.data.joint_vel[:, 1] = 1.5
-  asset.data.joint_vel[:, 3] = -2.5
+  asset.data.joint_vel[:, 2] = -2.5
 
   asset.find_joints = lambda names: ([0, 1, 2, 3], list(mock_asset_cfg.joint_names))
 
@@ -893,11 +919,12 @@ def test_joint_vel_limits_penalty(mock_env, mock_asset_cfg):
 
   value = reward_term(env, {}, mock_asset_cfg)
 
-  test_name = "Joint vel limits"
+  test_name = "Joint vel limits (Outside the limits)"
 
   assert value.shape == (env.num_envs,), tensor_shape_error_message(
     test_name, (env.num_envs,), value.shape
   )
+  # 0.5 is contribution from leg_right_1 and 0.8 is from leg_left_2
   assert value[0] == pytest.approx(1.3, abs=1e-6), tensor_value_error_message(test_name)
 
 
