@@ -34,6 +34,8 @@ from mjlab.terrains.config import ROUGH_TERRAINS_CFG
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
 
+from pal_mjlab.tasks.box_lifting.box_commands import UniformBoxHeightCommandCfg
+
 
 def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
   """Create base box lifting tracking task configuration."""
@@ -178,6 +180,16 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
 
     # SHOULD BE BOX TARGET HEIGHT OR POSITION
+    
+  commands = { 
+    "box_height" : UniformBoxHeightCommandCfg(
+      resampling_time_range=(30.0,30.0),
+      entity_name="box",
+      ranges=UniformBoxHeightCommandCfg.Ranges(
+        height=(0.5, 0.8),
+      ),
+    ),
+  }
 
   ##
   # Events
@@ -370,17 +382,6 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
     "terrain_levels": CurriculumTermCfg(
       func=mdp.terrain_levels_vel,
       params={"command_name": "twist"},
-    ),
-    "command_vel": CurriculumTermCfg(
-      func=mdp.commands_vel,
-      params={
-        "command_name": "twist",
-        "velocity_stages": [
-          {"step": 0, "lin_vel_x": (-1.0, 1.0), "ang_vel_z": (-0.5, 0.5)},
-          {"step": 5000 * 24, "lin_vel_x": (-1.5, 2.0), "ang_vel_z": (-0.7, 0.7)},
-          {"step": 10000 * 24, "lin_vel_x": (-2.0, 3.0)},
-        ],
-      },
     ),
   }
 
