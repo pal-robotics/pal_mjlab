@@ -462,8 +462,7 @@ def evaluate(args):
             # Cube orientation
             cube_quat = box.data.root_link_quat_w             # [B, 4]
             
-            # B. Compute current fingertip angles wrt cube lateral surfaces
-            squeeze_angles = compute_angle_wrt_cube_lateral_surfaces(v_squeeze_norm, cube_quat)
+            # B. Compute current fingertip angles wrt cube lateral surfaces (deferred to end of loop to support YOLO)
             
             # C. Check contact_both_fingers condition
             contact_both_float = site_contact_both_fingers(
@@ -481,9 +480,10 @@ def evaluate(args):
             )
             top_collision = top_collision_float > 0.5
             
-            # E. Check success condition (reached must be true)
+            # E. Check success condition (reached must be true, object is on the floor < 0.1m, and gripper released)
             position_error = torch.norm(command.target_pos - command.object_pos_w, dim=-1)
-            success_now = command.reached
+            on_floor = command.object_pos_w[:, 2] < 0.1
+            success_now = command.reached & on_floor & ~contact_both
 
             # F. Check grasp-and-lift condition: both fingers in contact AND cube ≥1 cm above resting height
             current_box_z = box.data.root_link_pos_w[:, 2]  # [num_envs]
@@ -508,9 +508,7 @@ def evaluate(args):
                 # Record angles from the previous step (instant before contact)
                 angles_trigger_squeeze.append(prev_squeeze_angles[i].item())
 
-        # Update previous step values
-        prev_squeeze_angles = squeeze_angles.clone()
-        prev_contact_both = contact_both.clone()
+
 
         # F. Early success truncation: if an environment has achieved success,
         # we record it immediately, reset it in the simulation, and start a new episode.
@@ -1019,7 +1017,18 @@ def evaluate(args):
             with torch.no_grad():
                 action = model(current_obs)
 
-            
+        with torch.no_grad():
+            if args.enable_yolo:
+                # Rotate v_squeeze_norm from world frame to robot base frame
+                v_squeeze_robot = quat_apply(quat_inv(robot.data.root_link_quat_w), v_squeeze_norm)
+                # Compute angle wrt YOLO estimated orientation in robot base frame
+                squeeze_angles = compute_angle_wrt_cube_lateral_surfaces(v_squeeze_robot, est_quat_r)
+            else:
+                squeeze_angles = compute_angle_wrt_cube_lateral_surfaces(v_squeeze_norm, cube_quat)
+
+            prev_squeeze_angles = squeeze_angles.clone()
+            prev_contact_both = contact_both.clone()
+
         _, _, terminated, truncated, _ = env.step(action)
         dones = terminated | truncated
         step_count += 1
@@ -1129,7 +1138,7 @@ def main():
     parser.add_argument(
         "--num_episodes",
         type=int,
-        default=1000,
+        default=100,
         help="Total number of evaluation episodes to collect (default: 100)"
     )
     parser.add_argument(
