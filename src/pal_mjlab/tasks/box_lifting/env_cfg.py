@@ -103,7 +103,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"command_name": "box_height"},
     ),
     "box_position": ObservationTermCfg(
-      func=mdp.get_box_pos,
+      func=mdp.joint_vel_rel,
       noise=Unoise(n_min=-0.1, n_max=0.1),
     ),
     "height_scan": ObservationTermCfg(
@@ -284,7 +284,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
       weight=1.0,
       params={
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-        "command_name": "twist",
+        "command_name": "TBD",
         "std_standing": {},  # Set per-robot.
         "std_walking": {},  # Set per-robot.
         "std_running": {},  # Set per-robot.
@@ -311,7 +311,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
         "sensor_name": "feet_ground_contact",
         "threshold_min": 0.05,
         "threshold_max": 0.5,
-        "command_name": "twist",
+        "command_name": "TBD",
         "command_threshold": 0.5,
       },
     ),
@@ -321,7 +321,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "target_height": 0.1,
         "height_sensor_name": "foot_height_scan",
-        "command_name": "twist",
+        "command_name": "TBD",
         "command_threshold": 0.05,
         "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot.
       },
@@ -333,7 +333,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
         "sensor_name": "feet_ground_contact",
         "height_sensor_name": "foot_height_scan",
         "target_height": 0.1,
-        "command_name": "twist",
+        "command_name": "TBD",
         "command_threshold": 0.05,
       },
     ),
@@ -342,7 +342,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
       weight=-0.1,
       params={
         "sensor_name": "feet_ground_contact",
-        "command_name": "twist",
+        "command_name": "TBD",
         "command_threshold": 0.05,
         "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot.
       },
@@ -352,7 +352,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
       weight=-1e-5,
       params={
         "sensor_name": "feet_ground_contact",
-        "command_name": "twist",
+        "command_name": "TBD",
         "command_threshold": 0.05,
       },
     ),
@@ -381,7 +381,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
   curriculum = {
     "terrain_levels": CurriculumTermCfg(
       func=mdp.terrain_levels_vel,
-      params={"command_name": "twist"},
+      params={"command_name": "TBD"},
     ),
   }
 
