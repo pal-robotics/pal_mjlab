@@ -33,12 +33,10 @@
     <mesh name="leg_left_2_link"          content_type="model/stl" file="leg/leg_left_2_link.STL" />
     <mesh name="leg_left_3_link"          content_type="model/stl" file="leg/leg_left_3_link.STL" />
     <mesh name="leg_6_link"               content_type="model/stl" file="leg/leg_left_6_link.STL" />
-    <mesh name="leg_7_link"               content_type="model/stl" file="leg/leg_7_link_ft.STL" />
     <mesh name="leg_right_1_link"         content_type="model/stl" file="leg/leg_right_1_link.STL" />
     <mesh name="leg_right_2_link"         content_type="model/stl" file="leg/leg_right_2_link.STL" />
     <mesh name="leg_right_3_link"         content_type="model/stl" file="leg/leg_right_3_link.STL" />
     <mesh name="leg_6_link1"              content_type="model/stl" file="leg/leg_right_6_link.STL"/>
-    <mesh name="leg_7_link1"              content_type="model/stl" file="leg/leg_7_link_ft.STL"/>
     <mesh name="leg_femur_link"           content_type="model/stl" file="leg/leg_femur_link.STL" />
     <mesh name="leg_tibia_link"           content_type="model/stl" file="leg/leg_tibia_link.STL" />
     <mesh name="foot"                     content_type="model/stl" file="leg/foot.STL" />
