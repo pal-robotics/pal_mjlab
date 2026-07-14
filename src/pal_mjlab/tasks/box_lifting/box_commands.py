@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-import numpy as np
 import torch
 
 from mjlab.entity import Entity
@@ -19,11 +18,6 @@ class UniformBoxHeightCommand(CommandTerm):
 
   def __init__(self, cfg: UniformBoxHeightCommandCfg, env: ManagerBasedRlEnv):
     super().__init__(cfg, env)
-
-    if self.cfg.heading_command and self.cfg.ranges.heading is None:
-      raise ValueError("heading_command=True but ranges.heading is set to None.")
-    if self.cfg.ranges.heading and not self.cfg.heading_command:
-      raise ValueError("ranges.heading is set but heading_command=False.")
 
     self.box: Entity = env.scene[cfg.entity_name]
 

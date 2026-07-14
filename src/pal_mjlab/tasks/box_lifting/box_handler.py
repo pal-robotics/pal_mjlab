@@ -3,9 +3,7 @@
 from pathlib import Path
 
 import mujoco
-import torch
-from mjlab.actuator import BuiltinPositionActuatorCfg
-from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
+from mjlab.entity import  EntityCfg
 from mjlab.utils.spec_config import CollisionCfg
 from pal_mjlab import PAL_MJLAB_SRC_PATH
 
