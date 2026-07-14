@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import torch
@@ -55,6 +55,13 @@ class UniformBoxHeightCommandCfg(CommandTermCfg):
     height: tuple[float, float]
 
   ranges: Ranges
+
+  @dataclass
+  class VizCfg:
+    z_offset: float = 0.2
+    scale: float = 0.5
+
+  viz: VizCfg = field(default_factory=VizCfg)
 
   def build(self, env: ManagerBasedRlEnv) -> UniformBoxHeightCommand:
     return UniformBoxHeightCommand(self, env)

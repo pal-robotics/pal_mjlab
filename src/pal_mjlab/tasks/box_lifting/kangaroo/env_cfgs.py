@@ -16,7 +16,7 @@ from mjlab.sensor import (
   RingPatternCfg,
   TerrainHeightSensorCfg,
 )
-from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
+from pal_mjlab.tasks.box_lifting.box_commands import UniformBoxHeightCommandCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
 from pal_mjlab.tasks.box_lifting.env_cfg import make_box_lifting_env_cfg
@@ -137,9 +137,9 @@ def pal_kangaroo_box_lifting_rough_env_cfg(play: bool = False) -> ManagerBasedRl
   cfg.viewer.body_name = "pelvis_2_link"
 
   assert cfg.commands is not None
-  twist_cmd = cfg.commands["twist"]
-  assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-  twist_cmd.viz.z_offset = 1.15
+  box_height_cmd = cfg.commands["box_height"]
+  assert isinstance(box_height_cmd, UniformBoxHeightCommandCfg)
+  box_height_cmd.viz.z_offset = 1.15
 
   # Wire foot height scan to per-foot sites.
   for sensor in cfg.scene.sensors or ():
@@ -389,14 +389,9 @@ def pal_kangaroo_box_lifting_flat_env_cfg(play: bool = False) -> ManagerBasedRlE
   del cfg.curriculum["terrain_levels"]
 
   if play:
-    # Disable command curriculum.
-    assert "command_vel" in cfg.curriculum
-    del cfg.curriculum["command_vel"]
-
-    twist_cmd = cfg.commands["twist"]
-    assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.ranges.lin_vel_x = (-1.5, 2.0)
-    twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
+    box_height_cmd = cfg.commands["box_height"]
+    assert isinstance(box_height_cmd, UniformBoxHeightCommandCfg)
+    box_height_cmd.ranges.height = (0.5, 0.8)
 
   return cfg
 
