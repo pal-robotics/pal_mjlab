@@ -20,39 +20,51 @@ _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
 
 def track_linear_velocity(
-  env: ManagerBasedRlEnv,
-  std: float,
-  command_name: str,
-  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+    env: ManagerBasedRlEnv,
+    std: float,
+    command_name: str,
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
-  """Reward for tracking the commanded base linear velocity.
+    """Reward for tracking the commanded base linear velocity.
 
-  Projects velocity onto the world horizontal plane using yaw-only rotation,
-  so the robot cannot gain reward by flopping forward or gaining vertical velocity.
-  """
-  asset: Entity = env.scene[asset_cfg.name]
-  command = env.command_manager.get_command(command_name)
-  assert command is not None, f"Command '{command_name}' not found."
+    The measured velocity is projected onto the world horizontal plane and then
+    expressed in the robot's yaw frame. This prevents the robot from obtaining
+    reward by pitching/rolling or by generating vertical velocity.
+    """
+    asset: Entity = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+    assert command is not None, f"Command '{command_name}' not found."
 
-  # Extract yaw from quaternion (w, x, y, z)
-  quat = asset.data.root_link_quat_w
-  w, x, y, z = quat[:, 0], quat[:, 1], quat[:, 2], quat[:, 3]
-  yaw = torch.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
-  cos_yaw = torch.cos(yaw)
-  sin_yaw = torch.sin(yaw)
+    # World-frame linear velocity
+    vel_w = asset.data.root_link_lin_vel_w
 
-  # Project body frame XY velocity into yaw-aligned horizontal plane
-  actual_b = asset.data.root_link_lin_vel_b
-  vx = actual_b[:, 0]
-  vy = actual_b[:, 1]
-  actual_horizontal_x = cos_yaw * vx - sin_yaw * vy
-  actual_horizontal_y = sin_yaw * vx + cos_yaw * vy
-  actual_horizontal = torch.stack([actual_horizontal_x, actual_horizontal_y], dim=1)
+    # Extract yaw from world quaternion (w, x, y, z)
+    quat = asset.data.root_link_quat_w
+    w, x, y, z = quat.unbind(dim=1)
 
-  # Penalize vertical velocity in body frame
-  xy_error = torch.sum(torch.square(command[:, :2] - actual_horizontal), dim=1)
-  z_error = torch.square(actual_b[:, 2])
-  return torch.exp(-(xy_error + z_error) / std**2)
+    yaw = torch.atan2(
+        2.0 * (w * z + x * y),
+        1.0 - 2.0 * (y * y + z * z),
+    )
+
+    cos_yaw = torch.cos(yaw)
+    sin_yaw = torch.sin(yaw)
+
+    # Rotate world horizontal velocity into yaw frame (world -> yaw frame)
+    vx_w = vel_w[:, 0]
+    vy_w = vel_w[:, 1]
+
+    vx_yaw = cos_yaw * vx_w + sin_yaw * vy_w
+    vy_yaw = -sin_yaw * vx_w + cos_yaw * vy_w
+
+    actual = torch.stack((vx_yaw, vy_yaw), dim=1)
+
+    xy_error = torch.sum((command[:, :2] - actual) ** 2, dim=1)
+
+    # Penalize world vertical velocity
+    z_error = vel_w[:, 2] ** 2
+
+    return torch.exp(-(xy_error + z_error) / (std**2))
 
 
 def track_angular_velocity(
