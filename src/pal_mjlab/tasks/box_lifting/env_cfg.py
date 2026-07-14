@@ -41,6 +41,10 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
   """Create base box lifting tracking task configuration."""
 
   ##
+  # Box cfg
+  ##
+
+  ##
   # Sensors
   ##
 
