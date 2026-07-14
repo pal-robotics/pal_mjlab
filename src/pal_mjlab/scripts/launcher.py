@@ -8,12 +8,10 @@ To have an interactive menu that makes it much easier to launch simulation and d
 import os
 import sys
 import subprocess
-from dataclasses import asdict, dataclass
+from dataclasses import is_dataclass, fields
 from pathlib import Path
-from typing import Literal
 
 import tyro
-from prettytable import PrettyTable
 
 import threading
 import tkinter as tk
@@ -22,10 +20,7 @@ import tkinter.font as tkfont
 import re
 
 import mjlab
-
-
-from mjlab.utils.os import get_wandb_checkpoint_path
-from mjlab.utils.torch import configure_torch_backends
+from mjlab.tasks.registry import load_env_cfg
 
 
 LOG_ROOT = Path("./logs").resolve()
@@ -158,6 +153,54 @@ def append_to_console(console, text, tag=None):
     console.delete("1.0", f"{excess + 1}.0")
   
   console.see(tk.END)
+
+
+def extract_default_reward_lines(env_cfg):
+  """Best-effort extraction of default reward terms from a loaded env cfg.
+
+  Returns a list of strings formatted as CLI-option "key value" pairs
+  (without the leading "--", matching the format the train window's
+  options box expects, e.g. "env.rewards.track_lin_vel_xy_exp.weight 1.0").
+
+  This is intentionally defensive: reward containers across tasks may be a
+  dict[str, RewardTermCfg], a dataclass of RewardTermCfg fields, or missing
+  entirely, so we introspect rather than assume one exact shape.
+  """
+  lines = []
+
+  rewards = getattr(env_cfg, "rewards", None)
+  if rewards is None:
+    return lines
+
+  # Normalize to an iterable of (name, term) pairs.
+  if isinstance(rewards, dict):
+    items = list(rewards.items())
+  elif is_dataclass(rewards):
+    items = [(f.name, getattr(rewards, f.name)) for f in fields(rewards)]
+  elif hasattr(rewards, "items"):
+    items = list(rewards.items())
+  else:
+    items = []
+
+  for name, term in items:
+    if term is None:
+      continue
+
+    weight = getattr(term, "weight", None)
+    if weight is not None:
+      lines.append(f"env.rewards.{name}.weight {weight}")
+      continue
+
+    # Fallback: term has no obvious "weight" attribute, dump what we can.
+    if is_dataclass(term):
+      for f in fields(term):
+        val = getattr(term, f.name)
+        if isinstance(val, (int, float, str, bool)):
+          lines.append(f"env.rewards.{name}.{f.name} {val}")
+    elif isinstance(term, (int, float, str, bool)):
+      lines.append(f"env.rewards.{name} {term}")
+
+  return lines
 
 
 # --- GUI ---
@@ -434,8 +477,45 @@ def open_menu():
       dropdown_task = tk.OptionMenu(win, selected_task, *tasks)
       dropdown_task.pack(fill="x", padx=20, pady=(0,16))
 
-      # Options label
-      tk.Label(win, text="Options:", font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(0,6))
+      # Options label + Load Default button on the same row
+      options_header = tk.Frame(win, bg=BG)
+      options_header.pack(fill="x", padx=20, pady=(0,6))
+      tk.Label(options_header, text="Options:", font=label_font, bg=BG, fg=MUTED).pack(side="left")
+
+      def run_load_default():
+        task = selected_task.get()
+        if not task:
+          append_to_console(consoles[selected_console.get()], "✗ No task selected\n", "status")
+          return
+        try:
+          env_cfg = load_env_cfg(task)
+        except Exception as e:
+          append_to_console(consoles[selected_console.get()], f"✗ Failed to load default cfg for '{task}': {e}\n", "status")
+          return
+
+        lines = extract_default_reward_lines(env_cfg)
+        if not lines:
+          append_to_console(consoles[selected_console.get()], f"✗ No default rewards found for '{task}'\n", "status")
+          return
+
+        options_text.delete("1.0", tk.END)
+        options_text.insert("1.0", "\n".join(lines))
+        append_to_console(
+          consoles[selected_console.get()],
+          f"✓ Loaded {len(lines)} default reward option(s) for '{task}'\n",
+          "status",
+        )
+
+      load_default_btn = tk.Button(
+        options_header, text="Load Default", font=btn_font,
+        bg=ACCENT2, fg=BG, activebackground=TEXT, activeforeground=BG,
+        relief="flat", cursor="hand2", bd=0, padx=10, pady=4,
+        command=run_load_default,
+      )
+      load_default_btn.pack(side="right")
+      load_default_btn.bind("<Enter>", lambda e: load_default_btn.config(bg=TEXT))
+      load_default_btn.bind("<Leave>", lambda e: load_default_btn.config(bg=ACCENT2))
+
       # Frame to hold Text + scrollbar
       text_frame = tk.Frame(win)
       text_frame.pack(fill="both", padx=20, pady=(0,16), expand=True)
