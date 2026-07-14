@@ -122,7 +122,7 @@ def lift_env_cfg(
     contact_sensor_name="box_table_contact",
     resampling_time_range=(EPISODE_LENGTH, EPISODE_LENGTH),
     debug_vis=True,
-    success_threshold=0.04,
+    success_threshold=0.05,
     target_position_range=manipulation_mdp_pal.LiftingCommandCfg.TargetPositionRangeCfg(
       x=(0.67, 0.77),
       y=(-0.766, -0.666),
@@ -222,7 +222,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_ee_distance_adaptive),
     weight=3.0,
     params={
-      "std": 0.2,
+      "std": 0.15,
       "min_reaching_reward": 0.0,
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
