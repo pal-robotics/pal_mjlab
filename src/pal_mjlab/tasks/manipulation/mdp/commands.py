@@ -65,6 +65,7 @@ class LiftingCommand(CommandTerm):
     self.episode_success = torch.zeros(self.num_envs, device=self.device)
     self.reached = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
     self.at_goal_time = torch.zeros(self.num_envs, device=self.device)
+    self.reached_time = torch.zeros(self.num_envs, device=self.device)  # seconds elapsed since reached became True
     self.grasped_distance = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device)
     self.prev_object_pos_w = self.object_pos_w.clone()
 
@@ -117,20 +118,32 @@ class LiftingCommand(CommandTerm):
     self.at_goal_time = torch.where(at_goal, self.at_goal_time + self._env.step_dt, torch.zeros_like(self.at_goal_time))
     
     # reached becomes True if at_goal_time >= 1.0 second
-    self.reached = self.reached | (self.at_goal_time >= 1.0)
-    self.episode_success = torch.maximum(self.episode_success, self.reached.float())
+    newly_reached = ~self.reached & (self.at_goal_time >= 1.0)
+    self.reached = self.reached | newly_reached
+    
+    # Increment reached_time for all envs that are already (or just became) reached
+    self.reached_time = torch.where(
+      self.reached,
+      self.reached_time + self._env.step_dt,
+      self.reached_time,
+    )
 
-    # Track grasped distance
+    # Track grasped distance and contact status
     from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
-    grasped = site_contact_both_fingers(
+    contact_both = site_contact_both_fingers(
       self._env,
       sensor_name=self.cfg.fingertip_contact_sensor_name,
       site_names=[self.cfg.fingertip_site_pattern],
     ).bool()
 
     step_disp = torch.norm(self.object_pos_w - self.prev_object_pos_w, dim=-1)
-    self.grasped_distance += torch.where(grasped, step_disp, torch.zeros_like(step_disp))
+    self.grasped_distance += torch.where(contact_both, step_disp, torch.zeros_like(step_disp))
     self.prev_object_pos_w = self.object_pos_w.clone()
+
+    # Success condition: target reached + dropped back to floor (< 0.1m) + released gripper (no contact)
+    on_floor = self.object_pos_w[:, 2] < 0.1
+    success = self.reached & on_floor & ~contact_both
+    self.episode_success = torch.maximum(self.episode_success, success.float())
 
     self.metrics["object_height"] = self.object_bottom_z
     self.metrics["position_error"] = position_error
@@ -140,13 +153,14 @@ class LiftingCommand(CommandTerm):
     self.metrics["grasped_distance"] = self.grasped_distance
 
   def compute_success(self) -> torch.Tensor:
-    return self.metrics["position_error"] < self.cfg.success_threshold
+    return self.episode_success.bool()
 
   def _resample_command(self, env_ids: torch.Tensor) -> None:
     n = len(env_ids)
     self.episode_success[env_ids] = 0.0
     self.reached[env_ids] = False
     self.at_goal_time[env_ids] = 0.0
+    self.reached_time[env_ids] = 0.0
     self.grasped_distance[env_ids] = 0.0
     table_surface_z = self.table_surface_z[env_ids]
 
@@ -191,6 +205,15 @@ class LiftingCommand(CommandTerm):
     self.object.write_root_link_velocity_to_sim(
       torch.zeros(n, 6, device=self.device), env_ids=env_ids
     )
+
+  def reached_decay_scale(self, decay_duration: float) -> torch.Tensor:
+    """Returns a per-env scale in [0, 1] that linearly decays from 1 → 0
+    over `decay_duration` seconds after `reached` first becomes True.
+    Envs that have not yet reached return 1.0.
+    """
+    scale = 1.0 - torch.clamp(self.reached_time / decay_duration, 0.0, 1.0)
+    # Before reached: scale is 1.0 (reward fully active)
+    return torch.where(self.reached, scale, torch.ones_like(scale))
 
   def _update_command(self) -> None:
     pass

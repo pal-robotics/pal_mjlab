@@ -261,6 +261,9 @@ class PrintingPolicy:
         self.hsv_ref = None
         self.is_grasped = False
         self.grasp_override_active = False
+        self.episode_success = False
+        self.printed_success_this_episode = False
+        self.episode_count = 0
 
         # Grab scene references
         self.robot = self.inner_env.scene["robot"]
@@ -288,10 +291,17 @@ class PrintingPolicy:
         t = step * dt
 
         if step == 0:
+            if self.episode_count > 0:
+                print("\n" + "*" * 80)
+                print(f"  EPISODE {self.episode_count} RESULT: {'SUCCESS' if self.episode_success else 'FAILED'}")
+                print("*" * 80 + "\n")
             self.kf = None
             self.hsv_ref = None
             self.is_grasped = False
             self.grasp_override_active = False
+            self.episode_success = False
+            self.printed_success_this_episode = False
+            self.episode_count += 1
         
         # Run hybrid YOLO-based estimation mode if enabled
         if self.args.enable_yolo:
@@ -824,6 +834,17 @@ class PrintingPolicy:
                 site_names=[robot_cfg.fingertip_site_pattern],
             )
             combined_contact = combined_contact_tensor[0, 0].item() > 0
+
+            # Check if the episode is successful (reached goal, fell on floor, and released)
+            on_floor = box_pos_w[2] < 0.1
+            success_now = reached and on_floor and not dist_both
+            if success_now:
+                self.episode_success = True
+                if not getattr(self, "printed_success_this_episode", False):
+                    print("\n" + "*" * 80)
+                    print(f"*** SUCCESS ACHIEVED AT STEP {step}! (Reached & Released on floor) ***")
+                    print("*" * 80 + "\n")
+                    self.printed_success_this_episode = True
         except Exception:
             pass
 
