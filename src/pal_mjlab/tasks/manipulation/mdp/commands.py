@@ -206,15 +206,6 @@ class LiftingCommand(CommandTerm):
       torch.zeros(n, 6, device=self.device), env_ids=env_ids
     )
 
-  def reached_decay_scale(self, decay_duration: float) -> torch.Tensor:
-    """Returns a per-env scale in [0, 1] that linearly decays from 1 → 0
-    over `decay_duration` seconds after `reached` first becomes True.
-    Envs that have not yet reached return 1.0.
-    """
-    scale = 1.0 - torch.clamp(self.reached_time / decay_duration, 0.0, 1.0)
-    # Before reached: scale is 1.0 (reward fully active)
-    return torch.where(self.reached, scale, torch.ones_like(scale))
-
   def _update_command(self) -> None:
     pass
 
