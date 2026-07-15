@@ -29,7 +29,7 @@ def get_box_spec() -> mujoco.MjSpec:
   return _load_spec(BOX_XML)
     
 INIT_STATE = EntityCfg.InitialStateCfg(
-  pos=(1.0, 0.0, 0.0)
+  pos=(0.0, 0.0, 0.0)
 )
 
 def get_box_cfg() -> EntityCfg:
