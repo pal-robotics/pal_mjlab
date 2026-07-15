@@ -105,7 +105,7 @@ def pal_kangaroo_box_lifting_rough_env_cfg(play: bool = False) -> ManagerBasedRl
   hands_box_cfg = ContactSensorCfg(
     name="hands_box_contact",
     primary=ContactMatch(
-      mode="body",
+      mode="subtree",
       pattern=r"^(arm_left_tip_link|arm_right_tip_link)$",
       entity="robot",
     ),

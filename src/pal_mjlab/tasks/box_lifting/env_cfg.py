@@ -229,7 +229,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
       mode="reset",
       params={
         "pose_range": {
-          "x": (0.5, 1.0),
+          "x": (1.0, 1.5),
           "y": (-0.5, 0.5),
           "z": (0.15, 0.15),
           "yaw": (-3.14, 3.14),
