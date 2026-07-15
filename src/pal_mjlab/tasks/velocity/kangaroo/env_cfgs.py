@@ -354,6 +354,9 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   return cfg
 
 
+### ROUGH
+
+
 def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics custom rough terrain velocity configuration."""
 
@@ -628,6 +631,124 @@ def pal_kangaroo_grippers_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnv
   joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
 
   return cfg
+
+
+### STAIRS
+
+
+def pal_kangaroo_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics stairs terrain velocity configuration."""
+
+  ### GENERAL CONFIGURATION
+
+  cfg = pal_kangaroo_rough_env_cfg(play=play)
+
+  ### COMMANDS
+
+  # Dualband twist, with heading control
+  cfg.commands["twist"] = mdp.DualBandVelocityCommandCfg(
+    entity_name="robot",
+    resampling_time_range=(3.0, 8.0),
+    min_lin_vel_x=0.2,
+    rel_inside_low=0.1,
+    rel_standing_envs=0.1,
+    rel_straight_envs=0.3,
+    rel_heading_envs=1.0,
+    heading_command=True,
+    heading_control_stiffness=3.0,
+    debug_vis=True,
+    viz=mdp.DualBandVelocityCommandCfg.VizCfg(z_offset=1.15),
+    ranges=mdp.DualBandVelocityCommandCfg.Ranges(
+      lin_vel_x=(-0.5, 0.5),
+      lin_vel_y=(0.0, 0.0),
+      ang_vel_z=(-0.5, 0.5),  # In head control, this is the clip value
+      heading=(0.0, 0.0),  # We want to go straight to the stairs
+    ),
+  )
+
+  ### CURRICULUM
+
+  # Terrain
+
+  assert cfg.scene.terrain is not None
+  assert cfg.scene.terrain.terrain_generator is not None
+  cfg.scene.terrain.terrain_type = "generator"
+  cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
+    size=(3.0, 3.0),
+    num_rows=12,
+    num_cols=10,
+    border_width=20.0,
+    curriculum=True,
+    sub_terrains={
+      "flat": flat(proportion=0.1),
+      "pebbles": random_spread_boxes(
+        proportion=0.1,
+        num_boxes=350,
+        box_width_range=(0.02, 0.05),
+        box_length_range=(0.02, 0.05),
+        box_height_range=(0.02, 0.05),
+        platform_width=0.5,
+        border_width=0.0,
+      ),
+      "random_obstacles": random_spread_boxes(
+        proportion=0.1,
+        num_boxes=30,
+        box_width_range=(0.2, 0.6),
+        box_length_range=(0.2, 0.6),
+        box_height_range=(0.02, 0.06),
+        platform_width=0.5,
+        border_width=0.0,
+      ),
+      "easy_stairs": pyramid_stairs_inv(
+        proportion=0.2,
+        step_height_range=(0.05, 0.1),
+        step_width=0.3,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "mid_stairs": pyramid_stairs_inv(
+        proportion=0.2,
+        step_height_range=(0.1, 0.15),
+        step_width=0.3,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+      "hard_stairs": pyramid_stairs_inv(
+        proportion=0.3,
+        step_height_range=(0.15, 0.2),
+        step_width=0.3,
+        platform_width=0.5,
+        border_width=0.1,
+      ),
+    },
+  )
+
+  return cfg
+
+
+def pal_kangaroo_lower_body_stairs_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO with lower_body (Legs + Pelvis) stairs terrain velocity configuration."""
+  cfg = pal_kangaroo_stairs_env_cfg(play=play)
+
+  for pose_type in ("std_walking", "std_running"):
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_1_.*"]
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_4_.*"]
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_(?![14]_joint)\d+_joint"]
+
+  cfg.scene.entities = {"robot": get_kangaroo_lower_body_robot_cfg()}
+
+  # Prevents feet instability
+  cfg.rewards["action_rate_l2"].weight = -0.2
+
+  joint_pos_action = cfg.actions["joint_pos"]
+  assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action.scale = KANGAROO_LOWER_BODY_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_ACTUATOR_NAMES
+
+  return cfg
+
+
+### FLAT
 
 
 def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
