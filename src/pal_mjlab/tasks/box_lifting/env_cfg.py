@@ -138,11 +138,11 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"sensor_name": "feet_ground_contact"},
     ),
     "hand_to_box_contact": ObservationTermCfg(
-      func=mdp.foot_contact,
+      func=mdp.hand_to_box_contact,
       params={"sensor_name": "hands_box_contact"},
     ),
     "hand_to_box_contact_forces": ObservationTermCfg(
-      func=mdp.foot_contact_forces,
+      func=mdp.hand_to_box_contact_forces,
       params={"sensor_name": "hands_box_contact"},
     ),
   }
