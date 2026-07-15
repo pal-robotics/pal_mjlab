@@ -271,7 +271,7 @@ def hands_to_box(
         torch.norm(asset.data.root_link_pos_w[:, :2] - box_pos[:, :2], dim=-1) < dist
     )
 
-    hand_pos = asset.data.body_pos_w[:, asset_cfg.body_ids]  # (N, n_hands, 3)
+    hand_pos = asset.data.body_link_pos_w[:, asset_cfg.body_ids]  # (N, n_hands, 3)
     err = torch.norm(hand_pos - box_pos.unsqueeze(1), dim=-1)
     reward = torch.sum(torch.exp(-torch.square(err) / std**2), dim=1)
 
@@ -399,10 +399,14 @@ class VariablePostureBoxLifting:
     def __call__(
         self,
         env: ManagerBasedRlEnv,
+        std_walking,
+        std_lifting,
         asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
         box_cfg: SceneEntityCfg = _DEFAULT_BOX_CFG,
         dist: float = 0.60,
     ) -> torch.Tensor:
+        del std_walking, std_lifting
+
         asset: Entity = env.scene[asset_cfg.name]
         box: Entity = env.scene[box_cfg.name]
 

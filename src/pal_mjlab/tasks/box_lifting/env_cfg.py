@@ -380,7 +380,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
         weight=3.0,
         params={
             "asset_cfg": SceneEntityCfg(
-                "robot", body_names=["fake_forearm_left_link", "fake_forearm_right_link"]
+                "robot", body_names=["arm_left_tip_link", "arm_right_tip_link"]
             ),
             "std": math.sqrt(1.0),
             "dist": 0.60,

@@ -21,7 +21,7 @@ class UniformBoxHeightCommand(CommandTerm):
 
     self.box: Entity = env.scene[cfg.entity_name]
 
-    self.box_height_command = torch.zeros(self.num_envs, device=self.device)
+    self.box_height_command = torch.zeros(self.num_envs, 1, device=self.device)
 
     self.metrics["error_box_height"] = torch.zeros(self.num_envs, device=self.device)
 
