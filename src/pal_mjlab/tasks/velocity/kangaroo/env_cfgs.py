@@ -567,16 +567,37 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
+  # Delete the high speed curriculum
+  del cfg.curriculum["command_vel"]
+
   # PLAY
   if play:
-    # Disable command curriculum.
-    assert "command_vel" in cfg.curriculum
-    del cfg.curriculum["command_vel"]
-
     twist_cmd = cfg.commands["twist"]
-    assert isinstance(twist_cmd, mdp.DualBandVelocityCommand)
-    twist_cmd.ranges.lin_vel_x = (0.2, 0.5)
-    twist_cmd.ranges.ang_vel_z = (-0.3, 0.5)
+    assert isinstance(twist_cmd, mdp.DualBandVelocityCommandCfg)
+    twist_cmd.ranges.lin_vel_x = (-0.5, 0.5)
+    twist_cmd.ranges.ang_vel_z = (-0.5, 0.5)
+
+  return cfg
+
+
+def pal_kangaroo_lower_body_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO with lower_body (Legs + Pelvis) rough terrain velocity configuration."""
+  cfg = pal_kangaroo_rough_env_cfg(play=play)
+
+  for pose_type in ("std_walking", "std_running"):
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_1_.*"]
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_4_.*"]
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_(?![14]_joint)\d+_joint"]
+
+  cfg.scene.entities = {"robot": get_kangaroo_lower_body_robot_cfg()}
+
+  # Prevents feet instability
+  cfg.rewards["action_rate_l2"].weight = -0.2
+
+  joint_pos_action = cfg.actions["joint_pos"]
+  assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action.scale = KANGAROO_LOWER_BODY_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_ACTUATOR_NAMES
 
   return cfg
 
