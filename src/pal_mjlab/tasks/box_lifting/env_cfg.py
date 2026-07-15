@@ -298,16 +298,14 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
       },
     ),
     "pose": RewardTermCfg(
-      func=mdp.variable_posture,
+      func=mdp.VariablePostureBoxLifting,
       weight=1.0,
       params={
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-        "command_name": "TBD",
-        "std_standing": {},  # Set per-robot.
+        "box_cfg": SceneEntityCfg("box"),
+        "dist": 0.60,
         "std_walking": {},  # Set per-robot.
-        "std_running": {},  # Set per-robot.
-        "walking_threshold": 0.05,
-        "running_threshold": 1.5,
+        "std_lifting": {},  # Set per-robot.
       },
     ),
     "body_ang_vel": RewardTermCfg(
@@ -323,56 +321,94 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
     "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
     "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1),
     "air_time": RewardTermCfg(
-      func=mdp.feet_air_time,
-      weight=0.0,  # Override per-robot.
-      params={
-        "sensor_name": "feet_ground_contact",
-        "threshold_min": 0.05,
-        "threshold_max": 0.5,
-        "command_name": "TBD",
-        "command_threshold": 0.5,
-      },
+        func=mdp.feet_air_time_box,
+        weight=0.25,
+        params={
+            "sensor_name": "feet_ground_contact",
+            "threshold_min": 0.05,
+            "threshold_max": 0.5,
+            "dist": 0.60,
+        },
     ),
     "foot_clearance": RewardTermCfg(
-      func=mdp.feet_clearance,
-      weight=-2.0,
-      params={
-        "target_height": 0.1,
-        "height_sensor_name": "foot_height_scan",
-        "command_name": "TBD",
-        "command_threshold": 0.05,
-        "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot.
-      },
+        func=mdp.feet_clearance_box,
+        weight=-2.0,
+        params={
+            "target_height": 0.1,
+            "height_sensor_name": "foot_height_scan",
+            "dist": 0.60,
+            "asset_cfg": SceneEntityCfg("robot", site_names=()), # Set per-robot.
+        },
     ),
     "foot_swing_height": RewardTermCfg(
-      func=mdp.feet_swing_height,
-      weight=-0.25,
-      params={
-        "sensor_name": "feet_ground_contact",
-        "height_sensor_name": "foot_height_scan",
-        "target_height": 0.1,
-        "command_name": "TBD",
-        "command_threshold": 0.05,
-      },
+        func=mdp.feet_swing_height_box,
+        weight=-0.25,
+        params={
+            "sensor_name": "feet_ground_contact",
+            "height_sensor_name": "foot_height_scan",
+            "target_height": 0.1,
+            "dist": 0.60,
+        },
     ),
     "foot_slip": RewardTermCfg(
-      func=mdp.feet_slip,
-      weight=-0.1,
-      params={
-        "sensor_name": "feet_ground_contact",
-        "command_name": "TBD",
-        "command_threshold": 0.05,
-        "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot.
-      },
+        func=mdp.feet_slip_box,
+        weight=-0.1,
+        params={
+            "sensor_name": "feet_ground_contact",
+            "dist": 0.60,
+            "asset_cfg": SceneEntityCfg("robot", site_names=()), # Set per-robot.
+        },
     ),
     "soft_landing": RewardTermCfg(
-      func=mdp.soft_landing,
-      weight=-1e-5,
-      params={
-        "sensor_name": "feet_ground_contact",
-        "command_name": "TBD",
-        "command_threshold": 0.05,
-      },
+        func=mdp.soft_landing_box,
+        weight=-1e-05,
+        params={
+            "sensor_name": "feet_ground_contact",
+            "dist": 0.60,
+        },
+    ),
+    "box_proximity": RewardTermCfg(
+        func=mdp.box_proximity,
+        weight=5.0,
+        params={
+            "std": 1.5,
+            "dist": 0.50,
+        },
+    ),
+    "hands_to_box": RewardTermCfg(
+        func=mdp.hands_to_box,
+        weight=3.0,
+        params={
+            "asset_cfg": SceneEntityCfg(
+                "robot", body_names=["fake_forearm_left_link", "fake_forearm_right_link"]
+            ),
+            "std": math.sqrt(1.0),
+            "dist": 0.60,
+        },
+    ),
+    "box_height": RewardTermCfg(
+        func=mdp.box_height,
+        weight=2.0,
+        params={
+            "std": math.sqrt(0.3),
+            "dist": 0.60,
+            "target_height": 1.0,
+        },
+    ),
+    "look_at_box": RewardTermCfg(
+        func=mdp.look_at_box,
+        weight=1.0,
+        params={
+            "std": math.sqrt(0.5),
+        },
+    ),
+    "horizontal_vel_penalty": RewardTermCfg(
+        func=mdp.horizontal_vel_penalty,
+        weight=-0.5,
+    ),
+    "ang_vel_penalty": RewardTermCfg(
+        func=mdp.ang_vel_penalty,
+        weight=-0.5,
     ),
   }
 

@@ -247,7 +247,7 @@ def pal_kangaroo_box_lifting_rough_env_cfg(play: bool = False) -> ManagerBasedRl
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-  for reward_name in ["foot_clearance", "foot_slip"]:
+  for reward_name in ["foot_clearance_box", "foot_slip_box"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
   cfg.rewards["body_ang_vel"].weight = -0.05
   cfg.rewards["angular_momentum"].weight = -0.02
