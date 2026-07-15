@@ -218,7 +218,6 @@ def lift_env_cfg(
   #### REWARDS
   cfg.rewards.clear()
   _grasp_cfg = SceneEntityCfg("robot", site_names=(robot.ee_site,))
-  _reaching_decay_duration = 20000000.0  # seconds over which reaching-phase rewards linearly decay after goal is reached
   cfg.rewards["reaching_object"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_ee_distance_adaptive),
     weight=3.0,
@@ -230,7 +229,6 @@ def lift_env_cfg(
       "deactivate_on_contact": False,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
-      "reached_decay_duration": _reaching_decay_duration,
     },
   )
   cfg.rewards["gripper_open_during_approach"] = RewardTermCfg(
@@ -256,14 +254,13 @@ def lift_env_cfg(
   )
   cfg.rewards["object_goal_tracking"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance_adaptive),
-    weight=3.0,
+    weight=5.0,
     params={
       "command_name": "lift_height",
       "std": 0.15,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
       "coordinate_weights": (1.0, 1.0, 3.0),
-      "reached_decay_duration": _reaching_decay_duration,
     },
   )
 
@@ -286,7 +283,6 @@ def lift_env_cfg(
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
       "command_name": "lift_height",
-      "reached_decay_duration": _reaching_decay_duration,
     },
   )
 
@@ -302,13 +298,12 @@ def lift_env_cfg(
       "as_penalty": True,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
-      "reached_decay_duration": _reaching_decay_duration,
     },
   )
 
   cfg.rewards["release_cube"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.release_cube_reward),
-    weight=10.0,
+    weight=100.0,
     params={
       "command_name": "lift_height",
       "max_open": 0.08,

@@ -266,7 +266,6 @@ def object_goal_distance_adaptive(
   site_names: list[str],
   asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
   coordinate_weights: tuple[float, float, float] = (1.0, 1.0, 1.0),
-  reached_decay_duration: float = 4.0,
 ) -> torch.Tensor:
   command: LiftingCommand = env.command_manager.get_term(command_name)
   contact_both = site_contact_both_fingers(
@@ -278,8 +277,7 @@ def object_goal_distance_adaptive(
   weighted_diff = diff * weights
   distance = torch.norm(weighted_diff, dim=-1)
 
-  decay = command.reached_decay_scale(reached_decay_duration)
-  return decay * (~command.object_on_table & contact_both) * (1.0 - torch.tanh(distance / std))
+  return (~command.object_on_table & contact_both) * (1.0 - torch.tanh(distance / std))
 
 
 def object_is_lifted_adaptive(
@@ -306,9 +304,7 @@ def object_is_lifted_adaptive(
 
   is_lifted = (~command.object_on_table & fingers_close).float()
   
-  # Only reward lifting if the goal has NOT been reached yet
-  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device))
-  return (~reached).float() * is_lifted * scale
+  return is_lifted * scale
 
 
 def object_ee_distance_adaptive(
@@ -320,7 +316,6 @@ def object_ee_distance_adaptive(
   deactivate_on_contact: bool = False,
   sensor_name: str | None = None,
   site_names: list[str] | None = None,
-  reached_decay_duration: float = 4.0,
 ) -> torch.Tensor:
   if asset_cfg is None:
     asset_cfg = SceneEntityCfg("robot")
@@ -341,9 +336,7 @@ def object_ee_distance_adaptive(
     ).squeeze(-1)
     reward = reward * (1.0 - contact)
 
-  # Linearly decay reaching reward after the goal is reached
-  decay = command.reached_decay_scale(reached_decay_duration)
-  return decay * reward
+  return reward
 
 
 def fingertip_cube_alignment_reward_adaptive(
@@ -355,7 +348,6 @@ def fingertip_cube_alignment_reward_adaptive(
   as_penalty: bool = False,
   sensor_name: str | None = None,
   site_names: list[str] | None = None,
-  reached_decay_duration: float = 4.0,
 ) -> torch.Tensor:
   reward = fingertip_cube_alignment_reward(
     env=env,
@@ -367,9 +359,7 @@ def fingertip_cube_alignment_reward_adaptive(
     sensor_name=sensor_name,
     site_names=site_names,
   )
-  command: LiftingCommand = env.command_manager.get_term(command_name)
-  decay = command.reached_decay_scale(reached_decay_duration)
-  return decay * reward
+  return reward
 
 
 def release_cube_reward(
@@ -381,14 +371,14 @@ def release_cube_reward(
   command: LiftingCommand = env.command_manager.get_term(command_name)
   reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)).float()
 
-  # Get gripper joint position
+  # Get gripper joint velocity
   robot = env.scene[asset_cfg.name]
   joint_ids, _ = robot.find_joints("gripper_right_finger_joint")
-  gripper_pos = robot.data.joint_pos[:, joint_ids[0]]
+  gripper_vel = robot.data.joint_vel[:, joint_ids[0]]
 
-  # We reward opening the gripper when reached is True
-  normalized_open = torch.clamp(gripper_pos / max_open, 0.0, 1.0)
-  return reached * normalized_open
+  # Reward only active opening (positive velocity) when reached is True
+  active_opening = torch.clamp(gripper_vel, min=0.0)
+  return reached * active_opening
 
 
 def object_falling_reward(
@@ -398,9 +388,17 @@ def object_falling_reward(
   command: LiftingCommand = env.command_manager.get_term(command_name)
   reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)).float()
 
-  # We reward the object falling lower once reached is True
-  height_diff = torch.clamp(0.6 - command.object_pos_w[:, 2], min=0.0) / 0.6
-  return reached * height_diff
+  from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
+  contact_both = site_contact_both_fingers(
+    env,
+    sensor_name="box_fingertip_contact",
+    site_names=["gripper_right_fingertip_.*_site"],
+  ).bool()
+
+  # Binary reward: 1.0 if the object's velocity along the Z axis is negative (falling down)
+  z_velocity = command.object.data.root_link_lin_vel_w[:, 2]
+  z_decreasing = (z_velocity < -1e-5).float()
+  return reached * (~contact_both).float() * z_decreasing
 
 
 def object_contact_both_fingers_adaptive(
@@ -408,14 +406,11 @@ def object_contact_both_fingers_adaptive(
   sensor_name: str,
   site_names: list[str],
   command_name: str = "lift_height",
-  reached_decay_duration: float = 4.0,
 ) -> torch.Tensor:
-  command: LiftingCommand = env.command_manager.get_term(command_name)
   contact = site_contact_both_fingers(
     env, sensor_name, site_names
   ).float()
-  decay = command.reached_decay_scale(reached_decay_duration)
-  return decay * contact
+  return contact
 
 
 def object_table_sliding_penalty_adaptive(
@@ -426,10 +421,9 @@ def object_table_sliding_penalty_adaptive(
   only before the target has been reached.
   """
   command: LiftingCommand = env.command_manager.get_term(command_name)
-  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device))
   
   obj = command.object
   lin_vel_xy = obj.data.root_link_lin_vel_w[:, :2]
   speed_xy = torch.norm(lin_vel_xy, dim=-1)
   
-  return (~reached).float() * command.object_on_table.float() * speed_xy
+  return command.object_on_table.float() * speed_xy

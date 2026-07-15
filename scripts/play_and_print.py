@@ -804,9 +804,13 @@ class PrintingPolicy:
         reached = self.command.reached[0].item()
         at_goal_time = self.command.at_goal_time[0].item()
         grasped_dist = self.command.grasped_distance[0].item()
+        joint_ids, _ = self.robot.find_joints("gripper_right_finger_joint")
+        gripper_pos = self.robot.data.joint_pos[0, joint_ids[0]].item()
+        gripper_vel = self.robot.data.joint_vel[0, joint_ids[0]].item()
         print(f"Goal Position:     [{target_pos_w[0]:.4f}, {target_pos_w[1]:.4f}, {target_pos_w[2]:.4f}] m")
         print(f"Goal Reached:      {reached} (Time at Goal: {at_goal_time:.2f}s)")
         print(f"Grasped Distance:  {grasped_dist:.4f} m")
+        print(f"Gripper Position:  {gripper_pos:.4f} m | Velocity: {gripper_vel:.4f} m/s")
         
         # Read fingertip contact sensors (one per gripper finger) and compute contact metrics
         try:
