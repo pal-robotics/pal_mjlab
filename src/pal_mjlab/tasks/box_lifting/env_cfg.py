@@ -35,7 +35,7 @@ from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
 
 from pal_mjlab.tasks.box_lifting.box_commands import UniformBoxHeightCommandCfg
-
+from pal_mjlab.tasks.box_lifting import mdp
 
 def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
   """Create base box lifting tracking task configuration."""
@@ -103,7 +103,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"command_name": "box_height"},
     ),
     "box_position": ObservationTermCfg(
-      func=mdp.joint_vel_rel,
+      func=mdp.box_position_robot_frame,
       noise=Unoise(n_min=-0.1, n_max=0.1),
     ),
     "height_scan": ObservationTermCfg(
@@ -136,6 +136,14 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
     "foot_contact_forces": ObservationTermCfg(
       func=mdp.foot_contact_forces,
       params={"sensor_name": "feet_ground_contact"},
+    ),
+    "hand_to_box_contact": ObservationTermCfg(
+      func=mdp.foot_contact,
+      params={"sensor_name": "hands_box_contact"},
+    ),
+    "hand_to_box_contact_forces": ObservationTermCfg(
+      func=mdp.foot_contact_forces,
+      params={"sensor_name": "hands_box_contact"},
     ),
   }
 
@@ -178,8 +186,6 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
   # Commands
   ##
-
-    # SHOULD BE BOX TARGET HEIGHT OR POSITION
     
   commands = { 
     "box_height" : UniformBoxHeightCommandCfg(
@@ -216,6 +222,18 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
         "position_range": (0.0, 0.0),
         "velocity_range": (0.0, 0.0),
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+      },
+    ),
+    "reset_box" : EventTermCfg(
+      func=mdp.reset_box,
+      mode="reset",
+      params={
+        "pose_range": {
+          "x": (0.5, 1.0),
+          "y": (-0.5, 0.5),
+          "z": (0.15, 0.15),
+          "yaw": (-3.14, 3.14),
+        },
       },
     ),
     "push_robot": EventTermCfg(

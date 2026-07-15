@@ -6,13 +6,15 @@ from typing import TYPE_CHECKING
 
 import torch
 from mjlab.managers.scene_entity_config import SceneEntityCfg
-from mjlab.sensor import BuiltinSensor
+from mjlab.sensor import BuiltinSensor, ContactSensor
 from mjlab.utils.lab_api.math import quat_apply_inverse
+from mjlab.entity import Entity
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
+_DEFAULT_BOX_ASSET_CFG = SceneEntityCfg("box")
 
 
 ##
@@ -40,3 +42,30 @@ def imu_projected_gravity(
   # print(f"proj{asset.data.projected_gravity_b}")
   # Project to IMU frame (same as your C++ code)
   return quat_apply_inverse(imu_quat, gravity_w)
+
+
+def box_position_robot_frame(
+    env: ManagerBasedRlEnv, 
+    asset_cfg_robot: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+    asset_cfg_box: SceneEntityCfg = _DEFAULT_BOX_ASSET_CFG,
+) -> torch.Tensor:
+  
+  asset_box: Entity = env.scene[asset_cfg_box.name]
+  asset_robot : Entity = env.scene[asset_cfg_robot.name]
+
+  return asset_box.data.root_link_pos_w - asset_robot.data.root_link_pos_w
+
+
+def hand_to_box_contact(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tensor:
+  sensor: ContactSensor = env.scene[sensor_name]
+  sensor_data = sensor.data
+  assert sensor_data.found is not None
+  return (sensor_data.found > 0).float()
+
+
+def hand_to_box_contact_forces(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tensor:
+  sensor: ContactSensor = env.scene[sensor_name]
+  sensor_data = sensor.data
+  assert sensor_data.force is not None
+  forces_flat = sensor_data.force.flatten(start_dim=1)  # [B, N*3]
+  return torch.sign(forces_flat) * torch.log1p(torch.abs(forces_flat))
