@@ -496,8 +496,8 @@ class sound_suppression:
     return cost
 
 
-def flat_reward (
-    env: ManagerBasedRlEnv,
-) :
-  reward = torch.ones((env.scene.num_envs,), device= env.device)
+def flat_reward(
+  env: ManagerBasedRlEnv,
+):
+  reward = torch.ones((env.scene.num_envs,), device=env.device)
   return reward

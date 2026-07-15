@@ -323,7 +323,7 @@ def run_sim(
   input_file,
   input_fps,
   output_fps,
-  output_name,
+  # output_name,
   render,
   line_range,
   renderer: OffscreenRenderer | None = None,
@@ -443,22 +443,22 @@ def run_sim(
 
         print("Saving to /tmp/motion.npz...")
         np.savez("/tmp/motion.npz", **log)
-        
-        #print("Uploading to Weights & Biases...")
-        #import wandb
 
-        COLLECTION = output_name
-        #run = wandb.init(project="csv_to_npz", name=COLLECTION)
-        #print(f"[INFO]: Logging motion to wandb: {COLLECTION}")
-        #REGISTRY = "motions"
-        #logged_artifact = run.log_artifact(
-          #artifact_or_path="/tmp/motion.npz", name=COLLECTION, type=REGISTRY
-        #)
-        #run.link_artifact(
-          #artifact=logged_artifact,
-          #target_path=f"wandb-registry-{REGISTRY}/{COLLECTION}",
-        #)
-        #print(f"[INFO]: Motion saved to wandb registry: {REGISTRY}/{COLLECTION}")
+        # print("Uploading to Weights & Biases...")
+        # import wandb
+
+        # COLLECTION = output_name
+        # run = wandb.init(project="csv_to_npz", name=COLLECTION)
+        # print(f"[INFO]: Logging motion to wandb: {COLLECTION}")
+        # REGISTRY = "motions"
+        # logged_artifact = run.log_artifact(
+        # artifact_or_path="/tmp/motion.npz", name=COLLECTION, type=REGISTRY
+        # )
+        # run.link_artifact(
+        # artifact=logged_artifact,
+        # target_path=f"wandb-registry-{REGISTRY}/{COLLECTION}",
+        # )
+        # print(f"[INFO]: Motion saved to wandb registry: {REGISTRY}/{COLLECTION}")
 
         if render:
           from moviepy import ImageSequenceClip
@@ -467,11 +467,11 @@ def run_sim(
           clip = ImageSequenceClip(frames, fps=output_fps)
           clip.write_videofile("./motion.mp4")
 
-          #print("Logging video to wandb...")
-          #wandb.log({"motion_video": wandb.Video("./motion.mp4", format="mp4")})
+          # print("Logging video to wandb...")
+          # wandb.log({"motion_video": wandb.Video("./motion.mp4", format="mp4")})
 
-        #wandb.finish()
-        
+        # wandb.finish()
+
 
 def main(
   robot_name: str,
