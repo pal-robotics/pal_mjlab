@@ -323,11 +323,13 @@ def run_sim(
   input_file,
   input_fps,
   output_fps,
-  # output_name,
+  output_name,
   render,
   line_range,
   renderer: OffscreenRenderer | None = None,
 ):
+  del output_name
+
   motion = MotionLoader(
     motion_file=input_file,
     input_fps=input_fps,

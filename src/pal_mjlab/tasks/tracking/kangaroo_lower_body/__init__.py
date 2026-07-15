@@ -13,7 +13,7 @@ register_mjlab_task(
 )
 
 register_mjlab_task(
-  task_id="Mjlab-Tracking-Flat-Pal-Kangaroo_Lower_Body-No-State-Estimation",
+  task_id="Mjlab-Tracking-Flat-Pal-Kangaroo-Lower-Body-No-State-Estimation",
   env_cfg=pal_kangaroo_lower_body_flat_tracking_env_cfg(has_state_estimation=False),
   play_env_cfg=pal_kangaroo_lower_body_flat_tracking_env_cfg(
     has_state_estimation=False, play=True
