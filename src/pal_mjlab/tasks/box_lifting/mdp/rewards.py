@@ -277,6 +277,19 @@ def hands_to_box(
 
     return active.float() * reward
 
+def hand_contact_reward (
+    env: ManagerBasedRlEnv,
+    sensor_name: str,
+) -> torch.Tensor:
+    contact_sensor: ContactSensor = env.scene[sensor_name]
+    sensor_data = contact_sensor.data
+    assert sensor_data.force is not None
+    forces = sensor_data.force  # [B, N, 3]
+    force_magnitude = torch.norm(forces, dim=-1)
+    
+    reward = torch.tanh(force_magnitude/15.0 - 2.0) + 1.0
+
+    return torch.sum(reward, dim=-1)
 
 def box_height(
     env: ManagerBasedRlEnv,

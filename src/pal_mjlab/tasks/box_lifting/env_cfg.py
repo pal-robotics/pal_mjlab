@@ -386,6 +386,13 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
             "dist": 0.60,
         },
     ),
+    "hands_contact": RewardTermCfg(
+        func=mdp.hand_contact_reward,
+        weight=1.0,
+        params={
+            "sensor_name": "hands_box_contact",
+        },
+    ),
     "box_height": RewardTermCfg(
         func=mdp.box_height,
         weight=2.0,
