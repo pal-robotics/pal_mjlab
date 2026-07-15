@@ -42,7 +42,7 @@ from pal_mjlab.robots import (
 from pal_mjlab.tasks.velocity import mdp
 
 
-def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO rough terrain velocity configuration."""
   cfg = make_velocity_env_cfg()
   cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
@@ -223,6 +223,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
+  cfg.rewards["upright"].weight = 1.25
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   for reward_name in ["foot_clearance", "foot_slip"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
@@ -348,7 +349,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
 def pal_kangaroo_hands_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO with hands (5 DoF per arms) rough terrain velocity configuration."""
-  cfg = pal_kangaroo_rough_env_cfg(play=play)
+  cfg = pal_kangaroo_baseline_env_cfg(play=play)
 
   cfg.scene.entities = {"robot": get_kangaroo_hands_robot_cfg()}
 
@@ -362,7 +363,7 @@ def pal_kangaroo_hands_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg
 
 def pal_kangaroo_grippers_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) rough terrain velocity configuration."""
-  cfg = pal_kangaroo_rough_env_cfg(play=play)
+  cfg = pal_kangaroo_baseline_env_cfg(play=play)
 
   cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
 
@@ -376,7 +377,7 @@ def pal_kangaroo_grippers_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnv
 
 def pal_kangaroo_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO flat terrain velocity configuration."""
-  cfg = pal_kangaroo_rough_env_cfg(play=play)
+  cfg = pal_kangaroo_baseline_env_cfg(play=play)
 
   cfg.sim.njmax = 300
   cfg.sim.mujoco.ccd_iterations = 50
@@ -416,6 +417,8 @@ def pal_kangaroo_lower_body_flat_env_cfg(play: bool = False) -> ManagerBasedRlEn
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_(?![14]_joint)\d+_joint"]
 
   cfg.scene.entities = {"robot": get_kangaroo_lower_body_robot_cfg()}
+
+  cfg.rewards["action_rate_l2"].weight = -0.2
 
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
