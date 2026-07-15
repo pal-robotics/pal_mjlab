@@ -94,10 +94,10 @@ def pal_kangaroo_box_lifting_rough_env_cfg(play: bool = False) -> ManagerBasedRl
     name="body_box_contact",
     primary=ContactMatch(
       mode="body",
-      pattern=r"^(?!(fake_forearm_left_link|fake_forearm_right_link)$).+",
+      pattern=r"^(?!(arm_left_tip_link|arm_right_tip_link)$).+",
       entity="robot",
     ),
-    secondary=ContactMatch(mode="body", pattern="box"),
+    secondary=ContactMatch(mode="body", pattern="box", entity="box"),
     fields=("found",),
     reduce="none",
     num_slots=1,
@@ -106,12 +106,12 @@ def pal_kangaroo_box_lifting_rough_env_cfg(play: bool = False) -> ManagerBasedRl
     name="hands_box_contact",
     primary=ContactMatch(
       mode="body",
-      pattern=r"^(fake_forearm_left_link|fake_forearm_right_link)$",
+      pattern=r"^(arm_left_tip_link|arm_right_tip_link)$",
       entity="robot",
     ),
-    secondary=ContactMatch(mode="body", pattern="box"),
-    fields=("found",),
-    reduce="none",
+    secondary=ContactMatch(mode="body", pattern="box", entity="box"),
+    fields=("found", "force"),
+    reduce="netforce",
     num_slots=1,
   )
 
@@ -212,42 +212,36 @@ def pal_kangaroo_box_lifting_rough_env_cfg(play: bool = False) -> ManagerBasedRl
   # -- Rewards
 
   cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
-  cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
+  #cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
   cfg.rewards["pose"].params["std_walking"] = {
-    # Lower body.
-    r"leg_.*_1_.*": 0.15,
-    r"leg_.*_2_.*": 0.3,  # pitch
+     r"leg_.*_1_.*": 0.15,
+    r"leg_.*_2_.*": 0.3,
     r"leg_.*_3_.*": 0.15,
-    r"leg_.*_length_.*": 0.1,  # length
+    r"leg_.*_length_.*": 0.1,
     r"leg_.*_4_.*": 0.25,
     r"leg_.*_5_.*": 0.1,
-    # Waist.
     r"pelvis_1.*": 0.08,
     r"pelvis_2.*": 0.2,
-    # Arms.
-    r"arm_.*_1_.*": 0.2,  # pitch
-    r"arm_.*_4_.*": 0.2,  # elbow
+    r"arm_.*_1_.*": 0.2,
+    r"arm_.*_4_.*": 0.2,
     r"arm_.*_(?![14]_joint)\d+_joint": 0.1,
   }
-  cfg.rewards["pose"].params["std_running"] = {
-    # Lower body.
-    r"leg_.*_1_.*": 0.2,
-    r"leg_.*_2_.*": 0.5,
-    r"leg_.*_3_.*": 0.2,
-    r"leg_.*_length_.*": 0.15,
+  cfg.rewards["pose"].params["std_lifting"] = {
+    r"leg_.*_1_.*": 0.30,
+    r"leg_.*_2_.*": 0.4,
+    r"leg_.*_3_.*": 0.30,
+    r"leg_.*_length_.*": 0.35,
     r"leg_.*_4_.*": 0.35,
-    r"leg_.*_5_.*": 0.15,
-    # Waist.
-    r"pelvis_1.*": 0.08,
-    r"pelvis_2.*": 0.3,
-    # Arms.
+    r"leg_.*_5_.*": 0.2,
+    r"pelvis_1.*": 0.20,
+    r"pelvis_2.*": 0.4,
     r"arm_.*_1_.*": 0.4,
-    r"arm_.*_4_.*": 0.35,
-    r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
+    r"arm_.*_4_.*": 0.4,
+    r"arm_.*_(?![14]_joint)\d+_joint": 0.2,
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-  for reward_name in ["foot_clearance_box", "foot_slip_box"]:
+  for reward_name in ["foot_clearance", "foot_slip"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
   cfg.rewards["body_ang_vel"].weight = -0.05
   cfg.rewards["angular_momentum"].weight = -0.02
