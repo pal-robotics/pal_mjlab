@@ -231,6 +231,7 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
+  cfg.rewards["upright"].weight = 1.25
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   for reward_name in ["foot_clearance", "foot_slip"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
@@ -607,7 +608,7 @@ def pal_kangaroo_lower_body_rough_env_cfg(play: bool = False) -> ManagerBasedRlE
 
 def pal_kangaroo_hands_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO with hands (5 DoF per arms) rough terrain velocity configuration."""
-  cfg = pal_kangaroo_rough_env_cfg(play=play)
+  cfg = pal_kangaroo_baseline_env_cfg(play=play)
 
   cfg.scene.entities = {"robot": get_kangaroo_hands_robot_cfg()}
 
@@ -621,7 +622,7 @@ def pal_kangaroo_hands_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg
 
 def pal_kangaroo_grippers_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) rough terrain velocity configuration."""
-  cfg = pal_kangaroo_rough_env_cfg(play=play)
+  cfg = pal_kangaroo_baseline_env_cfg(play=play)
 
   cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
 
