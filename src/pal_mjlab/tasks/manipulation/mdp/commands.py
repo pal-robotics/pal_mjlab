@@ -9,7 +9,7 @@ from mjlab.entity import Entity
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.managers.command_manager import CommandTerm, CommandTermCfg
 from mjlab.sensor import ContactSensor
-from mjlab.utils.lab_api.math import quat_from_euler_xyz, sample_uniform, quat_apply
+from mjlab.utils.lab_api.math import quat_apply, quat_from_euler_xyz, sample_uniform
 
 TABLE_HEIGHT = 0.45
 TABLE_HALF_X = 0.35
@@ -129,7 +129,9 @@ class LiftingCommand(CommandTerm):
     )
 
     # Track grasped distance and contact status
-    from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
+    from pal_mjlab.tasks.manipulation.mdp.contact_sensor import (
+      site_contact_both_fingers,
+    )
     contact_both = site_contact_both_fingers(
       self._env,
       sensor_name=self.cfg.fingertip_contact_sensor_name,
@@ -162,6 +164,9 @@ class LiftingCommand(CommandTerm):
     self.at_goal_time[env_ids] = 0.0
     self.reached_time[env_ids] = 0.0
     self.grasped_distance[env_ids] = 0.0
+    if hasattr(self, "frozen_rewards"):
+      for key in self.frozen_rewards:
+        self.frozen_rewards[key][env_ids] = 0.0
     table_surface_z = self.table_surface_z[env_ids]
 
     r = self.cfg.target_position_range
