@@ -93,7 +93,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
     "arm_right_tip_link",
   )
 
-  # ── Observations ──────────────────────────────────────────────────────────
+  ## Observations
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},

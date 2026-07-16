@@ -57,7 +57,7 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
     "pelvis_2_collision",
   )
 
-  # ── Sensors ───────────────────────────────────────────────────────────────
+  ## Sensors
   self_collision_cfg = ContactSensorCfg(
     name="self_collision",
     primary=ContactMatch(mode="subtree", pattern="base_link", entity="robot"),
@@ -93,13 +93,13 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
   )
   cfg.scene.sensors = (self_collision_cfg, feet_ground_contact_cfg, body_ground_cfg)
 
-  # ── Actions ───────────────────────────────────────────────────────────────
+  ## Actions
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
   joint_pos_action.scale = KANGAROO_LOWER_BODY_ACTION_SCALE
   joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_ACTUATOR_NAMES
 
-  # ── Commands ──────────────────────────────────────────────────────────────
+  ## Commands
   assert cfg.commands is not None
   motion_cmd = cfg.commands["motion"]
   assert isinstance(motion_cmd, MotionCommandCfg)
@@ -115,7 +115,7 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
     "leg_right_5_link",
   )
 
-  # ── Rewards ───────────────────────────────────────────────────────────────
+  ## Rewards
   cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
     func=mdp.joint_limits_convex_hull,
     weight=-10.0,
@@ -176,7 +176,7 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
     },
   )
 
-  # ── Events (Domain Randomization) ─────────────────────────────────────────
+  ## Events (Domain Randomization)
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
   cfg.events["foot_friction"].params["shared_random"] = (
     True  # All foot geoms share friction
@@ -194,7 +194,7 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
 
   cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
-  # ── Terminations ──────────────────────────────────────────────────────────
+  ## Terminations
   cfg.terminations["illegal_contacts"] = TerminationTermCfg(
     func=mdp.illegal_contact,
     params={"sensor_name": "body_ground_contact"},
@@ -205,10 +205,10 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
     "leg_right_5_link",
   )
 
-  # ── Viewer ────────────────────────────────────────────────────────────────
+  ## Viewer
   cfg.viewer.body_name = "base_link"
 
-  # ── Observations ──────────────────────────────────────────────────────────
+  ## Observations
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
@@ -245,7 +245,7 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
       enable_corruption=True,
     )
 
-  # ── Play mode overrides ───────────────────────────────────────────────────
+  ## Play mode overrides
   if play:
     cfg.episode_length_s = int(1e9)
 
