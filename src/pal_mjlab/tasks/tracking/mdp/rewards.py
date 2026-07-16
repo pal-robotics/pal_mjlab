@@ -20,7 +20,7 @@ def motion_global_anchor_velocity_z_error_exp(
   return torch.exp(-error / std**2)
 
 
-def feet_air_time(
+def all_feet_air_time(
   env: ManagerBasedRlEnv,
   sensor_name: str,
   threshold: float = 0.02,

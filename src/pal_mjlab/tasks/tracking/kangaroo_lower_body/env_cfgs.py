@@ -168,7 +168,7 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
   # Keep foot-air encouragement but at a weight comparable to tracking terms
   # so the policy does not learn to hop randomly while ignoring the motion ref.
   cfg.rewards["foot_air"] = RewardTermCfg(
-    func=tracking_mdp.feet_air_time,
+    func=tracking_mdp.all_feet_air_time,
     weight=2.0,
     params={
       "sensor_name": "feet_ground_contact",
