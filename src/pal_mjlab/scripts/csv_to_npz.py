@@ -326,10 +326,9 @@ def run_sim(
   output_name,
   render,
   line_range,
+  upload_to_wandb: bool = False,
   renderer: OffscreenRenderer | None = None,
 ):
-  del output_name
-
   motion = MotionLoader(
     motion_file=input_file,
     input_fps=input_fps,
@@ -446,21 +445,23 @@ def run_sim(
         print("Saving to /tmp/motion.npz...")
         np.savez("/tmp/motion.npz", **log)
 
-        # print("Uploading to Weights & Biases...")
-        # import wandb
+        run = None
+        if upload_to_wandb:
+          print("Uploading to Weights & Biases...")
+          import wandb
 
-        # COLLECTION = output_name
-        # run = wandb.init(project="csv_to_npz", name=COLLECTION)
-        # print(f"[INFO]: Logging motion to wandb: {COLLECTION}")
-        # REGISTRY = "motions"
-        # logged_artifact = run.log_artifact(
-        # artifact_or_path="/tmp/motion.npz", name=COLLECTION, type=REGISTRY
-        # )
-        # run.link_artifact(
-        # artifact=logged_artifact,
-        # target_path=f"wandb-registry-{REGISTRY}/{COLLECTION}",
-        # )
-        # print(f"[INFO]: Motion saved to wandb registry: {REGISTRY}/{COLLECTION}")
+          COLLECTION = output_name
+          run = wandb.init(project="csv_to_npz", name=COLLECTION)
+          print(f"[INFO]: Logging motion to wandb: {COLLECTION}")
+          REGISTRY = "motions"
+          logged_artifact = run.log_artifact(
+            artifact_or_path="/tmp/motion.npz", name=COLLECTION, type=REGISTRY
+          )
+          run.link_artifact(
+            artifact=logged_artifact,
+            target_path=f"wandb-registry-{REGISTRY}/{COLLECTION}",
+          )
+          print(f"[INFO]: Motion saved to wandb registry: {REGISTRY}/{COLLECTION}")
 
         if render:
           from moviepy import ImageSequenceClip
@@ -469,10 +470,12 @@ def run_sim(
           clip = ImageSequenceClip(frames, fps=output_fps)
           clip.write_videofile("./motion.mp4")
 
-          # print("Logging video to wandb...")
-          # wandb.log({"motion_video": wandb.Video("./motion.mp4", format="mp4")})
+          if run is not None:
+            print("Logging video to wandb...")
+            run.log({"motion_video": wandb.Video("./motion.mp4", format="mp4")})
 
-        # wandb.finish()
+        if run is not None:
+          run.finish()
 
 
 def main(
@@ -484,6 +487,7 @@ def main(
   device: str = "cuda:0",
   render: bool = False,
   line_range: tuple[int, int] | None = None,
+  upload_to_wandb: bool = False,
 ):
   """Replay motion from CSV file and output to npz file.
 
@@ -496,6 +500,7 @@ def main(
     device: Device to use.
     render: Whether to render the simulation and save a video.
     line_range: Range of lines to process from the CSV file.
+    upload_to_wandb: Whether to upload the motion (and video) to the wandb registry.
   """
   if robot_name not in ROBOT_CONFIGS:
     raise ValueError(
@@ -552,6 +557,7 @@ def main(
     output_name=output_name,
     render=render,
     line_range=line_range,
+    upload_to_wandb=upload_to_wandb,
     renderer=renderer,
   )
 
