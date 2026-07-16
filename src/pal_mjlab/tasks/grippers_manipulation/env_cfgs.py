@@ -1,6 +1,6 @@
-"""Velocity task configuration.
+"""Grippers manipulation task configuration.
 
-This module provides a factory function to create a base velocity task config.
+This module provides a factory function to create a base grippers manipulation task config.
 Robot-specific configurations call the factory and customize as needed.
 """
 
@@ -34,10 +34,10 @@ from mjlab.terrains.config import ROUGH_TERRAINS_CFG
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
 
-from pal_mjlab.tasks.manipulation.manipulation_command import UniformManipulationCommandCfg
+from pal_mjlab.tasks.grippers_manipulation.gripper_manip_command import UniformGripperManipulationCommandCfg
 from pal_mjlab.tasks.box_lifting import mdp
 
-def make_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
+def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
   """Create base manipulation task configuration."""
 
   ##
@@ -188,10 +188,10 @@ def make_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
     
   commands = { 
-    "box_height" : UniformBoxHeightCommandCfg(
+    "box_height" : UniformGripperManipulationCommandCfg(
       resampling_time_range=(30.0,30.0),
       entity_name="box",
-      ranges=UniformBoxHeightCommandCfg.Ranges(
+      ranges=UniformGripperManipulationCommandCfg.Ranges(
         height=(0.5, 0.8),
       ),
     ),
