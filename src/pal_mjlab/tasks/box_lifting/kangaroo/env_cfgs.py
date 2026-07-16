@@ -1,4 +1,4 @@
-"""PAL Robotics KANGAROO velocity tracking environment configurations."""
+"""PAL Robotics KANGAROO box lifting environment configurations."""
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
@@ -40,7 +40,7 @@ from pal_mjlab.tasks.velocity import mdp
 
 
 def pal_kangaroo_box_lifting_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-  """Create PAL Robotics KANGAROO rough terrain velocity configuration."""
+  """Create PAL Robotics KANGAROO rough terrain box lifting configuration."""
   cfg = make_box_lifting_env_cfg()
   cfg.scene.entities = {"robot": get_kangaroo_robot_cfg(), "box": get_box_cfg()}
   cfg.sim.nconmax = None
@@ -364,7 +364,7 @@ def pal_kangaroo_box_lifting_rough_env_cfg(play: bool = False) -> ManagerBasedRl
 
 
 def pal_kangaroo_box_lifting_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-  """Create PAL Robotics KANGAROO flat terrain velocity configuration."""
+  """Create PAL Robotics KANGAROO flat terrain box lifting configuration."""
   cfg = pal_kangaroo_box_lifting_rough_env_cfg(play=play)
 
   cfg.sim.njmax = 300
