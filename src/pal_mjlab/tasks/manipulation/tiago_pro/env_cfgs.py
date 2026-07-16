@@ -254,10 +254,10 @@ def lift_env_cfg(
   # )
   cfg.rewards["object_goal_tracking"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance_adaptive),
-    weight=10.0,
+    weight=5.0,
     params={
       "command_name": "lift_height",
-      "std": 0.8,
+      "std": 0.3,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
       "coordinate_weights": (1.0, 1.0, 3.0),
@@ -303,7 +303,7 @@ def lift_env_cfg(
 
   cfg.rewards["release_cube"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.release_cube_reward),
-    weight=100.0,
+    weight=10.0,
     params={
       "command_name": "lift_height",
       "max_open": 0.08,
@@ -312,7 +312,15 @@ def lift_env_cfg(
 
   cfg.rewards["object_falling"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_falling_reward),
-    weight=100.0,
+    weight=10.0,
+    params={
+      "command_name": "lift_height",
+    },
+  )
+
+  cfg.rewards["success_reward"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.task_success_reward),
+    weight=1000.0,
     params={
       "command_name": "lift_height",
     },
