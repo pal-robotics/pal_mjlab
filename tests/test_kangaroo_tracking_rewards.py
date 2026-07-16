@@ -101,6 +101,20 @@ def test_motion_global_anchor_velocity_z_error_exp_reward(mock_env):
     tensor_value_error_message(test_name)
   )
 
+  # Test with different standard deviation
+  value = pal_mjlab_r.motion_global_anchor_velocity_z_error_exp(
+    env, std=1.5, command_name="motion"
+  )
+
+  test_name = "Motion global anchor vel z"
+
+  assert value.shape == (env.num_envs,), tensor_shape_error_message(
+    test_name, (env.num_envs,), value.shape
+  )
+  assert value[0] == pytest.approx(math.exp(-4.0 / (1.5 * 1.5)), abs=1e-6), (
+    tensor_value_error_message(test_name)
+  )
+
 
 def test_tracking_feet_air_time_reward(mock_env):
   env = mock_env
@@ -121,7 +135,7 @@ def test_tracking_feet_air_time_reward(mock_env):
 
   value = pal_mjlab_r.feet_air_time(env, sensor_name="contact_sensor", threshold=0.5)
 
-  test_name = "Tracking _ feet air time (both below threshold)"
+  test_name = "Tracking - feet air time (both below threshold)"
 
   assert value.shape == (env.num_envs,), tensor_shape_error_message(
     test_name, (env.num_envs,), value.shape
@@ -132,7 +146,7 @@ def test_tracking_feet_air_time_reward(mock_env):
 
   value = pal_mjlab_r.feet_air_time(env, sensor_name="contact_sensor", threshold=0.3)
 
-  test_name = "Tracking _ feet air time (one below threshold)"
+  test_name = "Tracking - feet air time (one below threshold)"
 
   assert value.shape == (env.num_envs,), tensor_shape_error_message(
     test_name, (env.num_envs,), value.shape
@@ -143,7 +157,7 @@ def test_tracking_feet_air_time_reward(mock_env):
 
   value = pal_mjlab_r.feet_air_time(env, sensor_name="contact_sensor", threshold=0.1)
 
-  test_name = "Tracking _ feet air time (one below threshold)"
+  test_name = "Tracking - feet air time (one below threshold)"
 
   assert value.shape == (env.num_envs,), tensor_shape_error_message(
     test_name, (env.num_envs,), value.shape
