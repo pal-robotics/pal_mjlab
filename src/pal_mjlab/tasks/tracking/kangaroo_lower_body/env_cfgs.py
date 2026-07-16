@@ -1,4 +1,4 @@
-"""PAL Robotics Kangaroo Flat terrain tracking configuration."""
+"""PAL Robotics Kangaroo Lower Body Flat terrain tracking configuration."""
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
@@ -7,6 +7,7 @@ from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
 from mjlab.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
@@ -15,26 +16,27 @@ from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
   HIP_XY_CONVEX_HULL_POINTS,
-  KANGAROO_ACTION_SCALE,
-  KANGAROO_ACTUATOR_NAMES,
-  KANGAROO_HANDS_ACTION_SCALE,
-  KANGAROO_HANDS_ACTUATOR_NAMES,
-  get_kangaroo_hands_robot_cfg,
-  get_kangaroo_robot_cfg,
+  KANGAROO_LOWER_BODY_ACTION_SCALE,
+  KANGAROO_LOWER_BODY_ACTUATOR_NAMES,
+  REGEX_FEMUR_AND_KNEE_LINKS,
+  get_kangaroo_lower_body_robot_cfg,
 )
+from pal_mjlab.tasks.tracking import mdp as tracking_mdp
 from pal_mjlab.tasks.velocity import mdp
 
 
-def pal_kangaroo_flat_tracking_env_cfg(
+def pal_kangaroo_lower_body_flat_tracking_env_cfg(
   has_state_estimation: bool = True,
   play: bool = False,
 ) -> ManagerBasedRlEnvCfg:
-  """Create PAL Robotics Talos flat terrain tracking configuration."""
+  """Create PAL Robotics Kangaroo lower body flat terrain tracking configuration."""
   cfg = make_tracking_env_cfg()
 
-  cfg.scene.entities = {"robot": get_kangaroo_robot_cfg()}
+  cfg.scene.entities = {"robot": get_kangaroo_lower_body_robot_cfg()}
   cfg.sim.mujoco.timestep = 0.002
   cfg.decimation = 10
+  cfg.sim.nconmax = 64
+  cfg.sim.njmax = 300
 
   geom_names = tuple(
     f"{side}_foot{i}_collision"
@@ -43,7 +45,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
   )
 
   body_geoms = (
-    # # Femur
+    # Femur
     "leg_left_femur_collision",
     "leg_right_femur_collision",
     # Knee
@@ -51,12 +53,11 @@ def pal_kangaroo_flat_tracking_env_cfg(
     "leg_left_knee_bar_collision",
     "leg_right_knee_collision",
     "leg_right_knee_bar_collision",
-    # Arms (4 only — arm 3 has no collision geom)
-    "arm_left_4_collision",
-    "arm_right_4_collision",
     # Pelvis
     "pelvis_2_collision",
   )
+
+  ## Sensors
   self_collision_cfg = ContactSensorCfg(
     name="self_collision",
     primary=ContactMatch(mode="subtree", pattern="base_link", entity="robot"),
@@ -65,13 +66,40 @@ def pal_kangaroo_flat_tracking_env_cfg(
     reduce="none",
     num_slots=1,
   )
-  cfg.scene.sensors = (self_collision_cfg,)
+  feet_ground_contact_cfg = ContactSensorCfg(
+    name="feet_ground_contact",
+    primary=ContactMatch(
+      mode="subtree",
+      pattern=r"^(leg_left_5_link|leg_right_5_link)$",
+      entity="robot",
+    ),
+    secondary=ContactMatch(mode="body", pattern="terrain"),
+    fields=("found", "force"),
+    reduce="netforce",
+    num_slots=1,
+    track_air_time=True,
+  )
+  body_ground_cfg = ContactSensorCfg(
+    name="body_ground_contact",
+    primary=ContactMatch(
+      mode="body",
+      pattern=REGEX_FEMUR_AND_KNEE_LINKS,
+      entity="robot",
+    ),
+    secondary=ContactMatch(mode="body", pattern="terrain"),
+    fields=("found",),
+    reduce="none",
+    num_slots=1,
+  )
+  cfg.scene.sensors = (self_collision_cfg, feet_ground_contact_cfg, body_ground_cfg)
 
+  ## Actions
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
-  joint_pos_action.scale = KANGAROO_ACTION_SCALE
-  joint_pos_action.actuator_names = KANGAROO_ACTUATOR_NAMES
+  joint_pos_action.scale = KANGAROO_LOWER_BODY_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_ACTUATOR_NAMES
 
+  ## Commands
   assert cfg.commands is not None
   motion_cmd = cfg.commands["motion"]
   assert isinstance(motion_cmd, MotionCommandCfg)
@@ -85,36 +113,9 @@ def pal_kangaroo_flat_tracking_env_cfg(
     "leg_right_3_link",
     "leg_right_4_link",
     "leg_right_5_link",
-    "arm_left_2_link",
-    "arm_left_3_link",
-    "arm_left_tip_link",
-    "arm_right_2_link",
-    "arm_right_3_link",
-    "arm_right_tip_link",
   )
 
-  ## Observations
-  cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
-    func=mdp.imu_projected_gravity,
-    params={"sensor_name": "robot/imu_quat"},
-    noise=Unoise(n_min=-0.02, n_max=0.02),
-  )
-  cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
-    func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/imu_lin_acc"},
-    noise=Unoise(n_min=-0.05, n_max=0.05),
-  )
-  cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
-    func=mdp.imu_projected_gravity,
-    params={"sensor_name": "robot/imu_quat"},
-  )
-  cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
-    func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/imu_lin_acc"},
-  )
-
-  # The hull points should correspond to the respective joints defined in the joint_names_group order
-  # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
+  ## Rewards
   cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
     func=mdp.joint_limits_convex_hull,
     weight=-10.0,
@@ -145,37 +146,97 @@ def pal_kangaroo_flat_tracking_env_cfg(
     },
   )
 
+  # Loosen tracking precision so the policy receives useful gradient from the
+  # start rather than near-zero signal when the initial error is large.
+  cfg.rewards["motion_body_pos"].params["std"] = 0.7
+  cfg.rewards["motion_body_ori"].params["std"] = 0.7
+  cfg.rewards["motion_global_root_pos"].params["std"] = 0.7
+  cfg.rewards["motion_global_root_ori"].params["std"] = 0.7
+
+  # Reduce action-rate penalty so it does not crush exploration early on.
+  cfg.rewards["action_rate_l2"].weight = -1e-2
+
+  cfg.rewards["motion_global_root_lin_vel_z"] = RewardTermCfg(
+    func=tracking_mdp.motion_global_anchor_velocity_z_error_exp,
+    weight=1.0,
+    params={
+      "command_name": "motion",
+      "std": 1.0,
+    },
+  )
+
+  # Keep foot-air encouragement but at a weight comparable to tracking terms
+  # so the policy does not learn to hop randomly while ignoring the motion ref.
+  cfg.rewards["foot_air"] = RewardTermCfg(
+    func=tracking_mdp.all_feet_air_time,
+    weight=2.0,
+    params={
+      "sensor_name": "feet_ground_contact",
+      "threshold": 0.1,
+    },
+  )
+
+  ## Events (Domain Randomization)
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
+  cfg.events["foot_friction"].params["shared_random"] = (
+    True  # All foot geoms share friction
+  )
   cfg.events["body_friction"] = EventTermCfg(
     mode="startup",
     func=dr.geom_friction,
     params={
-      "asset_cfg": SceneEntityCfg("robot", geom_names=body_geoms),  # Set per-robot.
+      "asset_cfg": SceneEntityCfg("robot", geom_names=body_geoms),
       "operation": "abs",
       "ranges": (0.3, 2.0),
-      "shared_random": False,  # All body geoms share the same friction.
+      "shared_random": False,
     },
   )
 
   cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
+  ## Terminations
+  cfg.terminations["illegal_contacts"] = TerminationTermCfg(
+    func=mdp.illegal_contact,
+    params={"sensor_name": "body_ground_contact"},
+  )
+
   cfg.terminations["ee_body_pos"].params["body_names"] = (
     "leg_left_5_link",
     "leg_right_5_link",
-    "arm_left_5_link",
-    "arm_right_5_link",
   )
 
+  ## Viewer
   cfg.viewer.body_name = "base_link"
+
+  ## Observations
+  cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
+    func=mdp.imu_projected_gravity,
+    params={"sensor_name": "robot/imu_quat"},
+    noise=Unoise(n_min=-0.02, n_max=0.02),
+  )
+  cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
+    func=mdp.builtin_sensor,
+    params={"sensor_name": "robot/imu_lin_acc"},
+    noise=Unoise(n_min=-0.05, n_max=0.05),
+  )
+  cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
+    func=mdp.imu_projected_gravity,
+    params={"sensor_name": "robot/imu_quat"},
+  )
+  cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
+    func=mdp.builtin_sensor,
+    params={"sensor_name": "robot/imu_lin_acc"},
+  )
+  cfg.observations["critic"].terms["foot_air_time"] = ObservationTermCfg(
+    func=mdp.foot_air_time,
+    params={"sensor_name": "feet_ground_contact"},
+  )
 
   # Modify observations if we don't have state estimation.
   if not has_state_estimation:
     new_actor_terms = {
       k: v
       for k, v in cfg.observations["actor"].terms.items()
-      # I added motion_anchor_ori_b but might not be necessary,
-      # and i wonder if i should add lin acc when state
-      # estimation is false
       if k not in ["motion_anchor_pos_b", "motion_anchor_ori_b", "base_lin_vel"]
     }
     cfg.observations["actor"] = ObservationGroupCfg(
@@ -184,37 +245,15 @@ def pal_kangaroo_flat_tracking_env_cfg(
       enable_corruption=True,
     )
 
-  # Apply play mode overrides.
+  ## Play mode overrides
   if play:
-    # Effectively infinite episode length.
     cfg.episode_length_s = int(1e9)
 
     cfg.observations["actor"].enable_corruption = False
     cfg.events.pop("push_robot", None)
 
-    # Disable RSI randomization.
     motion_cmd.pose_range = {}
     motion_cmd.velocity_range = {}
-
     motion_cmd.sampling_mode = "start"
-
-  return cfg
-
-
-def pal_kangaroo_hands_flat_env_cfg(
-  has_state_estimation: bool = True,
-  play: bool = False,
-) -> ManagerBasedRlEnvCfg:
-  """Create PAL Robotics KANGAROO with hands (5 DoF per arms) rough terrain velocity configuration."""
-  cfg = pal_kangaroo_flat_tracking_env_cfg(
-    has_state_estimation=has_state_estimation, play=play
-  )
-
-  cfg.scene.entities = {"robot": get_kangaroo_hands_robot_cfg()}
-
-  joint_pos_action = cfg.actions["joint_pos"]
-  assert isinstance(joint_pos_action, JointPositionActionCfg)
-  joint_pos_action.scale = KANGAROO_HANDS_ACTION_SCALE
-  joint_pos_action.actuator_names = KANGAROO_HANDS_ACTUATOR_NAMES
 
   return cfg

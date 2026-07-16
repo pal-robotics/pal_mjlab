@@ -93,6 +93,7 @@
                   <joint name="arm_left_4_joint" range="-1.13446 2.44346"/>
                   <geom class="visual" mesh="arm4_link" />
                   <geom name="arm_left_4_collision" size="0.07" fromto="-0.3 0 -0.05  0 0 -0.05" class="collision"/>
+                  <body name="arm_left_tip_link" pos="0.4 -0.02 0.0"/>
                   <body name="arm_left_5_link" pos="-0.17011 0.02 -0.03711" quat="0.707105 0 -0.707108 0">
                     <inertial pos="0.00582226 -0.000330137 0.0702339" quat="0.965441 -0.00213396 -0.0211456 0.259754" mass="0.73786" diaginertia="0.00302019 0.00300619 0.000658945" />
                     <joint name="arm_left_5_joint" axis="0 0 -1" range="-1.57 1.57"/>
@@ -212,6 +213,7 @@
                   <joint name="arm_right_4_joint" range="-1.13446 2.44346"/>
                   <geom class="visual" mesh="arm4_link" />
                   <geom name="arm_right_4_collision" size="0.07" fromto="-0.3 0 -0.05  0 0 -0.05" class="collision"/>
+                  <body name="arm_right_tip_link" pos="0.4 -0.02 0.0"/>
                   <body name="arm_right_5_link" pos="-0.17011 0.02 -0.03711" quat="0.707105 0 -0.707108 0">
                     <inertial pos="0.00582226 -0.000330137 0.0702339" quat="0.965441 -0.00213396 -0.0211456 0.259754" mass="0.73786" diaginertia="0.00302019 0.00300619 0.000658945" />
                     <joint name="arm_right_5_joint" axis="0 0 -1" range="-1.57 1.57"/>
