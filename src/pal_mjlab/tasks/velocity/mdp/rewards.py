@@ -494,10 +494,3 @@ class sound_suppression:
 
     # return the squared sum of change in velocity along the projected gravity direction
     return cost
-
-
-def flat_reward(
-  env: ManagerBasedRlEnv,
-):
-  reward = torch.ones((env.scene.num_envs,), device=env.device)
-  return reward
