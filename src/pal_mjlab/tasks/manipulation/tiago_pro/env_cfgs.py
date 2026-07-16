@@ -84,9 +84,9 @@ def lift_env_cfg(
       num_slots=1,
     ),
     ContactSensorCfg(
-      name="gripper_table_contact",
+      name="robot_table_contact",
       primary=ContactMatch(
-        mode="body", pattern=robot.gripper_collision_link_pattern, entity="robot"
+        mode="body", pattern=robot.collision_link_pattern, entity="robot"
       ),
       secondary=ContactMatch(mode="subtree", pattern="table", entity="table"),
       fields=("found",),
@@ -243,21 +243,21 @@ def lift_env_cfg(
       "max_open": 0.07,
     },
   )
-  cfg.rewards["lifting_object"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_is_lifted_adaptive),
-    weight=1.0,
-    params={
-      "command_name": "lift_height",
-      "sensor_name": "box_fingertip_contact",
-      "site_names": [robot.fingertip_site_pattern],
-    },
-  )
+  # cfg.rewards["lifting_object"] = RewardTermCfg(
+  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_is_lifted_adaptive),
+  #   weight=1.0,
+  #   params={
+  #     "command_name": "lift_height",
+  #     "sensor_name": "box_fingertip_contact",
+  #     "site_names": [robot.fingertip_site_pattern],
+  #   },
+  # )
   cfg.rewards["object_goal_tracking"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance_adaptive),
-    weight=5.0,
+    weight=10.0,
     params={
       "command_name": "lift_height",
-      "std": 0.15,
+      "std": 0.8,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
       "coordinate_weights": (1.0, 1.0, 3.0),
@@ -267,7 +267,7 @@ def lift_env_cfg(
   cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
     func=manipulation_mdp_pal.contact_penalty,
     weight=-1.0,
-    params={"sensor_names": ["gripper_table_contact"]},
+    params={"sensor_names": ["robot_table_contact"]},
   )
 
   cfg.rewards["object_table_sliding_penalty"] = RewardTermCfg(
@@ -276,15 +276,15 @@ def lift_env_cfg(
     params={"command_name": "lift_height"},
   )
 
-  cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_contact_both_fingers_adaptive),
-    weight=1.0,
-    params={
-      "sensor_name": "box_fingertip_contact",
-      "site_names": [robot.fingertip_site_pattern],
-      "command_name": "lift_height",
-    },
-  )
+  # cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
+  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_contact_both_fingers_adaptive),
+  #   weight=0.5,
+  #   params={
+  #     "sensor_name": "box_fingertip_contact",
+  #     "site_names": [robot.fingertip_site_pattern],
+  #     "command_name": "lift_height",
+  #   },
+  # )
 
   cfg.rewards["fingertip_cube_alignment"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(
@@ -312,7 +312,7 @@ def lift_env_cfg(
 
   cfg.rewards["object_falling"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_falling_reward),
-    weight=10.0,
+    weight=100.0,
     params={
       "command_name": "lift_height",
     },

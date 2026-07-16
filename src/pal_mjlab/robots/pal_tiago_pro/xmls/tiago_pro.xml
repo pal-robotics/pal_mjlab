@@ -188,10 +188,12 @@
           <inertial pos="0.0043916 0.016184 0.15576" quat="0.995877 -0.0736287 -0.0165883 0.0503316" mass="1.1325" diaginertia="0.00255401 0.00238017 0.000938535" />
           <joint name="arm_right_1_joint" range="-4.71239 0.523599" actuatorfrcrange="-43 43" frictionloss="1" />
           <geom class="visual" material="dark_medium_gray" mesh="arm_1_link" />
+          <geom class="collision" name="col_arm_right_1" fromto="0 0 0  0.03711 0.02 0.18" size="0.045" />
           <body name="arm_right_2_link" pos="0.03711 0.02 0.18" quat="0.5 -0.5 0.5 -0.5">
             <inertial pos="0.01786 -0.11956 -0.032097" quat="0.372627 0.555033 -0.540311 0.51103" mass="1.0436" diaginertia="0.00163669 0.00151951 0.000828169" />
             <joint name="arm_right_2_joint" range="-2.44346 1.13446" actuatorfrcrange="-43 43" frictionloss="1" />
             <geom class="visual" material="dark_medium_gray" mesh="arm_2_link" />
+            <geom class="collision" name="col_arm_right_2" fromto="0 0 0  0.02 -0.17011 -0.03711" size="0.045" />
             <body name="arm_right_3_link" pos="0.02 -0.17011 -0.03711" quat="0.707107 0.707107 0 0">
               <inertial pos="0.016184 -0.0043916 0.13565" quat="0.668601 0.0403336 0.0637931 0.739781" mass="1.1325" diaginertia="0.00255401 0.00238017 0.000938535" />
               <joint name="arm_right_3_joint" range="-2.61799 2.61799" actuatorfrcrange="-26 26" frictionloss="1" />
@@ -201,6 +203,7 @@
                 <inertial pos="-0.01786 0.11956 -0.032097" quat="0.540311 0.51103 -0.372627 0.555033" mass="1.0436" diaginertia="0.00163669 0.00151951 0.000828169" />
                 <joint name="arm_right_4_joint" range="-2.44346 1.13446" actuatorfrcrange="-26 26" frictionloss="1" />
                 <geom class="visual" material="dark_medium_gray" mesh="arm_4_link" />
+                <geom class="collision" name="col_arm_right_4" fromto="0 0 0  -0.02 0.17011 -0.03711" size="0.045" />
                 <body name="arm_right_5_link" pos="-0.02 0.17011 -0.03711" quat="0.000563088 -0.000563088 0.707107 0.707107">
                   <inertial pos="-0.00017 -0.02738 0.06749" quat="0.699157 -0.105734 0.105734 0.699157" mass="0.31298" diaginertia="0.00165763 0.00157 0.000312375" />
                   <joint name="arm_right_5_joint" range="-1.5708 3.66519" actuatorfrcrange="-26 26" frictionloss="1" />
@@ -210,6 +213,7 @@
                     <inertial pos="0.0317652 -0.00651511 -0.0408045" quat="0.649802 0.62025 0.320219 0.300842" mass="1.34587" diaginertia="0.00126618 0.00118982 0.000997639" />
                     <joint name="arm_right_6_joint" axis="0 0 -1" range="-1.88496 3.00197" actuatorfrcrange="-26 26" frictionloss="1" />
                     <geom class="visual" material="dark_medium_gray" mesh="arm_6_link" />
+                    <geom class="collision" name="col_arm_right_6" fromto="0 0 0  0.07 -0.0534 -0.0422" size="0.04" />
                     <body name="arm_right_7_link" pos="0.07 -0.0534 -0.0422" quat="0.707105 0.707108 0 0">
                       <inertial pos="0.00174 -0.00223 0.0083" quat="0.5 0.5 -0.5 0.5" mass="0.12399" diaginertia="0.00012 8e-05 6e-05" />
                       <joint name="arm_right_7_joint" range="-2.61799 2.61799" actuatorfrcrange="-26 26" frictionloss="1" />
