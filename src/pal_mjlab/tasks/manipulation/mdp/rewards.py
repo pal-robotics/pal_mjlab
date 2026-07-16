@@ -297,6 +297,15 @@ def object_released_on_floor_term(
   return command.reached & on_floor & ~contact_both
 
 
+def task_success_reward(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  floor_z: float = 0.1,
+) -> torch.Tensor:
+  """Returns 1.0 if the object has reached the target and fallen to the floor, else 0.0."""
+  return object_released_on_floor_term(env, command_name, floor_z).float()
+
+
 @freeze_on_reached
 def object_goal_distance_adaptive(
   env: ManagerBasedRlEnv,
