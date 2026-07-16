@@ -35,7 +35,7 @@ from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
 
 from pal_mjlab.tasks.grippers_manipulation.gripper_manip_command import UniformGripperManipulationCommandCfg
-from pal_mjlab.tasks.box_lifting import mdp
+from pal_mjlab.tasks.grippers_manipulation import mdp
 
 def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
   """Create base manipulation task configuration."""
