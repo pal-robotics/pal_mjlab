@@ -133,7 +133,9 @@ def test_tracking_all_feet_air_time_reward(mock_env):
   env.scene["contact_sensor"].data.current_air_time[:, 0] += 0.2
   env.scene["contact_sensor"].data.current_air_time[:, 1] += 0.4
 
-  value = pal_mjlab_r.all_feet_air_time(env, sensor_name="contact_sensor", threshold=0.5)
+  value = pal_mjlab_r.all_feet_air_time(
+    env, sensor_name="contact_sensor", threshold=0.5
+  )
 
   test_name = "Tracking - feet air time (both below threshold)"
 
@@ -144,7 +146,9 @@ def test_tracking_all_feet_air_time_reward(mock_env):
 
   # One air time below threshold
 
-  value = pal_mjlab_r.all_feet_air_time(env, sensor_name="contact_sensor", threshold=0.3)
+  value = pal_mjlab_r.all_feet_air_time(
+    env, sensor_name="contact_sensor", threshold=0.3
+  )
 
   test_name = "Tracking - feet air time (one below threshold)"
 
@@ -155,7 +159,9 @@ def test_tracking_all_feet_air_time_reward(mock_env):
 
   # Both air times above threshold
 
-  value = pal_mjlab_r.all_feet_air_time(env, sensor_name="contact_sensor", threshold=0.1)
+  value = pal_mjlab_r.all_feet_air_time(
+    env, sensor_name="contact_sensor", threshold=0.1
+  )
 
   test_name = "Tracking - feet air time (one below threshold)"
 
