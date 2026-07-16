@@ -9,8 +9,8 @@ This repository showcases the implementation of [PAL Robotics](https://pal-robot
 
 ## What is mjlab?
 
-mjlab brings the [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/index.html) API to [MuJoCo Warp](https://mujoco.readthedocs.io/en/latest/mjwarp/index.html). 
-It's lightweight, easy to install, and has been validated for sim-to-real transfer on the G1 and Go1 robots for RL locomotion and motion imitation. 
+mjlab brings the [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/index.html) API to [MuJoCo Warp](https://mujoco.readthedocs.io/en/latest/mjwarp/index.html).
+It's lightweight, easy to install, and has been validated for sim-to-real transfer on the G1 and Go1 robots for RL locomotion and motion imitation.
 See the [announcement thread](https://x.com/kevin_zakka/status/1972757435707424898) for videos, or read about the [motivation behind mjlab](https://github.com/mujocolab/mjlab/blob/main/docs/motivation.md).
 
 ## Installation
@@ -23,7 +23,7 @@ curl -LsSf https://astral.sh/uv/install.sh \| sh
 Clone the repository.
 
 ```bash
-git clone https://github.com/pal-robotics/pal_mjlab.git 
+git clone https://github.com/pal-robotics/pal_mjlab.git
 cd pal_mjlab
 uv sync
 ```
@@ -101,8 +101,8 @@ uv run play Mjlab-Tracking-Flat-Pal-Kangaroo --wandb-run-path your-org/mjlab/run
 
 ## Contributing
 
-Contributions are welcome! 
-Please open an issue to discuss proposed changes or report bugs. 
+Contributions are welcome!
+Please open an issue to discuss proposed changes or report bugs.
 As mjlab is in early development, breaking changes may occur—thank you for your patience.
 
 ## Acknowledgements

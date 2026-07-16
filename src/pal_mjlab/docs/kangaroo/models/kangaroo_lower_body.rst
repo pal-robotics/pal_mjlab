@@ -53,4 +53,3 @@ The lower-body configuration is a reduced model of the simple model. Besides the
     - leg_right_femur_joint *(revolute)*
 
 This model is used by the ``Mjlab-Velocity-Flat-Pal-Kangaroo-Lower-Body`` task, where locomotion is trained without the arms, relying only on the legs and pelvis for balance and velocity tracking.
-    
