@@ -31,8 +31,12 @@ def get_small_box_spec() -> mujoco.MjSpec:
 def get_table_spec() -> mujoco.MjSpec:
   return _load_spec(TABLE_XML)
     
-INIT_STATE = EntityCfg.InitialStateCfg(
-  pos=(0.0, 0.0, 0.0)
+INIT_STATE_BOX = EntityCfg.InitialStateCfg(
+  pos=(0.75, 0.0, 1.001)
+)
+
+INIT_STATE_TABLE = EntityCfg.InitialStateCfg(
+  pos=(0.75, 0.0, 0.0)
 )
 
 def get_small_box_cfg() -> EntityCfg:
@@ -40,7 +44,7 @@ def get_small_box_cfg() -> EntityCfg:
    articulation = None
    collision = FULL_COLLISION
    return EntityCfg(
-    init_state=INIT_STATE,
+    init_state=INIT_STATE_BOX,
     collisions=(collision,),
     spec_fn=spec_fn,
     articulation=articulation,
@@ -51,7 +55,7 @@ def get_table_cfg() -> EntityCfg:
    articulation = None
    collision = FULL_COLLISION
    return EntityCfg(
-    init_state=INIT_STATE,
+    init_state=INIT_STATE_TABLE,
     collisions=(collision,),
     spec_fn=spec_fn,
     articulation=articulation,

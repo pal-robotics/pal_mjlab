@@ -225,7 +225,7 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
       },
     ),
     "reset_box" : EventTermCfg(
-      func= None,
+      func= mdp.reset_box,
       mode="reset",
       params={
         "pose_range": {
