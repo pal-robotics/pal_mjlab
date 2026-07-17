@@ -56,17 +56,6 @@ def contact_penalty(env: ManagerBasedRlEnv, sensor_names: list[str]) -> torch.Te
   return contact.float()
 
 
-def action_rate_l2(
-  env: ManagerBasedRlEnv, action_indices: list[int] | None = None
-) -> torch.Tensor:
-  if action_indices is None:
-    action_diff = env.action_manager.action - env.action_manager.prev_action
-  else:
-    action_diff = (
-      env.action_manager.action[:, action_indices]
-      - env.action_manager.prev_action[:, action_indices]
-    )
-  return torch.sum(torch.square(action_diff), dim=1)
 
 
 def fingertip_cube_alignment_reward(
@@ -363,10 +352,6 @@ def object_ee_distance_adaptive(
   std: float,
   command_name: str,
   asset_cfg: SceneEntityCfg | None = None,
-  min_reaching_reward: float = 0.0,
-  deactivate_on_contact: bool = False,
-  sensor_name: str | None = None,
-  site_names: list[str] | None = None,
 ) -> torch.Tensor:
   if asset_cfg is None:
     asset_cfg = SceneEntityCfg("robot")
@@ -375,19 +360,7 @@ def object_ee_distance_adaptive(
   ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
   distance = torch.norm(ee_pos_w - command.object_pos_w, dim=-1)
 
-  distance_reward = 1.0 - torch.tanh(distance / std)
-  reward = torch.clamp(distance_reward, min=min_reaching_reward, max=1.0)
-
-  if deactivate_on_contact and sensor_name is not None and site_names is not None:
-    from pal_mjlab.tasks.manipulation.mdp.observations import (
-      object_both__contact_fingers,
-    )
-    contact = object_both__contact_fingers(
-      env, sensor_name, site_names, asset_cfg=asset_cfg
-    ).squeeze(-1)
-    reward = reward * (1.0 - contact)
-
-  return reward
+  return 1.0 - torch.tanh(distance / std)
 
 
 @freeze_on_reached

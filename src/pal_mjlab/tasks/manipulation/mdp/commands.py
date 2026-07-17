@@ -69,12 +69,6 @@ class LiftingCommand(CommandTerm):
     self.grasped_distance = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device)
     self.prev_object_pos_w = self.object_pos_w.clone()
 
-    self.metrics["object_height"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["position_error"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["at_goal"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["episode_success"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["reached"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["grasped_distance"] = torch.zeros(self.num_envs, device=self.device)
 
   @property
   def command(self) -> torch.Tensor:
@@ -147,12 +141,6 @@ class LiftingCommand(CommandTerm):
     success = self.reached & on_floor & ~contact_both
     self.episode_success = torch.maximum(self.episode_success, success.float())
 
-    self.metrics["object_height"] = self.object_bottom_z
-    self.metrics["position_error"] = position_error
-    self.metrics["at_goal"] = at_goal.float()
-    self.metrics["episode_success"] = self.episode_success
-    self.metrics["reached"] = self.reached.float()
-    self.metrics["grasped_distance"] = self.grasped_distance
 
   def compute_success(self) -> torch.Tensor:
     return self.episode_success.bool()
