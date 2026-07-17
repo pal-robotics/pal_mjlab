@@ -355,8 +355,7 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
       time_out=True,
     ),
     "box_out_of_reach": TerminationTermCfg(
-      func= None,
-      params={"table_cfg": SceneEntityCfg("table")},
+      func= mdp.box_out_bounds,
     ),
   }
 
