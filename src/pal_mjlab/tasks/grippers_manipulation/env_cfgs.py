@@ -229,9 +229,9 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
       mode="reset",
       params={
         "pose_range": {
-          "x": (1.0, 1.5),
+          "x": (-0.2, 0.2),
           "y": (-0.5, 0.5),
-          "z": (0.15, 0.15),
+          "z": (0.0, 0.0),
           "yaw": (-3.14, 3.14),
         },
       },
