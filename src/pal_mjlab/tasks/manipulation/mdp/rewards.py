@@ -437,20 +437,20 @@ def object_falling_reward(
   env: ManagerBasedRlEnv,
   command_name: str,
 ) -> torch.Tensor:
+  """Rewards the object's downward velocity when command.reached is True.
+
+  This incentivises the robot to release and let the object fall after reaching the goal,
+  rather than simply holding it near the floor.
+  """
   command: LiftingCommand = env.command_manager.get_term(command_name)
-  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)).float()
+  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device))
 
-  from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
-  contact_both = site_contact_both_fingers(
-    env,
-    sensor_name="box_fingertip_contact",
-    site_names=["gripper_right_fingertip_.*_site"],
-  ).bool()
+  obj = command.object
+  # Downward velocity: negative z means falling, so we clamp and negate
+  lin_vel_z = obj.data.root_link_lin_vel_w[:, 2]
+  falling_speed = torch.clamp(-lin_vel_z, min=0.0)
 
-  # Binary reward: 1.0 if the object's velocity along the Z axis is negative (falling down)
-  z_velocity = command.object.data.root_link_lin_vel_w[:, 2]
-  z_decreasing = (z_velocity < -1e-5).float()
-  return reached * (~contact_both).float() * z_decreasing
+  return reached.float() * falling_speed
 
 
 def object_contact_both_fingers_adaptive(

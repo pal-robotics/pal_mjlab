@@ -117,8 +117,8 @@ class LiftingCommand(CommandTerm):
     # Increment at_goal_time if at goal, else reset to 0.0
     self.at_goal_time = torch.where(at_goal, self.at_goal_time + self._env.step_dt, torch.zeros_like(self.at_goal_time))
     
-    # reached becomes True if at_goal_time >= 1.0 second
-    newly_reached = ~self.reached & (self.at_goal_time >= 1.0)
+    # reached becomes True if at_goal_time >= 0.5 seconds
+    newly_reached = ~self.reached & (self.at_goal_time >= 0.5)
     self.reached = self.reached | newly_reached
     
     # Increment reached_time for all envs that are already (or just became) reached
