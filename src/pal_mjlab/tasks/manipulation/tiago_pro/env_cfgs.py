@@ -26,7 +26,7 @@ from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from pal_mjlab.robots.pal_tiago_pro.tiago_pro import TiagoProRobot
 from pal_mjlab.tasks.manipulation import mdp as manipulation_mdp_pal
 
-EPISODE_LENGTH = 10
+EPISODE_LENGTH = 6
 
 
 def lift_env_cfg(
@@ -243,15 +243,15 @@ def lift_env_cfg(
       "max_open": 0.07,
     },
   )
-  # cfg.rewards["lifting_object"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_is_lifted_adaptive),
-  #   weight=1.0,
-  #   params={
-  #     "command_name": "lift_height",
-  #     "sensor_name": "box_fingertip_contact",
-  #     "site_names": [robot.fingertip_site_pattern],
-  #   },
-  # )
+  cfg.rewards["lifting_object"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_is_lifted_adaptive),
+    weight=1.0,
+    params={
+      "command_name": "lift_height",
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
+    },
+  )
   cfg.rewards["object_goal_tracking"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance_adaptive),
     weight=5.0,
@@ -264,10 +264,10 @@ def lift_env_cfg(
     },
   )
 
-  cfg.rewards["arm_table_contact_penalty"] = RewardTermCfg(
-    func=manipulation_mdp_pal.contact_penalty,
-    weight=-1.0,
-    params={"sensor_names": ["robot_table_contact"]},
+  cfg.rewards["top_surface_penetration_penalty"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.top_surface_penetration_term),
+    weight=-5.0,
+    params={"command_name": "lift_height", "threshold": 0.0005},
   )
 
   cfg.rewards["object_table_sliding_penalty"] = RewardTermCfg(
@@ -276,15 +276,15 @@ def lift_env_cfg(
     params={"command_name": "lift_height"},
   )
 
-  # cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_contact_both_fingers_adaptive),
-  #   weight=0.5,
-  #   params={
-  #     "sensor_name": "box_fingertip_contact",
-  #     "site_names": [robot.fingertip_site_pattern],
-  #     "command_name": "lift_height",
-  #   },
-  # )
+  cfg.rewards["object_contact_both_fingers"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_contact_both_fingers_adaptive),
+    weight=0.5,
+    params={
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
+      "command_name": "lift_height",
+    },
+  )
 
   cfg.rewards["fingertip_cube_alignment"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(
@@ -318,13 +318,13 @@ def lift_env_cfg(
     },
   )
 
-  cfg.rewards["success_reward"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.task_success_reward),
-    weight=1000.0,
-    params={
-      "command_name": "lift_height",
-    },
-  )
+  # cfg.rewards["success_reward"] = RewardTermCfg(
+  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.task_success_reward),
+  #   weight=1.0,
+  #   params={
+  #     "command_name": "lift_height",
+  #   },
+  # )
 
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
     func=manipulation_mdp_pal.action_rate_l2,
@@ -349,9 +349,9 @@ def lift_env_cfg(
     },
   )
   cfg.rewards["self_collisions"] = RewardTermCfg(
-    func=mdp.self_collision_cost,
+    func=manipulation_mdp_pal.contact_penalty,
     weight=-1.0,
-    params={"sensor_name": "self_collision"},
+    params={"sensor_names": ["self_collision", "robot_table_contact"]},
   )
 
 
@@ -493,16 +493,12 @@ def lift_env_cfg(
   #### TERMINATIONS
   cfg.terminations["nan_term"] = TerminationTermCfg(func=mdp_term.nan_detection)
 
-  if not play:
-    cfg.terminations["top_surface_penetration"] = TerminationTermCfg(
-      func=manipulation_mdp_pal.top_surface_penetration_term,
-      params={"command_name": "lift_height", "threshold": 0.0005},
-    )
-    cfg.terminations["object_released_on_floor"] = TerminationTermCfg(
-      func=manipulation_mdp_pal.object_released_on_floor_term,
-      params={"command_name": "lift_height"},
-      time_out=True,
-    )
+  # if not play:
+  cfg.terminations["object_released_on_floor"] = TerminationTermCfg(
+    func=manipulation_mdp_pal.object_released_on_floor_term,
+    params={"command_name": "lift_height"},
+    time_out=True,
+  )
 
   for s in cfg.scene.sensors:
     if isinstance(s, ContactSensorCfg) and s.name == "ee_ground_collision":
