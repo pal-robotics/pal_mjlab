@@ -208,17 +208,17 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
 
   cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
   cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
-  cfg.rewards["pose"].params["std_walking"] = {
+  cfg.rewards["pose"].params["std_standing"] = {
     # Lower body.
-    r"leg_.*_1_.*": 0.15,
-    r"leg_.*_2_.*": 0.3,  # pitch
-    r"leg_.*_3_.*": 0.15,
-    r"leg_.*_length_.*": 0.1,  # length
-    r"leg_.*_4_.*": 0.25,
-    r"leg_.*_5_.*": 0.1,
+    r"leg_.*_1_.*": 0.05,
+    r"leg_.*_2_.*": 0.05,  # pitch
+    r"leg_.*_3_.*": 0.05,
+    r"leg_.*_length_.*": 0.05,  # length
+    r"leg_.*_4_.*": 0.05,
+    r"leg_.*_5_.*": 0.05,
     # Waist.
-    r"pelvis_1.*": 0.08,
-    r"pelvis_2.*": 0.2,
+    r"pelvis_1.*": 0.06,
+    r"pelvis_2.*": 0.15,
     # Arms.
     r"arm_.*_1_.*": 0.2,  # pitch
     r"arm_.*_4_.*": 0.2,  # elbow
@@ -226,32 +226,8 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
     # Grippers.
     r"grippers_.*" : 0.05,
   }
-  cfg.rewards["pose"].params["std_running"] = {
-    # Lower body.
-    r"leg_.*_1_.*": 0.2,
-    r"leg_.*_2_.*": 0.5,
-    r"leg_.*_3_.*": 0.2,
-    r"leg_.*_length_.*": 0.15,
-    r"leg_.*_4_.*": 0.35,
-    r"leg_.*_5_.*": 0.15,
-    # Waist.
-    r"pelvis_1.*": 0.08,
-    r"pelvis_2.*": 0.3,
-    # Arms.
-    r"arm_.*_1_.*": 0.4,
-    r"arm_.*_4_.*": 0.35,
-    r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
-    # Grippers.
-    r"grippers_.*" : 0.05,
-  }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["upright"].weight = 1.25
-  cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-  for reward_name in ["foot_clearance", "foot_slip"]:
-    cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
-  cfg.rewards["body_ang_vel"].weight = -0.05
-  cfg.rewards["angular_momentum"].weight = -0.02
-  cfg.rewards["air_time"].weight = 0.25
   cfg.rewards["self_collisions"] = RewardTermCfg(
     func=mdp.self_collision_cost,
     weight=-1.0,
