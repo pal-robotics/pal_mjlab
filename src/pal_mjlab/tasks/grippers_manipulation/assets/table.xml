@@ -1,0 +1,28 @@
+<mujoco model="table">
+
+    <compiler angle="radian" autolimits="true"/>
+
+    <default>
+        <default class="table">
+            <geom
+                type="box"
+                rgba="0.6 0.6 0.6 1"
+                contype="1"
+                conaffinity="1"/>
+        </default>
+    </default>
+
+    <worldbody>
+
+        <body name="table" pos="0 0 0.5">
+
+            <geom
+                name="table_collision"
+                class="table"
+                size="0.25 1.0 0.5"/>
+
+        </body>
+
+    </worldbody>
+
+</mujoco>

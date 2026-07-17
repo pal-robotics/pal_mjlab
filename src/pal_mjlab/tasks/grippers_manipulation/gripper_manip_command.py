@@ -21,27 +21,46 @@ class UniformGripperManipulationCommand(CommandTerm):
 
     self.box: Entity = env.scene[cfg.entity_name]
 
-    self.box_height_command = torch.zeros(self.num_envs, 1, device=self.device)
+    self.rel_box_position_command = torch.zeros((self.num_envs, 3,), device=self.device)
 
-    self.metrics["error_box_height"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_rel_box_pos_x"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_rel_box_pos_y"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_rel_box_pos_z"] = torch.zeros(self.num_envs, device=self.device)
+
 
   @property
   def command(self) -> torch.Tensor:
-    return self.box_height_command
+    return self.rel_box_position_command
 
   def _update_metrics(self) -> None:
     max_command_time = self.cfg.resampling_time_range[1]
     max_command_step = max_command_time / self._env.step_dt
-    self.metrics["error_box_height"] += (
+    error = self.rel_box_position_command - self.box.data.root_link_pos_w
+    self.metrics["error_rel_box_pos_x"] += (
       torch.norm(
-        self.box_height_command - self.box.data.root_link_pos_w[:, 2], dim=-1
+        error[:, 0], dim=-1
+      )
+      / max_command_step
+    )
+    self.metrics["error_rel_box_pos_y"] += (
+      torch.norm(
+        error[:, 1], dim=-1
+      )
+      / max_command_step
+    )
+    self.metrics["error_rel_box_pos_z"] += (
+      torch.norm(
+        error[:, 2], dim=-1
       )
       / max_command_step
     )
 
+
   def _resample_command(self, env_ids: torch.Tensor) -> None:
     r = torch.empty(len(env_ids), device=self.device)
-    self.box_height_command[env_ids, 0] = r.uniform_(*self.cfg.ranges.height)
+    self.rel_box_position_command[env_ids, 0] = r.uniform_(*self.cfg.ranges.x)
+    self.rel_box_position_command[env_ids, 1] = r.uniform_(*self.cfg.ranges.y)
+    self.rel_box_position_command[env_ids, 2] = r.uniform_(*self.cfg.ranges.z)
 
   def _update_command(self) -> None:
     pass
@@ -52,7 +71,9 @@ class UniformGripperManipulationCommandCfg(CommandTermCfg):
 
   @dataclass
   class Ranges:
-    height: tuple[float, float]
+    x: tuple[float, float]
+    y: tuple[float, float]
+    z: tuple[float, float]
 
   ranges: Ranges
 

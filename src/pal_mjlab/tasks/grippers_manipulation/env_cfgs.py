@@ -38,7 +38,7 @@ from pal_mjlab.tasks.grippers_manipulation.gripper_manip_command import UniformG
 from pal_mjlab.tasks.grippers_manipulation import mdp
 
 def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
-  """Create base manipulation task configuration."""
+  """Create base gripper manipulation task configuration."""
 
   ##
   # Sensors
@@ -100,10 +100,10 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
     "actions": ObservationTermCfg(func=mdp.last_action),
     "command": ObservationTermCfg(
       func=mdp.generated_commands,
-      params={"command_name": "box_height"},
+      params={"command_name": "box_target"},
     ),
     "box_position": ObservationTermCfg(
-      func=mdp.box_position_robot_frame,
+      func= None,
       noise=Unoise(n_min=-0.1, n_max=0.1),
     ),
     "height_scan": ObservationTermCfg(
@@ -138,11 +138,11 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"sensor_name": "feet_ground_contact"},
     ),
     "hand_to_box_contact": ObservationTermCfg(
-      func=mdp.hand_to_box_contact,
+      func= None,
       params={"sensor_name": "hands_box_contact"},
     ),
     "hand_to_box_contact_forces": ObservationTermCfg(
-      func=mdp.hand_to_box_contact_forces,
+      func= None,
       params={"sensor_name": "hands_box_contact"},
     ),
   }
@@ -188,7 +188,7 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
     
   commands = { 
-    "box_height" : UniformGripperManipulationCommandCfg(
+    "box_target" : UniformGripperManipulationCommandCfg(
       resampling_time_range=(30.0,30.0),
       entity_name="box",
       ranges=UniformGripperManipulationCommandCfg.Ranges(
@@ -225,7 +225,7 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
       },
     ),
     "reset_box" : EventTermCfg(
-      func=mdp.reset_box,
+      func= None,
       mode="reset",
       params={
         "pose_range": {
@@ -298,124 +298,45 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
       },
     ),
     "pose": RewardTermCfg(
-      func=mdp.VariablePostureBoxLifting,
+      func= None,
       weight=1.0,
       params={
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
-        "box_cfg": SceneEntityCfg("box"),
-        "dist": 0.60,
-        "std_walking": {},  # Set per-robot.
-        "std_lifting": {},  # Set per-robot.
+        "std_standing": {}, # Set per-robot.
       },
     ),
-    "body_ang_vel": RewardTermCfg(
-      func=mdp.body_angular_velocity_penalty,
-      weight=0.0,  # Override per-robot
-      params={"asset_cfg": SceneEntityCfg("robot", body_names=())},  # Set per-robot.
-    ),
-    "angular_momentum": RewardTermCfg(
-      func=mdp.angular_momentum_penalty,
-      weight=0.0,  # Override per-robot
-      params={"sensor_name": "robot/root_angmom"},
-    ),
+    
     "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
     "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1),
-    "air_time": RewardTermCfg(
-        func=mdp.feet_air_time_box,
-        weight=0.25,
-        params={
-            "sensor_name": "feet_ground_contact",
-            "threshold_min": 0.05,
-            "threshold_max": 0.5,
-            "dist": 0.60,
-        },
-    ),
-    "foot_clearance": RewardTermCfg(
-        func=mdp.feet_clearance_box,
-        weight=-2.0,
-        params={
-            "target_height": 0.1,
-            "height_sensor_name": "foot_height_scan",
-            "dist": 0.60,
-            "asset_cfg": SceneEntityCfg("robot", site_names=()), # Set per-robot.
-        },
-    ),
-    "foot_swing_height": RewardTermCfg(
-        func=mdp.feet_swing_height_box,
-        weight=-0.25,
-        params={
-            "sensor_name": "feet_ground_contact",
-            "height_sensor_name": "foot_height_scan",
-            "target_height": 0.1,
-            "dist": 0.60,
-        },
-    ),
-    "foot_slip": RewardTermCfg(
-        func=mdp.feet_slip_box,
-        weight=-0.1,
-        params={
-            "sensor_name": "feet_ground_contact",
-            "dist": 0.60,
-            "asset_cfg": SceneEntityCfg("robot", site_names=()), # Set per-robot.
-        },
-    ),
-    "soft_landing": RewardTermCfg(
-        func=mdp.soft_landing_box,
-        weight=-1e-05,
-        params={
-            "sensor_name": "feet_ground_contact",
-            "dist": 0.60,
-        },
-    ),
-    "box_proximity": RewardTermCfg(
-        func=mdp.box_proximity,
-        weight=5.0,
-        params={
-            "std": 1.5,
-            "dist": 0.50,
-        },
-    ),
     "hands_to_box": RewardTermCfg(
-        func=mdp.hands_to_box,
+        func= None,
         weight=3.0,
         params={
             "asset_cfg": SceneEntityCfg(
-                "robot", body_names=["arm_left_tip_link", "arm_right_tip_link"]
+                "robot", body_names=["arm_left_7_link", "arm_right_7_link"]
             ),
-            "std": math.sqrt(1.0),
-            "dist": 0.60,
+            "std": math.sqrt(0.25),
+            "dist": 0.05,
         },
     ),
     "hands_contact": RewardTermCfg(
-        func=mdp.hand_contact_reward,
+        func= None,
         weight=1.0,
         params={
             "sensor_name": "hands_box_contact",
         },
     ),
-    "box_height": RewardTermCfg(
-        func=mdp.box_height,
+    "box_target_tracking": RewardTermCfg(
+        func= None,
         weight=2.0,
         params={
             "std": math.sqrt(0.3),
-            "dist": 0.60,
-            "target_height": 1.0,
+            "target_pos": (0.5, 0.0, 0.3)
         },
     ),
-    "look_at_box": RewardTermCfg(
-        func=mdp.look_at_box,
-        weight=1.0,
-        params={
-            "std": math.sqrt(0.5),
-        },
-    ),
-    "horizontal_vel_penalty": RewardTermCfg(
-        func=mdp.horizontal_vel_penalty,
-        weight=-0.5,
-    ),
-    "ang_vel_penalty": RewardTermCfg(
-        func=mdp.ang_vel_penalty,
-        weight=-0.5,
+    "table_contact": RewardTermCfg(
+        func= None,
+        weight=-2.0,
     ),
   }
 
@@ -432,6 +353,10 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
     "out_of_terrain_bounds": TerminationTermCfg(
       func=mdp.out_of_terrain_bounds,
       time_out=True,
+    ),
+    "box_out_of_reach": TerminationTermCfg(
+      func= None,
+      params={"table_cfg": SceneEntityCfg("table")},
     ),
   }
 

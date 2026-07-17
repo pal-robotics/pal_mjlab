@@ -212,7 +212,7 @@ KANGAROO_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 )
 
 KANGAROO_GRIPPERS_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"gripper_.*_(?![1267]_joint)\d+_joint",),
+  target_names_expr=(r"gripper_.*_joint",),
   **S_MINUS,
 )
 

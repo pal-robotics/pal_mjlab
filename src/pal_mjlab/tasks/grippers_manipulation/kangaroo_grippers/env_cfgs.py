@@ -16,7 +16,7 @@ from mjlab.sensor import (
   RingPatternCfg,
   TerrainHeightSensorCfg,
 )
-from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
+from pal_mjlab.tasks.grippers_manipulation.gripper_manip_command import UniformGripperManipulationCommandCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
 from pal_mjlab.robots import (
@@ -29,6 +29,12 @@ from pal_mjlab.robots import (
   REGEX_LEG_LENGTH_JOINTS_ONLY,
   get_kangaroo_grippers_robot_cfg,
 )
+
+from pal_mjlab.tasks.grippers_manipulation.assets import (
+  get_table_cfg,
+  get_small_box_cfg,
+)
+
 from pal_mjlab.tasks.velocity import mdp
 from pal_mjlab.tasks.grippers_manipulation.env_cfgs import make_grippers_manipulation_env_cfg
 
@@ -36,7 +42,7 @@ from pal_mjlab.tasks.grippers_manipulation.env_cfgs import make_grippers_manipul
 def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO rough terrain grippers manipulation configuration."""
   cfg = make_grippers_manipulation_env_cfg()
-  cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
+  cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg(), "small_box" : get_small_box_cfg, "table": get_table_cfg}
   cfg.sim.nconmax = None
   cfg.sim.mujoco.ccd_iterations = 500
   cfg.sim.contact_sensor_maxmatch = 500
@@ -84,6 +90,30 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
     reduce="none",
     num_slots=1,
   )
+  body_table_cfg = ContactSensorCfg(
+    name="body_table_contact",
+    primary=ContactMatch(
+      mode="subtree",
+      pattern="base_link",
+      entity="robot",
+    ),
+    secondary=ContactMatch(mode="body", pattern="table", entity="box"),
+    fields=("found",),
+    reduce="none",
+    num_slots=1,
+  )
+  gripper_box_cfg = ContactSensorCfg(
+    name="hands_box_contact",
+    primary=ContactMatch(
+      mode="subtree",
+      pattern=r"^(arm_left_7_link|arm_right_7_link)$",
+      entity="robot",
+    ),
+    secondary=ContactMatch(mode="body", pattern="small_box", entity="small_box"),
+    fields=("found", "force"),
+    reduce="netforce",
+    num_slots=1,
+  )
 
   # Remove the default terrain scan sensor
   cfg.scene.sensors = tuple(s for s in cfg.scene.sensors if s.name != "terrain_scan")
@@ -92,6 +122,8 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
     feet_ground_cfg,
     self_collision_cfg,
     body_ground_cfg,
+    body_table_cfg,
+    gripper_box_cfg,
   )
 
   if cfg.scene.terrain is not None and cfg.scene.terrain.terrain_generator is not None:
@@ -103,11 +135,6 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
   joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
 
   cfg.viewer.body_name = "pelvis_2_link"
-
-  assert cfg.commands is not None
-  twist_cmd = cfg.commands["twist"]
-  assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-  twist_cmd.viz.z_offset = 1.15
 
   # Wire foot height scan to per-foot sites.
   for sensor in cfg.scene.sensors or ():
@@ -196,6 +223,8 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
     r"arm_.*_1_.*": 0.2,  # pitch
     r"arm_.*_4_.*": 0.2,  # elbow
     r"arm_.*_(?![14]_joint)\d+_joint": 0.1,
+    # Grippers.
+    r"grippers_.*" : 0.05,
   }
   cfg.rewards["pose"].params["std_running"] = {
     # Lower body.
@@ -212,6 +241,8 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
     r"arm_.*_1_.*": 0.4,
     r"arm_.*_4_.*": 0.35,
     r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
+    # Grippers.
+    r"grippers_.*" : 0.05,
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["upright"].weight = 1.25
