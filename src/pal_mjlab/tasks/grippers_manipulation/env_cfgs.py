@@ -103,7 +103,7 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"command_name": "box_target"},
     ),
     "box_position": ObservationTermCfg(
-      func= None,
+      func= mdp.box_position_robot_frame,
       noise=Unoise(n_min=-0.1, n_max=0.1),
     ),
     "height_scan": ObservationTermCfg(
@@ -138,11 +138,11 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"sensor_name": "feet_ground_contact"},
     ),
     "hand_to_box_contact": ObservationTermCfg(
-      func= None,
+      func= mdp.hand_to_box_contact,
       params={"sensor_name": "hands_box_contact"},
     ),
     "hand_to_box_contact_forces": ObservationTermCfg(
-      func= None,
+      func= mdp.hand_to_box_contact_forces,
       params={"sensor_name": "hands_box_contact"},
     ),
   }
