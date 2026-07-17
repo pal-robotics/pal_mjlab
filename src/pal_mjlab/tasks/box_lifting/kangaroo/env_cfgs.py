@@ -214,30 +214,30 @@ def pal_kangaroo_box_lifting_rough_env_cfg(play: bool = False) -> ManagerBasedRl
   cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
   #cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
   cfg.rewards["pose"].params["std_walking"] = {
-     r"leg_.*_1_.*": 0.15,
-    r"leg_.*_2_.*": 0.3,
-    r"leg_.*_3_.*": 0.15,
-    r"leg_.*_length_.*": 0.1,
-    r"leg_.*_4_.*": 0.25,
-    r"leg_.*_5_.*": 0.1,
-    r"pelvis_1.*": 0.08,
-    r"pelvis_2.*": 0.2,
-    r"arm_.*_1_.*": 0.2,
-    r"arm_.*_4_.*": 0.2,
-    r"arm_.*_(?![14]_joint)\d+_joint": 0.1,
+    r"leg_.*_1_.*": 0.09,          # was 0.15 → ~40% cut
+    r"leg_.*_2_.*": 0.18,          # was 0.3  → ~40% cut
+    r"leg_.*_3_.*": 0.09,          # was 0.15 → ~40% cut
+    r"leg_.*_length_.*": 0.06,     # was 0.1  → ~40% cut
+    r"leg_.*_4_.*": 0.15,          # was 0.25 → ~40% cut
+    r"leg_.*_5_.*": 0.06,          # was 0.1  → ~40% cut
+    r"pelvis_1.*": 0.05,           # was 0.08 → ~40% cut
+    r"pelvis_2.*": 0.12,           # was 0.2  → ~40% cut
+    r"arm_.*_1_.*": 0.08,          # was 0.2  → 60% cut
+    r"arm_.*_4_.*": 0.08,          # was 0.2  → 60% cut
+    r"arm_.*_(?![14]_joint)\d+_joint": 0.04,  # was 0.1 → 60% cut
   }
   cfg.rewards["pose"].params["std_lifting"] = {
-    r"leg_.*_1_.*": 0.30,
-    r"leg_.*_2_.*": 0.4,
-    r"leg_.*_3_.*": 0.30,
-    r"leg_.*_length_.*": 0.35,
-    r"leg_.*_4_.*": 0.35,
-    r"leg_.*_5_.*": 0.2,
-    r"pelvis_1.*": 0.20,
-    r"pelvis_2.*": 0.4,
-    r"arm_.*_1_.*": 0.4,
-    r"arm_.*_4_.*": 0.4,
-    r"arm_.*_(?![14]_joint)\d+_joint": 0.2,
+    r"leg_.*_1_.*": 0.20,          # was 0.30 → ~33% cut
+    r"leg_.*_2_.*": 0.26,          # was 0.4  → ~33% cut
+    r"leg_.*_3_.*": 0.20,          # was 0.30 → ~33% cut
+    r"leg_.*_length_.*": 0.23,     # was 0.35 → ~33% cut
+    r"leg_.*_4_.*": 0.23,          # was 0.35 → ~33% cut
+    r"leg_.*_5_.*": 0.13,          # was 0.2  → ~33% cut
+    r"pelvis_1.*": 0.13,           # was 0.20 → ~33% cut
+    r"pelvis_2.*": 0.26,           # was 0.4  → ~33% cut
+    r"arm_.*_1_.*": 0.24,          # was 0.4  → 40% cut
+    r"arm_.*_4_.*": 0.24,          # was 0.4  → 40% cut
+    r"arm_.*_(?![14]_joint)\d+_joint": 0.12,  # was 0.2 → 40% cut
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
