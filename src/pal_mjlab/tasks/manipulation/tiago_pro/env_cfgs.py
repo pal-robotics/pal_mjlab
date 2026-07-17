@@ -11,6 +11,7 @@ from mjlab.envs.mdp.dr import geom as dr_geom
 from mjlab.managers import (
   CurriculumTermCfg,
   EventTermCfg,
+  MetricsTermCfg,
   ObservationGroupCfg,
   ObservationTermCfg,
   RewardTermCfg,
@@ -223,12 +224,8 @@ def lift_env_cfg(
     weight=3.0,
     params={
       "std": 0.15,
-      "min_reaching_reward": 0.0,
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
-      "deactivate_on_contact": False,
-      "sensor_name": "box_fingertip_contact",
-      "site_names": [robot.fingertip_site_pattern],
     },
   )
   cfg.rewards["gripper_open_during_approach"] = RewardTermCfg(
@@ -327,9 +324,8 @@ def lift_env_cfg(
   # )
 
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
-    func=manipulation_mdp_pal.action_rate_l2,
+    func=mjlab_rewards.action_rate_l2,
     weight=-0.1,
-    params={"action_indices": list(range(8))},
   )
 
   cfg.rewards["arm_right_1_joint_limit_penalty"] = RewardTermCfg(
@@ -354,6 +350,30 @@ def lift_env_cfg(
     params={"sensor_names": ["self_collision", "robot_table_contact"]},
   )
 
+
+  ### METRICS
+  cfg.metrics = {
+    "object_height": MetricsTermCfg(
+      func=manipulation_mdp_pal.object_height,
+      params={"command_name": "lift_height"},
+    ),
+    "position_error": MetricsTermCfg(
+      func=manipulation_mdp_pal.position_error,
+      params={"command_name": "lift_height"},
+    ),
+    "episode_success": MetricsTermCfg(
+      func=manipulation_mdp_pal.episode_success,
+      params={"command_name": "lift_height"},
+    ),
+    "reached": MetricsTermCfg(
+      func=manipulation_mdp_pal.reached,
+      params={"command_name": "lift_height"},
+    ),
+    "grasped_distance": MetricsTermCfg(
+      func=manipulation_mdp_pal.grasped_distance,
+      params={"command_name": "lift_height"},
+    ),
+  }
 
   ### CURRICULUMS
   cfg.curriculum.clear()
@@ -491,6 +511,7 @@ def lift_env_cfg(
   )
 
   #### TERMINATIONS
+  cfg.terminations.pop("ee_ground_collision", None)  # inherited from base cfg; not wanted
   cfg.terminations["nan_term"] = TerminationTermCfg(func=mdp_term.nan_detection)
 
   # if not play:
