@@ -16,7 +16,6 @@ from mjlab.sensor import (
   RingPatternCfg,
   TerrainHeightSensorCfg,
 )
-from pal_mjlab.tasks.grippers_manipulation.gripper_manip_command import UniformGripperManipulationCommandCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
 from pal_mjlab.robots import (
@@ -29,20 +28,26 @@ from pal_mjlab.robots import (
   REGEX_LEG_LENGTH_JOINTS_ONLY,
   get_kangaroo_grippers_robot_cfg,
 )
-
 from pal_mjlab.tasks.grippers_manipulation.assets import (
-  get_table_cfg,
   get_small_box_cfg,
+  get_table_cfg,
 )
-
+from pal_mjlab.tasks.grippers_manipulation.env_cfgs import (
+  make_grippers_manipulation_env_cfg,
+)
 from pal_mjlab.tasks.velocity import mdp
-from pal_mjlab.tasks.grippers_manipulation.env_cfgs import make_grippers_manipulation_env_cfg
 
 
-def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+def pal_kangaroo_grippers_manipulation_rough_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO rough terrain grippers manipulation configuration."""
   cfg = make_grippers_manipulation_env_cfg()
-  cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg(), "box" : get_small_box_cfg(), "table": get_table_cfg()}
+  cfg.scene.entities = {
+    "robot": get_kangaroo_grippers_robot_cfg(),
+    "box": get_small_box_cfg(),
+    "table": get_table_cfg(),
+  }
   cfg.sim.nconmax = None
   cfg.sim.mujoco.ccd_iterations = 500
   cfg.sim.contact_sensor_maxmatch = 500
@@ -223,7 +228,7 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
     r"arm_.*_4_.*": 0.2,  # elbow
     r"arm_.*_(?![14]_joint)\d+_joint": 0.1,
     # Grippers.
-    r"gripper_.*" : 0.05,
+    r"gripper_.*": 0.05,
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["upright"].weight = 1.25
@@ -343,7 +348,10 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
 
   return cfg
 
-def pal_kangaroo_grippers_manipulation_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+
+def pal_kangaroo_grippers_manipulation_flat_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO flat terrain grippers manipulation configuration."""
   cfg = pal_kangaroo_grippers_manipulation_rough_env_cfg(play=play)
 

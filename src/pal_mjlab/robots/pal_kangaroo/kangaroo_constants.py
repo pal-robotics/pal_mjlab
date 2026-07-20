@@ -293,7 +293,9 @@ KANGAROO_HANDS_ARTICULATION = EntityArticulationInfoCfg(
   actuators=COMMON_ACTUATORS, soft_joint_pos_limit_factor=0.9
 )
 KANGAROO_GRIPPERS_ARTICULATION = EntityArticulationInfoCfg(
-  actuators=COMMON_ACTUATORS + (KANGAROO_XS_ACTUATOR_CFG,) + (KANGAROO_GRIPPERS_S_MINUS_ACTUATOR_CFG,),
+  actuators=COMMON_ACTUATORS
+  + (KANGAROO_XS_ACTUATOR_CFG,)
+  + (KANGAROO_GRIPPERS_S_MINUS_ACTUATOR_CFG,),
   soft_joint_pos_limit_factor=0.9,
 )
 

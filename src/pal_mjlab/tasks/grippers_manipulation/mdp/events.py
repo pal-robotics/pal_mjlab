@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import torch
-
 from mjlab.entity import Entity
 from mjlab.utils.lab_api.math import (
   quat_from_euler_xyz,
@@ -49,12 +48,12 @@ def resolve_env_ids(
     return torch.arange(env.num_envs, device=env.device, dtype=torch.int)
   return env_ids
 
+
 def reset_box(
   env: ManagerBasedRlEnv,
   env_ids: torch.Tensor | None,
   pose_range: dict[str, tuple[float, float]],
 ) -> None:
-
   env_ids = resolve_env_ids(env, env_ids)
 
   asset: Entity = env.scene["box"]
