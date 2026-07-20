@@ -1284,8 +1284,8 @@ wheels = [
 
 [[package]]
 name = "mjlab"
-version = "1.5.1"
-source = { git = "https://github.com/mujocolab/mjlab?rev=c8348ba27f156acfdadf46c1ecd3166e763b66f0#c8348ba27f156acfdadf46c1ecd3166e763b66f0" }
+version = "1.5.2"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "imageio-ffmpeg" },
     { name = "mediapy" },
@@ -1308,8 +1308,11 @@ dependencies = [
     { name = "tyro" },
     { name = "viser" },
     { name = "wandb" },
-    { name = "warp-lang", version = "1.15.0", source = { registry = "https://pypi.nvidia.com/" }, marker = "sys_platform != 'darwin' or (extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128')" },
-    { name = "warp-lang", version = "1.15.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin' or (extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128')" },
+    { name = "warp-lang" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/12/41/33d4889a2df1ae6b6aed7fce748ce4f14bbf1af21703795e0d693a7db9eb/mjlab-1.5.2.tar.gz", hash = "sha256:9b1c024a48886235e8f23c66cd6ecba70b6dd06dc402a2eb24a4284ba829c09f", size = 14107467, upload-time = "2026-07-17T16:59:30.676Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/09/38/309967edc4668f380878d89cec0014051c10674e71c2ad0feab2d3780584/mjlab-1.5.2-py3-none-any.whl", hash = "sha256:7c02cacb11faf4ea4078c8ef90626638436c259530992a1b884ce568c5cf4034", size = 14203941, upload-time = "2026-07-17T16:59:28.039Z" },
 ]
 
 [[package]]
@@ -1479,8 +1482,7 @@ dependencies = [
     { name = "mujoco" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128')" },
     { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' or (extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128')" },
-    { name = "warp-lang", version = "1.15.0", source = { registry = "https://pypi.nvidia.com/" }, marker = "sys_platform != 'darwin' or (extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128')" },
-    { name = "warp-lang", version = "1.15.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin' or (extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128')" },
+    { name = "warp-lang" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/00/b1/edd8743786263d756bb1ffded28ae211289334bbb1ad9729c40e6163b376/mujoco_warp-3.10.0.2.tar.gz", hash = "sha256:3fe8b5c68bd30eda31af45d1cbee42480a7d1c6e69a35733c5538445375fc570", size = 2066036, upload-time = "2026-07-13T18:24:40.645Z" }
 wheels = [
@@ -2036,7 +2038,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "mjlab", git = "https://github.com/mujocolab/mjlab?rev=c8348ba27f156acfdadf46c1ecd3166e763b66f0" },
+    { name = "mjlab", specifier = ">=1.5.2" },
     { name = "moviepy", specifier = ">=2.0" },
     { name = "torch", marker = "extra == 'cpu'", specifier = ">=2.7.0" },
     { name = "torch", marker = "extra == 'cu128'", specifier = ">=2.7.0" },
@@ -3407,41 +3409,10 @@ wheels = [
 [[package]]
 name = "warp-lang"
 version = "1.15.0"
-source = { registry = "https://pypi.nvidia.com/" }
-resolution-markers = [
-    "python_full_version >= '3.13' and sys_platform == 'linux'",
-    "python_full_version == '3.12.*' and sys_platform == 'linux'",
-    "python_full_version >= '3.13' and sys_platform != 'darwin' and sys_platform != 'linux'",
-    "python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'linux'",
-    "python_full_version == '3.11.*' and sys_platform == 'linux'",
-    "python_full_version == '3.11.*' and sys_platform != 'darwin' and sys_platform != 'linux'",
-    "python_full_version < '3.11' and sys_platform == 'linux'",
-    "python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux'",
-]
-dependencies = [
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and sys_platform != 'darwin') or (python_full_version >= '3.11' and extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128') or (sys_platform == 'darwin' and extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128')" },
-    { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and sys_platform != 'darwin') or (python_full_version < '3.11' and extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128') or (sys_platform == 'darwin' and extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128')" },
-]
-wheels = [
-    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.15.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:ee06e2e76bff84088a09e64315e71ed0e55e94c936ec664d7b05ebd56f66a363" },
-    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.15.0-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:95c169f28bd7d6c78ac4ad62e2df1e61a096033748f757157fa4551aed80d010" },
-    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.15.0-py3-none-manylinux_2_34_aarch64.whl", hash = "sha256:3c0711b39ad98ff924d29654b028ec4eaa02330e207ae3efc72445e9cde05b34" },
-    { url = "https://pypi.nvidia.com/warp-lang/warp_lang-1.15.0-py3-none-win_amd64.whl", hash = "sha256:06ef42c3ce522749268056653ea253645eb4a96ca164af74ae5113f0d55a6970" },
-]
-
-[[package]]
-name = "warp-lang"
-version = "1.15.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.13' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and sys_platform == 'darwin'",
-    "python_full_version == '3.11.*' and sys_platform == 'darwin'",
-    "python_full_version < '3.11' and sys_platform == 'darwin'",
-]
 dependencies = [
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and sys_platform == 'darwin') or (python_full_version >= '3.11' and extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128') or (sys_platform != 'darwin' and extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128')" },
-    { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and sys_platform == 'darwin') or (python_full_version < '3.11' and extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128') or (sys_platform != 'darwin' and extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128')" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128')" },
+    { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' or (extra == 'extra-9-pal-mjlab-cpu' and extra == 'extra-9-pal-mjlab-cu128')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ce/a2/712bcea055b80135e20a7a142f5dc1fa617bf3b5557dd4cc3afcc1048ab4/warp_lang-1.15.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:ee06e2e76bff84088a09e64315e71ed0e55e94c936ec664d7b05ebd56f66a363", size = 25048790, upload-time = "2026-07-07T22:26:18.532Z" },
