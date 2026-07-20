@@ -308,7 +308,7 @@ def lift_env_cfg(
 
   cfg.rewards["release_cube"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.release_cube_reward),
-    weight=5.0,
+    weight=10.0,
     params={
       "command_name": "lift_height",
       "max_open": 0.08,
