@@ -14,12 +14,12 @@
 
     <worldbody>
 
-        <body name="table" pos="0 0 0.5">
+        <body name="table" pos="0 0 0.35">
 
             <geom
                 name="table_collision"
                 class="table"
-                size="0.25 1.0 0.5"/>
+                size="0.25 1.0 0.35"/>
 
         </body>
 
