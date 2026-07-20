@@ -369,7 +369,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "box_proximity": RewardTermCfg(
         func=mdp.box_proximity,
-        weight=5.0,
+        weight=2.0,
         params={
             "std": 1.5,
             "dist": 0.50,
@@ -377,7 +377,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "hands_to_box": RewardTermCfg(
         func=mdp.hands_to_box,
-        weight=3.0,
+        weight=1.5,
         params={
             "asset_cfg": SceneEntityCfg(
                 "robot", body_names=["arm_left_tip_link", "arm_right_tip_link"]
