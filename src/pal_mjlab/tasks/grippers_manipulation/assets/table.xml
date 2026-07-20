@@ -19,7 +19,7 @@
             <geom
                 name="table_collision"
                 class="table"
-                size="0.25 1.0 0.35"/>
+                size="0.25 0.6 0.35"/>
 
         </body>
 
