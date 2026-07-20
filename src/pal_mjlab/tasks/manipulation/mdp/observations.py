@@ -4,17 +4,18 @@ import torch
 from mjlab.entity import Entity
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.managers.scene_entity_config import SceneEntityCfg
-from mjlab.tasks.manipulation import mdp as manipulation_mdp
 from mjlab.utils.lab_api.math import euler_xyz_from_quat, quat_apply, quat_inv, quat_mul
 
 from pal_mjlab.tasks.manipulation.mdp.commands import LiftingCommand
 from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
 
+_DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
+
 
 def object_position_in_robot_root_frame(
   env: ManagerBasedRlEnv,
   command_name: str,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
   robot: Entity = env.scene[asset_cfg.name]
   command: LiftingCommand = env.command_manager.get_term(command_name)
@@ -27,7 +28,7 @@ def object_position_in_robot_root_frame(
 def object_orientation_in_robot_root_frame(
   env: ManagerBasedRlEnv,
   command_name: str,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
   robot: Entity = env.scene[asset_cfg.name]
   command: LiftingCommand = env.command_manager.get_term(command_name)
@@ -37,7 +38,7 @@ def object_orientation_in_robot_root_frame(
 def target_position_in_robot_base_frame(
   env: ManagerBasedRlEnv,
   command_name: str,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
   robot: Entity = env.scene[asset_cfg.name]
   command: LiftingCommand = env.command_manager.get_term(command_name)
@@ -49,7 +50,7 @@ def target_position_in_robot_base_frame(
 
 def ee_position_in_robot_base_frame(
   env: ManagerBasedRlEnv,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
   robot: Entity = env.scene[asset_cfg.name]
   ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
@@ -72,14 +73,12 @@ def object_yaw_in_robot_root_frame(
   return torch.stack([torch.cos(yaw), torch.sin(yaw)], dim=-1)
 
 
-
-
 def object_both__contact_fingers(
   env: ManagerBasedRlEnv,
   sensor_name: str,
   site_names: list[str],
   threshold: float = 0.05,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
   min_dist: float = 0.0,
   false_negative_rate: float = 0.0,
 ) -> torch.Tensor:

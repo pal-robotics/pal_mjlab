@@ -13,7 +13,7 @@ from mjlab.utils.lab_api.math import quat_apply, quat_from_euler_xyz, sample_uni
 
 TABLE_HEIGHT = 0.45
 TABLE_HALF_X = 0.35
-TABLE_HALF_Y = 0.35  
+TABLE_HALF_Y = 0.35
 
 BOX_HALF_X = 0.025
 BOX_HALF_Y = 0.025
@@ -65,10 +65,13 @@ class LiftingCommand(CommandTerm):
     self.episode_success = torch.zeros(self.num_envs, device=self.device)
     self.reached = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
     self.at_goal_time = torch.zeros(self.num_envs, device=self.device)
-    self.reached_time = torch.zeros(self.num_envs, device=self.device)  # seconds elapsed since reached became True
-    self.grasped_distance = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device)
+    self.reached_time = torch.zeros(
+      self.num_envs, device=self.device
+    )  # seconds elapsed since reached became True
+    self.grasped_distance = torch.zeros(
+      self.num_envs, dtype=torch.float32, device=self.device
+    )
     self.prev_object_pos_w = self.object_pos_w.clone()
-
 
   @property
   def command(self) -> torch.Tensor:
@@ -107,14 +110,18 @@ class LiftingCommand(CommandTerm):
   def _update_metrics(self) -> None:
     position_error = torch.norm(self.target_pos - self.object_pos_w, dim=-1)
     at_goal = position_error < self.cfg.success_threshold
-    
+
     # Increment at_goal_time if at goal, else reset to 0.0
-    self.at_goal_time = torch.where(at_goal, self.at_goal_time + self._env.step_dt, torch.zeros_like(self.at_goal_time))
-    
+    self.at_goal_time = torch.where(
+      at_goal,
+      self.at_goal_time + self._env.step_dt,
+      torch.zeros_like(self.at_goal_time),
+    )
+
     # reached becomes True if at_goal_time >= 0.5 seconds
     newly_reached = ~self.reached & (self.at_goal_time >= 0.1)
     self.reached = self.reached | newly_reached
-    
+
     # Increment reached_time for all envs that are already (or just became) reached
     self.reached_time = torch.where(
       self.reached,
@@ -126,6 +133,7 @@ class LiftingCommand(CommandTerm):
     from pal_mjlab.tasks.manipulation.mdp.contact_sensor import (
       site_contact_both_fingers,
     )
+
     contact_both = site_contact_both_fingers(
       self._env,
       sensor_name=self.cfg.fingertip_contact_sensor_name,
@@ -133,14 +141,15 @@ class LiftingCommand(CommandTerm):
     ).bool()
 
     step_disp = torch.norm(self.object_pos_w - self.prev_object_pos_w, dim=-1)
-    self.grasped_distance += torch.where(contact_both, step_disp, torch.zeros_like(step_disp))
+    self.grasped_distance += torch.where(
+      contact_both, step_disp, torch.zeros_like(step_disp)
+    )
     self.prev_object_pos_w = self.object_pos_w.clone()
 
     # Success condition: target reached + dropped back to floor (< 0.1m) + released gripper (no contact)
     on_floor = self.object_pos_w[:, 2] < 0.1
     success = self.reached & on_floor & ~contact_both
     self.episode_success = torch.maximum(self.episode_success, success.float())
-
 
   def compute_success(self) -> torch.Tensor:
     return self.episode_success.bool()

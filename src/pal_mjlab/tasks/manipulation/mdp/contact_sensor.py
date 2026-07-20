@@ -1,6 +1,7 @@
 import torch
 from mjlab.entity import Entity
 from mjlab.envs import ManagerBasedRlEnv
+from mjlab.envs.mdp.events import _DEFAULT_ASSET_CFG
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 
 
@@ -9,7 +10,7 @@ def site_contact_both_fingers(
   sensor_name: str,
   site_names: list[str],
   threshold: float = 0.05,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
   min_dist: float = 0.0,  # 0.035
 ) -> torch.Tensor:
   """Returns 1.0 if all specified sites are within threshold distance of the object, 0.0 otherwise."""
@@ -30,4 +31,3 @@ def site_contact_both_fingers(
     both_contact = both_contact & apart
 
   return both_contact.float()
-

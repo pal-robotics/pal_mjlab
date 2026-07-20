@@ -12,6 +12,8 @@ from mjlab.utils.lab_api.math import quat_apply, quat_inv
 from pal_mjlab.tasks.manipulation.mdp.commands import LiftingCommand
 from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
 
+_DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
+
 
 def freeze_on_reached(fn):
   """Decorator to freeze a reward term when the command.reached status is True.
@@ -19,6 +21,7 @@ def freeze_on_reached(fn):
   The reward will be locked to the value it had at the moment reached became True,
   preventing changes or decay during the post-reached phases (e.g. releasing/falling).
   """
+
   @functools.wraps(fn)
   def wrapper(env: ManagerBasedRlEnv, *args, **kwargs):
     command_name = kwargs.get("command_name", None)
@@ -38,9 +41,7 @@ def freeze_on_reached(fn):
       command.frozen_rewards[func_name] = torch.zeros(env.num_envs, device=env.device)
 
     frozen_val = torch.where(
-      command.reached,
-      command.frozen_rewards[func_name],
-      current_reward
+      command.reached, command.frozen_rewards[func_name], current_reward
     )
     command.frozen_rewards[func_name] = frozen_val
     return frozen_val
@@ -54,8 +55,6 @@ def contact_penalty(env: ManagerBasedRlEnv, sensor_names: list[str]) -> torch.Te
     sensor: ContactSensor = env.scene[name]
     contact |= sensor.data.found.any(dim=-1)
   return contact.float()
-
-
 
 
 def fingertip_cube_alignment_reward(
@@ -85,6 +84,7 @@ def fingertip_cube_alignment_reward(
   from pal_mjlab.tasks.manipulation.mdp.observations import (
     object_orientation_in_robot_root_frame,
   )
+
   box_quat_root = object_orientation_in_robot_root_frame(env, command_name, asset_cfg)
   _, _, box_yaw_root = euler_xyz_from_quat(box_quat_root)
 
@@ -99,7 +99,7 @@ def fingertip_cube_alignment_reward(
   p_right = robot.data.site_pos_w[:, right_idx]
 
   v_squeeze_w = p_left - p_right
-  
+
   # Rotate squeeze vector to robot root frame and compute its yaw
   root_rot_w = robot.data.root_link_quat_w
   v_squeeze_root = quat_apply(quat_inv(root_rot_w), v_squeeze_w)
@@ -122,6 +122,7 @@ def fingertip_cube_alignment_reward(
     from pal_mjlab.tasks.manipulation.mdp.observations import (
       object_both__contact_fingers,
     )
+
     contact = object_both__contact_fingers(
       env, sensor_name, site_names, asset_cfg=asset_cfg
     ).squeeze(-1)
@@ -142,7 +143,7 @@ def fingertip_cube_alignment_reward(
 def gripper_open_during_approach_reward(
   env: ManagerBasedRlEnv,
   command_name: str,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
   std: float = 0.08,
   max_open: float = 0.07,
 ) -> torch.Tensor:
@@ -175,7 +176,7 @@ def top_surface_penetration_term(
   env: ManagerBasedRlEnv,
   command_name: str,
   threshold: float = 0.008,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
   """Terminates the episode if either fingertip penetrates the top surface of the cube beyond the threshold."""
   robot: Entity = env.scene[asset_cfg.name]
@@ -219,7 +220,9 @@ def top_surface_penetration_term(
     y = p_local[:, 1]
     z = p_local[:, 2]
 
-    is_inside = (torch.abs(x) <= half_x) & (torch.abs(y) <= half_y) & (torch.abs(z) <= half_z)
+    is_inside = (
+      (torch.abs(x) <= half_x) & (torch.abs(y) <= half_y) & (torch.abs(z) <= half_z)
+    )
 
     # Distances to each face
     dist_x = half_x - torch.abs(x)
@@ -243,10 +246,9 @@ def top_surface_penetration_term(
   return terminated
 
 
-
 def arm_right_1_joint_limit_penalty(
   env: ManagerBasedRlEnv,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
   threshold: float = -0.4,
   scale: float = 4.0,
   max_penalty: float = 10.0,
@@ -266,7 +268,6 @@ def arm_right_1_joint_limit_penalty(
   return torch.clamp(penalty, max=max_penalty)
 
 
-
 def object_released_on_floor_term(
   env: ManagerBasedRlEnv,
   command_name: str,
@@ -277,6 +278,7 @@ def object_released_on_floor_term(
   on_floor = command.object_pos_w[:, 2] < floor_z
 
   from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
+
   contact_both = site_contact_both_fingers(
     env,
     sensor_name="box_fingertip_contact",
@@ -302,7 +304,7 @@ def object_goal_distance_adaptive(
   std: float,
   sensor_name: str,
   site_names: list[str],
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
   coordinate_weights: tuple[float, float, float] = (1.0, 1.0, 1.0),
 ) -> torch.Tensor:
   command: LiftingCommand = env.command_manager.get_term(command_name)
@@ -324,7 +326,7 @@ def object_is_lifted_adaptive(
   command_name: str,
   sensor_name: str,
   site_names: list[str],
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
   min_weight: float = 0.1,
   max_weight: float = 1.5,
   lift_threshold: float = 0.03,
@@ -342,7 +344,7 @@ def object_is_lifted_adaptive(
   scale = min_weight * (ratio ** (elevation / lift_threshold))
 
   is_lifted = (~command.object_on_table & fingers_close).float()
-  
+
   return is_lifted * scale
 
 
@@ -390,11 +392,13 @@ def fingertip_cube_alignment_reward_adaptive(
 def release_cube_reward(
   env: ManagerBasedRlEnv,
   command_name: str,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
   max_open: float = 0.08,
 ) -> torch.Tensor:
   command: LiftingCommand = env.command_manager.get_term(command_name)
-  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)).float()
+  reached = getattr(
+    command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+  ).float()
 
   # Get gripper joint velocity
   robot = env.scene[asset_cfg.name]
@@ -423,7 +427,9 @@ def object_falling_reward(
     site_names = ["gripper_right_fingertip_.*_site"]
 
   command: LiftingCommand = env.command_manager.get_term(command_name)
-  reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device))
+  reached = getattr(
+    command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+  )
 
   contact_both = site_contact_both_fingers(
     env, sensor_name=sensor_name, site_names=site_names
@@ -440,7 +446,7 @@ def object_falling_reward(
 def post_reached_ee_stability_reward(
   env: ManagerBasedRlEnv,
   command_name: str,
-  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
   threshold: float = 0.05,
 ) -> torch.Tensor:
   """Binary reward (1.0) for the EE staying within `threshold` of the goal position
@@ -470,9 +476,7 @@ def object_contact_both_fingers_adaptive(
   site_names: list[str],
   command_name: str = "lift_height",
 ) -> torch.Tensor:
-  contact = site_contact_both_fingers(
-    env, sensor_name, site_names
-  ).float()
+  contact = site_contact_both_fingers(env, sensor_name, site_names).float()
   return contact
 
 
@@ -485,9 +489,9 @@ def object_table_sliding_penalty_adaptive(
   only before the target has been reached.
   """
   command: LiftingCommand = env.command_manager.get_term(command_name)
-  
+
   obj = command.object
   lin_vel_xy = obj.data.root_link_lin_vel_w[:, :2]
   speed_xy = torch.norm(lin_vel_xy, dim=-1)
-  
+
   return command.object_on_table.float() * speed_xy

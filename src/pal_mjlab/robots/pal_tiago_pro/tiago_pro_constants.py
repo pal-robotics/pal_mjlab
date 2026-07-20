@@ -96,7 +96,7 @@ INIT_STATE = EntityCfg.InitialStateCfg(
     "arm_right_3_joint": 0.71,
     "arm_right_4_joint": -1.14,
     "arm_right_5_joint": 2.8,
-    "arm_right_6_joint": 1.0,    #-1
+    "arm_right_6_joint": 1.0,  # -1
     "arm_right_7_joint": 0.0,
     "gripper_right_finger_joint": 0.045,
     "gripper_right_inner_finger_left_joint": -0.379495,
@@ -191,11 +191,11 @@ for a in TIAGO_PRO_ARTICULATION.actuators:
 
   for n in names:
     if n in e and n in s and s[n]:
-      TIAGO_PRO_ACTION_SCALE[n] = 0.05 * e[n] / s[n]   #0.05
+      TIAGO_PRO_ACTION_SCALE[n] = 0.05 * e[n] / s[n]  # 0.05
       TIAGO_PRO_ACTUATOR_NAMES += (n,)
 
 # Override gripper scale: tuned to 0.01 (formula-derived ~0.001528 is too small for control)
-TIAGO_PRO_ACTION_SCALE["gripper_right_finger_joint"] = 0.01   #0.01
+TIAGO_PRO_ACTION_SCALE["gripper_right_finger_joint"] = 0.01  # 0.01
 
 
 if __name__ == "__main__":

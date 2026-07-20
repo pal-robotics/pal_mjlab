@@ -4,6 +4,12 @@ import torch
 from mjlab.entity import Entity
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.envs.mdp.actions.actions import BaseAction
+from mjlab.rl.runner import MjlabOnPolicyRunner
+from mjlab.utils.lab_api.tasks.importer import import_packages
+
+_BLACKLIST_PKGS = ["utils", ".mdp"]
+
+import_packages(__name__, _BLACKLIST_PKGS)
 
 
 def patched_get_base_metadata(
@@ -71,9 +77,6 @@ try:
 except ImportError:
   pass
 
-
-# Monkey patch MjlabOnPolicyRunner to support loading and running ONNX checkpoints directly in play script
-from mjlab.rl.runner import MjlabOnPolicyRunner
 
 original_load = MjlabOnPolicyRunner.load
 original_get_inference_policy = MjlabOnPolicyRunner.get_inference_policy
@@ -156,10 +159,3 @@ def patched_get_inference_policy(self, device=None):
 
 MjlabOnPolicyRunner.load = patched_load
 MjlabOnPolicyRunner.get_inference_policy = patched_get_inference_policy
-
-
-from mjlab.utils.lab_api.tasks.importer import import_packages
-
-_BLACKLIST_PKGS = ["utils", ".mdp"]
-
-import_packages(__name__, _BLACKLIST_PKGS)
