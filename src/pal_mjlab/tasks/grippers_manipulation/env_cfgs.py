@@ -192,7 +192,9 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
       resampling_time_range=(30.0,30.0),
       entity_name="box",
       ranges=UniformGripperManipulationCommandCfg.Ranges(
-        height=(0.5, 0.8),
+        x=(0.25, 0.25),
+        y=(0.0, 0.0),
+        z=(0.5, 0.8),
       ),
     ),
   }
@@ -207,10 +209,10 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
       mode="reset",
       params={
         "pose_range": {
-          "x": (-0.5, 0.5),
-          "y": (-0.5, 0.5),
-          "z": (0.01, 0.05),
-          "yaw": (-3.14, 3.14),
+          "x": (0.0, 0.0),
+          "y": (0.0, 0.0),
+          "z": (0.0, 0.0),
+          "yaw": (0.0, 0.0),
         },
         "velocity_range": {},
       },

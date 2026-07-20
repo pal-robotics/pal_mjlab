@@ -14,7 +14,7 @@ if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
-_DEFAULT_BOX_ASSET_CFG = SceneEntityCfg("small_box")
+_DEFAULT_BOX_ASSET_CFG = SceneEntityCfg("box")
 
 
 ##

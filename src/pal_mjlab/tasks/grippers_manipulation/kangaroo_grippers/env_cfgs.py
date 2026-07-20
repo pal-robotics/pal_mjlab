@@ -42,7 +42,7 @@ from pal_mjlab.tasks.grippers_manipulation.env_cfgs import make_grippers_manipul
 def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO rough terrain grippers manipulation configuration."""
   cfg = make_grippers_manipulation_env_cfg()
-  cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg(), "small_box" : get_small_box_cfg, "table": get_table_cfg}
+  cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg(), "box" : get_small_box_cfg(), "table": get_table_cfg()}
   cfg.sim.nconmax = None
   cfg.sim.mujoco.ccd_iterations = 500
   cfg.sim.contact_sensor_maxmatch = 500
@@ -97,7 +97,7 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
       pattern="base_link",
       entity="robot",
     ),
-    secondary=ContactMatch(mode="body", pattern="table", entity="box"),
+    secondary=ContactMatch(mode="body", pattern="table", entity="table"),
     fields=("found",),
     reduce="none",
     num_slots=1,
@@ -109,7 +109,7 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
       pattern=r"^(arm_left_7_link|arm_right_7_link)$",
       entity="robot",
     ),
-    secondary=ContactMatch(mode="body", pattern="small_box", entity="small_box"),
+    secondary=ContactMatch(mode="body", pattern="box", entity="box"),
     fields=("found", "force"),
     reduce="netforce",
     num_slots=1,
