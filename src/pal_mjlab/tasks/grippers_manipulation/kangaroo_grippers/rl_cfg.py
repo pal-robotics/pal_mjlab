@@ -1,4 +1,4 @@
-"""RL configuration for PAL Robotics' KANGAROO manipulation task."""
+"""RL configuration for PAL Robotics' KANGAROO grippers manipulation task."""
 
 from mjlab.rl import (
   RslRlModelCfg,
@@ -8,7 +8,7 @@ from mjlab.rl import (
 
 
 def pal_kangaroo_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
-  """Create RL runner configuration for PAL Kangaroo manipulation task."""
+  """Create RL runner configuration for PAL Kangaroo grippers manipulation task."""
   return RslRlOnPolicyRunnerCfg(
     actor=RslRlModelCfg(
       hidden_dims=(512, 256, 128),
@@ -39,7 +39,7 @@ def pal_kangaroo_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
       desired_kl=0.01,
       max_grad_norm=1.0,
     ),
-    experiment_name="kangaroo_manipulation",
+    experiment_name="kangaroo_gripper_manipulation",
     save_interval=500,
     num_steps_per_env=24,
     max_iterations=30_000,

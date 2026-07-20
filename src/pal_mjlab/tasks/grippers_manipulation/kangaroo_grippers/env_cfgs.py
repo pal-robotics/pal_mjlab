@@ -1,4 +1,4 @@
-"""PAL Robotics KANGAROO grippers manipulation tracking environment configurations."""
+"""PAL Robotics KANGAROO grippers manipulation environment configurations."""
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
