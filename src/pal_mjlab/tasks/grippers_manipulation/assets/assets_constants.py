@@ -32,11 +32,11 @@ def get_table_spec() -> mujoco.MjSpec:
   return _load_spec(TABLE_XML)
     
 INIT_STATE_BOX = EntityCfg.InitialStateCfg(
-  pos=(0.75, 0.0, 1.026)
+  pos=(0.6, 0.0, 1.026)
 )
 
 INIT_STATE_TABLE = EntityCfg.InitialStateCfg(
-  pos=(0.75, 0.0, 0.0)
+  pos=(0.6, 0.0, 0.0)
 )
 
 def get_small_box_cfg() -> EntityCfg:
