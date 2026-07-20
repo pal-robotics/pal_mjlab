@@ -195,11 +195,19 @@ def lift_env_cfg(
   for name in cfg.observations["critic"].terms:
     cfg.observations["critic"].terms[name].noise = None
 
+  # Critic-only: explicit phase flag for accurate value estimation across the
+  # reward phase boundary (pre-reached vs post-reached).
+  cfg.observations["critic"].terms["reached_flag"] = ObservationTermCfg(
+    func=manipulation_mdp_pal.reached_flag,
+    params={"command_name": "lift_height"},
+    noise=None,
+  )
+
   if not play:
     # During training: apply observation noise to the actor.
     actor_terms = cfg.observations["actor"].terms
     actor_noise_configs = {
-      "object_position": Unoise(n_min=-0.01, n_max=0.01),
+      "object_position": Unoise(n_min=-0.015, n_max=0.015),
       "object_yaw": Unoise(n_min=-0.05, n_max=0.05),
       "joint_pos": Unoise(n_min=-0.02, n_max=0.02),
       "joint_vel": Unoise(n_min=-0.05, n_max=0.05),
@@ -251,10 +259,10 @@ def lift_env_cfg(
   )
   cfg.rewards["object_goal_tracking"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_goal_distance_adaptive),
-    weight=5.0,
+    weight=10.0,
     params={
       "command_name": "lift_height",
-      "std": 0.3,
+      "std": 0.5,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
       "coordinate_weights": (1.0, 1.0, 3.0),
@@ -300,7 +308,7 @@ def lift_env_cfg(
 
   cfg.rewards["release_cube"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.release_cube_reward),
-    weight=10.0,
+    weight=5.0,
     params={
       "command_name": "lift_height",
       "max_open": 0.08,
@@ -312,6 +320,21 @@ def lift_env_cfg(
     weight=10.0,
     params={
       "command_name": "lift_height",
+    },
+  )
+
+  # After "reached", reward the EE for staying within the goal threshold.
+  # This is semantically cleaner than penalizing joint velocities: the robot
+  # can freely open the gripper / adjust the wrist as long as the EE stays put.
+  cfg.rewards["post_reached_ee_stability"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(
+      manipulation_mdp_pal.post_reached_ee_stability_reward
+    ),
+    weight=1.0,
+    params={
+      "command_name": "lift_height",
+      "asset_cfg": SceneEntityCfg("robot", site_names=(robot.ee_site,)),
+      "threshold": 0.05,
     },
   )
 
@@ -511,7 +534,7 @@ def lift_env_cfg(
   )
 
   #### TERMINATIONS
-  cfg.terminations.pop("ee_ground_collision", None)  # inherited from base cfg; not wanted
+  cfg.terminations.pop("ee_ground_collision", None)  
   cfg.terminations["nan_term"] = TerminationTermCfg(func=mdp_term.nan_detection)
 
   # if not play:

@@ -112,3 +112,20 @@ def object_both__contact_fingers(
 
 object_both_contact_fingers = object_both__contact_fingers
 
+
+def reached_flag(
+  env: ManagerBasedRlEnv,
+  command_name: str = "lift_height",
+) -> torch.Tensor:
+  """Returns a binary flag [B, 1] that is 1.0 once the object has reached the target goal.
+
+  This is a privileged-but-real-robot-observable signal: the robot knows the target
+  position and has contact/force sensing, so this flag can be reconstructed on hardware.
+  Exposing it explicitly helps both the actor (to switch behavioral modes) and the
+  critic (to accurately estimate value across the phase boundary).
+  """
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  reached = getattr(
+    command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+  )
+  return reached.float().unsqueeze(-1)
