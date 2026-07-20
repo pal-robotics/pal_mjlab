@@ -409,21 +409,59 @@ def release_cube_reward(
 def object_falling_reward(
   env: ManagerBasedRlEnv,
   command_name: str,
+  sensor_name: str = "box_fingertip_contact",
+  site_names: list[str] | None = None,
 ) -> torch.Tensor:
-  """Rewards the object's downward velocity when command.reached is True.
+  """Rewards the object's downward velocity when command.reached is True
+  and neither finger is in contact with the object.
 
-  This incentivises the robot to release and let the object fall after reaching the goal,
-  rather than simply holding it near the floor.
+  The contact guard ensures the reward is only active once the gripper has
+  fully released the object, preventing spurious signals during the release
+  transition where the object may already be drifting downward.
   """
+  if site_names is None:
+    site_names = ["gripper_right_fingertip_.*_site"]
+
   command: LiftingCommand = env.command_manager.get_term(command_name)
   reached = getattr(command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device))
+
+  contact_both = site_contact_both_fingers(
+    env, sensor_name=sensor_name, site_names=site_names
+  ).bool()
 
   obj = command.object
   # Downward velocity: negative z means falling, so we clamp and negate
   lin_vel_z = obj.data.root_link_lin_vel_w[:, 2]
   falling_speed = torch.clamp(-lin_vel_z, min=0.0)
 
-  return reached.float() * falling_speed
+  return reached.float() * (~contact_both).float() * falling_speed
+
+
+def post_reached_ee_stability_reward(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+  threshold: float = 0.05,
+) -> torch.Tensor:
+  """Binary reward (1.0) for the EE staying within `threshold` of the goal position
+  after the target has been reached.
+
+  This is semantically cleaner than penalizing individual joint velocities:
+  it lets the robot freely choose how to keep the EE near the goal (e.g. small
+  wrist tweaks, gripper opening) while naturally discouraging large arm motions
+  that would drift the EE away from the delivery point.
+  """
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  reached = getattr(
+    command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+  )
+
+  robot: Entity = env.scene[asset_cfg.name]
+  ee_pos_w = robot.data.site_pos_w[:, asset_cfg.site_ids].squeeze(1)
+  distance = torch.norm(ee_pos_w - command.target_pos, dim=-1)
+
+  ee_at_goal = (distance <= threshold).float()
+  return reached.float() * ee_at_goal
 
 
 def object_contact_both_fingers_adaptive(
