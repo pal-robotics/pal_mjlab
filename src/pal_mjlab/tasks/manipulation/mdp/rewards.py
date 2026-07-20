@@ -495,3 +495,30 @@ def object_table_sliding_penalty_adaptive(
   speed_xy = torch.norm(lin_vel_xy, dim=-1)
 
   return command.object_on_table.float() * speed_xy
+
+
+def post_reached_gripper_open_reward(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+  target_pos: float = 0.075,
+  std: float = 0.015,
+) -> torch.Tensor:
+  """Exponential reward that activates after reached, favoring having the gripper open.
+
+  This rewards having the gripper joint position close to target_pos.
+  """
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  reached = getattr(
+    command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
+  )
+
+  robot: Entity = env.scene[asset_cfg.name]
+  joint_ids, _ = robot.find_joints("gripper_right_finger_joint")
+  gripper_pos = robot.data.joint_pos[:, joint_ids[0]]
+
+  # Compute exponential reward based on distance to target_pos
+  distance = torch.abs(gripper_pos - target_pos)
+  reward = torch.exp(-distance / std)
+
+  return reached.float() * reward

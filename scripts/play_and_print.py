@@ -958,8 +958,11 @@ class PrintingPolicy:
       )
       combined_contact = combined_contact_tensor[0, 0].item() > 0
 
-      # Check if the episode is successful (reached goal, fell on floor, and released)
-      on_floor = box_pos_w[2] < 0.1
+      # Check if the episode is successful (reached goal, fell near floor, and released).
+      # We use 0.15 m instead of 0.1 m: `object_released_on_floor` fires when the object
+      # crosses 0.1 m during a MuJoCo sub-step, but the step-level Z reported here is
+      # only updated after all sub-steps, so it can be slightly above 0.1 m after a bounce.
+      on_floor = box_pos_w[2] < 0.15
       success_now = reached and on_floor and not dist_both
       if success_now:
         self.episode_success = True

@@ -205,7 +205,7 @@ def lift_env_cfg(
     # During training: apply observation noise to the actor.
     actor_terms = cfg.observations["actor"].terms
     actor_noise_configs = {
-      "object_position": Unoise(n_min=-0.015, n_max=0.015),
+      "object_position": Unoise(n_min=-0.01, n_max=0.01),
       "object_yaw": Unoise(n_min=-0.05, n_max=0.05),
       "joint_pos": Unoise(n_min=-0.02, n_max=0.02),
       "joint_vel": Unoise(n_min=-0.05, n_max=0.05),
@@ -314,14 +314,14 @@ def lift_env_cfg(
     },
   )
 
-  cfg.rewards["release_cube"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.release_cube_reward),
-    weight=10.0,
-    params={
-      "command_name": "lift_height",
-      "max_open": 0.08,
-    },
-  )
+  # cfg.rewards["release_cube"] = RewardTermCfg(
+  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.release_cube_reward),
+  #   weight=1.0,
+  #   params={
+  #     "command_name": "lift_height",
+  #     "max_open": 0.08,
+  #   },
+  # )
 
   cfg.rewards["object_falling"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_falling_reward),
@@ -343,6 +343,19 @@ def lift_env_cfg(
       "command_name": "lift_height",
       "asset_cfg": SceneEntityCfg("robot", site_names=(robot.ee_site,)),
       "threshold": 0.05,
+    },
+  )
+
+  # After "reached", reward the robot for having the gripper open.
+  cfg.rewards["post_reached_gripper_open"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(
+      manipulation_mdp_pal.post_reached_gripper_open_reward
+    ),
+    weight=5.0,
+    params={
+      "command_name": "lift_height",
+      "target_pos": 0.075,
+      "std": 0.025,
     },
   )
 

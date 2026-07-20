@@ -146,8 +146,12 @@ class LiftingCommand(CommandTerm):
     )
     self.prev_object_pos_w = self.object_pos_w.clone()
 
-    # Success condition: target reached + dropped back to floor (< 0.1m) + released gripper (no contact)
-    on_floor = self.object_pos_w[:, 2] < 0.1
+    # Success condition: target reached + dropped back to floor + released gripper (no contact).
+    # We use a slightly permissive threshold (0.15 m instead of the termination's 0.1 m) because
+    # `object_released_on_floor` fires when the object crosses 0.1 m during a MuJoCo *sub-step*,
+    # but the step-level position sampled here is only updated after all sub-steps complete —
+    # so the reported Z can be marginally above 0.1 m (e.g. after a small bounce).
+    on_floor = self.object_pos_w[:, 2] < 0.15
     success = self.reached & on_floor & ~contact_both
     self.episode_success = torch.maximum(self.episode_success, success.float())
 
