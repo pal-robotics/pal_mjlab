@@ -207,7 +207,6 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
   # -- Rewards
 
   cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
-  cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
   cfg.rewards["pose"].params["std_standing"] = {
     # Lower body.
     r"leg_.*_1_.*": 0.05,
@@ -224,7 +223,7 @@ def pal_kangaroo_grippers_manipulation_rough_env_cfg(play: bool = False) -> Mana
     r"arm_.*_4_.*": 0.2,  # elbow
     r"arm_.*_(?![14]_joint)\d+_joint": 0.1,
     # Grippers.
-    r"grippers_.*" : 0.05,
+    r"gripper_.*" : 0.05,
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["upright"].weight = 1.25

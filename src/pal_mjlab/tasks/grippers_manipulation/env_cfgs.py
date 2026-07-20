@@ -194,7 +194,7 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
       ranges=UniformGripperManipulationCommandCfg.Ranges(
         x=(0.25, 0.25),
         y=(0.0, 0.0),
-        z=(0.5, 0.8),
+        z=(0.3, 0.4),
       ),
     ),
   }
@@ -300,7 +300,7 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
       },
     ),
     "pose": RewardTermCfg(
-      func= None,
+      func= mdp.VariablePostureGripperManipulation,
       weight=1.0,
       params={
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
@@ -311,25 +311,24 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
     "dof_pos_limits": RewardTermCfg(func=mdp.joint_pos_limits, weight=-1.0),
     "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1),
     "hands_to_box": RewardTermCfg(
-        func= None,
+        func= mdp.hands_to_box,
         weight=3.0,
         params={
             "asset_cfg": SceneEntityCfg(
-                "robot", body_names=["arm_left_7_link", "arm_right_7_link"]
+                "robot", body_names=["gripper_left_base_link", "gripper_right_base_link"]
             ),
             "std": math.sqrt(0.25),
-            "dist": 0.05,
         },
     ),
     "hands_contact": RewardTermCfg(
-        func= None,
+        func= mdp.hand_contact_reward,
         weight=1.0,
         params={
             "sensor_name": "hands_box_contact",
         },
     ),
     "box_target_tracking": RewardTermCfg(
-        func= None,
+        func= mdp.track_box_position,
         weight=2.0,
         params={
             "std": math.sqrt(0.3),
@@ -337,8 +336,11 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
         },
     ),
     "table_contact": RewardTermCfg(
-        func= None,
+        func= mdp.table_contact_reward,
         weight=-2.0,
+        params={
+            "sensor_name": "body_table_contact",
+        },
     ),
   }
 
