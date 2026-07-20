@@ -32,7 +32,7 @@ def get_table_spec() -> mujoco.MjSpec:
     type=mujoco.mjtGeom.mjGEOM_BOX,
     size=(TABLE_HALF_X, TABLE_HALF_Y, TABLE_HEIGHT / 2),
     rgba=(0.1, 0.1, 0.1, 1.0),
-    solref=(0.001, 1),
+    solref=(0.02, 1.0),
     solimp=(0.95, 0.99, 0.001, 0.5, 2),
   )
   return spec
@@ -48,7 +48,7 @@ def get_box_spec() -> mujoco.MjSpec:
     size=(BOX_HALF_X, BOX_HALF_Y, BOX_HALF_Z),
     rgba=(0.8, 0.2, 0.2, 1.0),
     mass=0.01,
-    solref=(-5000, -200),
+    solref=(0.02, 1.0),
     solimp=(0.99, 0.995, 0.001, 0.5, 2),
   )
   return spec
@@ -238,14 +238,14 @@ class LiftingCommand(CommandTerm):
         color=self.cfg.viz.target_color,
         label=f"target_position_{batch}",
       )
-      if ee_idx is not None:
-        ee_pos = robot.data.site_pos_w[batch, ee_idx].cpu().numpy()
-        visualizer.add_sphere(
-          center=ee_pos,
-          radius=0.01,
-          color=(1.0, 0.0, 0.0, 1.0),
-          label=f"ee_position_{batch}",
-        )
+      # if ee_idx is not None:
+      #   ee_pos = robot.data.site_pos_w[batch, ee_idx].cpu().numpy()
+      #   visualizer.add_sphere(
+      #     center=ee_pos,
+      #     radius=0.01,
+      #     color=(1.0, 0.0, 0.0, 1.0),
+      #     label=f"ee_position_{batch}",
+      #   )
 
 
 @dataclass(kw_only=True)

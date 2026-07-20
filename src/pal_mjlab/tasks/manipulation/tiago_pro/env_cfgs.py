@@ -62,7 +62,7 @@ def lift_env_cfg(
 
   from mjlab.envs.mdp.actions import RelativeJointPositionActionCfg
 
-  from pal_mjlab.robots import TIAGO_PRO_ACTION_SCALE
+  from pal_mjlab.robots.pal_tiago_pro.tiago_pro_constants import TIAGO_PRO_ACTION_SCALE
 
   cfg.actions.pop("ee_ik", None)
   cfg.actions["joint_pos"] = RelativeJointPositionActionCfg(
@@ -314,14 +314,14 @@ def lift_env_cfg(
     },
   )
 
-  # cfg.rewards["release_cube"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.release_cube_reward),
-  #   weight=1.0,
-  #   params={
-  #     "command_name": "lift_height",
-  #     "max_open": 0.08,
-  #   },
-  # )
+  cfg.rewards["release_cube"] = RewardTermCfg(
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.release_cube_reward),
+    weight=5.0,
+    params={
+      "command_name": "lift_height",
+      "max_open": 0.08,
+    },
+  )
 
   cfg.rewards["object_falling"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_falling_reward),
@@ -347,17 +347,17 @@ def lift_env_cfg(
   )
 
   # After "reached", reward the robot for having the gripper open.
-  cfg.rewards["post_reached_gripper_open"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(
-      manipulation_mdp_pal.post_reached_gripper_open_reward
-    ),
-    weight=5.0,
-    params={
-      "command_name": "lift_height",
-      "target_pos": 0.075,
-      "std": 0.025,
-    },
-  )
+  # cfg.rewards["post_reached_gripper_open"] = RewardTermCfg(
+  #   func=manipulation_mdp_pal.nan_safe(
+  #     manipulation_mdp_pal.post_reached_gripper_open_reward
+  #   ),
+  #   weight=5.0,
+  #   params={
+  #     "command_name": "lift_height",
+  #     "target_pos": 0.075,
+  #     "std": 0.025,
+  #   },
+  # )
 
   # cfg.rewards["success_reward"] = RewardTermCfg(
   #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.task_success_reward),
@@ -368,12 +368,14 @@ def lift_env_cfg(
   # )
 
   cfg.rewards["action_rate_l2"] = RewardTermCfg(
-    func=mjlab_rewards.action_rate_l2,
+    func=manipulation_mdp_pal.nan_safe(mjlab_rewards.action_rate_l2),
     weight=-0.1,
   )
 
   cfg.rewards["arm_right_1_joint_limit_penalty"] = RewardTermCfg(
-    func=manipulation_mdp_pal.arm_right_1_joint_limit_penalty,
+    func=manipulation_mdp_pal.nan_safe(
+      manipulation_mdp_pal.arm_right_1_joint_limit_penalty
+    ),
     weight=-0.5,
     params={
       "asset_cfg": SceneEntityCfg("robot"),
@@ -382,14 +384,14 @@ def lift_env_cfg(
   )
 
   cfg.rewards["joint_torques_l2"] = RewardTermCfg(
-    func=mjlab_rewards.joint_torques_l2,
+    func=manipulation_mdp_pal.nan_safe(mjlab_rewards.joint_torques_l2),
     weight=-5e-4,
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(robot.arm_joint_pattern,))
     },
   )
   cfg.rewards["self_collisions"] = RewardTermCfg(
-    func=manipulation_mdp_pal.contact_penalty,
+    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.contact_penalty),
     weight=-1.0,
     params={"sensor_names": ["self_collision", "robot_table_contact"]},
   )
@@ -426,7 +428,8 @@ def lift_env_cfg(
     cfg.events.pop(f"fingertip_friction_{friction_type}", None)
 
   cfg.events["reset_robot_joints"] = EventTermCfg(
-    func=mdp.reset_joints_by_offset,
+    func=manipulation_mdp_pal.reset_joints_mixed,
+    # func=mdp.reset_joints_by_offset,
     mode="reset",
     params={
       "position_range": (-0.1, 0.1),
@@ -434,6 +437,16 @@ def lift_env_cfg(
       "asset_cfg": SceneEntityCfg(
         "robot", joint_names=("^(?!torso_lift_joint|gripper_right).*$",)
       ),
+      "goal_joint_pos": {
+        "arm_right_1_joint": -0.48,
+        "arm_right_2_joint": 0.55,
+        "arm_right_3_joint": -1.27,
+        "arm_right_4_joint": -0.87,
+        "arm_right_5_joint": 0.86,
+        "arm_right_6_joint": -1.20,
+        "arm_right_7_joint": -2.62,
+      },
+      "goal_prob": 0.5,
     },
   )
 
@@ -560,6 +573,13 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.object_released_on_floor_term,
     params={"command_name": "lift_height"},
     time_out=True,
+  )
+
+  # Failure: cube dropped to the floor before the goal was reached.
+  cfg.terminations["cube_fell_off_table"] = TerminationTermCfg(
+    func=manipulation_mdp_pal.cube_fell_off_table_term,
+    params={"command_name": "lift_height"},
+    time_out=False,
   )
 
   for s in cfg.scene.sensors:

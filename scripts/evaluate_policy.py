@@ -28,7 +28,7 @@ from mjlab.utils.torch import configure_torch_backends
 
 # Import task-specific modules
 from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
-from pal_mjlab.tasks.manipulation.mdp.rewards import top_surface_penetration_term
+from pal_mjlab.tasks.manipulation.mdp.terminations import top_surface_penetration_term
 from tensordict import TensorDict
 
 # Sourcing the filters from the workspace
