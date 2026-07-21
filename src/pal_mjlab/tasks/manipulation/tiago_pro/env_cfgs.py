@@ -200,6 +200,11 @@ def lift_env_cfg(
     params={"command_name": "lift_height"},
     noise=None,
   )
+  cfg.observations["actor"].terms["reached_flag"] = ObservationTermCfg(
+    func=manipulation_mdp_pal.reached_flag,
+    params={"command_name": "lift_height"},
+    noise=None,
+  )
 
   if not play:
     # During training: apply observation noise to the actor.

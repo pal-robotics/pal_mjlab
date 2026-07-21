@@ -42,6 +42,19 @@ conflicts = [
 # The cap is precautionary; moviepy works with pillow 12, so lift it.
 override-dependencies = ["pillow>=12.2.0"]
 
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cu126", marker = "extra == 'cu128' and sys_platform == 'linux'" }
+]
+torchvision = [
+  { index = "pytorch-cu126", marker = "extra == 'cu128' and sys_platform == 'linux'" }
+]
+
 [tool.ruff]
 indent-width = 2
 src = ["pal_mjlab"]
