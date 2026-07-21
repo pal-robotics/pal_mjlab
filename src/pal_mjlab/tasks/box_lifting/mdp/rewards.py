@@ -258,10 +258,12 @@ def hands_to_box(
     asset_cfg: SceneEntityCfg,
     box_cfg: SceneEntityCfg = _DEFAULT_BOX_CFG,
     dist: float = 0.60,
+    z_weight: float = 3.0,
+    xy_weight: float = 1.0,
 ) -> torch.Tensor:
-    """`asset_cfg.body_ids` should select the hand/wrist bodies to draw
-    toward the box (replaces genesis's per-link_name loop with a single
-    batched body-index lookup).
+    """Z-axis error is weighted more heavily than X/Y error via
+    `z_weight` / `xy_weight`, so matching height to the box matters
+    more than matching horizontal position.
     """
     asset: Entity = env.scene[asset_cfg.name]
     box: Entity = env.scene[box_cfg.name]
@@ -272,8 +274,13 @@ def hands_to_box(
     )
 
     hand_pos = asset.data.body_link_pos_w[:, asset_cfg.body_ids]  # (N, n_hands, 3)
-    err = torch.norm(hand_pos - box_pos.unsqueeze(1), dim=-1)
-    reward = torch.sum(torch.exp(-torch.square(err) / std**2), dim=1)
+    diff = hand_pos - box_pos.unsqueeze(1)  # (N, n_hands, 3)
+
+    xy_sq_err = torch.sum(torch.square(diff[..., :2]), dim=-1)  # (N, n_hands)
+    z_sq_err = torch.square(diff[..., 2])  # (N, n_hands)
+
+    weighted_sq_err = xy_weight * xy_sq_err + z_weight * z_sq_err
+    reward = torch.sum(torch.exp(-weighted_sq_err / std**2), dim=1)
 
     return active.float() * reward
 
