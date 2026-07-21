@@ -1038,6 +1038,11 @@ class PrintingPolicy:
         print(f"  {name:25s} shape={str(shape):8s} value=[{formatted_vals}]")
       cursor += dim
 
+    if "reached_flag" not in self.names:
+      reached_flag_val = self.command.reached.float()[0].item()
+      print(f"  {'reached_flag':25s} shape=(1,)    value=[{reached_flag_val:.4f}]")
+
+
     if self.model is not None:
       import onnxruntime
       from tensordict import TensorDict
