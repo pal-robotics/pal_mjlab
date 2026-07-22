@@ -421,7 +421,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.foot_on_ground,
       weight=1.0,
       params={
-        "sensor_name": "hands_box_contact",
+        "sensor_name": "feet_ground_contact",
       },
     ),
     "close_hands_penalty":RewardTermCfg(
