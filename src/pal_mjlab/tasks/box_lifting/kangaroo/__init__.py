@@ -1,4 +1,5 @@
 from mjlab.tasks.registry import register_mjlab_task
+
 from pal_mjlab.tasks.box_lifting.rl import BoxLiftingOnPolicyRunner
 
 from .env_cfgs import (

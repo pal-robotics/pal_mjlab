@@ -16,10 +16,7 @@ from mjlab.sensor import (
   RingPatternCfg,
   TerrainHeightSensorCfg,
 )
-from pal_mjlab.tasks.box_lifting.box_commands import UniformBoxHeightCommandCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
-
-from pal_mjlab.tasks.box_lifting.env_cfg import make_box_lifting_env_cfg
 
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
@@ -31,11 +28,11 @@ from pal_mjlab.robots import (
   REGEX_LEG_LENGTH_JOINTS_ONLY,
   get_kangaroo_robot_cfg,
 )
-
+from pal_mjlab.tasks.box_lifting.box_commands import UniformBoxHeightCommandCfg
 from pal_mjlab.tasks.box_lifting.box_handler import (
   get_box_cfg,
 )
-
+from pal_mjlab.tasks.box_lifting.env_cfg import make_box_lifting_env_cfg
 from pal_mjlab.tasks.velocity import mdp
 
 
@@ -212,31 +209,31 @@ def pal_kangaroo_box_lifting_rough_env_cfg(play: bool = False) -> ManagerBasedRl
   # -- Rewards
 
   cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
-  #cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
+  # cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
   cfg.rewards["pose"].params["std_walking"] = {
-    r"leg_.*_1_.*": 0.09,          # was 0.15 → ~40% cut
-    r"leg_.*_2_.*": 0.18,          # was 0.3  → ~40% cut
-    r"leg_.*_3_.*": 0.09,          # was 0.15 → ~40% cut
-    r"leg_.*_length_.*": 0.06,     # was 0.1  → ~40% cut
-    r"leg_.*_4_.*": 0.15,          # was 0.25 → ~40% cut
-    r"leg_.*_5_.*": 0.06,          # was 0.1  → ~40% cut
-    r"pelvis_1.*": 0.05,           # was 0.08 → ~40% cut
-    r"pelvis_2.*": 0.12,           # was 0.2  → ~40% cut
-    r"arm_.*_1_.*": 0.08,          # was 0.2  → 60% cut
-    r"arm_.*_4_.*": 0.08,          # was 0.2  → 60% cut
+    r"leg_.*_1_.*": 0.09,  # was 0.15 → ~40% cut
+    r"leg_.*_2_.*": 0.18,  # was 0.3  → ~40% cut
+    r"leg_.*_3_.*": 0.09,  # was 0.15 → ~40% cut
+    r"leg_.*_length_.*": 0.06,  # was 0.1  → ~40% cut
+    r"leg_.*_4_.*": 0.15,  # was 0.25 → ~40% cut
+    r"leg_.*_5_.*": 0.06,  # was 0.1  → ~40% cut
+    r"pelvis_1.*": 0.05,  # was 0.08 → ~40% cut
+    r"pelvis_2.*": 0.12,  # was 0.2  → ~40% cut
+    r"arm_.*_1_.*": 0.08,  # was 0.2  → 60% cut
+    r"arm_.*_4_.*": 0.08,  # was 0.2  → 60% cut
     r"arm_.*_(?![14]_joint)\d+_joint": 0.04,  # was 0.1 → 60% cut
   }
   cfg.rewards["pose"].params["std_lifting"] = {
-    r"leg_.*_1_.*": 0.20,          # was 0.30 → ~33% cut
-    r"leg_.*_2_.*": 0.26,          # was 0.4  → ~33% cut
-    r"leg_.*_3_.*": 0.20,          # was 0.30 → ~33% cut
-    r"leg_.*_length_.*": 0.23,     # was 0.35 → ~33% cut
-    r"leg_.*_4_.*": 0.23,          # was 0.35 → ~33% cut
-    r"leg_.*_5_.*": 0.13,          # was 0.2  → ~33% cut
-    r"pelvis_1.*": 0.13,           # was 0.20 → ~33% cut
-    r"pelvis_2.*": 0.26,           # was 0.4  → ~33% cut
-    r"arm_.*_1_.*": 0.24,          # was 0.4  → 40% cut
-    r"arm_.*_4_.*": 0.24,          # was 0.4  → 40% cut
+    r"leg_.*_1_.*": 0.20,  # was 0.30 → ~33% cut
+    r"leg_.*_2_.*": 0.26,  # was 0.4  → ~33% cut
+    r"leg_.*_3_.*": 0.20,  # was 0.30 → ~33% cut
+    r"leg_.*_length_.*": 0.23,  # was 0.35 → ~33% cut
+    r"leg_.*_4_.*": 0.23,  # was 0.35 → ~33% cut
+    r"leg_.*_5_.*": 0.13,  # was 0.2  → ~33% cut
+    r"pelvis_1.*": 0.13,  # was 0.20 → ~33% cut
+    r"pelvis_2.*": 0.26,  # was 0.4  → ~33% cut
+    r"arm_.*_1_.*": 0.24,  # was 0.4  → 40% cut
+    r"arm_.*_4_.*": 0.24,  # was 0.4  → 40% cut
     r"arm_.*_(?![14]_joint)\d+_joint": 0.12,  # was 0.2 → 40% cut
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
@@ -388,4 +385,3 @@ def pal_kangaroo_box_lifting_flat_env_cfg(play: bool = False) -> ManagerBasedRlE
     box_height_cmd.ranges.height = (0.5, 0.8)
 
   return cfg
-

@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import torch
+from mjlab.entity import Entity
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import BuiltinSensor, ContactSensor
 from mjlab.utils.lab_api.math import quat_apply_inverse
-from mjlab.entity import Entity
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -45,22 +45,22 @@ def imu_projected_gravity(
 
 
 def box_position_robot_frame(
-    env: ManagerBasedRlEnv, 
-    asset_cfg_robot: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-    asset_cfg_box: SceneEntityCfg = _DEFAULT_BOX_ASSET_CFG,
+  env: ManagerBasedRlEnv,
+  asset_cfg_robot: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+  asset_cfg_box: SceneEntityCfg = _DEFAULT_BOX_ASSET_CFG,
 ) -> torch.Tensor:
+  asset_box: Entity = env.scene[asset_cfg_box.name]
+  asset_robot: Entity = env.scene[asset_cfg_robot.name]
 
-    asset_box: Entity = env.scene[asset_cfg_box.name]
-    asset_robot: Entity = env.scene[asset_cfg_robot.name]
+  pos_diff_world = asset_box.data.root_link_pos_w - asset_robot.data.root_link_pos_w
 
-    pos_diff_world = asset_box.data.root_link_pos_w - asset_robot.data.root_link_pos_w
+  # rotate the world-frame offset into the robot's local frame
+  box_pos_robot_frame = quat_apply_inverse(
+    asset_robot.data.root_link_quat_w, pos_diff_world
+  )
 
-    # rotate the world-frame offset into the robot's local frame
-    box_pos_robot_frame = quat_apply_inverse(
-        asset_robot.data.root_link_quat_w, pos_diff_world
-    )
+  return box_pos_robot_frame
 
-    return box_pos_robot_frame
 
 def hand_to_box_contact(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tensor:
   sensor: ContactSensor = env.scene[sensor_name]
@@ -69,7 +69,9 @@ def hand_to_box_contact(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tenso
   return (sensor_data.found > 0).float()
 
 
-def hand_to_box_contact_forces(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tensor:
+def hand_to_box_contact_forces(
+  env: ManagerBasedRlEnv, sensor_name: str
+) -> torch.Tensor:
   sensor: ContactSensor = env.scene[sensor_name]
   sensor_data = sensor.data
   assert sensor_data.force is not None

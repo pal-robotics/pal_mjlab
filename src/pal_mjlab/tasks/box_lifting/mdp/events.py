@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import torch
-
 from mjlab.entity import Entity
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.utils.lab_api.math import (
-  quat_apply,
   quat_from_euler_xyz,
   quat_mul,
   sample_uniform,
@@ -53,12 +50,12 @@ def resolve_env_ids(
     return torch.arange(env.num_envs, device=env.device, dtype=torch.int)
   return env_ids
 
+
 def reset_box(
   env: ManagerBasedRlEnv,
   env_ids: torch.Tensor | None,
   pose_range: dict[str, tuple[float, float]],
 ) -> None:
-
   env_ids = resolve_env_ids(env, env_ids)
 
   asset: Entity = env.scene["box"]
@@ -69,9 +66,7 @@ def reset_box(
   # Fixed-based entities with mocap=True.
   if asset.is_fixed_base:
     if not asset.is_mocap:
-      raise ValueError(
-        f"Cannot reset root state for fixed-base non-mocap entity 'box'."
-      )
+      raise ValueError("Cannot reset root state for fixed-base non-mocap entity 'box'.")
 
     default_root_state = asset.data.default_root_state
     assert default_root_state is not None
