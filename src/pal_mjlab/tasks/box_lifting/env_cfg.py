@@ -417,6 +417,13 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
         func=mdp.ang_vel_penalty,
         weight=-0.5,
     ),
+    "grounded": RewardTermCfg(
+        func=mdp.foot_on_ground,
+        weight=1.0,
+        params={
+          "sensor_name": "hands_box_contact",
+        },
+    ),
   }
 
   ##
