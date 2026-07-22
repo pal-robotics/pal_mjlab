@@ -16,6 +16,13 @@
 
         <body name="table" pos="0 0 0.35">
 
+            <joint name="free" type="free"/>
+
+            <inertial
+                pos="0 0 0"
+                mass="100.0"
+                diaginertia="16.0833 6.1667 14.0833"/>
+
             <geom
                 name="table_collision"
                 class="table"

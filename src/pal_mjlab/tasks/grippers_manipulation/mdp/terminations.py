@@ -17,9 +17,9 @@ def box_out_bounds(
   box: Entity = env.scene["box"]
   table: Entity = env.scene["table"]
 
-  # table half-extents (x, y) — from size="0.25 1.0 0.5"
+  # table half-extents (x, y) — from size="0.25 0.6 0.5"
   table_half_x = 0.25
-  table_half_y = 1.0
+  table_half_y = 0.6
 
   # box position relative to table origin, in world-frame axes
   box_pos_rel = box.data.root_link_pos_w - table.data.root_link_pos_w

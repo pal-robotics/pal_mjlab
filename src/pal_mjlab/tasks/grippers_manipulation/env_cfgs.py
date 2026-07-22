@@ -239,6 +239,10 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
         },
       },
     ),
+    "set_tables": EventTermCfg(
+      func=mdp.set_tables,
+      mode="reset",
+    ),
     "push_robot": EventTermCfg(
       func=mdp.push_by_setting_velocity,
       mode="interval",
