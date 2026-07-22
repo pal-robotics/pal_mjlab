@@ -12,7 +12,6 @@ from mjlab.envs import mdp as envs_mdp
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.action_manager import ActionTermCfg
-from mjlab.managers.command_manager import CommandTermCfg
 from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.metrics_manager import MetricsTermCfg
@@ -28,14 +27,14 @@ from mjlab.sensor import (
   TerrainHeightSensorCfg,
 )
 from mjlab.sim import MujocoCfg, SimulationCfg
-from mjlab.tasks.velocity import mdp
 from mjlab.terrains import TerrainEntityCfg
 from mjlab.terrains.config import ROUGH_TERRAINS_CFG
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
 
-from pal_mjlab.tasks.box_lifting.box_commands import UniformBoxHeightCommandCfg
 from pal_mjlab.tasks.box_lifting import mdp
+from pal_mjlab.tasks.box_lifting.box_commands import UniformBoxHeightCommandCfg
+
 
 def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
   """Create base box lifting tracking task configuration."""
@@ -186,10 +185,10 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
   # Commands
   ##
-    
-  commands = { 
-    "box_height" : UniformBoxHeightCommandCfg(
-      resampling_time_range=(30.0,30.0),
+
+  commands = {
+    "box_height": UniformBoxHeightCommandCfg(
+      resampling_time_range=(30.0, 30.0),
       entity_name="box",
       ranges=UniformBoxHeightCommandCfg.Ranges(
         height=(0.5, 0.8),
@@ -224,7 +223,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
         "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
       },
     ),
-    "reset_box" : EventTermCfg(
+    "reset_box": EventTermCfg(
       func=mdp.reset_box,
       mode="reset",
       params={
@@ -337,7 +336,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
         "target_height": 0.1,
         "height_sensor_name": "foot_height_scan",
         "dist": 0.60,
-        "asset_cfg": SceneEntityCfg("robot", site_names=()), # Set per-robot.
+        "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot.
       },
     ),
     "foot_swing_height": RewardTermCfg(
@@ -356,7 +355,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "sensor_name": "feet_ground_contact",
         "dist": 0.60,
-        "asset_cfg": SceneEntityCfg("robot", site_names=()), # Set per-robot.
+        "asset_cfg": SceneEntityCfg("robot", site_names=()),  # Set per-robot.
       },
     ),
     "soft_landing": RewardTermCfg(
@@ -424,7 +423,7 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
         "sensor_name": "feet_ground_contact",
       },
     ),
-    "close_hands_penalty":RewardTermCfg(
+    "close_hands_penalty": RewardTermCfg(
       func=mdp.close_hands,
       weight=-0.5,
       params={

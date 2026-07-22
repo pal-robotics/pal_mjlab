@@ -4,10 +4,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import torch
-
 from mjlab.entity import Entity
 from mjlab.managers.command_manager import CommandTerm, CommandTermCfg
-
 
 if TYPE_CHECKING:
   from mjlab.envs.manager_based_rl_env import ManagerBasedRlEnv
@@ -33,9 +31,7 @@ class UniformBoxHeightCommand(CommandTerm):
     max_command_time = self.cfg.resampling_time_range[1]
     max_command_step = max_command_time / self._env.step_dt
     self.metrics["error_box_height"] += (
-      torch.norm(
-        self.box_height_command - self.box.data.root_link_pos_w[:, 2], dim=-1
-      )
+      torch.norm(self.box_height_command - self.box.data.root_link_pos_w[:, 2], dim=-1)
       / max_command_step
     )
 
@@ -45,6 +41,7 @@ class UniformBoxHeightCommand(CommandTerm):
 
   def _update_command(self) -> None:
     pass
+
 
 @dataclass(kw_only=True)
 class UniformBoxHeightCommandCfg(CommandTermCfg):
