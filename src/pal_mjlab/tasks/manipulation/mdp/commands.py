@@ -118,8 +118,8 @@ class LiftingCommand(CommandTerm):
       torch.zeros_like(self.at_goal_time),
     )
 
-    # reached becomes True if at_goal_time >= 0.5 seconds
-    newly_reached = ~self.reached & (self.at_goal_time >= 0.1)
+    # Reached becomes True immediately once the object is inside the success threshold.
+    newly_reached = ~self.reached & at_goal
     self.reached = self.reached | newly_reached
 
     # Increment reached_time for all envs that are already (or just became) reached
@@ -156,7 +156,18 @@ class LiftingCommand(CommandTerm):
     self.episode_success = torch.maximum(self.episode_success, success.float())
 
   def compute_success(self) -> torch.Tensor:
-    return self.episode_success.bool()
+    from pal_mjlab.tasks.manipulation.mdp.contact_sensor import (
+      site_contact_both_fingers,
+    )
+
+    contact_both = site_contact_both_fingers(
+      self._env,
+      sensor_name=self.cfg.fingertip_contact_sensor_name,
+      site_names=[self.cfg.fingertip_site_pattern],
+    ).bool()
+    on_floor = self.object_pos_w[:, 2] < 0.15
+    current_success = self.reached & on_floor & ~contact_both
+    return (self.episode_success.bool() | current_success).bool()
 
   def _resample_command(self, env_ids: torch.Tensor) -> None:
     n = len(env_ids)

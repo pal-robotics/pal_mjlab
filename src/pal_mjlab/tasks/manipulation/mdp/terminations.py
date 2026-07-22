@@ -104,6 +104,15 @@ def object_released_on_floor_term(
   return command.reached & on_floor & ~contact_both
 
 
+def cube_contact_with_table_after_reached_term(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+) -> torch.Tensor:
+  """Terminates the episode when the cube contacts the table after the target has been reached."""
+  command: LiftingCommand = env.command_manager.get_term(command_name)
+  return command.reached & command.object_on_table
+
+
 def cube_fell_off_table_term(
   env: ManagerBasedRlEnv,
   command_name: str,

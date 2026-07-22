@@ -200,17 +200,17 @@ def lift_env_cfg(
     params={"command_name": "lift_height"},
     noise=None,
   )
-  # cfg.observations["actor"].terms["reached_flag"] = ObservationTermCfg(
-  #   func=manipulation_mdp_pal.reached_flag,
-  #   params={"command_name": "lift_height"},
-  #   noise=None,
-  # )
+  cfg.observations["actor"].terms["reached_flag"] = ObservationTermCfg(
+    func=manipulation_mdp_pal.reached_flag,
+    params={"command_name": "lift_height"},
+    noise=None,
+  )
 
   if not play:
     # During training: apply observation noise to the actor.
     actor_terms = cfg.observations["actor"].terms
     actor_noise_configs = {
-      "object_position": Unoise(n_min=-0.005, n_max=0.005),
+      "object_position": Unoise(n_min=-0.01, n_max=0.01),
       "object_yaw": Unoise(n_min=-0.05, n_max=0.05),
       "joint_pos": Unoise(n_min=-0.02, n_max=0.02),
       "joint_vel": Unoise(n_min=-0.05, n_max=0.05),
@@ -234,9 +234,9 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.object_ee_distance_adaptive
     ),
-    weight=3.0,
+    weight=5.0,
     params={
-      "std": 0.15,
+      "std": 0.30,
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
     },
@@ -328,13 +328,13 @@ def lift_env_cfg(
   #   },
   # )
 
-  cfg.rewards["object_falling"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_falling_reward),
-    weight=15.0,
-    params={
-      "command_name": "lift_height",
-    },
-  )
+  # cfg.rewards["object_falling"] = RewardTermCfg(
+  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_falling_reward),
+  #   weight=10.0,
+  #   params={
+  #     "command_name": "lift_height",
+  #   },
+  # )
 
   # After "reached", reward the EE for staying within the goal threshold.
   # This is semantically cleaner than penalizing joint velocities: the robot
@@ -343,7 +343,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.post_reached_ee_stability_reward
     ),
-    weight=2.0,
+    weight=5.0,
     params={
       "command_name": "lift_height",
       "asset_cfg": SceneEntityCfg("robot", site_names=(robot.ee_site,)),
@@ -356,7 +356,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.post_reached_gripper_open_reward
     ),
-    weight=5.0,
+    weight=10.0,
     params={
       "command_name": "lift_height",
       "target_pos": 0.075,
@@ -366,7 +366,7 @@ def lift_env_cfg(
 
   # cfg.rewards["success_reward"] = RewardTermCfg(
   #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.task_success_reward),
-  #   weight=1.0,
+  #   weight=50.0,
   #   params={
   #     "command_name": "lift_height",
   #   },
@@ -578,6 +578,13 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.object_released_on_floor_term,
     params={"command_name": "lift_height"},
     time_out=True,
+  )
+
+  # Failure: cube contacts the table again after the goal has been reached.
+  cfg.terminations["cube_contact_with_table_after_reached"] = TerminationTermCfg(
+    func=manipulation_mdp_pal.cube_contact_with_table_after_reached_term,
+    params={"command_name": "lift_height"},
+    time_out=False,
   )
 
   # Failure: cube dropped to the floor before the goal was reached.
