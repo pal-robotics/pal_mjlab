@@ -424,6 +424,16 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
         "sensor_name": "hands_box_contact",
       },
     ),
+    "close_hands_penalty":RewardTermCfg(
+      func=mdp.close_hands,
+      weight=-0.5,
+      params={
+        "asset_cfg": SceneEntityCfg(
+          "robot", body_names=["arm_left_tip_link", "arm_right_tip_link"]
+        ),
+        "std": 0.06,
+      },
+    ),
   }
 
   ##

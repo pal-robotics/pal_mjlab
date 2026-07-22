@@ -401,6 +401,24 @@ def ang_vel_penalty(
     excess = torch.clamp(yaw_rate - max_yaw_rate, min=0.0)
     return torch.square(excess)
 
+def close_hands(
+    env: ManagerBasedRlEnv,
+    std: float,
+    asset_cfg: SceneEntityCfg,
+    limit: float = 0.2,
+) -> torch.Tensor:
+    """Penalize hands being close together (dist < limit). Combine with a
+    negative weight in the reward manager so this acts as a penalty.
+    """
+    asset: Entity = env.scene[asset_cfg.name]
+
+    hand_pos = asset.data.body_link_pos_w[:, asset_cfg.body_ids]  # (N, n_hands, 3)
+    dist = torch.norm(hand_pos[:, 0] - hand_pos[:, 1], dim=-1)
+
+    active_mask = dist <= limit
+    cost = torch.exp(-dist**2 / std**2)
+
+    return active_mask * cost
 
 class VariablePostureBoxLifting:
     """Like `VariablePosture`, but the two regimes (walking / lifting) are
