@@ -350,8 +350,8 @@ def foot_on_ground(
     box_cfg: SceneEntityCfg = _DEFAULT_BOX_CFG,
     dist: float = 0.60,
 ) -> torch.Tensor:
-    """Reward exactly one foot grounded once near the box (single-leg stance
-    for reaching).
+    """Reward exactly one foot grounded when far from the box (single-leg
+    stance for reaching), and both feet grounded when close to the box.
     """
     asset: Entity = env.scene[asset_cfg.name]
     box: Entity = env.scene[box_cfg.name]
@@ -364,9 +364,15 @@ def foot_on_ground(
 
     in_contact = contact_sensor.data.current_contact_time > 0.0
     num_contacts = in_contact.sum(dim=-1)
-    one_grounded = (num_contacts == 1) | ~active
 
-    return one_grounded.float()
+    desired_contacts = torch.where(
+        active,
+        torch.ones_like(num_contacts),
+        2 * torch.ones_like(num_contacts),
+    )
+    correct_stance = num_contacts == desired_contacts
+
+    return correct_stance.float()
 
 
 def horizontal_vel_penalty(
