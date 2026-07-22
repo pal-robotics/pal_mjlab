@@ -79,7 +79,6 @@ def reset_box(
   )
 
 
-
 def set_tables(
   env: ManagerBasedRlEnv,
   env_ids: torch.Tensor | None,
@@ -93,9 +92,7 @@ def set_tables(
   assert default_root_state is not None
   root_states = default_root_state[env_ids].clone()
 
-  positions = (
-    root_states[:, 0:3] + env.scene.env_origins[env_ids]
-  )
+  positions = root_states[:, 0:3] + env.scene.env_origins[env_ids]
 
   asset.write_root_link_pose_to_sim(
     torch.cat([positions, root_states[:, 3:7]], dim=-1), env_ids=env_ids
