@@ -11,6 +11,9 @@ from mjlab.utils.lab_api.math import quat_apply, quat_inv
 
 from pal_mjlab.tasks.manipulation.mdp.commands import LiftingCommand
 from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
+from pal_mjlab.tasks.manipulation.mdp.observations import (
+  object_both__contact_fingers,
+)
 from pal_mjlab.tasks.manipulation.mdp.terminations import object_released_on_floor_term
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
@@ -123,10 +126,6 @@ def fingertip_cube_alignment_reward(
 
   # Check if contact is established
   if sensor_name is not None and site_names is not None:
-    from pal_mjlab.tasks.manipulation.mdp.observations import (
-      object_both__contact_fingers,
-    )
-
     contact = object_both__contact_fingers(
       env, sensor_name, site_names, asset_cfg=asset_cfg
     ).squeeze(-1)
@@ -222,9 +221,9 @@ def object_goal_distance_adaptive(
   coordinate_weights: tuple[float, float, float] = (1.0, 1.0, 1.0),
 ) -> torch.Tensor:
   command: LiftingCommand = env.command_manager.get_term(command_name)
-  contact_both = site_contact_both_fingers(
+  contact_both = object_both__contact_fingers(
     env, sensor_name, site_names, asset_cfg=asset_cfg
-  ).bool()
+  ).squeeze(-1).bool()
 
   diff = command.target_pos - command.object_pos_w
   weights = torch.tensor(coordinate_weights, device=env.device)
@@ -247,9 +246,9 @@ def object_is_lifted_adaptive(
 ) -> torch.Tensor:
   command: LiftingCommand = env.command_manager.get_term(command_name)
 
-  fingers_close = site_contact_both_fingers(
+  fingers_close = object_both__contact_fingers(
     env, sensor_name, site_names, asset_cfg=asset_cfg
-  ).bool()
+  ).squeeze(-1).bool()
 
   elevation = command.object_bottom_z - command.table_surface_z
   elevation = torch.clamp(elevation, min=0.0, max=lift_threshold)
@@ -347,9 +346,9 @@ def object_falling_reward(
     command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
   )
 
-  contact_both = site_contact_both_fingers(
+  contact_both = object_both__contact_fingers(
     env, sensor_name=sensor_name, site_names=site_names
-  ).bool()
+  ).squeeze(-1).bool()
 
   obj = command.object
   # Downward velocity: negative z means falling, so we clamp and negate
@@ -392,7 +391,7 @@ def object_contact_both_fingers_adaptive(
   site_names: list[str],
   command_name: str = "lift_height",
 ) -> torch.Tensor:
-  contact = site_contact_both_fingers(env, sensor_name, site_names).float()
+  contact = object_both__contact_fingers(env, sensor_name, site_names).squeeze(-1).float()
   return contact
 
 
