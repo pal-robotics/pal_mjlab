@@ -25,3 +25,6 @@ docs_build/
 artifacts/
 *.npz
 motion.mp4
+
+# Gui
+remote_config.txt
