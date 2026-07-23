@@ -1,5 +1,6 @@
 """Script to launch a menu to start training or deploy policies"""
 """
+
 Idea :
 
 To have an interactive menu that makes it much easier to launch simulation and deploy policies without running and/or modifying bash commands
@@ -214,8 +215,12 @@ def open_menu():
     DANGER   = "#ff5a5a"
 
     # --- Core launcher ---
-    def launch_process(command, menu_console, label="process", on_complete=None):
+    def launch_process(command, menu_console, label="process", on_complete=None, extra_env=None):
       def run():
+        env = os.environ.copy()
+        if extra_env:
+          env.update(extra_env)
+
         proc = subprocess.Popen(
           command,
           shell=True,
@@ -223,6 +228,7 @@ def open_menu():
           stderr=subprocess.STDOUT,
           text=True,
           executable="/bin/bash",
+          env=env,
         )
         processes[label] = proc
 
@@ -270,7 +276,7 @@ def open_menu():
     left.grid(row=0, column=0, sticky="ns", padx=(10, 4), pady=10)
     left.grid_propagate(False)
 
-    tk.Label(left, text="⬡ MJLAB", font=title_font,
+    tk.Label(left, text="PAL_MJLAB", font=title_font,
              bg=PANEL, fg=ACCENT).pack(anchor="w", padx=16, pady=(18, 4))
     tk.Label(left, text="simulation launcher", font=label_font,
              bg=PANEL, fg=MUTED).pack(anchor="w", padx=16, pady=(0, 20))
@@ -566,6 +572,145 @@ def open_menu():
                       padx=12, pady=8, command=confirm)
       btn.pack(padx=20, pady=(0,20))
 
+    def run_sync_checkpoints():
+      """Rsync checkpoints from a remote machine into the local LOG_ROOT.
+
+      The popup lets the user provide the remote user/host and the remote
+      logs path, an optional password (sent to rsync via sshpass, using an
+      environment variable rather than embedding it in the command string
+      so it never appears in the console / process list text), and an
+      optional filter that is matched against the `{run_date}_{run_name}`
+      folder names so only matching runs are copied.
+      """
+      win = tk.Toplevel(root)
+      win.title("Sync Checkpoints (rsync)")
+      win.configure(bg=BG)
+      win.geometry("520x480")
+      win.resizable(False, False)
+
+      def add_label(text):
+        tk.Label(win, text=text, font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(14, 6))
+
+      def add_entry(show=None):
+        e = tk.Entry(win, font=label_font, show=show) if show else tk.Entry(win, font=label_font)
+        e.pack(fill="x", padx=20)
+        return e
+
+      add_label("Remote user:")
+      user_entry = add_entry()
+
+      add_label("Remote IP / hostname:")
+      ip_entry = add_entry()
+
+      add_label("Remote logs path (e.g. /home/user/pal_mjlab_src_folder/logs):")
+      path_entry = add_entry()
+
+      add_label("Remote password (used only for this transfer, not stored):")
+      pass_entry = add_entry(show="*")
+
+      # Filter row
+      filter_frame = tk.Frame(win, bg=BG)
+      filter_frame.pack(fill="x", padx=20, pady=(16, 0))
+
+      filter_enabled = tk.BooleanVar(value=False)
+      filter_checkbox = tk.Checkbutton(
+          filter_frame,
+          text="Filter by run name ({run_date}_{run_name})",
+          variable=filter_enabled,
+          onvalue=True,
+          offvalue=False,
+          font=label_font,
+          bg=BG,
+          fg=TEXT,
+          activebackground=BG,
+          activeforeground=ACCENT,
+          selectcolor=BG,
+          relief="flat",
+          anchor="w",
+          padx=0,
+          pady=2,
+          bd=0,
+          highlightthickness=0,
+      )
+      filter_checkbox.pack(anchor="w")
+
+      tk.Label(win, text="Run name filter (substring match):", font=label_font,
+               bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(10, 6))
+      filter_entry = tk.Entry(win, font=label_font)
+      filter_entry.pack(fill="x", padx=20)
+
+      status_label = tk.Label(win, text="", font=label_font, bg=BG, fg=MUTED, wraplength=470, justify="left")
+      status_label.pack(anchor="w", padx=20, pady=(10, 0))
+
+      def confirm():
+        user = user_entry.get().strip()
+        ip = ip_entry.get().strip()
+        remote_path = path_entry.get().strip().rstrip("/")
+        password = pass_entry.get()
+
+        if not (user and ip and remote_path):
+          status_label.config(text="✗ User, IP and remote path are required", fg=DANGER)
+          return
+
+        use_filter = filter_enabled.get()
+        pattern = filter_entry.get().strip()
+        if use_filter and not pattern:
+          status_label.config(text="✗ Filter is enabled but empty", fg=DANGER)
+          return
+
+        LOG_ROOT.mkdir(parents=True, exist_ok=True)
+        remote_source = f"{user}@{ip}:{remote_path}/"
+        local_dest = f"{LOG_ROOT}/"
+
+        # ssh options: no strict host key checking so first-time connections
+        # to a new remote don't hang waiting on a terminal prompt.
+        ssh_cmd = "ssh -o StrictHostKeyChecking=no"
+
+        extra_env = {}
+        if password:
+          # Passed through the environment (never embedded in the command
+          # string) so it isn't echoed to the console or visible in `ps`
+          # output for this process's argv.
+          extra_env["SSHPASS"] = password
+          rsh = f"sshpass -e {ssh_cmd}"
+        else:
+          rsh = ssh_cmd
+
+        rsync_flags = f"-avzP -e \"{rsh}\""
+
+        if use_filter:
+          # Only descend into matching run folders. '*/' lets rsync walk
+          # into every directory so it can find matches at any depth, the
+          # second include pulls in anything under a folder whose name
+          # contains the filter substring, and the trailing exclude drops
+          # everything else.
+          rsync_flags += f" --include='*/' --include='*{pattern}*/**' --exclude='*'"
+
+        cmd = f"rsync {rsync_flags} {remote_source} {local_dest}"
+
+        win.destroy()
+        launch_process(
+          cmd,
+          consoles[selected_console.get()],
+          label=f"sync:{user}@{ip}",
+          extra_env=extra_env,
+        )
+
+      btn = tk.Button(win, text="⇄  Sync Checkpoints", font=btn_font,
+                      bg=ACCENT, fg=BG,
+                      relief="flat", cursor="hand2",
+                      padx=12, pady=8,
+                      command=confirm)
+      btn.pack(padx=20, pady=(20, 10))
+
+      note = tk.Label(
+        win,
+        text="Note: requires 'sshpass' installed locally when a password is given.\nWithout sshpass installed, leave the password blank and rsync will\nprompt for it in the selected terminal pane instead.",
+        font=tkfont.Font(family="Courier New", size=8),
+        bg=BG, fg=MUTED, justify="left", wraplength=470,
+      )
+      note.pack(anchor="w", padx=20, pady=(0, 10))
+
     def clear_selected_terminal ():
       consoles[selected_console.get()].delete("1.0", tk.END)
       append_to_console(consoles[selected_console.get()], f'Terminal {selected_console.get() + 1} ready.\n\n', "status")
@@ -611,6 +756,7 @@ def open_menu():
     make_button(left, "Train Policy", ACCENT, run_train)
     make_button(left, "List tasks",  ACCENT2, run_list_envs)
     make_button(left, "▶  Deploy", ACCENT, run_deploy)
+    make_button(left, "⇄  Sync Checkpoints", ACCENT2, run_sync_checkpoints)
 
     tk.Frame(left, bg=MUTED, height=1).pack(fill="x", padx=16, pady=(8, 4))
     tk.Label(left, text="Job Queue (tsp):", font=label_font, bg=PANEL, fg=MUTED).pack(anchor="w", padx=16, pady=(0, 2))
