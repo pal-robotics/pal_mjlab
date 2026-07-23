@@ -65,10 +65,11 @@ def fingertip_cube_alignment_reward(
   std: float = 0.15,
   power: int = 1,
   as_penalty: bool = False,
+  vertical_weight: float = 0.5,
   sensor_name: str | None = None,
   site_names: list[str] | None = None,
 ) -> torch.Tensor:
-  """Rewards/penalizes the relative yaw misalignment between the gripper squeeze axis and the cube in the robot base frame.
+  """Rewards/penalizes the planar yaw misalignment and vertical tilt of the gripper squeeze axis.
 
   The penalty/reward remains active throughout the episode (even after contact).
   """
@@ -105,6 +106,8 @@ def fingertip_cube_alignment_reward(
   root_rot_w = robot.data.root_link_quat_w
   v_squeeze_root = quat_apply(quat_inv(root_rot_w), v_squeeze_w)
   ee_yaw_root = torch.atan2(v_squeeze_root[:, 1], v_squeeze_root[:, 0])
+  planar_norm = torch.norm(v_squeeze_root[:, :2], dim=-1).clamp_min(1e-6)
+  ee_tilt_root = torch.atan2(torch.abs(v_squeeze_root[:, 2]), planar_norm)
 
   # 3. Compute relative yaw between the squeeze axis and the box
   yaw_diff = ee_yaw_root - box_yaw_root
@@ -131,11 +134,14 @@ def fingertip_cube_alignment_reward(
     contact = torch.zeros(env.num_envs, device=env.device)
 
   if as_penalty:
-    # Penalize the yaw misalignment angle (in radians) directly
-    reward = angle_rad * distance_scale
+    # Penalize both the yaw misalignment angle and the vertical tilt away from the plane.
+    reward = (angle_rad + vertical_weight * ee_tilt_root) * distance_scale
   else:
-    # Reward yaw alignment (mapping angle to [0, pi/4])
-    reward = (math.pi / 4.0 - angle_rad) * distance_scale
+    # Reward both planar alignment and a flatter approach angle.
+    reward = (
+      (math.pi / 4.0 - angle_rad)
+      + vertical_weight * (math.pi / 2.0 - ee_tilt_root)
+    ) * distance_scale
 
   return reward * (1.0 - contact)
 
@@ -281,6 +287,7 @@ def fingertip_cube_alignment_reward_adaptive(
   std: float = 0.15,
   power: int = 1,
   as_penalty: bool = False,
+  vertical_weight: float = 0.5,
   sensor_name: str | None = None,
   site_names: list[str] | None = None,
 ) -> torch.Tensor:
@@ -291,6 +298,7 @@ def fingertip_cube_alignment_reward_adaptive(
     std=std,
     power=power,
     as_penalty=as_penalty,
+    vertical_weight=vertical_weight,
     sensor_name=sensor_name,
     site_names=site_names,
   )

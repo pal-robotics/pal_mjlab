@@ -24,7 +24,7 @@ from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from pal_mjlab.robots.pal_tiago_pro.tiago_pro import TiagoProRobot
 from pal_mjlab.tasks.manipulation import mdp as manipulation_mdp_pal
 
-EPISODE_LENGTH = 6
+EPISODE_LENGTH = 4
 
 
 def lift_env_cfg(
@@ -308,12 +308,13 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.fingertip_cube_alignment_reward_adaptive
     ),
-    weight=-5.0,  # Note: Use a negative weight (e.g. -1.5) if as_penalty=True
+    weight=-8.0,  # Note: Use a negative weight (e.g. -1.5) if as_penalty=True
     params={
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
       "std": 0.3,
       "as_penalty": True,
+      "vertical_weight": 0.5,
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
     },
@@ -356,7 +357,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.post_reached_gripper_open_reward
     ),
-    weight=10.0,
+    weight=5.0,
     params={
       "command_name": "lift_height",
       "target_pos": 0.075,
@@ -372,10 +373,10 @@ def lift_env_cfg(
   #   },
   # )
 
-  cfg.rewards["action_rate_l2"] = RewardTermCfg(
-    func=manipulation_mdp_pal.nan_safe(mjlab_rewards.action_rate_l2),
-    weight=-0.1,
-  )
+  # cfg.rewards["action_rate_l2"] = RewardTermCfg(
+  #   func=manipulation_mdp_pal.nan_safe(mjlab_rewards.action_rate_l2),
+  #   weight=-0.1,
+  # )
 
   cfg.rewards["arm_right_1_joint_limit_penalty"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(
@@ -397,7 +398,7 @@ def lift_env_cfg(
   )
   cfg.rewards["self_collisions"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.contact_penalty),
-    weight=-1.0,
+    weight=-2.0,
     params={"sensor_names": ["self_collision", "robot_table_contact"]},
   )
 
