@@ -9,47 +9,46 @@ import os
 import sys
 from dataclasses import asdict
 
-import torch
-
 # Import mjlab and task-specific modules
 try:
-  import mjlab.tasks
-  import pal_mjlab.tasks
+  import mjlab.tasks  # noqa: F401
+  import pal_mjlab.tasks  # noqa: F401
 except ImportError:
-  print("Error: Could not import mjlab or pal_mjlab. Make sure you are running in the correct environment (e.g. uv run).")
+  print(
+    "Error: Could not import mjlab or pal_mjlab. Make sure you are running in the correct environment (e.g. uv run)."
+  )
   sys.exit(1)
 
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper
-from mjlab.rl.exporter_utils import get_base_metadata, attach_metadata_to_onnx
+from mjlab.rl.exporter_utils import attach_metadata_to_onnx, get_base_metadata
 from mjlab.tasks.registry import load_env_cfg, load_rl_cfg, load_runner_cls
 
 
 def main():
-  parser = argparse.ArgumentParser(description="Export a .pt checkpoint to .onnx with metadata")
-  parser.add_argument(
-      "--task",
-      type=str,
-      required=True,
-      help="Task name (e.g., Mjlab-Manipulation-Lift-Cube-Pal-Tiago-Pro-v0)"
+  parser = argparse.ArgumentParser(
+    description="Export a .pt checkpoint to .onnx with metadata"
   )
   parser.add_argument(
-      "--checkpoint",
-      type=str,
-      required=True,
-      help="Path to the .pt checkpoint file"
+    "--task",
+    type=str,
+    required=True,
+    help="Task name (e.g., Mjlab-Manipulation-Lift-Cube-Pal-Tiago-Pro-v0)",
   )
   parser.add_argument(
-      "--output",
-      type=str,
-      default=None,
-      help="Optional custom output path for the .onnx file (defaults to same folder/name as checkpoint)"
+    "--checkpoint", type=str, required=True, help="Path to the .pt checkpoint file"
   )
   parser.add_argument(
-      "--device",
-      type=str,
-      default="cpu",
-      help="Device to load the model on (default: cpu)"
+    "--output",
+    type=str,
+    default=None,
+    help="Optional custom output path for the .onnx file (defaults to same folder/name as checkpoint)",
+  )
+  parser.add_argument(
+    "--device",
+    type=str,
+    default="cpu",
+    help="Device to load the model on (default: cpu)",
   )
   args = parser.parse_args()
 
@@ -76,7 +75,9 @@ def main():
   runner = runner_cls(wrapped_env, asdict(agent_cfg), device=args.device)
 
   print(f"Loading checkpoint weights from {args.checkpoint}...")
-  runner.load(args.checkpoint, load_cfg={"actor": True}, strict=True, map_location=args.device)
+  runner.load(
+    args.checkpoint, load_cfg={"actor": True}, strict=True, map_location=args.device
+  )
 
   # Determine output paths
   if args.output is None:
@@ -94,7 +95,7 @@ def main():
   print("Extracting metadata...")
   # get_base_metadata may have been patched by pal_mjlab.tasks.__init__
   metadata = get_base_metadata(env, "manual_export")
-  
+
   print("Attaching metadata to ONNX model...")
   attach_metadata_to_onnx(output_path, metadata)
 

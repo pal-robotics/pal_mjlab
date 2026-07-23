@@ -10,7 +10,6 @@ from mjlab.sensor import ContactSensor
 from mjlab.utils.lab_api.math import quat_apply, quat_inv
 
 from pal_mjlab.tasks.manipulation.mdp.commands import LiftingCommand
-from pal_mjlab.tasks.manipulation.mdp.contact_sensor import site_contact_both_fingers
 from pal_mjlab.tasks.manipulation.mdp.observations import (
   object_both__contact_fingers,
 )
@@ -138,8 +137,7 @@ def fingertip_cube_alignment_reward(
   else:
     # Reward both planar alignment and a flatter approach angle.
     reward = (
-      (math.pi / 4.0 - angle_rad)
-      + vertical_weight * (math.pi / 2.0 - ee_tilt_root)
+      (math.pi / 4.0 - angle_rad) + vertical_weight * (math.pi / 2.0 - ee_tilt_root)
     ) * distance_scale
 
   return reward * (1.0 - contact)
@@ -176,7 +174,6 @@ def gripper_open_during_approach_reward(
   normalized_open = torch.clamp(gripper_pos / max_open, 0.0, 1.0)
 
   return approach_scale * normalized_open
-
 
 
 def arm_right_1_joint_limit_penalty(
@@ -221,9 +218,11 @@ def object_goal_distance_adaptive(
   coordinate_weights: tuple[float, float, float] = (1.0, 1.0, 1.0),
 ) -> torch.Tensor:
   command: LiftingCommand = env.command_manager.get_term(command_name)
-  contact_both = object_both__contact_fingers(
-    env, sensor_name, site_names, asset_cfg=asset_cfg
-  ).squeeze(-1).bool()
+  contact_both = (
+    object_both__contact_fingers(env, sensor_name, site_names, asset_cfg=asset_cfg)
+    .squeeze(-1)
+    .bool()
+  )
 
   diff = command.target_pos - command.object_pos_w
   weights = torch.tensor(coordinate_weights, device=env.device)
@@ -246,9 +245,11 @@ def object_is_lifted_adaptive(
 ) -> torch.Tensor:
   command: LiftingCommand = env.command_manager.get_term(command_name)
 
-  fingers_close = object_both__contact_fingers(
-    env, sensor_name, site_names, asset_cfg=asset_cfg
-  ).squeeze(-1).bool()
+  fingers_close = (
+    object_both__contact_fingers(env, sensor_name, site_names, asset_cfg=asset_cfg)
+    .squeeze(-1)
+    .bool()
+  )
 
   elevation = command.object_bottom_z - command.table_surface_z
   elevation = torch.clamp(elevation, min=0.0, max=lift_threshold)
@@ -346,9 +347,11 @@ def object_falling_reward(
     command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
   )
 
-  contact_both = object_both__contact_fingers(
-    env, sensor_name=sensor_name, site_names=site_names
-  ).squeeze(-1).bool()
+  contact_both = (
+    object_both__contact_fingers(env, sensor_name=sensor_name, site_names=site_names)
+    .squeeze(-1)
+    .bool()
+  )
 
   obj = command.object
   # Downward velocity: negative z means falling, so we clamp and negate
@@ -391,7 +394,9 @@ def object_contact_both_fingers_adaptive(
   site_names: list[str],
   command_name: str = "lift_height",
 ) -> torch.Tensor:
-  contact = object_both__contact_fingers(env, sensor_name, site_names).squeeze(-1).float()
+  contact = (
+    object_both__contact_fingers(env, sensor_name, site_names).squeeze(-1).float()
+  )
   return contact
 
 

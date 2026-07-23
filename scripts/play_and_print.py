@@ -1042,7 +1042,6 @@ class PrintingPolicy:
       reached_flag_val = self.command.reached.float()[0].item()
       print(f"  {'reached_flag':25s} shape=(1,)    value=[{reached_flag_val:.4f}]")
 
-
     if self.model is not None:
       import onnxruntime
       from tensordict import TensorDict

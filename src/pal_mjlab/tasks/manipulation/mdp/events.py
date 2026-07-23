@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import torch
+from mjlab.entity import Entity
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.managers.event_manager import RecomputeLevel, requires_model_fields
 from mjlab.managers.scene_entity_config import SceneEntityCfg
@@ -142,4 +143,3 @@ def reset_joints_mixed(
     env_ids=env_ids,
     joint_ids=joint_ids,
   )
-
