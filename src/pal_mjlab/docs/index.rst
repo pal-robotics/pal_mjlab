@@ -26,4 +26,4 @@ pal_mjlab Documentation
    kangaroo/models/kangaroo_lower_body
    kangaroo/tasks/task_velocity
    kangaroo/tasks/task_imitation
-   kangaroo/tasks/task_grippers_manipulation
+   kangaroo/tasks/task_manipulation

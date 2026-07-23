@@ -1,4 +1,4 @@
-.. _Kangaroo task_grippers_manipulation:
+.. _Kangaroo task_manipulation:
 
 PAL Kangaroo - Grippers manipulation task
 ==========================================
