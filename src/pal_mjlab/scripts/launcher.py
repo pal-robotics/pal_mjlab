@@ -99,7 +99,7 @@ def find_latest_checkpoints():
 
   return checkpoints
 
-SNAPSHOTS_DIR = Path("../training_snapshots").resolve()
+SNAPSHOTS_DIR = Path("./training_snapshots").resolve()
 
 def save_training_snapshot(environment_name, job_name, extra_opts, description = ""):
   SNAPSHOTS_DIR.mkdir(parents=True, exist_ok=True)
