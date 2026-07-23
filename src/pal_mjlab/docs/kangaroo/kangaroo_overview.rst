@@ -26,9 +26,11 @@ The tasks explored here focus mainly on:
 
 - Motion imitation (reference motion tracking)
 
+- Basic manipulation
+
 
 Each registered task pairs an objective (Velocity, Tracking, Reaching), a terrain
-type (Flat, Rough) and a model variant:
+type (Flat, Rough) and a model variant (non-exhaustive list):
 
 +----+---------------------------------------------------------------------------+
 | 1  | Mjlab-Reaching-Flat-Pal-Kangaroo                                          |
@@ -54,6 +56,8 @@ type (Flat, Rough) and a model variant:
 | 11 | Mjlab-Velocity-Rough-Pal-Kangaroo-Grippers                                |
 +----+---------------------------------------------------------------------------+
 | 12 | Mjlab-Velocity-Rough-Pal-Kangaroo-Hands                                   |
++----+---------------------------------------------------------------------------+
+| 13 | ...                                                                       |
 +----+---------------------------------------------------------------------------+
 
 
@@ -99,3 +103,4 @@ Tasks:
 
 - :ref:`Kangaroo task_velocity`
 - :ref:`Kangaroo task_motion_imitation`
+- :ref:`Kangaroo task_manipulation`
