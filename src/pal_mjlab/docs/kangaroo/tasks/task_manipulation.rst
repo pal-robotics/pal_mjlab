@@ -112,7 +112,7 @@ affecting deployment.
 
 |
 
-Note that this pipeline is meant to be coupled with vision tools to detect the box. 
+Note that this pipeline is meant to be coupled with vision tools to detect the box.
 You may need to adjust or change the (``box_position``) in order to match the return
 of your vision pipeline and have similar precision.
 
