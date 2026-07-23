@@ -1,6 +1,8 @@
 """PAL Robotics TIAGo PRO constants."""
 
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import mujoco
 from mjlab.actuator import BuiltinPositionActuatorCfg
@@ -90,7 +92,7 @@ TIAGO_PRO_GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 INIT_STATE = EntityCfg.InitialStateCfg(
   pos=(-0.25, 0.0, 0.0),
   joint_pos={
-    # "torso_lift_joint": 0.1,
+    "torso_lift_joint": 0.0,
     "arm_right_1_joint": -3.14,
     "arm_right_2_joint": -1.7,
     "arm_right_3_joint": 0.71,
@@ -106,13 +108,13 @@ INIT_STATE = EntityCfg.InitialStateCfg(
     "gripper_right_inner_finger_right_joint": -0.371652,
     "gripper_right_fingertip_right_joint": 0.406154,
     "gripper_right_outer_finger_right_joint": -0.349496,
-    # "arm_left_1_joint": 0.36,
-    # "arm_left_2_joint": -1.83,
-    # "arm_left_3_joint": 0.47,
-    # "arm_left_4_joint": -2.35,
-    # "arm_left_5_joint": 0.0,
-    # "arm_left_6_joint": -1.20,
-    # "arm_left_7_joint": 0.0,
+    "arm_left_1_joint": 0.36,
+    "arm_left_2_joint": -1.83,
+    "arm_left_3_joint": 0.47,
+    "arm_left_4_joint": -2.35,
+    "arm_left_5_joint": 0.0,
+    "arm_left_6_joint": -1.20,
+    "arm_left_7_joint": 0.0,
   },
   joint_vel={".*": 0.0},
 )
@@ -196,6 +198,43 @@ for a in TIAGO_PRO_ARTICULATION.actuators:
 
 # Override gripper scale: tuned to 0.01 (formula-derived ~0.001528 is too small for control)
 TIAGO_PRO_ACTION_SCALE["gripper_right_finger_joint"] = 0.01  # 0.01
+
+
+@dataclass
+class TiagoProRobot:
+  entity_cfg: EntityCfg = field(default_factory=get_tiago_pro_robot_cfg)
+  arm_joint_pattern: str = "arm_right_.*_joint"
+  gripper_joint_pattern: str = "gripper_right_finger_joint"
+  ee_site: str = "gripper_right_grasping_site"
+  fingertip_geom_pattern: str = "col_right_fingertip_.*"
+  fingertip_site_pattern: str = "gripper_right_fingertip_.*_site"
+  collision_link_pattern: str = "(arm_right|gripper_right)_.*_link"
+  arm_collision_link_pattern: str = "arm_right_.*_link"
+  gripper_collision_link_pattern: str = "gripper_right_.*_link"
+  viewer_body: str = "base_footprint"
+  camera_name: str = "head_realsense_camera"
+  head_camera_name: str = "head_realsense_camera"
+
+  def arm_action_cfg(self) -> Any:
+    from mjlab.envs.mdp.actions import DifferentialIKActionCfg
+
+    return DifferentialIKActionCfg(
+      entity_name="robot",
+      actuator_names=(self.arm_joint_pattern,),
+      frame_name=self.ee_site,
+      frame_type="site",
+      delta_pos_scale=0.005,  # Max displacement of 0.01m per step (0.5m/s max velocity)
+      delta_ori_scale=0.005,  # Max rotation of 0.01 rad per step (0.5 rad/s max angular velocity)
+    )
+
+  def gripper_action_cfg(self) -> Any:
+    from mjlab.envs.mdp.actions import RelativeJointPositionActionCfg
+
+    return RelativeJointPositionActionCfg(
+      entity_name="robot",
+      actuator_names=(self.gripper_joint_pattern,),
+      scale=TIAGO_PRO_ACTION_SCALE[self.gripper_joint_pattern],
+    )
 
 
 if __name__ == "__main__":

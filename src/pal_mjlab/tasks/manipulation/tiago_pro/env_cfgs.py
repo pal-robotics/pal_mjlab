@@ -21,10 +21,10 @@ from mjlab.tasks.manipulation.lift_cube_env_cfg import make_lift_cube_env_cfg
 from mjlab.tasks.velocity import mdp
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
-from pal_mjlab.robots.pal_tiago_pro.tiago_pro import TiagoProRobot
+from pal_mjlab.robots.pal_tiago_pro.tiago_pro_constants import TiagoProRobot
 from pal_mjlab.tasks.manipulation import mdp as manipulation_mdp_pal
 
-EPISODE_LENGTH = 4
+EPISODE_LENGTH = 6
 
 
 def lift_env_cfg(
@@ -308,7 +308,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.fingertip_cube_alignment_reward_adaptive
     ),
-    weight=-8.0,  # Note: Use a negative weight (e.g. -1.5) if as_penalty=True
+    weight=-5.0,  # Note: Use a negative weight (e.g. -1.5) if as_penalty=True
     params={
       "command_name": "lift_height",
       "asset_cfg": _grasp_cfg,
@@ -344,7 +344,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.post_reached_ee_stability_reward
     ),
-    weight=5.0,
+    weight=1.0,
     params={
       "command_name": "lift_height",
       "asset_cfg": SceneEntityCfg("robot", site_names=(robot.ee_site,)),
@@ -357,7 +357,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.post_reached_gripper_open_reward
     ),
-    weight=5.0,
+    weight=1.0,
     params={
       "command_name": "lift_height",
       "target_pos": 0.075,
