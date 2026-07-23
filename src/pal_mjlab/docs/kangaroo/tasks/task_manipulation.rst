@@ -103,12 +103,18 @@ Shapes correspond to the Kangaroo grippers model (44 joints, 40 actuated).
 
 |
 
-As in the velocity task, actor observations are limited to signals available
+Actor observations are limited to signals available
 on the real robot (IMU, joint encoders, previous actions, and an estimate of
 box position). The critic additionally receives privileged information such
 as the true base linear velocity, foot contact states, and hand-to-box
 contact forces, which sharpen the value estimate during training without
 affecting deployment.
+
+|
+
+Note that this pipeline is meant to be coupled with vision tools to detect the box. 
+You may need to adjust or change the (``box_position``) in order to match the return
+of your vision pipeline and have similar precision.
 
 .. important::
 
@@ -153,7 +159,6 @@ manipulation task:
 
 |
 
-The reward structure follows the same four roles used in the velocity task.
 *Objective* terms drive the manipulation goal: staying upright, closing the
 distance between the hands and the box (``hands_to_box``), making and
 holding contact with it (``hands_contact``), and moving the box to the
@@ -161,9 +166,7 @@ commanded target (``box_target_tracking``). *Limits* terms penalize
 violations of physical or task constraints — joint ranges, self-collisions,
 the femur/ankle convex-hull joint limits, and unwanted contact between the
 robot's body and the table. *Regularization* terms (``pose``,
-``action_rate_l2``) smooth the resulting motion. Unlike the velocity task,
-there are no gait-shaping *tuning* terms here, since the robot is expected
-to stand in place rather than walk. As with the velocity task, these
+``action_rate_l2``) smooth the resulting motion. As with the other tasks, these
 baseline weights are a starting point, not a guaranteed optimum.
 
 Terminations
