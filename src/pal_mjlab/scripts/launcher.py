@@ -16,12 +16,55 @@ import tyro
 
 import threading
 import tkinter as tk
-from tkinter import scrolledtext
+from tkinter import scrolledtext, simpledialog
 import tkinter.font as tkfont
 import re
+import paramiko
+import shlex
 
 import mjlab
 from mjlab.tasks.registry import load_env_cfg
+
+
+class RemoteProcess:
+  def __init__(self, user, hostname, password, pid):
+    self.user = user
+    self.hostname = hostname
+    self.password = password
+    self.pid = pid
+
+  def kill(self):
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+      ssh.connect(
+        hostname=self.hostname,
+        username=self.user,
+        password=self.password,
+        allow_agent=False,
+        look_for_keys=False,
+      )
+
+      command = f"""
+      get_children() {{
+        for child in $(cat /proc/$1/task/$1/children 2>/dev/null); do
+          get_children "$child"
+          kill -TERM "$child" 2>/dev/null
+        done
+      }}
+
+      get_children {self.pid}
+      kill -TERM {self.pid} 2>/dev/null
+      """
+
+      stdin, stdout, stderr = ssh.exec_command(command)
+
+      # Wait for remote kill command to finish
+      stdout.channel.recv_exit_status()
+
+    finally:
+      ssh.close()
 
 
 LOG_ROOT = Path("./logs").resolve()
@@ -75,12 +118,53 @@ def save_training_snapshot(environment_name, job_name, extra_opts, description =
     f.write("\n\n")
 
 
+REMOTE_CONFIG_PATH = Path("./remote_config.txt").resolve()
+
+def load_remote_setup():
+  try:
+    if not REMOTE_CONFIG_PATH.exists():
+      return "", "", "", 0
+
+    with REMOTE_CONFIG_PATH.open("r") as f:
+      lines = [line.strip() for line in f]
+
+    # Must contain exactly 3 non-empty lines
+    if len(lines) != 3:
+      return "", "", "", 0
+
+    user, hostname, remote_folder = lines
+
+    if not user or not hostname or not remote_folder:
+      return "", "", "", 0
+
+    return user, hostname, remote_folder, 1
+
+  except (OSError, UnicodeDecodeError):
+    return "", "", "", 0
+
+
+def write_remote_setup(user, hostname, remote_folder):
+  with REMOTE_CONFIG_PATH.open("w") as f:
+    f.write(f"{user}\n")
+    f.write(f"{hostname}\n")
+    f.write(f"{remote_folder}\n")
+
+
+remote_setup = load_remote_setup()
+
 tasks = []
 
 # --- Process registry for cleanup ---
 processes = {}
 
 def kill_proc_tree(proc):
+  # Remote process
+  if isinstance(proc, RemoteProcess):
+    try:
+      proc.kill()
+    except Exception as e:
+      print(f"Error killing remote process: {e}")
+    return
   try:
     # Get all child PIDs via /proc filesystem (Linux only)
     def get_children(pid):
@@ -215,9 +299,16 @@ def open_menu():
     DANGER   = "#ff5a5a"
 
     # --- Core launcher ---
-    def launch_process(command, menu_console, label="process", on_complete=None, extra_env=None):
+    def launch_process(
+      command,
+      menu_console,
+      label="process",
+      on_complete=None,
+      extra_env=None,
+    ):
       def run():
         env = os.environ.copy()
+
         if extra_env:
           env.update(extra_env)
 
@@ -230,27 +321,255 @@ def open_menu():
           executable="/bin/bash",
           env=env,
         )
+
         processes[label] = proc
 
-        output = []
-        menu_console.after(0, append_to_console, menu_console, f"$ {command}\n", "cmd")
+        menu_console.after(
+          0,
+          append_to_console,
+          menu_console,
+          f"$ {command}\n",
+          "cmd",
+        )
+
         menu_console.after(0, refresh_process_list)
+
+        output = []
 
         for line in proc.stdout:
           output.append(line)
-          menu_console.after(0, append_to_console, menu_console, line)
+
+          menu_console.after(
+            0,
+            append_to_console,
+            menu_console,
+            line,
+          )
+
         proc.wait()
 
-        status = "\n✓ done" if proc.returncode == 0 else f"\n✗ exited {proc.returncode}"
-        menu_console.after(0, append_to_console, menu_console, f"{status}\n\n", "status")
+        status = (
+          "\n✓ done"
+          if proc.returncode == 0
+          else f"\n✗ exited {proc.returncode}"
+        )
+
+        menu_console.after(
+          0,
+          append_to_console,
+          menu_console,
+          f"{status}\n\n",
+          "status",
+        )
+
         processes.pop(label, None)
-        menu_console.after(0, refresh_process_list)
+
+        menu_console.after(
+          0,
+          refresh_process_list,
+        )
 
         if on_complete:
-          menu_console.after(0, on_complete, "".join(output))
+          menu_console.after(
+            0,
+            on_complete,
+            "".join(output),
+          )
 
-      thread = threading.Thread(target=run, daemon=True)
+
+      def run_remote():
+        user, ip, remote_path, remote_flag = remote_setup
+
+        if remote_flag != 1:
+          menu_console.after(
+            0,
+            append_to_console,
+            menu_console,
+            "[ERROR] Remote setup has not been done !\n",
+            "status",
+          )
+          return
+
+        # Ask password on Tkinter main thread
+        password = [None]
+        event = threading.Event()
+
+        def ask_password_and_signal():
+          password[0] = simpledialog.askstring(
+            "SSH Password",
+            f"Enter SSH password for {user}:",
+            show="*",
+            parent=root,
+          )
+          event.set()
+
+        root.after(0, ask_password_and_signal)
+        event.wait()
+
+        if password[0] is None:
+            return
+
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(
+            paramiko.AutoAddPolicy()
+        )
+
+        try:
+          ssh.connect(
+            hostname=ip,
+            username=user,
+            password=password[0],
+            allow_agent=False,
+            look_for_keys=False,
+          )
+
+          menu_console.after(
+            0,
+            append_to_console,
+            menu_console,
+            f"$ ssh {user}@{ip}\n",
+            "cmd",
+          )
+
+          # The remote shell PID becomes the command PID through exec.
+          remote_command = (
+            f"cd {shlex.quote(remote_path)} && "
+            "echo __REMOTE_PID=$$ && "
+            f"exec bash -lc {shlex.quote(command)}"
+          )
+
+          stdin, stdout, stderr = ssh.exec_command(
+            remote_command
+          )
+
+          # Read PID marker
+          pid_line = stdout.readline().strip()
+
+          if not pid_line.startswith("__REMOTE_PID="):
+            raise RuntimeError(
+              f"Failed to obtain remote PID: {pid_line}"
+            )
+
+          pid = int(
+            pid_line.split("=", 1)[1]
+          )
+
+          remote_proc = RemoteProcess(
+            user=user,
+            hostname=ip,
+            password=password[0],
+            pid=pid,
+          )
+
+          # Register immediately
+          processes[label] = remote_proc
+
+          menu_console.after(
+            0,
+            refresh_process_list,
+          )
+
+          output = []
+
+          # Read stdout
+          for line in iter(stdout.readline, ""):
+            output.append(line)
+
+            menu_console.after(
+              0,
+              append_to_console,
+              menu_console,
+              line,
+            )
+
+          # Read stderr
+          for line in iter(stderr.readline, ""):
+            output.append(line)
+
+            menu_console.after(
+              0,
+              append_to_console,
+              menu_console,
+              line,
+              "status",
+            )
+
+          # Wait for actual command exit
+          exit_status = stdout.channel.recv_exit_status()
+
+          status = (
+            "\n✓ done"
+            if exit_status == 0
+            else f"\n✗ exited {exit_status}"
+          )
+
+          menu_console.after(
+            0,
+            append_to_console,
+            menu_console,
+            f"{status}\n\n",
+            "status",
+          )
+
+          if on_complete:
+            menu_console.after(
+              0,
+              on_complete,
+              "".join(output),
+            )
+
+        except paramiko.AuthenticationException:
+          menu_console.after(
+            0,
+            append_to_console,
+            menu_console,
+            "[ERROR] SSH authentication failed.\n",
+            "status",
+          )
+
+        except paramiko.SSHException as e:
+          menu_console.after(
+            0,
+            append_to_console,
+            menu_console,
+            f"[ERROR] SSH connection failed: {e}\n",
+            "status",
+          )
+
+        except Exception as e:
+          menu_console.after(
+            0,
+            append_to_console,
+            menu_console,
+            f"[ERROR] Remote process failed: {e}\n",
+            "status",
+          )
+
+        finally:
+          ssh.close()
+
+          # Remove process from registry when it finishes
+          processes.pop(label, None)
+
+          menu_console.after(
+            0,
+            refresh_process_list,
+          )
+
+
+      if remote_var.get():
+        thread = threading.Thread(
+          target=run_remote,
+          daemon=True,
+        )
+      else:
+        thread = threading.Thread(
+          target=run,
+          daemon=True,
+        )
+
       thread.start()
+
       return thread
 
     root = tk.Tk()
@@ -300,8 +619,6 @@ def open_menu():
         btn.bind("<Leave>", lambda e: btn.config(bg=color))
         return btn
 
-    def run_ls():
-      launch_process("ls -lah", consoles[selected_console.get()], label="ls")
 
     def run_list_envs():
       def on_complete(output):
@@ -573,40 +890,16 @@ def open_menu():
       btn.pack(padx=20, pady=(0,20))
 
     def run_sync_checkpoints():
-      """Rsync checkpoints from a remote machine into the local LOG_ROOT.
+      user, ip, remote_path, setup_flag = remote_setup
+      if setup_flag != 1 :
+        append_to_console(consoles[selected_console.get()], f'[ERROR] Remote setup has not been done !\n', "status")
+        return
 
-      The popup lets the user provide the remote user/host and the remote
-      logs path, an optional password (sent to rsync via sshpass, using an
-      environment variable rather than embedding it in the command string
-      so it never appears in the console / process list text), and an
-      optional filter that is matched against the `{run_date}_{run_name}`
-      folder names so only matching runs are copied.
-      """
       win = tk.Toplevel(root)
       win.title("Sync Checkpoints (rsync)")
       win.configure(bg=BG)
       win.geometry("520x480")
       win.resizable(False, False)
-
-      def add_label(text):
-        tk.Label(win, text=text, font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(14, 6))
-
-      def add_entry(show=None):
-        e = tk.Entry(win, font=label_font, show=show) if show else tk.Entry(win, font=label_font)
-        e.pack(fill="x", padx=20)
-        return e
-
-      add_label("Remote user:")
-      user_entry = add_entry()
-
-      add_label("Remote IP / hostname:")
-      ip_entry = add_entry()
-
-      add_label("Remote logs path (e.g. /home/user/pal_mjlab_src_folder/logs):")
-      path_entry = add_entry()
-
-      add_label("Remote password (used only for this transfer, not stored):")
-      pass_entry = add_entry(show="*")
 
       # Filter row
       filter_frame = tk.Frame(win, bg=BG)
@@ -643,52 +936,55 @@ def open_menu():
       status_label.pack(anchor="w", padx=20, pady=(10, 0))
 
       def confirm():
-        user = user_entry.get().strip()
-        ip = ip_entry.get().strip()
-        remote_path = path_entry.get().strip().rstrip("/")
-        password = pass_entry.get()
-
-        if not (user and ip and remote_path):
-          status_label.config(text="✗ User, IP and remote path are required", fg=DANGER)
-          return
 
         use_filter = filter_enabled.get()
         pattern = filter_entry.get().strip()
+
         if use_filter and not pattern:
-          status_label.config(text="✗ Filter is enabled but empty", fg=DANGER)
+          status_label.config(
+            text="✗ Filter is enabled but empty",
+            fg=DANGER
+          )
+          return
+
+        # Ask for SSH password
+        password = simpledialog.askstring(
+          "SSH Password",
+          f"Enter SSH password for {user}:",
+          show="*",
+          parent=win,
+        )
+
+        if password is None:
           return
 
         LOG_ROOT.mkdir(parents=True, exist_ok=True)
-        remote_source = f"{user}@{ip}:{remote_path}/"
+
+        remote_source = f"{user}@{ip}:{remote_path}/logs/"
         local_dest = f"{LOG_ROOT}/"
 
-        # ssh options: no strict host key checking so first-time connections
-        # to a new remote don't hang waiting on a terminal prompt.
+        # SSH options
         ssh_cmd = "ssh -o StrictHostKeyChecking=no"
 
-        extra_env = {}
-        if password:
-          # Passed through the environment (never embedded in the command
-          # string) so it isn't echoed to the console or visible in `ps`
-          # output for this process's argv.
-          extra_env["SSHPASS"] = password
-          rsh = f"sshpass -e {ssh_cmd}"
-        else:
-          rsh = ssh_cmd
+        extra_env = {
+          "SSHPASS": password
+        }
+
+        rsh = f"sshpass -e {ssh_cmd}"
 
         rsync_flags = f"-avzP -e \"{rsh}\""
 
         if use_filter:
-          # Only descend into matching run folders. '*/' lets rsync walk
-          # into every directory so it can find matches at any depth, the
-          # second include pulls in anything under a folder whose name
-          # contains the filter substring, and the trailing exclude drops
-          # everything else.
-          rsync_flags += f" --include='*/' --include='*{pattern}*/**' --exclude='*'"
+          rsync_flags += (
+            f" --include='*/'"
+            f" --include='*{pattern}*/**'"
+            f" --exclude='*'"
+          )
 
         cmd = f"rsync {rsync_flags} {remote_source} {local_dest}"
 
         win.destroy()
+
         launch_process(
           cmd,
           consoles[selected_console.get()],
@@ -703,13 +999,84 @@ def open_menu():
                       command=confirm)
       btn.pack(padx=20, pady=(20, 10))
 
-      note = tk.Label(
-        win,
-        text="Note: requires 'sshpass' installed locally when a password is given.\nWithout sshpass installed, leave the password blank and rsync will\nprompt for it in the selected terminal pane instead.",
-        font=tkfont.Font(family="Courier New", size=8),
-        bg=BG, fg=MUTED, justify="left", wraplength=470,
-      )
-      note.pack(anchor="w", padx=20, pady=(0, 10))
+    def setup_remote():
+      win = tk.Toplevel(root)
+      win.title("Setup remote repo")
+      win.configure(bg=BG)
+      win.geometry("520x480")
+      win.resizable(False, False)
+
+      def add_label(text):
+        tk.Label(win, text=text, font=label_font, bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(14, 6))
+
+      def add_entry(show=None):
+        e = tk.Entry(win, font=label_font, show=show) if show else tk.Entry(win, font=label_font)
+        e.pack(fill="x", padx=20)
+        return e
+
+      add_label("Remote user:")
+      user_entry = add_entry()
+
+      add_label("Remote IP / hostname:")
+      ip_entry = add_entry()
+
+      add_label("Remote path (e.g. /home/user/pal_mjlab/):")
+      path_entry = add_entry()
+
+      status_label = tk.Label(win, text="", font=label_font, bg=BG, fg=MUTED, wraplength=470, justify="left")
+      status_label.pack(anchor="w", padx=20, pady=(10, 0))
+
+      def confirm():
+        user = user_entry.get().strip()
+        ip = ip_entry.get().strip()
+        remote_path = path_entry.get().strip().rstrip("/")
+
+        if not (user and ip and remote_path):
+          status_label.config(text="✗ User, IP and remote path are required", fg=DANGER)
+          return
+        
+        cmd = f"[ -e '{remote_path}' ] && echo 'True' || echo 'False'"
+
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        password = simpledialog.askstring(
+            "SSH Password",
+            "Enter SSH password:",
+            show="*",
+            parent=win,
+        )
+
+        if password is None:
+            return
+
+        ssh.connect(
+          hostname=ip,
+          username=user,
+          password=password,
+          allow_agent=False,
+          look_for_keys=False,
+        )
+
+        stdin, stdout, stderr = ssh.exec_command(cmd)
+
+        if stdout.read().decode() == "False\n" :
+          append_to_console(consoles[selected_console.get()], f'[WARNING] Directory {remote_path} does not exist in the remote PC !\n', "status")
+        else :
+          write_remote_setup(user, ip, remote_path)
+          remote_setup = user, ip, remote_path, 1
+          append_to_console(consoles[selected_console.get()], f'Remote directory {remote_path} set\n', "status")
+
+        ssh.close()
+
+        win.destroy()
+
+      btn = tk.Button(win, text="Confirm", font=btn_font,
+                      bg=ACCENT, fg=BG,
+                      relief="flat", cursor="hand2",
+                      padx=12, pady=8,
+                      command=confirm)
+      btn.pack(padx=20, pady=(20, 10))
 
     def clear_selected_terminal ():
       consoles[selected_console.get()].delete("1.0", tk.END)
@@ -752,11 +1119,32 @@ def open_menu():
       ).pack(anchor="w", padx=20)
 
     tk.Frame(left, bg=PANEL, height=8).pack(fill="x", padx=16)
-    make_button(left, "List Files",    ACCENT2,  run_ls)
     make_button(left, "Train Policy", ACCENT, run_train)
     make_button(left, "List tasks",  ACCENT2, run_list_envs)
     make_button(left, "▶  Deploy", ACCENT, run_deploy)
     make_button(left, "⇄  Sync Checkpoints", ACCENT2, run_sync_checkpoints)
+    make_button(left, "Setup Remote Folder", ACCENT, setup_remote)
+    remote_var = tk.BooleanVar(value=False)
+    remote_checkbox = tk.Checkbutton(
+        left,
+        text="Remote",
+        variable=remote_var,
+        onvalue=True,
+        offvalue=False,
+        font=label_font,
+        bg=BG,
+        fg="#e8eaf0",
+        activebackground=BG,
+        activeforeground="#00d4aa",  
+        selectcolor=BG,               
+        relief="flat",
+        anchor="w",                   
+        padx=5,
+        pady=2,
+        bd=0,
+        highlightthickness=0,
+    )
+    remote_checkbox.pack(fill="x", padx=20, pady=(0,16))
 
     tk.Frame(left, bg=MUTED, height=1).pack(fill="x", padx=16, pady=(8, 4))
     tk.Label(left, text="Job Queue (tsp):", font=label_font, bg=PANEL, fg=MUTED).pack(anchor="w", padx=16, pady=(0, 2))
