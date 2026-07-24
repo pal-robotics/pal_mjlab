@@ -38,5 +38,6 @@ zips/
 test_results_cnn/
 test_results_convnext/
 train_with_vision_stuff/
+rsl_rl/
 
 scripts/

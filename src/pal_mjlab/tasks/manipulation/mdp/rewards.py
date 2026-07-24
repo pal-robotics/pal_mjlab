@@ -305,61 +305,6 @@ def fingertip_cube_alignment_reward_adaptive(
   return reward
 
 
-def release_cube_reward(
-  env: ManagerBasedRlEnv,
-  command_name: str,
-  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-  max_open: float = 0.08,
-) -> torch.Tensor:
-  command: LiftingCommand = env.command_manager.get_term(command_name)
-  reached = getattr(
-    command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
-  ).float()
-
-  # Get gripper joint velocity
-  robot = env.scene[asset_cfg.name]
-  joint_ids, _ = robot.find_joints("gripper_right_finger_joint")
-  gripper_vel = robot.data.joint_vel[:, joint_ids[0]]
-
-  # Reward only active opening (positive velocity) when reached is True
-  active_opening = torch.clamp(gripper_vel, min=0.0)
-  return reached * active_opening
-
-
-def object_falling_reward(
-  env: ManagerBasedRlEnv,
-  command_name: str,
-  sensor_name: str = "box_fingertip_contact",
-  site_names: list[str] | None = None,
-) -> torch.Tensor:
-  """Rewards the object's downward velocity when command.reached is True
-  and neither finger is in contact with the object.
-
-  The contact guard ensures the reward is only active once the gripper has
-  fully released the object, preventing spurious signals during the release
-  transition where the object may already be drifting downward.
-  """
-  if site_names is None:
-    site_names = ["gripper_right_fingertip_.*_site"]
-
-  command: LiftingCommand = env.command_manager.get_term(command_name)
-  reached = getattr(
-    command, "reached", torch.zeros(env.num_envs, dtype=torch.bool, device=env.device)
-  )
-
-  contact_both = (
-    object_both__contact_fingers(env, sensor_name=sensor_name, site_names=site_names)
-    .squeeze(-1)
-    .bool()
-  )
-
-  obj = command.object
-  # Downward velocity: negative z means falling, so we clamp and negate
-  lin_vel_z = obj.data.root_link_lin_vel_w[:, 2]
-  falling_speed = torch.clamp(-lin_vel_z, min=0.0)
-
-  return reached.float() * (~contact_both).float() * falling_speed
-
 
 def post_reached_ee_stability_reward(
   env: ManagerBasedRlEnv,
@@ -387,7 +332,7 @@ def post_reached_ee_stability_reward(
   ee_at_goal = (distance <= threshold).float()
   return reached.float() * ee_at_goal
 
-
+@freeze_on_reached
 def object_contact_both_fingers_adaptive(
   env: ManagerBasedRlEnv,
   sensor_name: str,

@@ -24,7 +24,7 @@ from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from pal_mjlab.robots.pal_tiago_pro.tiago_pro_constants import TiagoProRobot
 from pal_mjlab.tasks.manipulation import mdp as manipulation_mdp_pal
 
-EPISODE_LENGTH = 6
+EPISODE_LENGTH = 4
 
 
 def lift_env_cfg(
@@ -119,7 +119,6 @@ def lift_env_cfg(
     table_height=manipulation_mdp_pal.TABLE_HEIGHT,
     contact_sensor_name="box_table_contact",
     resampling_time_range=(EPISODE_LENGTH, EPISODE_LENGTH),
-    debug_vis=True,
     success_threshold=0.05,
     target_position_range=manipulation_mdp_pal.LiftingCommandCfg.TargetPositionRangeCfg(
       x=(0.67, 0.77),
@@ -163,10 +162,6 @@ def lift_env_cfg(
       func=manipulation_mdp_pal.object_position_in_robot_root_frame,
       params={"command_name": "lift_height"},
     )
-    # terms["object_width"] = ObservationTermCfg(
-    #   func=manipulation_mdp_pal.object_width,
-    #   params={"command_name": "lift_height"},
-    # )
     terms["object_yaw"] = ObservationTermCfg(
       func=manipulation_mdp_pal.object_yaw_in_robot_root_frame,
       params={"command_name": "lift_height"},
@@ -188,23 +183,24 @@ def lift_env_cfg(
       params={"asset_cfg": SceneEntityCfg("robot", site_names=(robot.ee_site,))},
     )
 
+    terms["reached_flag"] = ObservationTermCfg(
+    func=manipulation_mdp_pal.reached_flag,
+    params={"command_name": "lift_height"},
+    )
+
+    terms["object_both__contact_fingers"] = ObservationTermCfg(
+    func=manipulation_mdp_pal.object_both__contact_fingers,
+    params={
+      "sensor_name": "box_fingertip_contact",
+      "site_names": [robot.fingertip_site_pattern],
+      "false_negative_rate": 0.0,
+    },
+  )
+
   # 2. Noise & Dropout Configuration
   # Ensure all critic observations are completely clean (no noise).
   for name in cfg.observations["critic"].terms:
     cfg.observations["critic"].terms[name].noise = None
-
-  # Critic-only: explicit phase flag for accurate value estimation across the
-  # reward phase boundary (pre-reached vs post-reached).
-  cfg.observations["critic"].terms["reached_flag"] = ObservationTermCfg(
-    func=manipulation_mdp_pal.reached_flag,
-    params={"command_name": "lift_height"},
-    noise=None,
-  )
-  cfg.observations["actor"].terms["reached_flag"] = ObservationTermCfg(
-    func=manipulation_mdp_pal.reached_flag,
-    params={"command_name": "lift_height"},
-    noise=None,
-  )
 
   if not play:
     # During training: apply observation noise to the actor.
@@ -296,7 +292,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.object_contact_both_fingers_adaptive
     ),
-    weight=0.5,
+    weight=1.0,
     params={
       "sensor_name": "box_fingertip_contact",
       "site_names": [robot.fingertip_site_pattern],
@@ -320,31 +316,11 @@ def lift_env_cfg(
     },
   )
 
-  # cfg.rewards["release_cube"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.release_cube_reward),
-  #   weight=5.0,
-  #   params={
-  #     "command_name": "lift_height",
-  #     "max_open": 0.08,
-  #   },
-  # )
-
-  # cfg.rewards["object_falling"] = RewardTermCfg(
-  #   func=manipulation_mdp_pal.nan_safe(manipulation_mdp_pal.object_falling_reward),
-  #   weight=10.0,
-  #   params={
-  #     "command_name": "lift_height",
-  #   },
-  # )
-
-  # After "reached", reward the EE for staying within the goal threshold.
-  # This is semantically cleaner than penalizing joint velocities: the robot
-  # can freely open the gripper / adjust the wrist as long as the EE stays put.
   cfg.rewards["post_reached_ee_stability"] = RewardTermCfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.post_reached_ee_stability_reward
     ),
-    weight=1.0,
+    weight=3.0,
     params={
       "command_name": "lift_height",
       "asset_cfg": SceneEntityCfg("robot", site_names=(robot.ee_site,)),
@@ -357,7 +333,7 @@ def lift_env_cfg(
     func=manipulation_mdp_pal.nan_safe(
       manipulation_mdp_pal.post_reached_gripper_open_reward
     ),
-    weight=1.0,
+    weight=5.0,
     params={
       "command_name": "lift_height",
       "target_pos": 0.075,
@@ -415,10 +391,12 @@ def lift_env_cfg(
     "episode_success": MetricsTermCfg(
       func=manipulation_mdp_pal.episode_success,
       params={"command_name": "lift_height"},
+      reduce="max",
     ),
     "reached": MetricsTermCfg(
       func=manipulation_mdp_pal.reached,
       params={"command_name": "lift_height"},
+      reduce="max",
     ),
     "grasped_distance": MetricsTermCfg(
       func=manipulation_mdp_pal.grasped_distance,
@@ -435,7 +413,6 @@ def lift_env_cfg(
 
   cfg.events["reset_robot_joints"] = EventTermCfg(
     func=manipulation_mdp_pal.reset_joints_mixed,
-    # func=mdp.reset_joints_by_offset,
     mode="reset",
     params={
       "position_range": (-0.1, 0.1),
@@ -455,16 +432,6 @@ def lift_env_cfg(
       "goal_prob": 0.5,
     },
   )
-
-  # cfg.events["reset_torso_joint"] = EventTermCfg(
-  #   func=mdp.reset_joints_by_offset,
-  #   mode="reset",
-  #   params={
-  #     "position_range": (0.0, 0.15),  # Randomizes torso height uniformly from 0.0m to 0.30m
-  #     "velocity_range": (0.0, 0.0),
-  #     "asset_cfg": SceneEntityCfg("robot", joint_names=("torso_lift_joint",)),
-  #   },
-  # )
 
   cfg.events["reset_gripper_joints"] = EventTermCfg(
     func=mdp.reset_joints_by_offset,
@@ -608,22 +575,5 @@ def lift_env_cfg(
   if play:
     cfg.observations["actor"].enable_corruption = False
     cfg.curriculum = {}
-
-  cfg.observations["actor"].terms["object_both__contact_fingers"] = ObservationTermCfg(
-    func=manipulation_mdp_pal.object_both__contact_fingers,
-    params={
-      "sensor_name": "box_fingertip_contact",
-      "site_names": [robot.fingertip_site_pattern],
-      "false_negative_rate": 0.0 if play else 0.05,
-    },
-  )
-  cfg.observations["critic"].terms["object_both__contact_fingers"] = ObservationTermCfg(
-    func=manipulation_mdp_pal.object_both__contact_fingers,
-    params={
-      "sensor_name": "box_fingertip_contact",
-      "site_names": [robot.fingertip_site_pattern],
-      "false_negative_rate": 0.0,
-    },
-  )
 
   return cfg

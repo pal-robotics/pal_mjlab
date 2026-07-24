@@ -89,19 +89,16 @@ def top_surface_penetration_term(
 def object_released_on_floor_term(
   env: ManagerBasedRlEnv,
   command_name: str,
-  floor_z: float = 0.1,
 ) -> torch.Tensor:
-  """Terminates the episode when the object has reached the target and fallen to the floor."""
+  """Terminates the episode when reached is True and finger contact with object is released (~contact_both)."""
   command: LiftingCommand = env.command_manager.get_term(command_name)
-  on_floor = command.object_pos_w[:, 2] < floor_z
-
   contact_both = site_contact_both_fingers(
     env,
     sensor_name="box_fingertip_contact",
     site_names=["gripper_right_fingertip_.*_site"],
   ).bool()
 
-  return command.reached & on_floor & ~contact_both
+  return command.reached & ~contact_both
 
 
 def cube_contact_with_table_after_reached_term(

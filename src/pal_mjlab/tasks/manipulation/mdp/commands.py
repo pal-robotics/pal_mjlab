@@ -118,8 +118,8 @@ class LiftingCommand(CommandTerm):
       torch.zeros_like(self.at_goal_time),
     )
 
-    # Reached becomes True immediately once the object is inside the success threshold.
-    newly_reached = ~self.reached & at_goal
+    # Reached becomes True once the object is inside the success threshold for at least 0.1s.
+    newly_reached = ~self.reached & (self.at_goal_time >= 0.1)
     self.reached = self.reached | newly_reached
 
     # Increment reached_time for all envs that are already (or just became) reached
@@ -146,13 +146,8 @@ class LiftingCommand(CommandTerm):
     )
     self.prev_object_pos_w = self.object_pos_w.clone()
 
-    # Success condition: target reached + dropped back to floor + released gripper (no contact).
-    # We use a slightly permissive threshold (0.15 m instead of the termination's 0.1 m) because
-    # `object_released_on_floor` fires when the object crosses 0.1 m during a MuJoCo *sub-step*,
-    # but the step-level position sampled here is only updated after all sub-steps complete —
-    # so the reported Z can be marginally above 0.1 m (e.g. after a small bounce).
-    on_floor = self.object_pos_w[:, 2] < 0.15
-    success = self.reached & on_floor & ~contact_both
+    # Success condition: target reached (held >= 0.1s) + finger contact released (~contact_both).
+    success = self.reached & ~contact_both
     self.episode_success = torch.maximum(self.episode_success, success.float())
 
   def compute_success(self) -> torch.Tensor:
@@ -165,8 +160,7 @@ class LiftingCommand(CommandTerm):
       sensor_name=self.cfg.fingertip_contact_sensor_name,
       site_names=[self.cfg.fingertip_site_pattern],
     ).bool()
-    on_floor = self.object_pos_w[:, 2] < 0.15
-    current_success = self.reached & on_floor & ~contact_both
+    current_success = self.reached & ~contact_both
     return (self.episode_success.bool() | current_success).bool()
 
   def _resample_command(self, env_ids: torch.Tensor) -> None:
@@ -226,38 +220,6 @@ class LiftingCommand(CommandTerm):
   def _update_command(self) -> None:
     pass
 
-  def _debug_vis_impl(self, visualizer) -> None:
-    env_indices = visualizer.get_env_indices(self.num_envs)
-    if not env_indices:
-      return
-    robot = self._env.scene["robot"]
-    ee_idx = None
-    for target_name in ["gripper_right_grasping_site", "ee_site", "grasping_site"]:
-      if target_name in robot.site_names:
-        ee_idx = robot.site_names.index(target_name)
-        break
-    if ee_idx is None:
-      for idx, name in enumerate(robot.site_names):
-        if "grasping_site" in name or "ee" in name:
-          ee_idx = idx
-          break
-
-    for batch in env_indices:
-      visualizer.add_sphere(
-        center=self.target_pos[batch].cpu().numpy(),
-        radius=0.03,
-        color=self.cfg.viz.target_color,
-        label=f"target_position_{batch}",
-      )
-      # if ee_idx is not None:
-      #   ee_pos = robot.data.site_pos_w[batch, ee_idx].cpu().numpy()
-      #   visualizer.add_sphere(
-      #     center=ee_pos,
-      #     radius=0.01,
-      #     color=(1.0, 0.0, 0.0, 1.0),
-      #     label=f"ee_position_{batch}",
-      #   )
-
 
 @dataclass(kw_only=True)
 class LiftingCommandCfg(CommandTermCfg):
@@ -286,12 +248,6 @@ class LiftingCommandCfg(CommandTermCfg):
     yaw: tuple[float, float] = (math.pi, math.pi)
 
   object_pose_range: ObjectPoseRangeCfg = field(default_factory=ObjectPoseRangeCfg)
-
-  @dataclass
-  class VizCfg:
-    target_color: tuple[float, float, float, float] = (0.0, 1.0, 0.0, 0.5)
-
-  viz: VizCfg = field(default_factory=VizCfg)
 
   def build(self, env: ManagerBasedRlEnv) -> LiftingCommand:
     return LiftingCommand(self, env)
