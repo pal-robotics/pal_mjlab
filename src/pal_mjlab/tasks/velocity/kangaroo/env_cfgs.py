@@ -449,16 +449,55 @@ def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
   # (sinusoid / random walk / hold), re-rolled every few seconds. MuJoCo's
   # built-in position actuators apply real PD torques to track the targets,
   # so the resulting reaction torques propagate to the trunk and legs.
-  cfg.actions["scripted_arm"] = mdp.ScriptedArmActionCfg(
+  # cfg.actions["scripted_arm"] = mdp.ScriptedArmActionCfg(
+  #   entity_name="robot",
+  #   joint_names=(r"arm_.*",),
+  #   amplitude_range=(0.1, 0.5),
+  #   frequency_range_hz=(0.3, 1.0),
+  #   bias_range=(-0.3, 0.3),
+  #   resample_interval_s_range=(2.0, 6.0),
+  #   mode_weights={"sinusoid": 0.3, "random_walk": 0.2, "hold": 0.5},
+  #   random_walk_step_std=0.02,
+  # )
+
+  cfg.actions["arm_left_action"] = mdp.PolicyIndependentDifferentialIKActionCfg(
     entity_name="robot",
-    joint_names=(r"arm_.*",),
-    amplitude_range=(0.1, 0.5),
-    frequency_range_hz=(0.3, 1.0),
-    bias_range=(-0.3, 0.3),
-    resample_interval_s_range=(2.0, 6.0),
-    mode_weights={"sinusoid": 0.3, "random_walk": 0.2, "hold": 0.5},
-    random_walk_step_std=0.02,
+    actuator_names=(r"arm_left_.*",),
+    frame_type= "site",
+    frame_name= "ee_left",
+    command_name="arm_left_command",
+    asset_cfg= SceneEntityCfg("robot"),
+    orientation_weight=0.0,
+    use_relative_mode= False,
   )
+  cfg.actions["arm_right_action"] = mdp.PolicyIndependentDifferentialIKActionCfg(
+    entity_name="robot",
+    actuator_names=(r"arm_right_.*",),
+    frame_type= "site",
+    frame_name= "ee_right",
+    command_name="arm_right_command",
+    asset_cfg= SceneEntityCfg("robot"),
+    orientation_weight=0.0,
+    use_relative_mode= False,
+  )
+
+  cfg.commands["arm_left_command"] = mdp.UniformHandPositionCommandCfg(
+    resampling_time_range=(1.0, 2.0),
+    ranges= mdp.UniformHandPositionCommandCfg.Ranges(
+      x=(-0.5, 0.5),
+      y=(-0.1, 0.5),
+      z=(0.0, 0.3),
+    )
+  )
+
+  cfg.commands["arm_right_command"] = mdp.UniformHandPositionCommandCfg(
+      resampling_time_range=(1.0, 2.0),
+      ranges= mdp.UniformHandPositionCommandCfg.Ranges(
+        x=(-0.5, 0.5),
+        y=(-0.5, 0.1),
+        z=(0.0, 0.3),
+      )
+    )
 
   return cfg
 
