@@ -256,7 +256,7 @@ def hands_to_box(
   box_cfg: SceneEntityCfg = _DEFAULT_BOX_CFG,
   dist: float = 0.60,
   z_weight: float = 3.0,
-  xy_weight: float = 1.0,
+  xy_weight: float = 0.5,
 ) -> torch.Tensor:
   """Z-axis error is weighted more heavily than X/Y error via
   `z_weight` / `xy_weight`, so matching height to the box matters
@@ -403,7 +403,7 @@ def close_hands(
   env: ManagerBasedRlEnv,
   std: float,
   asset_cfg: SceneEntityCfg,
-  limit: float = 0.2,
+  limit: float = 0.3,
 ) -> torch.Tensor:
   """Penalize hands being close together (dist < limit). Combine with a
   negative weight in the reward manager so this acts as a penalty.
