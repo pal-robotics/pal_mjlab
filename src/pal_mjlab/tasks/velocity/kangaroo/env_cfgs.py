@@ -482,7 +482,7 @@ def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
   )
 
   cfg.commands["arm_left_command"] = mdp.UniformHandPositionCommandCfg(
-    resampling_time_range=(1.0, 2.0),
+    resampling_time_range=(1.0, 10.0),
     ranges= mdp.UniformHandPositionCommandCfg.Ranges(
       x=(-0.5, 0.5),
       y=(-0.1, 0.5),
@@ -491,7 +491,7 @@ def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
   )
 
   cfg.commands["arm_right_command"] = mdp.UniformHandPositionCommandCfg(
-      resampling_time_range=(1.0, 2.0),
+      resampling_time_range=(1.0, 10.0),
       ranges= mdp.UniformHandPositionCommandCfg.Ranges(
         x=(-0.5, 0.5),
         y=(-0.5, 0.1),
