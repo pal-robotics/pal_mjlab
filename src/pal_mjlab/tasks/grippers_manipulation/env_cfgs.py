@@ -316,7 +316,7 @@ def make_grippers_manipulation_env_cfg() -> ManagerBasedRlEnvCfg:
     "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1),
     "hands_to_box": RewardTermCfg(
       func=mdp.hands_to_box,
-      weight=3.0,
+      weight=1.5,
       params={
         "asset_cfg": SceneEntityCfg(
           "robot", body_names=["gripper_left_base_link", "gripper_right_base_link"]
