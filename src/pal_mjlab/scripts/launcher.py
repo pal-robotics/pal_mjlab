@@ -628,7 +628,36 @@ def open_menu():
       launch_process("uv run list-envs", consoles[selected_console.get()], label="list-envs", on_complete=on_complete)
 
     def run_tsp():
-      launch_process("tsp", consoles[selected_console.get()], label="tsp")
+      win = tk.Toplevel(root)
+      win.title("Check tsp")
+      win.configure(bg=BG)
+      win.geometry("320x220")
+      win.resizable(False, False)
+
+      tk.Label(win, text="Select tsp view:", font=label_font,
+                bg=BG, fg=MUTED).pack(anchor="w", padx=20, pady=(20, 10))
+
+      def run_and_close(cmd):
+          win.destroy()
+          launch_process(cmd, consoles[selected_console.get()], label=cmd)
+
+      options = [
+        ("All jobs",     "tsp"),
+        ("Queued only",  "tsp | grep queued"),
+        ("Running only", "tsp | grep running"),
+      ]
+
+      for text, cmd in options:
+        btn = tk.Button(
+          win, text=text, font=btn_font,
+          bg=ACCENT2, fg=BG, activebackground=TEXT, activeforeground=BG,
+          relief="flat", cursor="hand2", bd=0,
+          padx=12, pady=8,
+          command=lambda c=cmd: run_and_close(c),
+        )
+        btn.pack(fill="x", padx=20, pady=6)
+        btn.bind("<Enter>", lambda e, b=btn: b.config(bg=TEXT))
+        btn.bind("<Leave>", lambda e, b=btn: b.config(bg=ACCENT2))
 
     def run_tsp_t():
       launch_process("tsp -t", consoles[selected_console.get()], label="tsp -t")
