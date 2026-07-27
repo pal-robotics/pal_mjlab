@@ -32,6 +32,8 @@ jobs:
         run: uvx ruff@0.14.14 check --diff
       - name: Run format
         run: uvx ruff@0.14.14 format --diff
+      - name: Check pre-commit
+        run: uvx pre-commit run --all-files --show-diff-on-failure
 
   tests:
       runs-on: ubuntu-latest
@@ -55,7 +57,7 @@ jobs:
               warp-kernels-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}-
         - name: Test with python ${{ matrix.python-version }}
           run: uv run --extra cpu pytest
-        
+
 # TODO: make pyright work
   # pyright:
   #   runs-on: ubuntu-latest

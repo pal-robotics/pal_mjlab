@@ -302,12 +302,12 @@ _ROBOT_CONFIGS = {
   "hands": (
     get_kangaroo_hands_spec,
     KANGAROO_HANDS_ARTICULATION,
-    FEET_ONLY_COLLISION,
+    FULL_COLLISION,
   ),
   "grippers": (
     get_kangaroo_grippers_spec,
     KANGAROO_GRIPPERS_ARTICULATION,
-    FEET_ONLY_COLLISION,
+    FULL_COLLISION,
   ),
 }
 

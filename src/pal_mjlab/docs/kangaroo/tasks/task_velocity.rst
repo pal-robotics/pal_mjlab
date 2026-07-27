@@ -145,7 +145,7 @@ Here is a table with the rewards used in the baseline of the velocity tracking t
 +--------------------------------+--------+----------------------+
 | convex_hull_joint_limits_hip   |  -10.0 | limits               |
 +--------------------------------+--------+----------------------+
-| convex_hull_joint_limits_ankle |  -10.0 | limits               |   
+| convex_hull_joint_limits_ankle |  -10.0 | limits               |
 +--------------------------------+--------+----------------------+
 | joint_vel_limits               |  -10.0 | limits               |
 +--------------------------------+--------+----------------------+
