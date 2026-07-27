@@ -19,6 +19,10 @@ class UniformHandPositionCommand(CommandTerm):
 
     self.hand_position_command = torch.zeros(self.num_envs, 3, device=self.device)
 
+    self.is_base_position_env = torch.zeros(
+      self.num_envs, dtype=torch.bool, device=self.device
+    )
+
   @property
   def command(self) -> torch.Tensor:
     return self.hand_position_command
@@ -32,9 +36,11 @@ class UniformHandPositionCommand(CommandTerm):
     self.hand_position_command[env_ids, 1] = r.uniform_(*self.cfg.ranges.y)
     self.hand_position_command[env_ids, 2] = r.uniform_(*self.cfg.ranges.z)
 
-  def _update_command(self) -> None:
-    pass
+    self.is_base_position_env[env_ids] = r.uniform_(0.0, 1.0) <= self.cfg.rel_base_position
 
+  def _update_command(self) -> None:
+    base_position_ids = self.is_base_position_env.nonzero(as_tuple=False).flatten()
+    self.hand_position_command[base_position_ids] = torch.tensor(self.cfg.base_position, device=self.device)
 
 @dataclass(kw_only=True)
 class UniformHandPositionCommandCfg(CommandTermCfg):
@@ -47,6 +53,10 @@ class UniformHandPositionCommandCfg(CommandTermCfg):
 
   ranges: Ranges
 
+  base_position : float
+
+  rel_base_position: float = 0.1
+  
   @dataclass
   class VizCfg:
     z_offset: float = 0.2

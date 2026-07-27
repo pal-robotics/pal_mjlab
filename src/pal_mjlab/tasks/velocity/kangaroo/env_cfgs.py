@@ -696,16 +696,18 @@ def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
       x=(-0.5, 0.5),
       y=(-0.1, 0.5),
       z=(0.0, 0.3),
-    )
+    ),
+    base_position= (0.3, 0.3, -0.2)
   )
 
   cfg.commands["arm_right_command"] = mdp.UniformHandPositionCommandCfg(
-      resampling_time_range=(1.0, 10.0),
-      ranges= mdp.UniformHandPositionCommandCfg.Ranges(
-        x=(-0.5, 0.5),
-        y=(-0.5, 0.1),
-        z=(0.0, 0.3),
-      )
+    resampling_time_range=(1.0, 10.0),
+    ranges= mdp.UniformHandPositionCommandCfg.Ranges(
+      x=(-0.5, 0.5),
+      y=(-0.5, 0.1),
+      z=(0.0, 0.3),
+    ),
+    base_position= (0.3, -0.3, -0.2)
     )
 
   return cfg
