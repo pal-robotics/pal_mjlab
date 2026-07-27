@@ -146,6 +146,7 @@ def _calc_leg_params(
 
 # Motor parameters: (gear_ratio, motor_inertia, effort_limit)
 S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
+S_PLUS_STIFF = _calc_actuator_params(363, 1.728e-5, 50)
 S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
 XS = _calc_actuator_params(101, 1.3e-5, 25)
 
@@ -215,6 +216,21 @@ KANGAROO_PELVIS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
   ),
   **S_PLUS,
 )
+KANGAROO_STIFF_PELVIS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+  target_names_expr=(
+    "pelvis_1_joint",
+    "pelvis_2_joint",
+  ),
+  **S_PLUS_STIFF,
+)
+KANGAROO_ARMS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+  target_names_expr=(
+    "arm_.*_1_joint",
+    "arm_.*_2_joint",
+  ),
+  **S_PLUS,
+)
+
 KANGAROO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
   target_names_expr=(
     "arm_.*_1_joint",
@@ -238,8 +254,15 @@ COMMON_ACTUATORS = KANGAROO_LEG_ACTUATORS + (
   KANGAROO_S_MINUS_ACTUATOR_CFG,
 )
 
+COMMON_STIFF_PELVIS_ACTUATORS = KANGAROO_LEG_ACTUATORS + (
+  KANGAROO_ARMS_ACTUATOR_CFG,
+  KANGAROO_STIFF_PELVIS_ACTUATOR_CFG,
+  KANGAROO_S_MINUS_ACTUATOR_CFG,
+) 
+
 KANGAROO_LOWER_BODY_ACTUATORS = KANGAROO_LEG_ACTUATORS + (KANGAROO_PELVIS_ACTUATOR_CFG,)
-KANGAROO_LOWER_BODY_NO_PELVIS_ACTUATORS = KANGAROO_LEG_ACTUATORS
+
+KANGAROO_STIFF_PELVIS_ACTUATORS = KANGAROO_STIFF_PELVIS_ACTUATOR_CFG
 
 ##
 # Initial State
@@ -300,12 +323,11 @@ FULL_COLLISION = CollisionCfg(
 KANGAROO_ARTICULATION = EntityArticulationInfoCfg(
   actuators=COMMON_ACTUATORS, soft_joint_pos_limit_factor=0.9
 )
+KANGAROO_STIFF_PELVIS_ARTICULATION = EntityArticulationInfoCfg(
+  actuators=COMMON_STIFF_PELVIS_ACTUATORS, soft_joint_pos_limit_factor=0.9
+)
 KANGAROO_LOWER_BODY_ARTICULATION = EntityArticulationInfoCfg(
   actuators=KANGAROO_LOWER_BODY_ACTUATORS,
-  soft_joint_pos_limit_factor=0.9,
-)
-KANGAROO_LOWER_BODY_NO_PELVIS_ARTICULATION = EntityArticulationInfoCfg(
-  actuators=KANGAROO_LOWER_BODY_NO_PELVIS_ACTUATORS,
   soft_joint_pos_limit_factor=0.9,
 )
 KANGAROO_HANDS_ARTICULATION = EntityArticulationInfoCfg(
@@ -319,16 +341,12 @@ KANGAROO_GRIPPERS_ARTICULATION = EntityArticulationInfoCfg(
 
 _ROBOT_CONFIGS = {
   "kangaroo": (get_kangaroo_spec, KANGAROO_ARTICULATION, FULL_COLLISION),
+  "kangaroo_stiff_pelvis": (get_kangaroo_spec, KANGAROO_STIFF_PELVIS_ARTICULATION, FULL_COLLISION),
   "lower_body": (
     get_kangaroo_lower_body_spec,
     KANGAROO_LOWER_BODY_ARTICULATION,
     FULL_COLLISION,
   ),
-  "lower_body_no_pelvis": (
-      get_kangaroo_lower_body_spec,
-      KANGAROO_LOWER_BODY_NO_PELVIS_ARTICULATION,
-      FULL_COLLISION,
-    ),
   "hands": (
     get_kangaroo_hands_spec,
     KANGAROO_HANDS_ARTICULATION,
@@ -355,6 +373,8 @@ def _make_robot_cfg(variant: str) -> EntityCfg:
 def get_kangaroo_robot_cfg() -> EntityCfg:
   return _make_robot_cfg("kangaroo")
 
+def get_kangaroo_stiff_pelvis_robot_cfg() -> EntityCfg:
+  return _make_robot_cfg("kangaroo_stiff_pelvis")
 
 def get_kangaroo_lower_body_robot_cfg() -> EntityCfg:
   lower_body_cfg = _make_robot_cfg("lower_body")
@@ -376,6 +396,15 @@ _EXCLUDED_JOINTS = {
   "leg_right_knee_joint",
   "leg_left_femur_joint",
   "leg_right_femur_joint",
+}
+
+_EXCLUDED_JOINTS_LEG_CONTROL = {
+  "leg_left_knee_joint",
+  "leg_right_knee_joint",
+  "leg_left_femur_joint",
+  "leg_right_femur_joint",
+  "pelvis_1_joint",
+  "pelvis_2_joint",
 }
 
 
@@ -409,7 +438,7 @@ KANGAROO_LOWER_BODY_ACTION_SCALE, KANGAROO_LOWER_BODY_ACTUATOR_NAMES = (
   _build_action_scales(KANGAROO_LOWER_BODY_ARTICULATION, _EXCLUDED_JOINTS)
 )
 KANGAROO_LOWER_BODY_NO_PELVIS_ACTION_SCALE, KANGAROO_LOWER_BODY_NO_PELVIS_ACTUATOR_NAMES = (
-  _build_action_scales(KANGAROO_LOWER_BODY_ARTICULATION, _EXCLUDED_JOINTS)
+  _build_action_scales(KANGAROO_LOWER_BODY_ARTICULATION, _EXCLUDED_JOINTS_LEG_CONTROL)
 )
 KANGAROO_HANDS_ACTION_SCALE, KANGAROO_HANDS_ACTUATOR_NAMES = _build_action_scales(
   KANGAROO_HANDS_ARTICULATION

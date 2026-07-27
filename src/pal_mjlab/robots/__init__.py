@@ -20,6 +20,7 @@ from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (  # noqa: F401
   get_kangaroo_hands_robot_cfg,
   get_kangaroo_lower_body_robot_cfg,
   get_kangaroo_robot_cfg,
+  get_kangaroo_stiff_pelvis_robot_cfg,
 )
 from pal_mjlab.robots.pal_talos.talos_constants import (  # noqa: F401
   TALOS_ACTION_SCALE,

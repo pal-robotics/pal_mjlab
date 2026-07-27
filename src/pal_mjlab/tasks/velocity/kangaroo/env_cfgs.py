@@ -48,6 +48,7 @@ from pal_mjlab.robots import (
   get_kangaroo_hands_robot_cfg,
   get_kangaroo_lower_body_robot_cfg,
   get_kangaroo_robot_cfg,
+  get_kangaroo_stiff_pelvis_robot_cfg,
 )
 from pal_mjlab.tasks.velocity import mdp
 
@@ -718,6 +719,7 @@ def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
 def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) flat terrain velocity configuration."""
   cfg = pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(play=play)
+  cfg.scene.entities = {"robot": get_kangaroo_stiff_pelvis_robot_cfg()}
 
   actuated_joints = (
     REGEX_ALL_ACTUATED_LOWER_BODY_JOINTS  # Exclude all arm joints
@@ -737,6 +739,26 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
   assert isinstance(joint_pos_action, JointPositionActionCfg)
   joint_pos_action.scale = KANGAROO_LOWER_BODY_NO_PELVIS_ACTION_SCALE
   joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_NO_PELVIS_ACTUATOR_NAMES
+  
+  cfg.events["reset_pelvis_1_joint"] = EventTermCfg(
+    func=mdp.reset_static_joints_by_offset,
+    mode="reset",
+    params={
+      "position_range": (-0.1, 0.1),
+      "velocity_range": (0.0, 0.0),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(r"pelvis_1.*",)),
+    },
+  )
+
+  cfg.events["reset_pelvis_2_joint"] = EventTermCfg(
+    func=mdp.reset_static_joints_by_offset,
+    mode="reset",
+    params={
+      "position_range": (-1.0, 1.0),
+      "velocity_range": (0.0, 0.0),
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(r"pelvis_2.*",)),
+    },
+  )
 
   return cfg
 
