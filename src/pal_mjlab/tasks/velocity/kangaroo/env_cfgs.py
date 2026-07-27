@@ -37,7 +37,10 @@ from pal_mjlab.robots import (
   KANGAROO_HANDS_ACTUATOR_NAMES,
   KANGAROO_LOWER_BODY_ACTION_SCALE,
   KANGAROO_LOWER_BODY_ACTUATOR_NAMES,
+  KANGAROO_LOWER_BODY_NO_PELVIS_ACTION_SCALE,
+  KANGAROO_LOWER_BODY_NO_PELVIS_ACTUATOR_NAMES,
   REGEX_ALL_ACTUATED_JOINTS,
+  REGEX_ALL_ACTUATED_LOWER_BODY_JOINTS,
   REGEX_ALL_ACTUATED_LOWER_BODY_JOINTS_WITH_PELVIS,
   REGEX_FEMUR_AND_KNEE_LINKS,
   REGEX_LEG_LENGTH_JOINTS_ONLY,
@@ -709,6 +712,31 @@ def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
     ),
     base_position= (0.3, -0.3, -0.2)
     )
+
+  return cfg
+
+def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) flat terrain velocity configuration."""
+  cfg = pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(play=play)
+
+  actuated_joints = (
+    REGEX_ALL_ACTUATED_LOWER_BODY_JOINTS  # Exclude all arm joints
+  )
+  cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
+  cfg.rewards["pose"].params["std_standing"] = {actuated_joints: 0.05}
+
+  for pose_type in ("std_walking", "std_running"):
+    del cfg.rewards["pose"].params[pose_type]["pelvis_1.*"]
+    del cfg.rewards["pose"].params[pose_type]["pelvis_2.*"]
+
+  # Restrict the policy's action space to leg + pelvis actuators. The full
+  # kangaroo XML is still used (arms are present and physically actuated) so
+  # the arm actuators can be driven externally by the scripted arm action
+  # term below.
+  joint_pos_action = cfg.actions["joint_pos"]
+  assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action.scale = KANGAROO_LOWER_BODY_NO_PELVIS_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_NO_PELVIS_ACTUATOR_NAMES
 
   return cfg
 
