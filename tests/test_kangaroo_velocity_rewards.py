@@ -1128,3 +1128,88 @@ def test_convex_hull_joint_limnits(mock_env, mock_asset_cfg):
     test_name, (env.num_envs,), value.shape
   )
   assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
+
+
+def test_track_body_ang_vel_z_exp_reward(mock_env, mock_asset_cfg):
+  env = mock_env
+
+  asset = env.scene[mock_asset_cfg.name]
+  asset.data.root_link_ang_vel_b = torch.ones((env.num_envs, 3), device=env.device)
+
+  env.command_manager = command_manager(env)
+
+  value = pal_mjlab_r.track_body_ang_vel_z_exp(
+    env, std=1.0, command_name="twist", asset_cfg=mock_asset_cfg
+  )
+
+  # Only the yaw error counts: the coupled mjlab reward would give exp(-3.0) here.
+  test_name = "Track body angular velocity z (decoupled from roll/pitch)"
+
+  assert value.shape == (env.num_envs,), tensor_shape_error_message(
+    test_name, (env.num_envs,), value.shape
+  )
+  assert value[0] == pytest.approx(math.exp(-1.0), abs=1e-6), (
+    tensor_value_error_message(test_name)
+  )
+
+  # Perfect yaw tracking is fully rewarded even while roll/pitch rates are non-zero.
+
+  env.command_manager.active_terms["twist"][:, 2] = 1.0
+
+  value = pal_mjlab_r.track_body_ang_vel_z_exp(
+    env, std=1.0, command_name="twist", asset_cfg=mock_asset_cfg
+  )
+
+  test_name = "Track body angular velocity z (perfect yaw tracking)"
+
+  assert value[0] == pytest.approx(1.0, abs=1e-6), tensor_value_error_message(test_name)
+
+  # The kernel width scales with std**2, not std.
+
+  env.command_manager.active_terms["twist"][:, 2] = 0.0
+
+  value = pal_mjlab_r.track_body_ang_vel_z_exp(
+    env, std=0.5, command_name="twist", asset_cfg=mock_asset_cfg
+  )
+
+  test_name = "Track body angular velocity z (std scaling)"
+
+  assert value[0] == pytest.approx(math.exp(-4.0), abs=1e-6), (
+    tensor_value_error_message(test_name)
+  )
+
+  # A missing command is caught instead of silently propagating None.
+
+  with pytest.raises(AssertionError):
+    pal_mjlab_r.track_body_ang_vel_z_exp(
+      env, std=1.0, command_name="nonexistent", asset_cfg=mock_asset_cfg
+    )
+
+
+def test_body_ang_vel_xy_l2_penalty(mock_env, mock_asset_cfg):
+  env = mock_env
+
+  asset = env.scene[mock_asset_cfg.name]
+  asset.data.root_link_ang_vel_b = torch.tensor(
+    [[1.0, 2.0, 10.0]] * env.num_envs, device=env.device
+  )
+
+  value = pal_mjlab_r.body_ang_vel_xy_l2_penalty(env, mock_asset_cfg)
+
+  # Only roll/pitch are penalised: the large yaw rate must not leak in.
+  test_name = "Body angular velocity xy penalty (yaw excluded)"
+
+  assert value.shape == (env.num_envs,), tensor_shape_error_message(
+    test_name, (env.num_envs,), value.shape
+  )
+  assert value[0] == pytest.approx(5.0, abs=1e-6), tensor_value_error_message(test_name)
+
+  # No angular velocity, no penalty.
+
+  asset.data.root_link_ang_vel_b = torch.zeros((env.num_envs, 3), device=env.device)
+
+  value = pal_mjlab_r.body_ang_vel_xy_l2_penalty(env, mock_asset_cfg)
+
+  test_name = "Body angular velocity xy penalty (zero rates)"
+
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
