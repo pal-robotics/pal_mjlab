@@ -9,6 +9,7 @@ from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor.contact_sensor import ContactSensor
 from mjlab.sensor.terrain_height_sensor import TerrainHeightSensor
 from mjlab.utils.lab_api.string import resolve_matching_names_values
+from mjlab.utils.lab_api.math import quat_apply
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -314,6 +315,25 @@ def box_height(
 
   err = torch.square(box_h - target_height)
   return active * torch.exp(-err / std**2)
+
+
+def box_flat(
+  env: ManagerBasedRlEnv,
+  std: float,
+  box_cfg: SceneEntityCfg = _DEFAULT_BOX_CFG,
+) -> torch.Tensor:
+
+  box: Entity = env.scene[box_cfg.name]
+  box_quat = box.data.root_link_quat_w
+
+  box_up = quat_apply(
+      box_quat,
+      torch.tensor([0.0, 0.0, 1.0], device=box_quat.device).expand(box_quat.shape[0], 3),
+  )
+
+  err = 1.0 - box_up[:, 2]
+
+  return torch.exp(-err / std**2)
 
 
 def look_at_box(

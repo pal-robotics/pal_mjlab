@@ -401,6 +401,13 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
         "target_height": 1.0,
       },
     ),
+    "box_flat": RewardTermCfg(
+      func=mdp.box_flat,
+      weight=0.5,
+      params={
+        "std": math.sqrt(0.2),
+      },
+    ),
     "look_at_box": RewardTermCfg(
       func=mdp.look_at_box,
       weight=1.0,
