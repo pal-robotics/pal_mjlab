@@ -383,6 +383,8 @@ def make_box_lifting_env_cfg() -> ManagerBasedRlEnvCfg:
         ),
         "std": math.sqrt(1.0),
         "dist": 0.60,
+        "z_weight" : 3.0,
+        "xy_weight" : 0.5,
       },
     ),
     "hands_contact": RewardTermCfg(
