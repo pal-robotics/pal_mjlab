@@ -98,4 +98,8 @@ Models:
 Tasks:
 
 - :ref:`Kangaroo task_velocity`
+==== BASE ====
 - :ref:`Kangaroo task_motion_imitation`
+
+Tools:
+- :ref:`Kangaroo adversarial_motion_prior`

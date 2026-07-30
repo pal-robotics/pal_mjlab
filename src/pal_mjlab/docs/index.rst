@@ -27,3 +27,9 @@ pal_mjlab Documentation
    kangaroo/models/kangaroo_lower_body
    kangaroo/tasks/task_velocity
    kangaroo/tasks/task_imitation
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Training tools
+
+   kangaroo/tasks/adversarial_motion_prior
