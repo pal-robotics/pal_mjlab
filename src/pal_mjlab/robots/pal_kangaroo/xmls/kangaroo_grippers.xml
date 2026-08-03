@@ -302,8 +302,8 @@
                     <body name="leg_right_ankle_link">
                       <geom name="leg_right_ankle_collision" class="collision" size="0.03" fromto="-0.04 0.0 0.03 0.02 0.0 0.03"/>
                       <geom name="leg_right_ankle_bar_collision" class="collision" size="0.03" fromto="-0.045 -0.035 0.05 -0.045 0.035 0.05"/>
-                    </body> 
-                  </body>                
+                    </body>
+                  </body>
                 </body>
               </body>
             </body>
@@ -342,12 +342,12 @@
     <!-- Left leg closed chain -->
     <exclude body1="leg_left_1_link" body2="leg_left_femur_link"/>
     <exclude body1="leg_left_ankle_link" body2="leg_left_knee_link"/>
-    
+
     <!-- Right leg closed chain -->
     <exclude body1="leg_right_1_link" body2="leg_right_femur_link"/>
     <exclude body1="leg_right_ankle_link" body2="leg_right_knee_link"/>
   </contact>
- 
+
   <sensor>
     <gyro           name="imu_ang_vel" site="imu"/>
     <velocimeter    name="imu_lin_vel" site="imu"/>

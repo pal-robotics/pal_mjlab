@@ -17,6 +17,10 @@ from mjlab.viewer.offscreen_renderer import OffscreenRenderer
 from mjlab.viewer.viewer_config import ViewerConfig
 from pal_mjlab.tasks.tracking.kangaroo.env_cfgs import (
   pal_kangaroo_flat_tracking_env_cfg,
+  pal_kangaroo_hands_flat_env_cfg,
+)
+from pal_mjlab.tasks.tracking.kangaroo_lower_body.env_cfgs import (
+  pal_kangaroo_lower_body_flat_tracking_env_cfg,
 )
 from pal_mjlab.tasks.tracking.talos.env_cfgs import pal_talos_flat_tracking_env_cfg
 from tqdm import tqdm
@@ -75,6 +79,62 @@ ROBOT_CONFIGS = {
       "arm_right_2_joint",
       "arm_right_3_joint",
       "arm_right_4_joint",
+      "leg_left_1_joint",
+      "leg_left_2_joint",
+      "leg_left_3_joint",
+      "leg_left_length_joint",
+      "leg_left_4_joint",
+      "leg_left_5_joint",
+      "leg_left_femur_joint",
+      "leg_left_knee_joint",
+      "leg_right_1_joint",
+      "leg_right_2_joint",
+      "leg_right_3_joint",
+      "leg_right_length_joint",
+      "leg_right_4_joint",
+      "leg_right_5_joint",
+      "leg_right_femur_joint",
+      "leg_right_knee_joint",
+    ],
+  },
+  "kangaroo_lower_body": {
+    "env_cfg_fn": pal_kangaroo_lower_body_flat_tracking_env_cfg,
+    "joint_names": [
+      "pelvis_1_joint",
+      "pelvis_2_joint",
+      "leg_left_1_joint",
+      "leg_left_2_joint",
+      "leg_left_3_joint",
+      "leg_left_length_joint",
+      "leg_left_4_joint",
+      "leg_left_5_joint",
+      "leg_left_femur_joint",
+      "leg_left_knee_joint",
+      "leg_right_1_joint",
+      "leg_right_2_joint",
+      "leg_right_3_joint",
+      "leg_right_length_joint",
+      "leg_right_4_joint",
+      "leg_right_5_joint",
+      "leg_right_femur_joint",
+      "leg_right_knee_joint",
+    ],
+  },
+  "kangaroo_hands": {
+    "env_cfg_fn": pal_kangaroo_hands_flat_env_cfg,
+    "joint_names": [
+      "pelvis_1_joint",
+      "pelvis_2_joint",
+      "arm_left_1_joint",
+      "arm_left_2_joint",
+      "arm_left_3_joint",
+      "arm_left_4_joint",
+      "arm_left_5_joint",
+      "arm_right_1_joint",
+      "arm_right_2_joint",
+      "arm_right_3_joint",
+      "arm_right_4_joint",
+      "arm_right_5_joint",
       "leg_left_1_joint",
       "leg_left_2_joint",
       "leg_left_3_joint",
@@ -266,6 +326,7 @@ def run_sim(
   output_name,
   render,
   line_range,
+  upload_to_wandb: bool = False,
   renderer: OffscreenRenderer | None = None,
 ):
   motion = MotionLoader(
@@ -384,21 +445,23 @@ def run_sim(
         print("Saving to /tmp/motion.npz...")
         np.savez("/tmp/motion.npz", **log)
 
-        print("Uploading to Weights & Biases...")
-        import wandb
+        run = None
+        if upload_to_wandb:
+          print("Uploading to Weights & Biases...")
+          import wandb
 
-        COLLECTION = output_name
-        run = wandb.init(project="csv_to_npz", name=COLLECTION)
-        print(f"[INFO]: Logging motion to wandb: {COLLECTION}")
-        REGISTRY = "motions"
-        logged_artifact = run.log_artifact(
-          artifact_or_path="/tmp/motion.npz", name=COLLECTION, type=REGISTRY
-        )
-        run.link_artifact(
-          artifact=logged_artifact,
-          target_path=f"wandb-registry-{REGISTRY}/{COLLECTION}",
-        )
-        print(f"[INFO]: Motion saved to wandb registry: {REGISTRY}/{COLLECTION}")
+          COLLECTION = output_name
+          run = wandb.init(project="csv_to_npz", name=COLLECTION)
+          print(f"[INFO]: Logging motion to wandb: {COLLECTION}")
+          REGISTRY = "motions"
+          logged_artifact = run.log_artifact(
+            artifact_or_path="/tmp/motion.npz", name=COLLECTION, type=REGISTRY
+          )
+          run.link_artifact(
+            artifact=logged_artifact,
+            target_path=f"wandb-registry-{REGISTRY}/{COLLECTION}",
+          )
+          print(f"[INFO]: Motion saved to wandb registry: {REGISTRY}/{COLLECTION}")
 
         if render:
           from moviepy import ImageSequenceClip
@@ -407,10 +470,12 @@ def run_sim(
           clip = ImageSequenceClip(frames, fps=output_fps)
           clip.write_videofile("./motion.mp4")
 
-          print("Logging video to wandb...")
-          wandb.log({"motion_video": wandb.Video("./motion.mp4", format="mp4")})
+          if run is not None:
+            print("Logging video to wandb...")
+            run.log({"motion_video": wandb.Video("./motion.mp4", format="mp4")})
 
-        wandb.finish()
+        if run is not None:
+          run.finish()
 
 
 def main(
@@ -422,6 +487,7 @@ def main(
   device: str = "cuda:0",
   render: bool = False,
   line_range: tuple[int, int] | None = None,
+  upload_to_wandb: bool = False,
 ):
   """Replay motion from CSV file and output to npz file.
 
@@ -434,6 +500,7 @@ def main(
     device: Device to use.
     render: Whether to render the simulation and save a video.
     line_range: Range of lines to process from the CSV file.
+    upload_to_wandb: Whether to upload the motion (and video) to the wandb registry.
   """
   if robot_name not in ROBOT_CONFIGS:
     raise ValueError(
@@ -471,6 +538,7 @@ def main(
       distance=2.0,
       elevation=-5.0,
       azimuth=20,
+      entity_name="robot",
     )
     renderer = OffscreenRenderer(
       model=sim.mj_model,
@@ -489,6 +557,7 @@ def main(
     output_name=output_name,
     render=render,
     line_range=line_range,
+    upload_to_wandb=upload_to_wandb,
     renderer=renderer,
   )
 

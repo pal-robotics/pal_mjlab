@@ -1,4 +1,4 @@
-<mujoco model="tiago_pro">   
+<mujoco model="tiago_pro">
   <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
   <default>

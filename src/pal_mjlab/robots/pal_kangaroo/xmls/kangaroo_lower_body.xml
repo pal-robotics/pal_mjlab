@@ -250,7 +250,7 @@
     <exclude body1="leg_right_ankle_link" body2="leg_right_knee_link"/>
     <exclude body1="leg_right_foot_collision_avoidance_capsule_link" body2="terrain"/>
   </contact>
-  
+
   <sensor>
     <gyro           name="imu_ang_vel" site="imu"/>
     <velocimeter    name="imu_lin_vel" site="imu"/>
