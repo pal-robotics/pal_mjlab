@@ -1,6 +1,7 @@
 """Shared test fixtures and utilities."""
 
 import os
+from unittest.mock import MagicMock, Mock
 
 import mujoco
 import pytest
@@ -26,6 +27,44 @@ def get_test_device() -> str:
   if os.environ.get("FORCE_CPU") == "1":
     return "cpu"
   return "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def make_mock_rl_env(
+  num_envs: int,
+  *,
+  step_dt: float = 0.02,
+  episode_length_s: float = 20.0,
+  device: str = "cpu",
+) -> Mock:
+  """Create a minimal mock env for testing MDP terms without a simulation.
+
+  Args:
+    num_envs: Number of environments.
+    step_dt: Environment step duration in seconds.
+    episode_length_s: Maximum episode duration in seconds.
+    device: Device to allocate the buffers on.
+
+  Returns:
+    Mock exposing the ``ManagerBasedRlEnv`` attributes MDP terms read, with a ``robot``
+    entity whose root state is at rest at the origin.
+  """
+  env = Mock()
+  env.num_envs = num_envs
+  env.device = device
+  env.step_dt = step_dt
+  env.max_episode_length_s = episode_length_s
+  env.episode_length_buf = torch.zeros(num_envs, dtype=torch.long, device=device)
+  robot = Mock()
+  robot.data.heading_w = torch.zeros(num_envs, device=device)
+  robot.data.root_link_pos_w = torch.zeros(num_envs, 3, device=device)
+  robot.data.root_link_lin_vel_b = torch.zeros(num_envs, 3, device=device)
+  robot.data.root_link_ang_vel_b = torch.zeros(num_envs, 3, device=device)
+  scene = MagicMock()
+  scene.__getitem__.side_effect = {"robot": robot}.__getitem__
+  scene.num_envs = num_envs
+  scene.env_origins = torch.zeros(num_envs, 3, device=device)
+  env.scene = scene
+  return env
 
 
 def create_entity_with_actuator(xml_string: str, actuator_cfg):
