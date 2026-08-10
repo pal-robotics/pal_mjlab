@@ -279,8 +279,10 @@ FEET_ONLY_COLLISION = CollisionCfg(
 
 FULL_COLLISION = CollisionCfg(
   geom_names_expr=(".*_collision",),
+  contype=1,
+  conaffinity=1,
   condim={_foot_regex: 3, ".*_collision": 1},
-  priority={_foot_regex: 1},
+  priority={_foot_regex: 1, ".*_collision": 0},
   friction={_foot_regex: (0.6,)},
 )
 ##

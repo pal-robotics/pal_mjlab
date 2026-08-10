@@ -102,6 +102,8 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 
 FULL_COLLISION = CollisionCfg(
   geom_names_expr=(".*",),  # all geoms
+  contype=1,
+  conaffinity=1,
   condim=3,
   priority=1,
   friction=(0.7,),
