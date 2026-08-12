@@ -1,6 +1,8 @@
 """PAL Robotics TIAGo PRO constants."""
 
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import mujoco
 from mjlab.actuator import BuiltinPositionActuatorCfg
@@ -29,7 +31,7 @@ def get_spec() -> mujoco.MjSpec:
 
 NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
 DAMPING_RATIO = 2.0
-FACTOR = 0.05
+FACTOR = 1.0
 
 
 def _calc_actuator_params(
@@ -51,6 +53,7 @@ def _calc_actuator_params(
 S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
 S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
 XS = _calc_actuator_params(101, 1.3e-5, 25)
+GRIPPER = _calc_actuator_params(101, 1.3e-5, 8)
 TORSO = {"armature": 0.1, "stiffness": 1500.0, "damping": 300.0, "effort_limit": 2200.0}
 
 
@@ -60,15 +63,15 @@ TORSO = {"armature": 0.1, "stiffness": 1500.0, "damping": 300.0, "effort_limit":
 
 # Arms
 TIAGO_PRO_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"arm_.*_(1|2)_joint",),
+  target_names_expr=(r"arm_right_(1|2)_joint",),
   **S_PLUS,
 )
 TIAGO_PRO_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"arm_.*_(?![1267]_joint)\d+_joint",),
+  target_names_expr=(r"arm_right_(?![1267]_joint)\d+_joint",),
   **S_MINUS,
 )
 TIAGO_PRO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
+  target_names_expr=(r"arm_right_(?![12345]_joint)\d+_joint",),
   **XS,
 )
 # Torso
@@ -76,22 +79,42 @@ TORSO_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
   target_names_expr=("torso_lift_joint",),
   **TORSO,
 )
+# Gripper
+TIAGO_PRO_GRIPPER_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+  target_names_expr=("gripper_right_finger_joint",),
+  **GRIPPER,
+)
 
 ##
 # Initial State
 ##
 
 INIT_STATE = EntityCfg.InitialStateCfg(
-  pos=(0.0, 0.0, 0.0),
+  pos=(-0.25, 0.0, 0.0),
   joint_pos={
-    # "torso_lift_joint": 0.1,
-    "arm_left_1_joint": 0.3578,
-    "arm_right_1_joint": -0.3578,
-    "arm_.*_2_joint": -1.8266,
-    "arm_left_3_joint": 0.4698,
-    "arm_right_3_joint": -0.4698,
-    "arm_.*_4_joint": -2.3409,
-    "arm_.*_6_joint": -1.2006,
+    "torso_lift_joint": 0.0,
+    "arm_right_1_joint": -3.14,
+    "arm_right_2_joint": -1.7,
+    "arm_right_3_joint": 0.71,
+    "arm_right_4_joint": -1.14,
+    "arm_right_5_joint": 2.8,
+    "arm_right_6_joint": 1.0,  # -1
+    "arm_right_7_joint": 0.0,
+    "gripper_right_finger_joint": 0.045,
+    "gripper_right_inner_finger_left_joint": -0.379495,
+    "gripper_right_fingertip_left_joint": 0.417219,
+    "gripper_right_outer_finger_left_joint": -0.353050,
+    "gripper_right_finger_right_joint": 0.009982,
+    "gripper_right_inner_finger_right_joint": -0.371652,
+    "gripper_right_fingertip_right_joint": 0.406154,
+    "gripper_right_outer_finger_right_joint": -0.349496,
+    "arm_left_1_joint": 0.36,
+    "arm_left_2_joint": -1.83,
+    "arm_left_3_joint": 0.47,
+    "arm_left_4_joint": -2.35,
+    "arm_left_5_joint": 0.0,
+    "arm_left_6_joint": -1.20,
+    "arm_left_7_joint": 0.0,
   },
   joint_vel={".*": 0.0},
 )
@@ -100,11 +123,34 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 # Collision Configs
 ##
 
+# Collision enabled for all geoms except:
+#   - Left arm:  col_left_*, col_upper_left_arm, col_lower_left_arm, col_ee_left
+#   - Base:      col_base
+#   - Torso/Head:col_torso_head
+#   - Right arm joints 3, 5, 7: col_upper_right_arm, col_lower_right_arm, col_arm_right_7
+# (right arm joint 1 has no collision geom in the XML)
+# Non-matched geoms are disabled automatically (disable_other_geoms=True by default).
 FULL_COLLISION = CollisionCfg(
-  geom_names_expr=(".*",),  # all geoms
+  geom_names_expr=(
+    r"^(?!"
+    r"col_base$|col_torso_head$"
+    r"|col_upper_left_arm$|col_lower_left_arm$|col_ee_left$|col_left_"
+    r"|col_upper_right_arm$|col_lower_right_arm$|col_arm_right_7$"
+    r").*",
+  ),
   condim=3,
   priority=1,
   friction=(0.7,),
+)
+
+# Only overrides friction for right fingertips; does NOT disable other geoms
+# (disable_other_geoms=False) to avoid conflicting with FULL_COLLISION.
+FINGERTIP_COLLISION = CollisionCfg(
+  geom_names_expr=(r".*right.*fingertip.*",),
+  condim=3,
+  priority=1,
+  friction=(1.0,),
+  disable_other_geoms=False,
 )
 
 ##
@@ -116,7 +162,7 @@ TIAGO_PRO_ARTICULATION = EntityArticulationInfoCfg(
     TIAGO_PRO_S_PLUS_ACTUATOR_CFG,
     TIAGO_PRO_S_MINUS_ACTUATOR_CFG,
     TIAGO_PRO_XS_ACTUATOR_CFG,
-    # TORSO_ACTUATOR_CFG,
+    TIAGO_PRO_GRIPPER_ACTUATOR_CFG,
   ),
   soft_joint_pos_limit_factor=0.9,
 )
@@ -129,7 +175,7 @@ def get_tiago_pro_robot_cfg() -> EntityCfg:
   """Get a fresh TIAGo Pro robot configuration instance."""
   return EntityCfg(
     init_state=INIT_STATE,
-    collisions=(FULL_COLLISION,),
+    collisions=(FULL_COLLISION, FINGERTIP_COLLISION),
     spec_fn=get_spec,
     articulation=TIAGO_PRO_ARTICULATION,
   )
@@ -147,8 +193,48 @@ for a in TIAGO_PRO_ARTICULATION.actuators:
 
   for n in names:
     if n in e and n in s and s[n]:
-      TIAGO_PRO_ACTION_SCALE[n] = 0.25 * e[n] / s[n]
+      TIAGO_PRO_ACTION_SCALE[n] = 0.05 * e[n] / s[n]  # 0.05
       TIAGO_PRO_ACTUATOR_NAMES += (n,)
+
+# Override gripper scale: tuned to 0.01 (formula-derived ~0.001528 is too small for control)
+TIAGO_PRO_ACTION_SCALE["gripper_right_finger_joint"] = 0.01  # 0.01
+
+
+@dataclass
+class TiagoProRobot:
+  entity_cfg: EntityCfg = field(default_factory=get_tiago_pro_robot_cfg)
+  arm_joint_pattern: str = "arm_right_.*_joint"
+  gripper_joint_pattern: str = "gripper_right_finger_joint"
+  ee_site: str = "gripper_right_grasping_site"
+  fingertip_geom_pattern: str = "col_right_fingertip_.*"
+  fingertip_site_pattern: str = "gripper_right_fingertip_.*_site"
+  collision_link_pattern: str = "(arm_right|gripper_right)_.*_link"
+  arm_collision_link_pattern: str = "arm_right_.*_link"
+  gripper_collision_link_pattern: str = "gripper_right_.*_link"
+  viewer_body: str = "base_footprint"
+  camera_name: str = "head_realsense_camera"
+  head_camera_name: str = "head_realsense_camera"
+
+  def arm_action_cfg(self) -> Any:
+    from mjlab.envs.mdp.actions import DifferentialIKActionCfg
+
+    return DifferentialIKActionCfg(
+      entity_name="robot",
+      actuator_names=(self.arm_joint_pattern,),
+      frame_name=self.ee_site,
+      frame_type="site",
+      delta_pos_scale=0.005,  # Max displacement of 0.01m per step (0.5m/s max velocity)
+      delta_ori_scale=0.005,  # Max rotation of 0.01 rad per step (0.5 rad/s max angular velocity)
+    )
+
+  def gripper_action_cfg(self) -> Any:
+    from mjlab.envs.mdp.actions import RelativeJointPositionActionCfg
+
+    return RelativeJointPositionActionCfg(
+      entity_name="robot",
+      actuator_names=(self.gripper_joint_pattern,),
+      scale=TIAGO_PRO_ACTION_SCALE[self.gripper_joint_pattern],
+    )
 
 
 if __name__ == "__main__":

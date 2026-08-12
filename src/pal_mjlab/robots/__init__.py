@@ -24,5 +24,6 @@ from pal_mjlab.robots.pal_talos.talos_constants import (  # noqa: F401
 from pal_mjlab.robots.pal_tiago_pro.tiago_pro_constants import (  # noqa: F401
   TIAGO_PRO_ACTION_SCALE,
   TIAGO_PRO_ACTUATOR_NAMES,
+  TiagoProRobot,
   get_tiago_pro_robot_cfg,
 )

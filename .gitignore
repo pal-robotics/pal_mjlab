@@ -6,6 +6,7 @@ dist/
 wheels/
 *.egg-info
 *.pch
+*.zip
 
 # Virtual environments
 .venv
@@ -25,3 +26,18 @@ docs_build/
 artifacts/
 *.npz
 motion.mp4
+dataset/
+dataset_val/
+dataset_vis/
+test_results/
+keypoints/
+check_gripper.py
+keypoints_task_vis/
+noisy_keypoints/
+zips/
+test_results_cnn/
+test_results_convnext/
+train_with_vision_stuff/
+rsl_rl/
+
+scripts/
