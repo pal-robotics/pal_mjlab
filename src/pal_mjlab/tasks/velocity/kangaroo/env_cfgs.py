@@ -136,7 +136,7 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
-    noise=Unoise(n_min=-0.02, n_max=0.02),
+    noise=Unoise(n_min=-0.05, n_max=0.05),
   )
   cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
@@ -161,20 +161,6 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # -- Events
 
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
-
-  cfg.events["base_com"] = EventTermCfg(
-      mode="startup",
-      func=dr.body_com_offset,
-      params={
-        "asset_cfg": SceneEntityCfg("robot", body_names=("pelvis_2_link",)),
-        "operation": "add",
-        "ranges": {
-          0: (-0.005, 0.005),
-          1: (-0.005, 0.005),
-          2: (-0.01, 0.01),
-        },
-      },
-    )
   # cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
   # Domain Randomization for joint friction
@@ -189,7 +175,7 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
   cfg.events["encoder_bias"].params["asset_cfg"].joint_names = [
-    r"^leg_(left|right)_(?!3_|length_).*"
+    r"^(?!leg_.*_length_.*$).*"
   ]
   cfg.events["leg_length_encoder_bias"] = EventTermCfg(
     mode="startup",
@@ -197,24 +183,6 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=[REGEX_LEG_LENGTH_JOINTS_ONLY]),
       "bias_range": (-0.005, 0.005),
-    },
-  )
-  cfg.events["hip_left_roll_encoder_bias"] = EventTermCfg(
-    mode="interval",
-    interval_range_s=(0.25, 1.0),
-    func=dr.encoder_bias,
-    params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=["leg_left_3_joint"]),
-      "bias_range": (-0.018, 0.0),
-    },
-  )
-  cfg.events["hip_right_roll_encoder_bias"] = EventTermCfg(
-    mode="interval",
-    interval_range_s=(0.25, 1.0),
-    func=dr.encoder_bias,
-    params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=["leg_right_3_joint"]),
-      "bias_range": (0.0, 0.018),
     },
   )
 
