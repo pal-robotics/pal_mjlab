@@ -161,7 +161,7 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # -- Events
 
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
-  # cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
+  cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
 
   # Domain Randomization for joint friction
   cfg.events["joint_friction"] = EventTermCfg(
