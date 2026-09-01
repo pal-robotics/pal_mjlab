@@ -373,7 +373,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # Elliptic cone gives isotropic (direction-independent) friction, avoiding the pyramidal
   # cone's corner over-estimate that policies exploit; impratio=10 stiffens friction vs. normal
   # to kill tangential creep on slopes/edges. Critical for reliable foot contact on rough terrain.
-  cfg.sim.mujoco.impratio = 10.0
+  cfg.sim.mujoco.impratio = 100.0
   cfg.sim.mujoco.cone = "elliptic"
 
   ### SENSORS
@@ -414,28 +414,37 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.15, n_max=0.15)
 
   # History
-  cfg.observations["actor"].history_length = 5
-  cfg.observations["critic"].history_length = 5
-  cfg.observations["critic"].terms["height_scan"].history_length = 0
+  # cfg.observations["actor"].history_length = 5
+  # cfg.observations["critic"].history_length = 5
+  # cfg.observations["critic"].terms["height_scan"].history_length = 0
 
   ### COMMANDS
 
   # Replace by the dualband twist
-  cfg.commands["twist"] = mdp.DualBandVelocityCommandCfg(
-    entity_name="robot",
-    resampling_time_range=(3.0, 8.0),
-    min_lin_vel_x=0.2,
-    rel_inside_low=0.1,
-    rel_standing_envs=0.1,
-    rel_straight_envs=0.2,
-    debug_vis=True,
-    viz=mdp.DualBandVelocityCommandCfg.VizCfg(z_offset=1.15),
-    ranges=mdp.DualBandVelocityCommandCfg.Ranges(
-      lin_vel_x=(-0.5, 0.5),
-      lin_vel_y=(0.0, 0.0),
-      ang_vel_z=(-0.5, 0.5),
-    ),
-  )
+  # cfg.commands["twist"] = mdp.DualBandVelocityCommandCfg(
+  #   entity_name="robot",
+  #   resampling_time_range=(3.0, 8.0),
+  #   min_lin_vel_x=0.2,
+  #   rel_inside_low=0.1,
+  #   rel_standing_envs=0.1,
+  #   rel_straight_envs=0.2,
+  #   debug_vis=True,
+  #   viz=mdp.DualBandVelocityCommandCfg.VizCfg(z_offset=1.15),
+  #   ranges=mdp.DualBandVelocityCommandCfg.Ranges(
+  #     lin_vel_x=(-0.5, 0.5),
+  #     lin_vel_y=(0.0, 0.0),
+  #     ang_vel_z=(-0.5, 0.5),
+  #   ),
+  # )
+
+  # Delete the speed curriculum altogether
+  del cfg.curriculum["command_vel"]
+
+  twist_cmd = cfg.commands["twist"]
+  assert isinstance(twist_cmd, mdp.UniformVelocityCommandCfg)
+  twist_cmd.ranges.lin_vel_x = (-1.0, 1.0)
+  twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
+  twist_cmd.ranges.ang_vel_z = (-0.5, 0.5)
 
   ### REWARDS
 
@@ -457,8 +466,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["upright"].weight = 2.0
 
   # Use the improved ang vel z-xy reward / penalties
-  cfg.rewards["track_angular_velocity"].func = mdp.track_body_ang_vel_z_exp
-  cfg.rewards["body_ang_vel"].func = mdp.body_ang_vel_xy_l2_penalty
+  # cfg.rewards["track_angular_velocity"].func = mdp.track_body_ang_vel_z_exp
+  # cfg.rewards["body_ang_vel"].func = mdp.body_ang_vel_xy_l2_penalty
 
   # Gaussian kernel r=exp(-‖v_cmd-v‖²/std²): r=0.5 at error=std·√ln2≈0.12.
   # Tightened from default so the reward stays discriminative at low command speeds
@@ -560,9 +569,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
     },
   )
-
-  # Delete the high speed curriculum
-  del cfg.curriculum["command_vel"]
 
   # PLAY
   if play:
