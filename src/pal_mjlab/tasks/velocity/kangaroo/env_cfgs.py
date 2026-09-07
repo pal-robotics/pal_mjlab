@@ -528,11 +528,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # PLAY
   if play:
-    # twist_cmd = cfg.commands["twist"]
-    # assert isinstance(twist_cmd, mdp.DualBandVelocityCommandCfg)
-    # twist_cmd.ranges.lin_vel_x = (-0.5, 0.5)
-    # twist_cmd.ranges.ang_vel_z = (-0.5, 0.5)
-
     # Disable terrain curriculum.
     assert cfg.curriculum is not None
     assert "terrain_levels" in cfg.curriculum
