@@ -20,12 +20,6 @@ from mjlab.sensor import (
 )
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
-from mjlab.terrains.config import (
-  flat,
-  pyramid_stairs_inv,
-  random_spread_boxes,
-)
-from mjlab.terrains.terrain_generator import TerrainGeneratorCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
 from pal_mjlab.robots import (
@@ -418,101 +412,12 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### EVENTS
 
-  # Safer spawning close to the center (to avoid directly spawning unbalanced most of the time)
-  cfg.events["reset_base"].params["pose_range"] = {
-    "x": (-0.05, 0.05),
-    "y": (-0.05, 0.05),
-    "z": (0.01, 0.05),
-    "yaw": (-0.1, 0.1),
-  }
-
   ### CURRICULUM
 
   # Terrain
 
   # TODO: review fairness of the curriculum (https://github.com/mujocolab/mjlab/issues/934)
   cfg.curriculum["terrain_levels"].func = mdp.terrain_levels_vel
-
-  assert cfg.scene.terrain is not None
-  assert cfg.scene.terrain.terrain_generator is not None
-  cfg.scene.terrain.terrain_type = "generator"
-  cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
-    size=(3.0, 3.0),
-    num_rows=12,
-    num_cols=10,
-    border_width=20.0,
-    curriculum=True,
-    sub_terrains={
-      "flat": flat(proportion=0.1),
-      "pebbles": random_spread_boxes(
-        proportion=0.1,
-        num_boxes=350,
-        box_width_range=(0.02, 0.05),
-        box_length_range=(0.02, 0.05),
-        box_height_range=(0.02, 0.05),
-        platform_width=0.5,
-        border_width=0.0,
-      ),
-      "random_obstacles": random_spread_boxes(
-        proportion=0.2,
-        num_boxes=30,
-        box_width_range=(0.2, 0.6),
-        box_length_range=(0.2, 0.6),
-        box_height_range=(0.02, 0.06),
-        platform_width=0.5,
-        border_width=0.0,
-      ),
-      "easy_stairs_30": pyramid_stairs_inv(
-        proportion=0.1,
-        step_height_range=(0.05, 0.1),
-        step_width=0.3,
-        platform_width=0.5,
-        border_width=0.1,
-      ),
-      "mid_stairs_30": pyramid_stairs_inv(
-        proportion=0.1,
-        step_height_range=(0.1, 0.15),
-        step_width=0.3,
-        platform_width=0.5,
-        border_width=0.1,
-      ),
-      "easy_stairs_40": pyramid_stairs_inv(
-        proportion=0.1,
-        step_height_range=(0.05, 0.1),
-        step_width=0.4,
-        platform_width=0.5,
-        border_width=0.1,
-      ),
-      "mid_stairs_40": pyramid_stairs_inv(
-        proportion=0.1,
-        step_height_range=(0.1, 0.15),
-        step_width=0.4,
-        platform_width=0.5,
-        border_width=0.1,
-      ),
-      "easy_stairs_50": pyramid_stairs_inv(
-        proportion=0.1,
-        step_height_range=(0.05, 0.1),
-        step_width=0.5,
-        platform_width=0.5,
-        border_width=0.1,
-      ),
-      "mid_stairs_50": pyramid_stairs_inv(
-        proportion=0.1,
-        step_height_range=(0.1, 0.15),
-        step_width=0.5,
-        platform_width=0.5,
-        border_width=0.1,
-      ),
-    },
-  )
-
-  # PLAY
-  if play:
-    # Disable terrain curriculum.
-    assert cfg.curriculum is not None
-    assert "terrain_levels" in cfg.curriculum
-    del cfg.curriculum["terrain_levels"]
 
   return cfg
 
