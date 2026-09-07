@@ -367,7 +367,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # Most actors in SOTA do not see base lin acc
   del cfg.observations["actor"].terms["base_lin_acc"]
-  # del cfg.observations["critic"].terms["base_lin_acc"]
 
   ### COMMANDS
 
@@ -382,33 +381,18 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### REWARDS
 
-  # Swing height: stronger to avoid dragging the feet
-  cfg.rewards["foot_swing_height"].weight = -0.5
-  cfg.rewards["foot_swing_height"].params["target_height"] = 0.15
-
-  # Target clearance when moving: conservatively high to avoid stumbling
-  # Experimentally, increasing its weight makes the robot unstable
-  cfg.rewards["foot_clearance"].params["target_height"] = 0.15
-
   # More human-like air time and stronger, specially important with obstacles
-  cfg.rewards["air_time"].weight = 1.0
+  cfg.rewards["air_time"].weight = 2.0
   cfg.rewards["air_time"].params["threshold_min"] = 0.2
   cfg.rewards["air_time"].params["threshold_max"] = 0.45
-  cfg.rewards["air_time"].params["command_threshold"] = 0.1
+  cfg.rewards["air_time"].params["command_threshold"] = 0.05
 
-  # More upright = safer torso stance
+  # Safer torso stance
   cfg.rewards["upright"].weight = 2.0
   cfg.rewards["upright"].params["std"] = math.sqrt(0.05)
 
-  # Gaussian kernel r=exp(-‖v_cmd-v‖²/std²): r=0.5 at error=std·√ln2≈0.12.
-  # Tightened from default so the reward stays discriminative at low command speeds
-  # instead of flattening into a dead-zone.
-  cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(
-    0.0225
-  )  # r=0.5 at ~0.12 m/s error
-  cfg.rewards["track_angular_velocity"].params["std"] = math.sqrt(
-    0.0225
-  )  # r=0.5 at ~0.12 rad/s error
+  # Tighter linear tracking std
+  cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(0.1)
 
   ### EVENTS
 
