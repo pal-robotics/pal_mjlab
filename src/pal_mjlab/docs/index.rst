@@ -9,6 +9,7 @@ pal_mjlab Documentation
    :caption: Getting Started
 
    installation
+   release_notes
 
 .. toctree::
    :maxdepth: 1
