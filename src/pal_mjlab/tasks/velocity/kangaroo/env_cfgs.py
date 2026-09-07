@@ -356,10 +356,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   cfg = pal_kangaroo_baseline_env_cfg(play=play)
 
-  # nconmax is the max number of contacts that will be generated at runtime
-  # due to https://github.com/google-deepmind/mujoco_warp/blob/c62864ed2bf816c0a724d4cbf153921188f78eae/mujoco_warp/_src/io.py#L649-L660
-  # for collision-rich envs, it is recommended to be manually set through experimentation
+  # nconmax is the max number of contacts at runtime
   cfg.sim.nconmax = 200
+  cfg.sim.mujoco.iterations = 30
+  cfg.sim.mujoco.ls_iterations = 50
 
   ### SENSORS
 
@@ -373,11 +373,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # Delete the speed curriculum altogether
   del cfg.curriculum["command_vel"]
 
-  # twist_cmd = cfg.commands["twist"]
-  # assert isinstance(twist_cmd, mdp.UniformVelocityCommandCfg)
-  # twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
-  # twist_cmd.rel_heading_envs = 0.0
-  # twist_cmd.heading_command = False
+  twist_cmd = cfg.commands["twist"]
+  assert isinstance(twist_cmd, mdp.UniformVelocityCommandCfg)
+  twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
+  twist_cmd.rel_heading_envs = 0.0
+  twist_cmd.heading_command = False
 
   ### REWARDS
 
@@ -393,10 +393,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # Tighter linear tracking std
   cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(0.1)
-
-  ### EVENTS
-
-  ### CURRICULUM
 
   # Terrain
 
