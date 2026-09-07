@@ -179,15 +179,15 @@ def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
 KANGAROO_LEG_ACTUATORS = (
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_1_joint",),
-    **_calc_leg_params(100.0, 80.0, 0.3051, 1.4247, 0.2295),
+    **_calc_leg_params(100.0, 80.0, 0.01, None, None),
   ),
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_2_joint",),
-    **_calc_leg_params(100.0, 230.0, 1.3750, 1.9167, 2.2121),
+    **_calc_leg_params(100.0, 230.0, 0.01, None, None),
   ),
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_3_joint",),
-    **_calc_leg_params(100.0, 139.0, 2.2753, 1.9561, 2.9260),
+    **_calc_leg_params(100.0, 139.0, 0.01, None, None),
   ),
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_4_joint",),
