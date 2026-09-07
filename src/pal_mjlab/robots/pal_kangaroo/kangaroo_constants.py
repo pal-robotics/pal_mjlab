@@ -121,14 +121,22 @@ def _calc_actuator_params(
   }
 
 
-def _calc_leg_params(stiffness: float, effort: float) -> dict:
+def _calc_leg_params(
+  stiffness: float,
+  effort: float,
+  armature: float,
+  frictionloss: float,
+  viscous_damping: float,
+) -> dict:
   """Calculate leg actuator parameters."""
   damping = round(2.0 * DAMPING_RATIO * stiffness / NATURAL_FREQ, 3)
   return {
-    "armature": 0.01,
+    "armature": armature,
     "stiffness": stiffness,
     "damping": damping,
     "effort_limit": effort,
+    "frictionloss": frictionloss,
+    "viscous_damping": viscous_damping,
   }
 
 
@@ -170,22 +178,28 @@ def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
 # Legs
 KANGAROO_LEG_ACTUATORS = (
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_1_joint",), **_calc_leg_params(100.0, 80.0)
+    target_names_expr=("leg_.*_1_joint",),
+    **_calc_leg_params(100.0, 80.0, 0.01, None, None),
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_2_joint",), **_calc_leg_params(100.0, 230.0)
+    target_names_expr=("leg_.*_2_joint",),
+    **_calc_leg_params(100.0, 230.0, 0.01, None, None),
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_3_joint",), **_calc_leg_params(100.0, 139.0)
+    target_names_expr=("leg_.*_3_joint",),
+    **_calc_leg_params(100.0, 139.0, 0.01, None, None),
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_4_joint",), **_calc_leg_params(30.0, 140.0)
+    target_names_expr=("leg_.*_4_joint",),
+    **_calc_leg_params(30.0, 140.0, 0.01, None, None),
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_5_joint",), **_calc_leg_params(30.0, 82.0)
+    target_names_expr=("leg_.*_5_joint",),
+    **_calc_leg_params(30.0, 82.0, 0.01, None, None),
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_length_joint",), **_calc_leg_params(1600.0, 1100.0)
+    target_names_expr=("leg_.*_length_joint",),
+    **_calc_leg_params(1600.0, 1100.0, 0.01, None, None),
   ),
 )
 
