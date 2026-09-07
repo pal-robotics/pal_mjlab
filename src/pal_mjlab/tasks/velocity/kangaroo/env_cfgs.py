@@ -369,28 +369,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### SENSORS
 
-  # Idealized 1.2x0.6 m elevation map around the robot
-  # terrain_scan = RayCastSensorCfg(
-  #   name="terrain_scan",
-  #   frame=ObjRef(type="body", name="pelvis_2_link", entity="robot"),
-  #   ray_alignment="yaw",
-  #   pattern=GridPatternCfg(size=(1.2, 0.6), resolution=0.1),
-  #   max_distance=2.0,
-  #   exclude_parent_body=True,
-  #   include_geom_groups=(0,),  # Terrain only.
-  #   debug_vis=True,
-  # )
-
-  # cfg.scene.sensors = (cfg.scene.sensors or ()) + (terrain_scan,)
-
   ### OBSERVATIONS
 
-  # The default scan was deleted, we add a custom one, only to the critic
-  # cfg.observations["critic"].terms["height_scan"] = ObservationTermCfg(
-  #   func=mdp.height_scan,
-  #   params={"sensor_name": "terrain_scan"},
-  #   scale=1 / terrain_scan.max_distance,
-  # )
+  # Most actors in SOTA do not see base lin acc
+  del cfg.observations["actor"].terms["base_lin_acc"]
+  # del cfg.observations["critic"].terms["base_lin_acc"]
 
   ### COMMANDS
 
