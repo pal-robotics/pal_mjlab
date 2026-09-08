@@ -386,8 +386,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # softer terrains
   cfg.scene.spec_fn = _soften_terrain_contacts
 
-  ### SENSORS
-
   ### OBSERVATIONS
 
   # Most actors in SOTA do not see base lin acc
@@ -395,15 +393,22 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### COMMANDS
 
-  # Delete the speed curriculum altogether
+  # Delete the speed curriculum altogether, the initial task is enough
   del cfg.curriculum["command_vel"]
 
-  twist_cmd = cfg.commands["twist"]
-  assert isinstance(twist_cmd, mdp.UniformVelocityCommandCfg)
-  twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
-  twist_cmd.rel_heading_envs = 0.0
-  twist_cmd.heading_command = False
-  del twist_cmd.ranges.heading
+  cfg.commands["twist"] = mdp.UniformVelocityCommandWithTurningBucketCfg(
+    entity_name="robot",
+    resampling_time_range=(3.0, 8.0),
+    rel_standing_envs=0.1,
+    rel_forward_envs=0.2,
+    rel_turn_in_place_envs=0.2,
+    debug_vis=True,
+    ranges=UniformVelocityCommandCfg.Ranges(
+      lin_vel_x=(-0.5, 0.5),
+      lin_vel_y=(-0.3, 0.3),
+      ang_vel_z=(-0.5, 0.5),
+    ),
+  )
 
   ### REWARDS
 
@@ -418,7 +423,12 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["upright"].params["std"] = math.sqrt(0.05)
 
   # Tighter linear tracking std
-  cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(0.1)
+  cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(
+    0.1
+  )  # duck std, suitable for low velocity
+  cfg.rewards["track_angular_velocity"].params["std"] = math.sqrt(
+    0.5
+  )  # default, for ref
 
   # Terrain
 

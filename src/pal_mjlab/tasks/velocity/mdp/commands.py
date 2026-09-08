@@ -209,3 +209,44 @@ class DualBandVelocityCommandCfg(UniformVelocityCommandCfg):
 
   def build(self, env: ManagerBasedRlEnv) -> DualBandVelocityCommand:
     return DualBandVelocityCommand(self, env)
+
+
+class UniformVelocityCommandWithTurningBucket(UniformVelocityCommand):
+  """Like UniformVelocityCommand but has a turn-in-place bucket."""
+
+  def _resample_command(self, env_ids: torch.Tensor) -> None:
+    super()._resample_command(env_ids)
+    # Turn-in-place practice: for a fraction of envs, zero the linear velocity
+    # and force a meaningful (away-from-zero) yaw command. Independent uniform
+    # sampling almost never produces "lin≈0, |ang| large" (~2% of samples), so
+    # spinning on the spot was effectively untrained → slow/unstable real-robot
+    # turning. Mirrors the base rel_forward_envs mechanism.
+    p = getattr(self.cfg, "rel_turn_in_place_envs", 0.0)
+    if p <= 0.0:
+      return
+    r = torch.empty(len(env_ids), device=self.device)
+    turn_ids = env_ids[r.uniform_(0.0, 1.0) < p]
+    if len(turn_ids) == 0:
+      return
+    self.vel_command_b[turn_ids, 0] = 0.0
+    self.vel_command_b[turn_ids, 1] = 0.0
+    lo, hi = self.cfg.ranges.ang_vel_z
+    maxr = max(abs(lo), abs(hi))
+    rr = torch.empty(len(turn_ids), device=self.device)
+    sign = torch.where(rr.uniform_(0.0, 1.0) < 0.5, -1.0, 1.0)
+    mag = torch.empty(len(turn_ids), device=self.device).uniform_(0.4 * maxr, maxr)
+    self.vel_command_b[turn_ids, 2] = sign * mag
+    # These envs must actually turn — un-mark them as standing (which would
+    # zero the command) and refresh the world-frame reference copy.
+    self.is_standing_env[turn_ids] = False
+    self.vel_command_w[turn_ids] = self.vel_command_b[turn_ids]
+
+
+@dataclass(kw_only=True)
+class UniformVelocityCommandWithTurningBucketCfg(UniformVelocityCommandCfg):
+  # Fraction of envs commanded to turn in place (lin=0, |ang| forced to
+  # [0.4·max, max]) each resample. 0 = disabled (base uniform sampling only).
+  rel_turn_in_place_envs: float = 0.0
+
+  def build(self, env: ManagerBasedRlEnv) -> "UniformVelocityCommandWithTurningBucket":
+    return UniformVelocityCommandWithTurningBucket(self, env)
