@@ -440,7 +440,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.commands["twist"] = mdp.UniformVelocityCommandWithTurningBucketCfg(
     entity_name="robot",
     resampling_time_range=(3.0, 8.0),
-    rel_standing_envs=0.1,
+    rel_standing_envs=0.02,
     rel_forward_envs=0.2,
     rel_turn_in_place_envs=0.2,
     debug_vis=True,
@@ -523,13 +523,13 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       # Slopes
       "pyramid_slope": terrain_gen.HfPyramidSlopedTerrainCfg(
         proportion=0.1,
-        slope_range=(0.05, 0.5),
+        slope_range=(0.05, 0.3),
         platform_width=1.0,
         vertical_scale=0.001,
       ),
       "pyramid_slope_inv": terrain_gen.HfPyramidSlopedTerrainCfg(
         proportion=0.1,
-        slope_range=(0.05, 0.5),
+        slope_range=(0.05, 0.3),
         platform_width=1.0,
         vertical_scale=0.001,
         inverted=True,
@@ -556,6 +556,22 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         {"step": 1000 * 24, "weight": -0.6},
         {"step": 1250 * 24, "weight": -0.8},
         {"step": 1500 * 24, "weight": -1.0},
+      ],
+    },
+  )
+
+  # Gradually increase standing env fraction after walking is established
+  cfg.curriculum["standing_envs"] = CurriculumTermCfg(
+    func=mdp.standing_envs_curriculum,
+    params={
+      "command_name": "twist",
+      "standing_stages": [
+        {"step": 0, "rel_standing_envs": 0.02},
+        {"step": 500 * 24, "rel_standing_envs": 0.05},
+        {"step": 750 * 24, "rel_standing_envs": 0.1},
+        {"step": 1000 * 24, "rel_standing_envs": 0.15},
+        {"step": 1500 * 24, "rel_standing_envs": 0.2},
+        {"step": 2000 * 24, "rel_standing_envs": 0.25},
       ],
     },
   )
