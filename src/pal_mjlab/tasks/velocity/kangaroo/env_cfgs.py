@@ -7,7 +7,7 @@ import mujoco as _mujoco
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
-from mjlab.managers import MetricsTermCfg
+from mjlab.managers import CurriculumTermCfg, MetricsTermCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
@@ -446,7 +446,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     debug_vis=True,
     ranges=UniformVelocityCommandCfg.Ranges(
       lin_vel_x=(-0.5, 0.5),
-      lin_vel_y=(-0.4, 0.4),
+      lin_vel_y=(-0.3, 0.3),
       ang_vel_z=(-0.5, 0.5),
     ),
   )
@@ -538,8 +538,27 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     add_lights=False,
   )
 
+  ### CURRICULUM
+
   # TODO: review fairness of the curriculum (https://github.com/mujocolab/mjlab/issues/934)
   cfg.curriculum["terrain_levels"].func = mdp.terrain_levels_vel
+
+  # action_rate weight ramp: gentle smoothing while the gait bootstraps, then
+  # tighten to -1.0 by iter 1500.
+  cfg.curriculum["action_rate_weight"] = CurriculumTermCfg(
+    func=mdp.reward_weight,
+    params={
+      "reward_name": "action_rate_l2",
+      "weight_stages": [
+        {"step": 0, "weight": -0.1},
+        {"step": 500 * 24, "weight": -0.2},
+        {"step": 750 * 24, "weight": -0.4},
+        {"step": 1000 * 24, "weight": -0.6},
+        {"step": 1250 * 24, "weight": -0.8},
+        {"step": 1500 * 24, "weight": -1.0},
+      ],
+    },
+  )
 
   return cfg
 
