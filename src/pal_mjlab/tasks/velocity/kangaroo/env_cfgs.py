@@ -396,6 +396,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # Delete the speed curriculum altogether, the initial task is enough
   del cfg.curriculum["command_vel"]
 
+  # Low vel task, only different is that with this command there's a turn in place bucket
   cfg.commands["twist"] = mdp.UniformVelocityCommandWithTurningBucketCfg(
     entity_name="robot",
     resampling_time_range=(3.0, 8.0),
@@ -416,7 +417,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["air_time"].weight = 2.0
   cfg.rewards["air_time"].params["threshold_min"] = 0.2
   cfg.rewards["air_time"].params["threshold_max"] = 0.45
-  cfg.rewards["air_time"].params["command_threshold"] = 0.05
+  cfg.rewards["air_time"].params["command_threshold"] = 0.01
 
   # Safer torso stance
   cfg.rewards["upright"].weight = 2.0
