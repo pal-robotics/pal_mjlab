@@ -442,7 +442,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     "x": (-0.05, 0.05),
     "y": (-0.05, 0.05),
     "z": (0.01, 0.05),
-    "yaw": (-0.1, 0.1),
+    "yaw": (-3.14, 3.14),
   }
 
   ### CURRICULUM
