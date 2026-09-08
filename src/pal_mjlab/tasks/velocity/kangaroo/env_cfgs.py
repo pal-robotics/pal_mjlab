@@ -446,7 +446,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     debug_vis=True,
     ranges=UniformVelocityCommandCfg.Ranges(
       lin_vel_x=(-0.5, 0.5),
-      lin_vel_y=(-0.3, 0.3),
+      lin_vel_y=(-0.4, 0.4),
       ang_vel_z=(-0.5, 0.5),
     ),
   )
@@ -473,65 +473,64 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### TERRAIN
 
-  # Adapt to kangaroo capabilities and feet collisions
+  # Custom terrain adapted to kangaroo capabilities
   assert cfg.scene.terrain is not None
   cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
-    size=(8.0, 8.0),
+    size=(5.0, 5.0),
     border_width=20.0,
     num_rows=10,
-    num_cols=20,
     curriculum=True,
     sub_terrains={
-      "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.10),
+      "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.1),
       # Stairs: one normal + one inverted
       "pyramid_stairs": terrain_gen.BoxPyramidStairsTerrainCfg(
         proportion=0.15,
         step_height_range=(0.02, 0.1),
         step_width=0.40,
-        platform_width=2.0,
-        border_width=1.0,
+        platform_width=1.0,
+        border_width=0.5,
       ),
       "pyramid_stairs_inv": terrain_gen.BoxInvertedPyramidStairsTerrainCfg(
         proportion=0.15,
         step_height_range=(0.02, 0.1),
         step_width=0.40,
-        platform_width=2.0,
-        border_width=1.0,
+        platform_width=1.0,
+        border_width=0.5,
       ),
       # Random grid
       "random_grid": terrain_gen.BoxRandomGridTerrainCfg(
-        proportion=0.25,
+        proportion=0.2,
         grid_width=0.45,
-        grid_height_range=(0.01, 0.05),  # ±3 cm => up to 6 cm cell-to-cell
-        platform_width=1.80,
-        border_width=0.25,  # explicit: it sets num_cells
-        merge_similar_heights=True,  # geom-count reduction
-        height_merge_threshold=0.01,  # also quantizes heights, see note
+        grid_height_range=(0.01, 0.05),
+        platform_width=1.0,
+        border_width=0.5,
+        merge_similar_heights=True,
+        height_merge_threshold=0.01,
         max_merge_distance=3,
       ),
       # Pebbles
       "pebbles": terrain_gen.BoxRandomSpreadTerrainCfg(
-        proportion=0.15,
+        proportion=0.2,
         num_boxes=600,
         box_width_range=(0.02, 0.05),
         box_length_range=(0.02, 0.05),
         box_height_range=(0.02, 0.05),
         box_yaw_range=(0.0, 360.0),
         add_floor=True,
-        platform_width=1.5,
+        platform_width=1.0,
         border_width=0.0,
       ),
       # Slopes
       "pyramid_slope": terrain_gen.HfPyramidSlopedTerrainCfg(
-        proportion=0.10,
+        proportion=0.1,
         slope_range=(0.05, 0.5),
-        platform_width=2.0,
+        platform_width=1.0,
         vertical_scale=0.001,
       ),
       "pyramid_slope_inv": terrain_gen.HfPyramidSlopedTerrainCfg(
-        proportion=0.10,
+        proportion=0.1,
         slope_range=(0.05, 0.5),
-        platform_width=2.0,
+        platform_width=1.0,
         vertical_scale=0.001,
         inverted=True,
       ),
