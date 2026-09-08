@@ -399,11 +399,12 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # Delete the speed curriculum altogether
   del cfg.curriculum["command_vel"]
 
-  # twist_cmd = cfg.commands["twist"]
-  # assert isinstance(twist_cmd, mdp.UniformVelocityCommandCfg)
-  # twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
-  # twist_cmd.rel_heading_envs = 0.0
-  # twist_cmd.heading_command = False
+  # Easier velocity task: no need for high velocities in rough terrain
+  twist_cmd = cfg.commands["twist"]
+  assert isinstance(twist_cmd, mdp.UniformVelocityCommandCfg)
+  twist_cmd.ranges.lin_vel_x = (-0.5, 0.5)
+  twist_cmd.ranges.lin_vel_y = (-0.4, 0.4)
+  twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
 
   ### REWARDS
 
@@ -425,22 +426,17 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["upright"].weight = 2.0
   cfg.rewards["upright"].params["std"] = math.sqrt(0.05)
 
-  # Gaussian kernel r=exp(-‖v_cmd-v‖²/std²): r=0.5 at error=std·√ln2≈0.12.
   # Tightened from default so the reward stays discriminative at low command speeds
   # instead of flattening into a dead-zone.
-  cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(
-    0.0225
-  )  # r=0.5 at ~0.12 m/s error
-  cfg.rewards["track_angular_velocity"].params["std"] = math.sqrt(
-    0.0225
-  )  # r=0.5 at ~0.12 rad/s error
+  cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(0.1)
+  cfg.rewards["track_angular_velocity"].params["std"] = math.sqrt(0.1)
 
   ### EVENTS
 
   # Safer spawning close to the center (to avoid directly spawning unbalanced most of the time)
   cfg.events["reset_base"].params["pose_range"] = {
-    "x": (-0.05, 0.05),
-    "y": (-0.05, 0.05),
+    "x": (-0.2, 0.2),
+    "y": (-0.2, 0.2),
     "z": (0.01, 0.05),
     "yaw": (-3.14, 3.14),
   }
