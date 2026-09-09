@@ -378,11 +378,13 @@ def _adapt_rough_terrain(terrain_gen_cfg: TerrainGeneratorCfg):
   hf_pyramid = terrain_gen_cfg.sub_terrains["hf_pyramid_slope"]
   assert isinstance(hf_pyramid, terrain_gen.HfPyramidSlopedTerrainCfg)
   hf_pyramid.slope_range = (0.1, 0.4)
+  hf_pyramid.vertical_scale = 0.001
 
   # inverted pyramid
   hf_pyramid_inv = terrain_gen_cfg.sub_terrains["hf_pyramid_slope_inv"]
   assert isinstance(hf_pyramid_inv, terrain_gen.HfPyramidSlopedTerrainCfg)
   hf_pyramid_inv.slope_range = (0.1, 0.4)
+  hf_pyramid_inv.vertical_scale = 0.001
 
   # wave terrain
   hf_wave = terrain_gen_cfg.sub_terrains["wave_terrain"]
@@ -535,25 +537,29 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   #   },
   # )
 
-  cfg.curriculum["soft_landing_weight"] = CurriculumTermCfg(
-    func=mdp.reward_curriculum,
-    params={
-      "reward_name": "soft_landing",
-      "stages": [
-        {"step": 0, "weight": -1.0e-5},
-        {"step": 500 * 24, "weight": -1.0e-4},
-        {"step": 1000 * 24, "weight": -1.0e-3},
-        {"step": 2000 * 24, "weight": -1.0e-2},
-      ],
-    },
-  )
+  # cfg.curriculum["soft_landing_weight"] = CurriculumTermCfg(
+  #   func=mdp.reward_curriculum,
+  #   params={
+  #     "reward_name": "soft_landing",
+  #     "stages": [
+  #       {"step": 0, "weight": -1.0e-5},
+  #       {"step": 500 * 24, "weight": -1.0e-4},
+  #       {"step": 1000 * 24, "weight": -1.0e-3},
+  #       {"step": 2000 * 24, "weight": -1.0e-2},
+  #     ],
+  #   },
+  # )
 
-  # if play:
-  #   twist_cmd = cfg.commands["twist"]
-  #   assert isinstance(twist_cmd, mdp.UniformVelocityCommandWithTurningBucketCfg)
-  #   twist_cmd.rel_turn_in_place_envs = 0.0
-  #   twist_cmd.rel_standing_envs = 0.0
-  #   twist_cmd.rel_forward_envs = 1.0
+  if play:
+    twist_cmd = cfg.commands["twist"]
+    assert isinstance(twist_cmd, mdp.UniformVelocityCommandWithTurningBucketCfg)
+    twist_cmd.rel_turn_in_place_envs = 0.0
+    twist_cmd.rel_standing_envs = 0.0
+    twist_cmd.rel_forward_envs = 1.0
+
+    del cfg.curriculum["action_rate_weight"]
+    del cfg.curriculum["standing_envs"]
+    del cfg.curriculum["soft_landing_weight"]
 
   return cfg
 
