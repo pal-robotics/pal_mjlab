@@ -377,16 +377,12 @@ def _adapt_rough_terrain(terrain_gen_cfg: TerrainGeneratorCfg):
   # normal pyramid
   hf_pyramid = terrain_gen_cfg.sub_terrains["hf_pyramid_slope"]
   assert isinstance(hf_pyramid, terrain_gen.HfPyramidSlopedTerrainCfg)
-  hf_pyramid.slope_range = (0.1, 0.5)
+  hf_pyramid.slope_range = (0.1, 0.4)
 
   # inverted pyramid
   hf_pyramid_inv = terrain_gen_cfg.sub_terrains["hf_pyramid_slope_inv"]
   assert isinstance(hf_pyramid_inv, terrain_gen.HfPyramidSlopedTerrainCfg)
-  hf_pyramid_inv.slope_range = (0.1, 0.5)
-
-  # random rough
-  hf_random = terrain_gen_cfg.sub_terrains["random_rough"]
-  assert isinstance(hf_random, terrain_gen.HfRandomUniformTerrainCfg)
+  hf_pyramid_inv.slope_range = (0.1, 0.4)
 
   # wave terrain
   hf_wave = terrain_gen_cfg.sub_terrains["wave_terrain"]
@@ -418,18 +414,18 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   del cfg.observations["actor"].terms["base_lin_acc"]
 
   # Observation noise configuration (edit these values as needed)
-  cfg.observations["actor"].terms["base_ang_vel"].noise = Unoise(
-    n_min=-0.03, n_max=0.03
-  )  # was 0.2
-  cfg.observations["actor"].terms["imu_projected_gravity"].noise = Unoise(
-    n_min=-0.01, n_max=0.01
-  )  # was 0.15
-  cfg.observations["actor"].terms["joint_pos"].noise = Unoise(
-    n_min=-0.001, n_max=0.001
-  )  # was 0.05
-  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(
-    n_min=-0.25, n_max=0.25
-  )  # was 2.0
+  # cfg.observations["actor"].terms["base_ang_vel"].noise = Unoise(
+  #   n_min=-0.03, n_max=0.03
+  # )  # was 0.2
+  # cfg.observations["actor"].terms["imu_projected_gravity"].noise = Unoise(
+  #   n_min=-0.01, n_max=0.01
+  # )  # was 0.15
+  # cfg.observations["actor"].terms["joint_pos"].noise = Unoise(
+  #   n_min=-0.001, n_max=0.001
+  # )  # was 0.05
+  # cfg.observations["actor"].terms["joint_vel"].noise = Unoise(
+  #   n_min=-0.25, n_max=0.25
+  # )  # was 2.0
 
   ### COMMANDS
 
@@ -446,7 +442,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     debug_vis=True,
     ranges=UniformVelocityCommandCfg.Ranges(
       lin_vel_x=(-0.5, 0.5),
-      lin_vel_y=(-0.3, 0.3),
+      lin_vel_y=(-0.4, 0.4),
       ang_vel_z=(-0.5, 0.5),
     ),
   )
@@ -467,9 +463,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(
     0.1
   )  # duck std, suitable for low velocity
-  cfg.rewards["track_angular_velocity"].params["std"] = math.sqrt(
-    0.5
-  )  # default, for ref
 
   # Only the leg length to try to penalize stomping
   # cfg.rewards["leg_length_acc"] = RewardTermCfg(
@@ -480,75 +473,16 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   #   },
   # )
 
-  # Any non-zero command will now generate movement
+  # Any non-zero command will now generate movement, needs to be penalized
   cfg.rewards["soft_landing"].params["command_threshold"] = 0.01
 
   ### TERRAIN
 
-  # Custom terrain adapted to kangaroo capabilities
+  # The default terrain slightly adapted to kangaroo capabilities
   assert cfg.scene.terrain is not None
-  cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
-    size=(5.0, 5.0),
-    border_width=20.0,
-    num_rows=10,
-    curriculum=True,
-    sub_terrains={
-      "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.1),
-      # Stairs: one normal + one inverted
-      "pyramid_stairs": terrain_gen.BoxPyramidStairsTerrainCfg(
-        proportion=0.15,
-        step_height_range=(0.02, 0.1),
-        step_width=0.40,
-        platform_width=1.0,
-        border_width=0.5,
-      ),
-      "pyramid_stairs_inv": terrain_gen.BoxInvertedPyramidStairsTerrainCfg(
-        proportion=0.15,
-        step_height_range=(0.02, 0.1),
-        step_width=0.40,
-        platform_width=1.0,
-        border_width=0.5,
-      ),
-      # Random grid
-      "random_grid": terrain_gen.BoxRandomGridTerrainCfg(
-        proportion=0.2,
-        grid_width=0.45,
-        grid_height_range=(0.01, 0.05),
-        platform_width=1.0,
-        border_width=0.5,
-        merge_similar_heights=True,
-        height_merge_threshold=0.01,
-        max_merge_distance=3,
-      ),
-      # Pebbles
-      "pebbles": terrain_gen.BoxRandomSpreadTerrainCfg(
-        proportion=0.2,
-        num_boxes=600,
-        box_width_range=(0.02, 0.05),
-        box_length_range=(0.02, 0.05),
-        box_height_range=(0.02, 0.05),
-        box_yaw_range=(0.0, 360.0),
-        add_floor=True,
-        platform_width=1.0,
-        border_width=0.0,
-      ),
-      # Slopes
-      "pyramid_slope": terrain_gen.HfPyramidSlopedTerrainCfg(
-        proportion=0.1,
-        slope_range=(0.05, 0.3),
-        platform_width=1.0,
-        vertical_scale=0.001,
-      ),
-      "pyramid_slope_inv": terrain_gen.HfPyramidSlopedTerrainCfg(
-        proportion=0.1,
-        slope_range=(0.05, 0.3),
-        platform_width=1.0,
-        vertical_scale=0.001,
-        inverted=True,
-      ),
-    },
-    add_lights=False,
-  )
+  terrain_generator = cfg.scene.terrain.terrain_generator
+  assert isinstance(terrain_generator, TerrainGeneratorCfg)
+  _adapt_rough_terrain(terrain_generator)
 
   ### CURRICULUM
 
