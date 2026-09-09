@@ -27,8 +27,8 @@ New Features & Tasks
   config: a PAL terrain generator (flat, pebbles, random boxes and
   inverted pyramid stairs at 0.3/0.4/0.5 m step widths), a critic-only
   1.2x0.6 m height scan. The terrain curriculum is disabled in play mode.
-
   (`#109 <https://github.com/pal-robotics/pal_mjlab/pull/109>`_)
+
 - **Lower-body-specific noise and reward-weight tuning.** The IMU
   observation noise (``imu_projected_gravity``, ``base_lin_acc``) and the
   ``upright`` reward weight are now overridden specifically for the
