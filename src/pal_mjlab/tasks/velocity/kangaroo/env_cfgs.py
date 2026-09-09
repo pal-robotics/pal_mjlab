@@ -480,6 +480,9 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
+  # Any non-zero command will now generate movement
+  cfg.rewards["soft_landing"].params["command_threshold"] = 0.01
+
   ### TERRAIN
 
   # Custom terrain adapted to kangaroo capabilities
@@ -594,6 +597,19 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         {"step": 500 * 24, "weight": -1.0e-7},
         {"step": 1000 * 24, "weight": -1.0e-6},
         {"step": 2000 * 24, "weight": -1.0e-5},
+      ],
+    },
+  )
+
+  cfg.curriculum["soft_landing_weight"] = CurriculumTermCfg(
+    func=mdp.reward_curriculum,
+    params={
+      "reward_name": "soft_landing",
+      "stages": [
+        {"step": 0, "weight": -1.0e-5},
+        {"step": 500 * 24, "weight": -1.0e-4},
+        {"step": 1000 * 24, "weight": -1.0e-3},
+        {"step": 2000 * 24, "weight": -1.0e-2},
       ],
     },
   )
