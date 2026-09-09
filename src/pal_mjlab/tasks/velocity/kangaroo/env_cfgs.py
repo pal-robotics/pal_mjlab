@@ -471,6 +471,15 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     0.5
   )  # default, for ref
 
+  # Only the leg length to try to penalize stomping
+  cfg.rewards["leg_length_acc"] = RewardTermCfg(
+    func=mdp.joint_acc_l2,
+    weight=-1e-8,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_LEG_LENGTH_JOINTS_ONLY,))
+    },
+  )
+
   ### TERRAIN
 
   # Custom terrain adapted to kangaroo capabilities
@@ -546,7 +555,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # action_rate weight ramp: gentle smoothing while the gait bootstraps, then
   # tighten to -1.0 by iter 1500.
   cfg.curriculum["action_rate_weight"] = CurriculumTermCfg(
-    func=mdp.reward_weight,
+    func=mdp.reward_curriculum,
     params={
       "reward_name": "action_rate_l2",
       "weight_stages": [
@@ -572,6 +581,19 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         {"step": 1000 * 24, "rel_standing_envs": 0.15},
         {"step": 1500 * 24, "rel_standing_envs": 0.2},
         {"step": 2000 * 24, "rel_standing_envs": 0.25},
+      ],
+    },
+  )
+
+  cfg.curriculum["leg_length_acc_weight"] = CurriculumTermCfg(
+    func=mdp.reward_curriculum,
+    params={
+      "reward_name": "leg_length_acc",
+      "stages": [
+        {"step": 0, "weight": -1.0e-8},
+        {"step": 500 * 24, "weight": -1.0e-7},
+        {"step": 1000 * 24, "weight": -1.0e-6},
+        {"step": 2000 * 24, "weight": -1.0e-5},
       ],
     },
   )
