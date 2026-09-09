@@ -576,6 +576,13 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
+  # if play:
+  #   twist_cmd = cfg.commands["twist"]
+  #   assert isinstance(twist_cmd, mdp.UniformVelocityCommandWithTurningBucketCfg)
+  #   twist_cmd.rel_turn_in_place_envs = 0.0
+  #   twist_cmd.rel_standing_envs = 0.0
+  #   twist_cmd.rel_forward_envs = 1.0
+
   return cfg
 
 
