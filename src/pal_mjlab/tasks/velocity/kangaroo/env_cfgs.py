@@ -472,13 +472,13 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )  # default, for ref
 
   # Only the leg length to try to penalize stomping
-  cfg.rewards["leg_length_acc"] = RewardTermCfg(
-    func=mdp.joint_acc_l2,
-    weight=-1e-8,
-    params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_LEG_LENGTH_JOINTS_ONLY,))
-    },
-  )
+  # cfg.rewards["leg_length_acc"] = RewardTermCfg(
+  #   func=mdp.joint_acc_l2,
+  #   weight=-1e-8,
+  #   params={
+  #     "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_LEG_LENGTH_JOINTS_ONLY,))
+  #   },
+  # )
 
   # Any non-zero command will now generate movement
   cfg.rewards["soft_landing"].params["command_threshold"] = 0.01
@@ -588,18 +588,18 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
-  cfg.curriculum["leg_length_acc_weight"] = CurriculumTermCfg(
-    func=mdp.reward_curriculum,
-    params={
-      "reward_name": "leg_length_acc",
-      "stages": [
-        {"step": 0, "weight": -1.0e-8},
-        {"step": 500 * 24, "weight": -1.0e-7},
-        {"step": 1000 * 24, "weight": -1.0e-6},
-        {"step": 2000 * 24, "weight": -1.0e-5},
-      ],
-    },
-  )
+  # cfg.curriculum["leg_length_acc_weight"] = CurriculumTermCfg(
+  #   func=mdp.reward_curriculum,
+  #   params={
+  #     "reward_name": "leg_length_acc",
+  #     "stages": [
+  #       {"step": 0, "weight": -1.0e-8},
+  #       {"step": 500 * 24, "weight": -1.0e-7},
+  #       {"step": 1000 * 24, "weight": -1.0e-6},
+  #       {"step": 2000 * 24, "weight": -1.0e-5},
+  #     ],
+  #   },
+  # )
 
   cfg.curriculum["soft_landing_weight"] = CurriculumTermCfg(
     func=mdp.reward_curriculum,
