@@ -625,6 +625,14 @@ def pal_kangaroo_lower_body_flat_env_cfg(play: bool = False) -> ManagerBasedRlEn
   cfg.scene.entities = {"robot": get_kangaroo_lower_body_robot_cfg()}
 
   cfg.rewards["action_rate_l2"].weight = -0.2
+  cfg.rewards["upright"].weight = 1.5
+
+  # Adjust noise parameters for the lower body kangaroo
+  # These parameters worked for the microstrain IMU
+  cfg.observations["actor"].terms["imu_projected_gravity"] = Unoise(
+    n_min=-0.025, n_max=0.025
+  )
+  cfg.observations["actor"].terms["base_lin_acc"].noise = Unoise(n_min=-1.0, n_max=1.0)
 
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
