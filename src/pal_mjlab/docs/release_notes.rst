@@ -21,6 +21,13 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
+- **Lower-body-specific noise and reward-weight tuning.** The IMU
+  observation noise (``imu_projected_gravity``, ``base_lin_acc``) and the
+  ``upright`` reward weight are now overridden specifically for the
+  lower-body flat env config, tuned to match the microstrain IMU used on
+  that robot, instead of changing the shared baseline config's values.
+  (`#101 <https://github.com/pal-robotics/pal_mjlab/pull/101>`_)
+
 - **Actuator parameters are now easy to tune.** Motor gains, armature,
   friction and effort limits for each Kangaroo actuator were previously
   hard-coded inline; they are now grouped into named parameter blocks in
