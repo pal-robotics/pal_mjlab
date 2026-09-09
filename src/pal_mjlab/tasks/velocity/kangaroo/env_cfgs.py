@@ -423,7 +423,9 @@ def pal_kangaroo_lower_body_flat_env_cfg(play: bool = False) -> ManagerBasedRlEn
 
   # Adjust noise parameters for the lower body kangaroo
   # These parameters worked for the microstrain IMU
-  cfg.observations["actor"].terms["imu_projected_gravity"] = Unoise(n_min=-0.025, n_max=0.025)
+  cfg.observations["actor"].terms["imu_projected_gravity"] = Unoise(
+    n_min=-0.025, n_max=0.025
+  )
   cfg.observations["actor"].terms["base_lin_acc"].noise = Unoise(n_min=-1.0, n_max=1.0)
 
   joint_pos_action = cfg.actions["joint_pos"]
