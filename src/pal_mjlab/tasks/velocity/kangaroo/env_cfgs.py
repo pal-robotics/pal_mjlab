@@ -429,7 +429,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # Tightened from default so the reward stays discriminative at low command speeds
   # instead of flattening into a dead-zone.
   cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(0.1)
-  cfg.rewards["track_angular_velocity"].params["std"] = math.sqrt(0.1)
 
   ### EVENTS
 
