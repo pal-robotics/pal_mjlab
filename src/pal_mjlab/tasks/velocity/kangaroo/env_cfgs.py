@@ -497,7 +497,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.reward_curriculum,
     params={
       "reward_name": "action_rate_l2",
-      "weight_stages": [
+      "stages": [
         {"step": 0, "weight": -0.1},
         {"step": 500 * 24, "weight": -0.2},
         {"step": 750 * 24, "weight": -0.4},
@@ -550,16 +550,16 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   #   },
   # )
 
-  if play:
-    twist_cmd = cfg.commands["twist"]
-    assert isinstance(twist_cmd, mdp.UniformVelocityCommandWithTurningBucketCfg)
-    twist_cmd.rel_turn_in_place_envs = 0.0
-    twist_cmd.rel_standing_envs = 0.0
-    twist_cmd.rel_forward_envs = 1.0
+  # if play:
+  #   twist_cmd = cfg.commands["twist"]
+  #   assert isinstance(twist_cmd, mdp.UniformVelocityCommandWithTurningBucketCfg)
+  #   twist_cmd.rel_turn_in_place_envs = 0.0
+  #   twist_cmd.rel_standing_envs = 0.0
+  #   twist_cmd.rel_forward_envs = 1.0
 
-    del cfg.curriculum["action_rate_weight"]
-    del cfg.curriculum["standing_envs"]
-    del cfg.curriculum["soft_landing_weight"]
+  #   del cfg.curriculum["action_rate_weight"]
+  #   del cfg.curriculum["standing_envs"]
+  #   del cfg.curriculum["soft_landing_weight"]
 
   return cfg
 
