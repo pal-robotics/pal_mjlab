@@ -21,6 +21,13 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
+- **Removing custom height targets and weights for foot_swing_height and
+  foot_clearance rewards in Kangaroo rough velocity task.** Removing values
+  optimized for rough terrains consisting mainly of structured stairs (where
+  high clearance must be encouraged). Experimentally, it has been proven
+  that they slow down the training process while not improving any of the metrics.
+  (`#111 <https://github.com/pal-robotics/pal_mjlab/pull/111>`_)
+
 - **New rough-terrain velocity tasks for the Kangaroo (full and lower
   body).** Adds ``Mjlab-Velocity-Rough-Pal-Kangaroo`` and
   ``Mjlab-Velocity-Rough-Pal-Kangaroo-Lower-Body`` on top of the baseline
