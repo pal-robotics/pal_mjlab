@@ -408,14 +408,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### REWARDS
 
-  # Swing height: stronger to avoid dragging the feet
-  cfg.rewards["foot_swing_height"].weight = -0.5
-  cfg.rewards["foot_swing_height"].params["target_height"] = 0.15
-
-  # Target clearance when moving: conservatively high to avoid stumbling
-  # Experimentally, increasing its weight makes the robot unstable
-  cfg.rewards["foot_clearance"].params["target_height"] = 0.15
-
   # More human-like air time and stronger, specially important with obstacles
   cfg.rewards["air_time"].weight = 1.0
   cfg.rewards["air_time"].params["threshold_min"] = 0.2
