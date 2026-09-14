@@ -400,12 +400,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg = pal_kangaroo_baseline_env_cfg(play=play)
 
   # nconmax is the max number of contacts at runtime
-  cfg.sim.njmax = 300
   cfg.sim.nconmax = 300
-  cfg.sim.mujoco.iterations = 30
-  cfg.sim.mujoco.ls_iterations = 50
-  cfg.sim.mujoco.ccd_iterations = 50
-  cfg.sim.contact_sensor_maxmatch = 64
 
   # softer terrains
   cfg.scene.spec_fn = _soften_terrain_contacts
@@ -416,18 +411,18 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   del cfg.observations["actor"].terms["base_lin_acc"]
 
   # Observation noise configuration (edit these values as needed)
-  # cfg.observations["actor"].terms["base_ang_vel"].noise = Unoise(
-  #   n_min=-0.03, n_max=0.03
-  # )  # was 0.2
-  # cfg.observations["actor"].terms["imu_projected_gravity"].noise = Unoise(
-  #   n_min=-0.01, n_max=0.01
-  # )  # was 0.15
-  # cfg.observations["actor"].terms["joint_pos"].noise = Unoise(
-  #   n_min=-0.001, n_max=0.001
-  # )  # was 0.05
-  # cfg.observations["actor"].terms["joint_vel"].noise = Unoise(
-  #   n_min=-0.25, n_max=0.25
-  # )  # was 2.0
+  cfg.observations["actor"].terms["base_ang_vel"].noise = Unoise(
+    n_min=-0.03, n_max=0.03
+  )  # was 0.2
+  cfg.observations["actor"].terms["imu_projected_gravity"].noise = Unoise(
+    n_min=-0.01, n_max=0.01
+  )  # was 0.15
+  cfg.observations["actor"].terms["joint_pos"].noise = Unoise(
+    n_min=-0.001, n_max=0.001
+  )  # was 0.05
+  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(
+    n_min=-0.25, n_max=0.25
+  )  # was 2.0
 
   ### COMMANDS
 
@@ -466,17 +461,17 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     0.1
   )  # duck std, suitable for low velocity
 
-  # Only the leg length to try to penalize stomping
-  # cfg.rewards["leg_length_acc"] = RewardTermCfg(
-  #   func=mdp.joint_acc_l2,
-  #   weight=-1e-8,
-  #   params={
-  #     "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_LEG_LENGTH_JOINTS_ONLY,))
-  #   },
-  # )
-
-  # Any non-zero command will now generate movement, needs to be penalized
-  cfg.rewards["soft_landing"].params["command_threshold"] = 0.01
+  # One gate for every command-gated term, so the rewards stay consistent
+  command_gate = 0.01
+  for reward_name in [
+    "air_time",
+    "foot_clearance",
+    "foot_swing_height",
+    "foot_slip",
+    "soft_landing",
+  ]:
+    cfg.rewards[reward_name].params["command_threshold"] = command_gate
+  cfg.rewards["pose"].params["walking_threshold"] = command_gate
 
   ### TERRAIN
 
@@ -499,11 +494,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "reward_name": "action_rate_l2",
       "stages": [
         {"step": 0, "weight": -0.1},
-        {"step": 500 * 24, "weight": -0.2},
-        {"step": 750 * 24, "weight": -0.4},
-        {"step": 1000 * 24, "weight": -0.6},
-        {"step": 1250 * 24, "weight": -0.8},
-        {"step": 1500 * 24, "weight": -1.0},
+        {"step": 1000 * 24, "weight": -0.2},
+        {"step": 1500 * 24, "weight": -0.4},
+        {"step": 2000 * 24, "weight": -0.6},
+        {"step": 2500 * 24, "weight": -0.8},
+        {"step": 3000 * 24, "weight": -1.0},
       ],
     },
   )
@@ -515,40 +510,14 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "command_name": "twist",
       "standing_stages": [
         {"step": 0, "rel_standing_envs": 0.02},
-        {"step": 500 * 24, "rel_standing_envs": 0.05},
-        {"step": 750 * 24, "rel_standing_envs": 0.1},
-        {"step": 1000 * 24, "rel_standing_envs": 0.15},
-        {"step": 1500 * 24, "rel_standing_envs": 0.2},
-        {"step": 2000 * 24, "rel_standing_envs": 0.25},
+        {"step": 1000 * 24, "rel_standing_envs": 0.05},
+        {"step": 1500 * 24, "rel_standing_envs": 0.1},
+        {"step": 2000 * 24, "rel_standing_envs": 0.15},
+        {"step": 2500 * 24, "rel_standing_envs": 0.2},
+        {"step": 3000 * 24, "rel_standing_envs": 0.25},
       ],
     },
   )
-
-  # cfg.curriculum["leg_length_acc_weight"] = CurriculumTermCfg(
-  #   func=mdp.reward_curriculum,
-  #   params={
-  #     "reward_name": "leg_length_acc",
-  #     "stages": [
-  #       {"step": 0, "weight": -1.0e-8},
-  #       {"step": 500 * 24, "weight": -1.0e-7},
-  #       {"step": 1000 * 24, "weight": -1.0e-6},
-  #       {"step": 2000 * 24, "weight": -1.0e-5},
-  #     ],
-  #   },
-  # )
-
-  # cfg.curriculum["soft_landing_weight"] = CurriculumTermCfg(
-  #   func=mdp.reward_curriculum,
-  #   params={
-  #     "reward_name": "soft_landing",
-  #     "stages": [
-  #       {"step": 0, "weight": -1.0e-5},
-  #       {"step": 500 * 24, "weight": -1.0e-4},
-  #       {"step": 1000 * 24, "weight": -1.0e-3},
-  #       {"step": 2000 * 24, "weight": -1.0e-2},
-  #     ],
-  #   },
-  # )
 
   # if play:
   #   twist_cmd = cfg.commands["twist"]
