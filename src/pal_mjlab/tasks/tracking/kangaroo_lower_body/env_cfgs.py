@@ -114,6 +114,7 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
     "leg_right_4_link",
     "leg_right_5_link",
   )
+  motion_cmd.joint_position_range = (-0.05, 0.05)
 
   ## Rewards
   cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
