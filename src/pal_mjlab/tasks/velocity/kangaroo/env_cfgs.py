@@ -492,15 +492,15 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         height_merge_threshold=0.02,
         max_merge_distance=3,
       ),
-      # Crisp cm-scale height noise
-      "hf_noise": terrain_gen.HfRandomUniformTerrainCfg(
+      # Discrete obstacles
+      "hf_discrete_obstacles": terrain_gen.HfDiscreteObstaclesTerrainCfg(
         proportion=0.1,
-        noise_range=(0.02, 0.06),
-        noise_step=0.01,
-        horizontal_scale=0.1,
-        vertical_scale=0.005,
-        border_width=0.25,
-        scale_with_difficulty=True,  # the default (False) ignores the curriculum
+        obstacle_width_range=(0.3, 0.8),
+        obstacle_height_range=(0.01, 0.06),
+        num_obstacles=100,
+        platform_width=0.5,
+        border_width=0.1,
+        base_thickness_ratio=0.5,
       ),
       # Natural ondulation fractal noise
       "perlin_noise": terrain_gen.HfPerlinNoiseTerrainCfg(
