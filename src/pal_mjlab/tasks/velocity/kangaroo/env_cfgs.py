@@ -439,7 +439,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   assert cfg.scene.terrain.terrain_generator is not None
   cfg.scene.terrain.terrain_type = "generator"
   cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
-    size=(3.0, 3.0),
+    size=(4.0, 4.0),
     num_rows=12,
     border_width=20.0,
     curriculum=True,  # one column per sub-terrain; num_cols is ignored
