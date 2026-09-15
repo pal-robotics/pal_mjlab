@@ -261,7 +261,7 @@ class MotionCommand(CommandTerm):
     self._ghost_color = np.array(cfg.viz.ghost_color, dtype=np.float32)
     self._pending_forward = False
 
-    self.rand_motion = torch.randint(0, self.motion.num_trajectories, self.num_envs, device=self.device)
+    self.rand_motion = torch.randint(0, self.motion.num_trajectories, (self.num_envs,), device=self.device)
 
 
   @property
