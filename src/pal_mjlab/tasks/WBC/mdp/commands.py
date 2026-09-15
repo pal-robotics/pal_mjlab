@@ -389,47 +389,113 @@ class MotionCommand(CommandTerm):
     )
 
   def _adaptive_sampling(self, env_ids: torch.Tensor):
-    episode_failed = self._env.termination_manager.terminated[env_ids]
-    if torch.any(episode_failed):
-      current_bin_index = torch.clamp(
-        (self.time_steps * self.bin_count) // max(self.motion.time_step_total, 1),
-        0,
-        self.bin_count - 1,
-      )
-      fail_bins = current_bin_index[env_ids][episode_failed]
-      self._current_bin_failed[:] = torch.bincount(fail_bins, minlength=self.bin_count)
+    num_envs = len(env_ids)
 
-    # Sample.
+    episode_failed = self._env.termination_manager.terminated[env_ids]
+
+    if torch.any(episode_failed):
+        failed_env_ids = env_ids[episode_failed]
+
+        motion_ids = self.rand_motion[failed_env_ids]
+        start = self.motion.segment_start_idx[motion_ids]
+        end = self.motion.segment_end_idx[motion_ids]
+
+        # Progress in [0, 1].
+        duration = torch.clamp(end - start, min=1)
+        progress = (
+            (self.time_steps[failed_env_ids] - start).float()
+            / duration.float()
+        ).clamp(0.0, 1.0)
+
+        fail_bins = torch.clamp(
+            (progress * self.bin_count).long(),
+            0,
+            self.bin_count - 1,
+        )
+
+        self._current_bin_failed[:] = torch.bincount(
+            fail_bins,
+            minlength=self.bin_count,
+        )
+
     sampling_probabilities = (
-      self.bin_failed_count + self.cfg.adaptive_uniform_ratio / float(self.bin_count)
+        self.bin_failed_count
+        + self.cfg.adaptive_uniform_ratio / float(self.bin_count)
     )
+
+    # Smooth probabilities with the adaptive kernel.
     sampling_probabilities = torch.nn.functional.pad(
-      sampling_probabilities.unsqueeze(0).unsqueeze(0),
-      (0, self.cfg.adaptive_kernel_size - 1),  # Non-causal kernel
-      mode="replicate",
+        sampling_probabilities.unsqueeze(0).unsqueeze(0),
+        (0, self.cfg.adaptive_kernel_size - 1),
+        mode="replicate",
     )
+
     sampling_probabilities = torch.nn.functional.conv1d(
-      sampling_probabilities, self.kernel.view(1, 1, -1)
+        sampling_probabilities,
+        self.kernel.view(1, 1, -1),
     ).view(-1)
 
-    sampling_probabilities = sampling_probabilities / sampling_probabilities.sum()
+    sampling_probabilities = (
+        sampling_probabilities
+        / sampling_probabilities.sum().clamp_min(1e-12)
+    )
+
+    self.rand_motion[env_ids] = torch.randint(
+        0,
+        self.motion.num_trajectories,
+        (num_envs,),
+        device=self.device,
+    )
+
+    motion_ids = self.rand_motion[env_ids]
+
+    start = self.motion.segment_start_idx[motion_ids]
+    end = self.motion.segment_end_idx[motion_ids]
 
     sampled_bins = torch.multinomial(
-      sampling_probabilities, len(env_ids), replacement=True
+        sampling_probabilities,
+        num_envs,
+        replacement=True,
     )
+
+    phase = (
+        sampled_bins.float()
+        + torch.rand(num_envs, device=self.device)
+    ) / self.bin_count
+
+    phase = phase.clamp(0.0, 1.0 - 1e-6)
+
+    # Map normalized phase -> trajectory's actual frame range.
     self.time_steps[env_ids] = (
-      (sampled_bins + sample_uniform(0.0, 1.0, (len(env_ids),), device=self.device))
-      / self.bin_count
-      * (self.motion.time_step_total - 1)
+        start
+        + phase * (end - start).clamp_min(1).float()
     ).long()
 
-    # Update metrics.
-    H = -(sampling_probabilities * (sampling_probabilities + 1e-12).log()).sum()
-    H_norm = H / math.log(self.bin_count) if self.bin_count > 1 else 1.0
+    # Make absolutely sure indices stay valid.
+    self.time_steps[env_ids] = torch.minimum(
+        self.time_steps[env_ids],
+        end - 1,
+    )
+
+    H = -(
+        sampling_probabilities
+        * (sampling_probabilities + 1e-12).log()
+    ).sum()
+
+    H_norm = (
+        H / math.log(self.bin_count)
+        if self.bin_count > 1
+        else 1.0
+    )
+
     pmax, imax = sampling_probabilities.max(dim=0)
+
     self.metrics["sampling_entropy"][:] = H_norm
     self.metrics["sampling_top1_prob"][:] = pmax
-    self.metrics["sampling_top1_bin"][:] = imax.float() / self.bin_count
+    self.metrics["sampling_top1_bin"][:] = (
+        imax.float() / self.bin_count
+    )
+
 
   def _uniform_sampling(self, env_ids: torch.Tensor):
     self.rand_motion[env_ids] = torch.randint(0, self.motion.num_trajectories, (len(env_ids),), device=self.device)
