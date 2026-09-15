@@ -382,6 +382,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # nconmax is the max number of contacts at runtime
   cfg.sim.nconmax = 300
+  cfg.sim.njmax = 300  # This is a reduction
 
   # softer terrains
   cfg.scene.spec_fn = _soften_terrain_contacts
@@ -391,23 +392,20 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # Most actors in SOTA do not see base lin acc
   del cfg.observations["actor"].terms["base_lin_acc"]
 
-  # Observation noise configuration (edit these values as needed)
+  # Observation noise configuration naively from duck profile
+  # Experimentally it looks like the robot is more reactive with them
   cfg.observations["actor"].terms["base_ang_vel"].noise = Unoise(
     n_min=-0.03, n_max=0.03
-  )  # was 0.2
+  )
   cfg.observations["actor"].terms["imu_projected_gravity"].noise = Unoise(
     n_min=-0.01, n_max=0.01
-  )  # was 0.15
-  # cfg.observations["actor"].terms["joint_pos"].noise = Unoise(
-  #   n_min=-0.001, n_max=0.001
-  # )  # was 0.05
-  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(
-    n_min=-0.25, n_max=0.25
-  )  # was 2.0
+  )
+  cfg.observations["actor"].terms["joint_pos"].noise = Unoise(n_min=-0.001, n_max=0.001)
+  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.25, n_max=0.25)
 
   ### COMMANDS
 
-  # Delete the speed curriculum altogether, the initial task is enough
+  # Delete the speed curriculum altogether, the initial task is learnable and enough
   del cfg.curriculum["command_vel"]
 
   # Low vel task, only different is that with this command there's a turn in place bucket
@@ -456,21 +454,20 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### TERRAIN
 
-  # Custom 3x3 m terrain aimed at unstructured traversal. Deliberately no ramps,
-  # no waves and no rounded surfaces; stairs are present but capped at 20% of the
-  # spawns so the policy is not biased toward structured geometry.
   assert cfg.scene.terrain is not None
-  terrain_generator = TerrainGeneratorCfg(
-    size=(3.0, 3.0),
+  assert cfg.scene.terrain.terrain_generator is not None
+  cfg.scene.terrain.terrain_type = "generator"
+  cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
+    size=(4.0, 4.0),
     num_rows=12,
     border_width=20.0,
     curriculum=True,  # one column per sub-terrain; num_cols is ignored
     add_lights=False,
     sub_terrains={
-      "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.08),
+      "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.1),
       # Fine gravel-like ground: many tiny boxes scattered over a floor.
       "pebbles": terrain_gen.BoxRandomSpreadTerrainCfg(
-        proportion=0.15,
+        proportion=0.1,
         num_boxes=350,
         box_width_range=(0.02, 0.05),
         box_length_range=(0.02, 0.05),
@@ -482,7 +479,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
       # Sparse medium obstacles to step over / around.
       "random_boxes": terrain_gen.BoxRandomSpreadTerrainCfg(
-        proportion=0.15,
+        proportion=0.1,
         num_boxes=30,
         box_width_range=(0.2, 0.6),
         box_length_range=(0.2, 0.6),
@@ -496,7 +493,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "random_grid_fine": terrain_gen.BoxRandomGridTerrainCfg(
         proportion=0.15,
         grid_width=0.25,
-        grid_height_range=(0.005, 0.04),
+        grid_height_range=(0.01, 0.04),
         platform_width=0.6,
         border_width=0.25,
         merge_similar_heights=True,
@@ -514,47 +511,45 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         height_merge_threshold=0.02,
         max_merge_distance=3,
       ),
-      # Crisp cm-scale height noise: downsampled_scale is left at its default
-      # (== horizontal_scale) so each cell is independently random and the
-      # surface comes out sharp rather than a smooth rolling undulation.
-      # Keep horizontal_scale at mjlab's 0.1 default: finer cells make MuJoCo's
-      # 50-collision-per-pair hfield overflow warning fire much more often.
-      "hf_noise": terrain_gen.HfRandomUniformTerrainCfg(
-        proportion=0.12,
-        noise_range=(0.01, 0.06),
-        noise_step=0.01,
-        horizontal_scale=0.1,
-        vertical_scale=0.005,
-        border_width=0.25,
-        scale_with_difficulty=True,  # the default (False) ignores the curriculum
+      # Discrete obstacles
+      "hf_discrete_obstacles": terrain_gen.HfDiscreteObstaclesTerrainCfg(
+        proportion=0.1,
+        obstacle_width_range=(0.3, 0.8),
+        obstacle_height_range=(0.01, 0.06),
+        num_obstacles=100,
+        platform_width=0.5,
+        border_width=0.1,
+        base_thickness_ratio=0.5,
+      ),
+      # Natural ondulation fractal noise
+      "perlin_noise": terrain_gen.HfPerlinNoiseTerrainCfg(
+        proportion=0.1, height_range=(0.02, 0.2)
       ),
       # Basic stairs, one ascending + one descending.
       "stairs_up": terrain_gen.BoxPyramidStairsTerrainCfg(
-        proportion=0.10,
-        step_height_range=(0.03, 0.1),
+        proportion=0.1,
+        step_height_range=(0.02, 0.1),
         step_width=0.35,
         platform_width=0.6,
         border_width=0.1,
       ),
       "stairs_down": terrain_gen.BoxInvertedPyramidStairsTerrainCfg(
-        proportion=0.10,
-        step_height_range=(0.03, 0.1),
+        proportion=0.1,
+        step_height_range=(0.02, 0.1),
         step_width=0.35,
         platform_width=0.6,
         border_width=0.1,
       ),
     },
   )
-  cfg.scene.terrain.terrain_type = "generator"
-  cfg.scene.terrain.terrain_generator = terrain_generator
 
   # The baseline play block configures the inherited generator, which we just
   # replaced, so re-apply those overrides here.
-  if play:
-    terrain_generator.curriculum = False
-    terrain_generator.num_rows = 5
-    terrain_generator.num_cols = 5
-    terrain_generator.border_width = 10.0
+  # if play:
+  #   terrain_generator.curriculum = False
+  #   terrain_generator.num_rows = 5
+  #   terrain_generator.num_cols = 5
+  #   terrain_generator.border_width = 10.0
 
   ### CURRICULUM
 
