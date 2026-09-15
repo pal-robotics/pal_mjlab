@@ -2,6 +2,7 @@
 
 import math
 
+import mjlab.terrains as terrain_gen
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -22,11 +23,6 @@ from mjlab.sensor import (
 )
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
-from mjlab.terrains.config import (
-  flat,
-  pyramid_stairs_inv,
-  random_spread_boxes,
-)
 from mjlab.terrains.terrain_generator import TerrainGeneratorCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
@@ -443,71 +439,86 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   assert cfg.scene.terrain.terrain_generator is not None
   cfg.scene.terrain.terrain_type = "generator"
   cfg.scene.terrain.terrain_generator = TerrainGeneratorCfg(
-    size=(3.0, 3.0),
+    size=(4.0, 4.0),
     num_rows=12,
-    num_cols=10,
     border_width=20.0,
-    curriculum=True,
+    curriculum=True,  # one column per sub-terrain; num_cols is ignored
+    add_lights=False,
     sub_terrains={
-      "flat": flat(proportion=0.1),
-      "pebbles": random_spread_boxes(
+      "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.1),
+      # Fine gravel-like ground: many tiny boxes scattered over a floor.
+      "pebbles": terrain_gen.BoxRandomSpreadTerrainCfg(
         proportion=0.1,
         num_boxes=350,
         box_width_range=(0.02, 0.05),
         box_length_range=(0.02, 0.05),
         box_height_range=(0.02, 0.05),
-        platform_width=0.5,
+        box_yaw_range=(0.0, 360.0),
+        add_floor=True,
+        platform_width=0.6,
         border_width=0.0,
       ),
-      "random_obstacles": random_spread_boxes(
-        proportion=0.2,
+      # Sparse medium obstacles to step over / around.
+      "random_boxes": terrain_gen.BoxRandomSpreadTerrainCfg(
+        proportion=0.1,
         num_boxes=30,
         box_width_range=(0.2, 0.6),
         box_length_range=(0.2, 0.6),
-        box_height_range=(0.02, 0.06),
-        platform_width=0.5,
+        box_height_range=(0.02, 0.12),
+        box_yaw_range=(0.0, 360.0),
+        add_floor=True,
+        platform_width=0.6,
         border_width=0.0,
       ),
-      "easy_stairs_30": pyramid_stairs_inv(
+      # Fine uneven ground: small cells, low relief.
+      "random_grid_fine": terrain_gen.BoxRandomGridTerrainCfg(
+        proportion=0.15,
+        grid_width=0.25,
+        grid_height_range=(0.01, 0.04),
+        platform_width=0.6,
+        border_width=0.25,
+        merge_similar_heights=True,
+        height_merge_threshold=0.01,
+        max_merge_distance=3,
+      ),
+      # Coarse uneven ground: foot-sized cells, larger steps between them.
+      "random_grid_coarse": terrain_gen.BoxRandomGridTerrainCfg(
+        proportion=0.15,
+        grid_width=0.5,
+        grid_height_range=(0.01, 0.07),
+        platform_width=0.6,
+        border_width=0.25,
+        merge_similar_heights=True,
+        height_merge_threshold=0.02,
+        max_merge_distance=3,
+      ),
+      # Discrete obstacles
+      "hf_discrete_obstacles": terrain_gen.HfDiscreteObstaclesTerrainCfg(
         proportion=0.1,
-        step_height_range=(0.05, 0.1),
-        step_width=0.3,
+        obstacle_width_range=(0.3, 0.8),
+        obstacle_height_range=(0.01, 0.06),
+        num_obstacles=100,
         platform_width=0.5,
         border_width=0.1,
+        base_thickness_ratio=0.5,
       ),
-      "mid_stairs_30": pyramid_stairs_inv(
+      # Natural ondulation fractal noise
+      "perlin_noise": terrain_gen.HfPerlinNoiseTerrainCfg(
+        proportion=0.1, height_range=(0.02, 0.2)
+      ),
+      # Basic stairs, one ascending + one descending.
+      "stairs_up": terrain_gen.BoxPyramidStairsTerrainCfg(
         proportion=0.1,
-        step_height_range=(0.1, 0.15),
-        step_width=0.3,
-        platform_width=0.5,
+        step_height_range=(0.02, 0.1),
+        step_width=0.35,
+        platform_width=0.6,
         border_width=0.1,
       ),
-      "easy_stairs_40": pyramid_stairs_inv(
+      "stairs_down": terrain_gen.BoxInvertedPyramidStairsTerrainCfg(
         proportion=0.1,
-        step_height_range=(0.05, 0.1),
-        step_width=0.4,
-        platform_width=0.5,
-        border_width=0.1,
-      ),
-      "mid_stairs_40": pyramid_stairs_inv(
-        proportion=0.1,
-        step_height_range=(0.1, 0.15),
-        step_width=0.4,
-        platform_width=0.5,
-        border_width=0.1,
-      ),
-      "easy_stairs_50": pyramid_stairs_inv(
-        proportion=0.1,
-        step_height_range=(0.05, 0.1),
-        step_width=0.5,
-        platform_width=0.5,
-        border_width=0.1,
-      ),
-      "mid_stairs_50": pyramid_stairs_inv(
-        proportion=0.1,
-        step_height_range=(0.1, 0.15),
-        step_width=0.5,
-        platform_width=0.5,
+        step_height_range=(0.02, 0.1),
+        step_width=0.35,
+        platform_width=0.6,
         border_width=0.1,
       ),
     },
