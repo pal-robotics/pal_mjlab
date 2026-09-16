@@ -53,3 +53,6 @@ testpaths = ["tests"]
 filterwarnings = [
     "ignore::DeprecationWarning:torch.jit._script",
 ]
+
+[project.scripts]
+play_wbc = "pal_mjlab.scripts.play_wbc:main"

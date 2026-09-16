@@ -496,6 +496,9 @@ class MotionCommand(CommandTerm):
         imax.float() / self.bin_count
     )
 
+  def _random_start_sampling(self, env_ids: torch.Tensor):
+    self.rand_motion[env_ids] = torch.randint(0, self.motion.num_trajectories, (len(env_ids),), device=self.device)
+    self.time_steps[env_ids] = self.motion.segment_start_idx[self.rand_motion]
 
   def _uniform_sampling(self, env_ids: torch.Tensor):
     self.rand_motion[env_ids] = torch.randint(0, self.motion.num_trajectories, (len(env_ids),), device=self.device)
@@ -527,7 +530,7 @@ class MotionCommand(CommandTerm):
 
   def _resample_command(self, env_ids: torch.Tensor):
     if self.cfg.sampling_mode == "start":
-      self.time_steps[env_ids] = 0
+      self._random_start_sampling(env_ids)
     elif self.cfg.sampling_mode == "uniform":
       self._uniform_sampling(env_ids)
     else:
