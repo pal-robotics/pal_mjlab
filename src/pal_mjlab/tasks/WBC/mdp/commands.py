@@ -523,9 +523,9 @@ class MotionCommand(CommandTerm):
 
     pmax, imax = sampling_probabilities.max(dim=0)
 
-    self.metrics["sampling_entropy"][:] = H_norm
-    self.metrics["sampling_top1_prob"][:] = pmax
-    self.metrics["sampling_top1_bin"][:] = (
+    self.metrics["sampling_entropy"][env_ids] = H_norm
+    self.metrics["sampling_top1_prob"][env_ids] = pmax
+    self.metrics["sampling_top1_bin"][env_ids] = (
         imax.float() / self.bin_count
     )
 
@@ -550,9 +550,9 @@ class MotionCommand(CommandTerm):
     )
     
     # 4. Update metrics
-    self.metrics["sampling_entropy"][:] = 1.0  # Maximum entropy for uniform.
-    self.metrics["sampling_top1_prob"][:] = 1.0 / self.bin_count
-    self.metrics["sampling_top1_bin"][:] = 0.5  # No specific bin preference.
+    self.metrics["sampling_entropy"][env_ids] = 1.0  # Maximum entropy for uniform.
+    self.metrics["sampling_top1_prob"][env_ids] = 1.0 / self.bin_count
+    self.metrics["sampling_top1_bin"][env_ids] = 0.5  # No specific bin preference.
 
   def _write_reference_state_to_sim(
     self,
