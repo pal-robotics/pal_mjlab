@@ -55,6 +55,11 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"command_name": "motion"},
       noise=Unoise(n_min=(-0.1, -0.1, -0.05), n_max=(0.1, 0.1, 0.05)),
     ),
+    "ref_base_ang_vel_b": ObservationTermCfg(
+      func=mdp.ref_base_ang_vel_b,
+      params={"command_name": "motion"},
+      noise=Unoise(n_min=(-0.2, -0.2, -0.3), n_max=(0.2, 0.2, 0.3)),
+    ),
     "ref_gravity_b": ObservationTermCfg(
       func=mdp.ref_gravity_b,
       params={"command_name": "motion"},
@@ -86,7 +91,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"biased": True},
     ),
     "joint_vel": ObservationTermCfg(
-      func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.5, n_max=0.5)
+      func=mdp.joint_vel_rel, noise=Unoise(n_min=-1.5, n_max=1.5)
     ),
     "actions": ObservationTermCfg(func=mdp.last_action),
   }
