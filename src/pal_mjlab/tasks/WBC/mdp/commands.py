@@ -199,6 +199,10 @@ class MotionLoader:
 
         self.time_step_total = max(tsl for tsl in time_step)
 
+        self.trajectory_probs = (
+          self.segment_length.float() / self.segment_length.sum().float()
+        ).to(device=device)
+
 class MotionCommand(CommandTerm):
   cfg: MotionCommandCfg
   _env: ManagerBasedRlEnv
@@ -262,7 +266,9 @@ class MotionCommand(CommandTerm):
     self._ghost_color = np.array(cfg.viz.ghost_color, dtype=np.float32)
     self._pending_forward = False
 
-    self.rand_motion = torch.randint(0, self.motion.num_trajectories, (self.num_envs,), device=self.device)
+    self.rand_motion = torch.multinomial(
+      self.motion.trajectory_probs, self.num_envs, replacement=True
+    )
 
 
   @property
@@ -468,11 +474,10 @@ class MotionCommand(CommandTerm):
         / sampling_probabilities.sum().clamp_min(1e-12)
     )
 
-    self.rand_motion[env_ids] = torch.randint(
-        0,
-        self.motion.num_trajectories,
-        (num_envs,),
-        device=self.device,
+    self.rand_motion[env_ids] = torch.multinomial(
+        self.motion.trajectory_probs,
+        num_envs,
+        replacement=True,
     )
 
     motion_ids = self.rand_motion[env_ids]
@@ -529,8 +534,10 @@ class MotionCommand(CommandTerm):
   def _uniform_sampling(self, env_ids: torch.Tensor):
     num_envs = len(env_ids)
     
-    rand_motion = torch.randint(
-        0, self.motion.num_trajectories, (num_envs,), device=self.device
+    rand_motion = torch.multinomial(
+        self.motion.trajectory_probs, 
+        num_envs, 
+        replacement=True
     )
     self.rand_motion[env_ids] = rand_motion
     
