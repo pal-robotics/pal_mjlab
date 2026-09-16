@@ -21,7 +21,7 @@ from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.scene import SceneCfg
 from mjlab.sim import MujocoCfg, SimulationCfg
-from mjlab.tasks.tracking import mdp
+from pal_mjlab.tasks.WBC import mdp
 from pal_mjlab.tasks.WBC.mdp import MotionCommandCfg
 from mjlab.terrains import TerrainEntityCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
@@ -45,28 +45,40 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
 
   actor_terms = {
-    "command": ObservationTermCfg(
-      func=mdp.generated_commands, params={"command_name": "motion"}
-    ),
-    "motion_anchor_pos_b": ObservationTermCfg(
-      func=mdp.motion_anchor_pos_b,
+    "ref_base_height": ObservationTermCfg(
+      func=mdp.ref_base_height,
       params={"command_name": "motion"},
-      noise=Unoise(n_min=-0.25, n_max=0.25),
+      noise=Unoise(n_min=-0.01, n_max=0.01),
     ),
-    "motion_anchor_ori_b": ObservationTermCfg(
-      func=mdp.motion_anchor_ori_b,
+    "ref_base_lin_vel_b": ObservationTermCfg(
+      func=mdp.ref_base_lin_vel_b,
+      params={"command_name": "motion"},
+      noise=Unoise(n_min=(-0.1, -0.1, -0.05), n_max=(0.1, 0.1, 0.05)),
+    ),
+    "ref_gravity_b": ObservationTermCfg(
+      func=mdp.ref_gravity_b,
+      params={"command_name": "motion"},
+      noise=Unoise(n_min=-0.02, n_max=0.02),
+    ),
+    "ref_joint_pos": ObservationTermCfg(
+      func=mdp.ref_joint_pos,
       params={"command_name": "motion"},
       noise=Unoise(n_min=-0.05, n_max=0.05),
     ),
-    "base_lin_vel": ObservationTermCfg(
-      func=mdp.builtin_sensor,
-      params={"sensor_name": "robot/imu_lin_vel"},
-      noise=Unoise(n_min=-0.5, n_max=0.5),
+    "ref_joint_vel": ObservationTermCfg(
+      func=mdp.ref_joint_vel,
+      params={"command_name": "motion"},
+      noise=Unoise(n_min=-0.25, n_max=0.25),
     ),
     "base_ang_vel": ObservationTermCfg(
       func=mdp.builtin_sensor,
       params={"sensor_name": "robot/imu_ang_vel"},
       noise=Unoise(n_min=-0.2, n_max=0.2),
+    ),
+    "imu_projected_gravity": ObservationTermCfg(
+        func=mdp.imu_projected_gravity,
+        params={"sensor_name": "robot/imu_quat"},
+        noise=Unoise(n_min=-0.05, n_max=0.05),
     ),
     "joint_pos": ObservationTermCfg(
       func=mdp.joint_pos_rel,
@@ -80,9 +92,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   }
 
   critic_terms = {
-    "command": ObservationTermCfg(
-      func=mdp.generated_commands, params={"command_name": "motion"}
-    ),
+    **actor_terms,
     "motion_anchor_pos_b": ObservationTermCfg(
       func=mdp.motion_anchor_pos_b, params={"command_name": "motion"}
     ),
@@ -99,11 +109,20 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.builtin_sensor, params={"sensor_name": "robot/imu_lin_vel"}
     ),
     "base_ang_vel": ObservationTermCfg(
-      func=mdp.builtin_sensor, params={"sensor_name": "robot/imu_ang_vel"}
+      func=mdp.builtin_sensor,
+      params={"sensor_name": "robot/imu_ang_vel"},
     ),
-    "joint_pos": ObservationTermCfg(func=mdp.joint_pos_rel),
-    "joint_vel": ObservationTermCfg(func=mdp.joint_vel_rel),
-    "actions": ObservationTermCfg(func=mdp.last_action),
+    "imu_projected_gravity": ObservationTermCfg(
+      func=mdp.imu_projected_gravity,
+      noise=Unoise(n_min=-0.05, n_max=0.05),
+    ),
+    "joint_pos": ObservationTermCfg(
+      func=mdp.joint_pos_rel,
+      params={"biased": True},
+    ),
+    "joint_vel": ObservationTermCfg(
+      func=mdp.joint_vel_rel,
+    ),
   }
 
   observations = {
