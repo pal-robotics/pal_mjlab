@@ -442,23 +442,26 @@ class MotionCommand(CommandTerm):
             self.bin_count - 1,
         )
 
-        self._current_bin_failed[:] = torch.bincount(
+        # Accumulate bincount as float matching the target tensor device/dtype
+        self._current_bin_failed += torch.bincount(
             fail_bins,
             minlength=self.bin_count,
-        )
+        ).to(dtype=self._current_bin_failed.dtype)
 
     sampling_probabilities = (
         self.bin_failed_count
         + self.cfg.adaptive_uniform_ratio / float(self.bin_count)
     )
 
-    # Smooth probabilities with the adaptive kernel.
+    # 2. Symmetric padding for 1D convolution smoothing
+    pad_size = (self.cfg.adaptive_kernel_size - 1) // 2
     sampling_probabilities = torch.nn.functional.pad(
         sampling_probabilities.unsqueeze(0).unsqueeze(0),
-        (0, self.cfg.adaptive_kernel_size - 1),
+        (pad_size, pad_size),
         mode="replicate",
     )
 
+    # 3. Apply kernel and normalize
     sampling_probabilities = torch.nn.functional.conv1d(
         sampling_probabilities,
         self.kernel.view(1, 1, -1),
@@ -469,6 +472,7 @@ class MotionCommand(CommandTerm):
         / sampling_probabilities.sum().clamp_min(1e-12)
     )
 
+    # 4. Trajectory sampling
     self.rand_motion[env_ids] = torch.randint(
         0,
         self.motion.num_trajectories,
@@ -494,18 +498,18 @@ class MotionCommand(CommandTerm):
 
     phase = phase.clamp(0.0, 1.0 - 1e-6)
 
-    # Map normalized phase -> trajectory's actual frame range.
-    self.time_steps[env_ids] = (
-        start
-        + phase * (end - start).clamp_min(1).float()
-    ).long()
-
-    # Make absolutely sure indices stay valid.
-    self.time_steps[env_ids] = torch.minimum(
-        self.time_steps[env_ids],
-        end - 1,
+    # 5. Continuous phase mapping to frame range
+    segment_length = (end - start).clamp_min(1)
+    frame_offset = (phase * segment_length.float()).long()
+    frame_offset = torch.clamp(
+        frame_offset, 
+        min=torch.zeros_like(segment_length), 
+        max=segment_length - 1
     )
+    
+    self.time_steps[env_ids] = start + frame_offset
 
+    # 6. Metrics calculation
     H = -(
         sampling_probabilities
         * (sampling_probabilities + 1e-12).log()
@@ -530,10 +534,22 @@ class MotionCommand(CommandTerm):
     self.time_steps[env_ids] = self.motion.segment_start_idx[self.rand_motion]
 
   def _uniform_sampling(self, env_ids: torch.Tensor):
-    self.rand_motion[env_ids] = torch.randint(0, self.motion.num_trajectories, (len(env_ids),), device=self.device)
-    self.time_steps[env_ids] = torch.randint(
-      self.motion.segment_start_idx[self.rand_motion], self.motion.segment_end_idx[self.rand_motion], (len(env_ids),), device=self.device
+    num_envs = len(env_ids)
+    
+    rand_motion = torch.randint(
+        0, self.motion.num_trajectories, (num_envs,), device=self.device
     )
+    self.rand_motion[env_ids] = rand_motion
+    
+    start_idxs = self.motion.segment_start_idx[rand_motion]
+    end_idxs = self.motion.segment_end_idx[rand_motion]
+    
+    rand_float = torch.rand(num_envs, device=self.device)
+    self.time_steps[env_ids] = (
+        start_idxs + (rand_float * (end_idxs - start_idxs)).to(torch.long)
+    )
+    
+    # 4. Update metrics
     self.metrics["sampling_entropy"][:] = 1.0  # Maximum entropy for uniform.
     self.metrics["sampling_top1_prob"][:] = 1.0 / self.bin_count
     self.metrics["sampling_top1_bin"][:] = 0.5  # No specific bin preference.
@@ -827,12 +843,9 @@ class MotionCommand(CommandTerm):
     return True
 
   def reset_to_frame(self, env_ids: torch.Tensor, frame: int) -> None:
-    """Reset to exact reference state at a specific frame.
-
-    Like ``_resample_command`` but deterministic: no random
-    perturbations to pose, velocity, or joint positions.
-    """
-    self.time_steps[env_ids] = frame
+    start = self.motion.segment_start_idx[self.rand_motion[env_ids]]
+    end = self.motion.segment_end_idx[self.rand_motion[env_ids]]
+    self.time_steps[env_ids] = torch.clamp(start + frame, min=start, max=end - 1)
     self._write_reference_state_to_sim(
       env_ids,
       self.body_pos_w[env_ids, 0],
