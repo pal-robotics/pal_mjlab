@@ -228,17 +228,17 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "motion_global_root_pos": RewardTermCfg(
       func=mdp.motion_global_anchor_position_error_exp,
       weight=0.5,
-      params={"command_name": "motion", "std": 0.3},
+      params={"command_name": "motion", "std": 0.5},
     ),
     "motion_global_root_ori": RewardTermCfg(
       func=mdp.motion_global_anchor_orientation_error_exp,
-      weight=0.5,
+      weight=1.0,
       params={"command_name": "motion", "std": 0.4},
     ),
     "motion_body_pos": RewardTermCfg(
       func=mdp.motion_relative_body_position_error_exp,
-      weight=1.0,
-      params={"command_name": "motion", "std": 0.3},
+      weight=1.5,
+      params={"command_name": "motion", "std": 0.15},
     ),
     "motion_body_ori": RewardTermCfg(
       func=mdp.motion_relative_body_orientation_error_exp,
