@@ -429,7 +429,6 @@ class MotionCommand(CommandTerm):
         start = self.motion.segment_start_idx[motion_ids]
         end = self.motion.segment_end_idx[motion_ids]
 
-        # Progress in [0, 1].
         duration = torch.clamp(end - start, min=1)
         progress = (
             (self.time_steps[failed_env_ids] - start).float()
@@ -442,7 +441,6 @@ class MotionCommand(CommandTerm):
             self.bin_count - 1,
         )
 
-        # Accumulate bincount as float matching the target tensor device/dtype
         self._current_bin_failed += torch.bincount(
             fail_bins,
             minlength=self.bin_count,
@@ -453,7 +451,6 @@ class MotionCommand(CommandTerm):
         + self.cfg.adaptive_uniform_ratio / float(self.bin_count)
     )
 
-    # 2. Symmetric padding for 1D convolution smoothing
     pad_size = (self.cfg.adaptive_kernel_size - 1) // 2
     sampling_probabilities = torch.nn.functional.pad(
         sampling_probabilities.unsqueeze(0).unsqueeze(0),
@@ -461,7 +458,6 @@ class MotionCommand(CommandTerm):
         mode="replicate",
     )
 
-    # 3. Apply kernel and normalize
     sampling_probabilities = torch.nn.functional.conv1d(
         sampling_probabilities,
         self.kernel.view(1, 1, -1),
@@ -472,7 +468,6 @@ class MotionCommand(CommandTerm):
         / sampling_probabilities.sum().clamp_min(1e-12)
     )
 
-    # 4. Trajectory sampling
     self.rand_motion[env_ids] = torch.randint(
         0,
         self.motion.num_trajectories,
@@ -498,7 +493,6 @@ class MotionCommand(CommandTerm):
 
     phase = phase.clamp(0.0, 1.0 - 1e-6)
 
-    # 5. Continuous phase mapping to frame range
     segment_length = (end - start).clamp_min(1)
     frame_offset = (phase * segment_length.float()).long()
     frame_offset = torch.clamp(
@@ -509,7 +503,6 @@ class MotionCommand(CommandTerm):
     
     self.time_steps[env_ids] = start + frame_offset
 
-    # 6. Metrics calculation
     H = -(
         sampling_probabilities
         * (sampling_probabilities + 1e-12).log()
@@ -549,7 +542,6 @@ class MotionCommand(CommandTerm):
         start_idxs + (rand_float * (end_idxs - start_idxs)).to(torch.long)
     )
     
-    # 4. Update metrics
     self.metrics["sampling_entropy"][env_ids] = 1.0  # Maximum entropy for uniform.
     self.metrics["sampling_top1_prob"][env_ids] = 1.0 / self.bin_count
     self.metrics["sampling_top1_bin"][env_ids] = 0.5  # No specific bin preference.
