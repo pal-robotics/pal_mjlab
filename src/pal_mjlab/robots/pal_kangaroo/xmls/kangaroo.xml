@@ -261,6 +261,13 @@
     <exclude body1="leg_right_1_link" body2="leg_right_femur_link"/>
     <exclude body1="leg_right_ankle_link" body2="leg_right_knee_link"/>
     <exclude body1="leg_right_foot_collision_avoidance_capsule_link" body2="terrain"/>
+
+    <!-- Knee/Tibia/Foot collisions -->
+    <exclude body1="leg_right_ankle_bar_collision" body2="leg_right_foot_collision_avoidance_capsule_link"/>
+    <exclude body1="leg_right_knee_link" body2="leg_right_foot_collision_avoidance_capsule_link"/>
+
+    <exclude body1="leg_left_ankle_bar_collision" body2="leg_left_foot_collision_avoidance_capsule_link"/>
+    <exclude body1="leg_left_knee_link" body2="leg_left_foot_collision_avoidance_capsule_link"/>
   </contact>
 
   <sensor>

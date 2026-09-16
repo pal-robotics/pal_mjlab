@@ -89,6 +89,7 @@ def pal_kangaroo_flat_wbc_env_cfg(
     "arm_right_3_link",
     "arm_right_tip_link",
   )
+  motion_cmd.joint_position_range = (-0.05, 0.05)
 
   ## Observations
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
