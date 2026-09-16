@@ -19,6 +19,7 @@ from mjlab.utils.lab_api.math import (
   quat_mul,
   sample_uniform,
   yaw_quat,
+  quat_apply_inverse,
 )
 from mjlab.viewer.debug_visualizer import DebugVisualizer
 
@@ -263,6 +264,34 @@ class MotionCommand(CommandTerm):
 
     self.rand_motion = torch.randint(0, self.motion.num_trajectories, (self.num_envs,), device=self.device)
 
+
+  @property
+  def ref_base_height(self) -> torch.Tensor:
+    """Anchor height relative to env origin (z_I r̂_IB)."""
+    return self.anchor_pos_w[:, 2:3] - self._env.scene.env_origins[:, 2:3]
+
+  @property
+  def ref_base_lin_vel_b(self) -> torch.Tensor:
+    """Reference anchor linear velocity in anchor frame (B v̂_IB)."""
+    return quat_apply_inverse(self.anchor_quat_w, self.anchor_lin_vel_w)
+
+  @property
+  def ref_base_ang_vel_b(self) -> torch.Tensor:
+    """Reference anchor angular velocity in anchor frame (B ω̂_IB)."""
+    return quat_apply_inverse(self.anchor_quat_w, self.anchor_ang_vel_w)
+
+  @property
+  def ref_gravity_b(self) -> torch.Tensor:
+    """Reference gravity in anchor frame (B ĝ_I)."""
+    return quat_apply_inverse(self.anchor_quat_w, self.robot.data.gravity_vec_w)
+
+  @property
+  def ref_base_lin_acc_b(self) -> torch.Tensor:
+    return quat_apply_inverse(self.anchor_quat_w, self.anchor_lin_acc_w)
+
+  @property
+  def ref_base_ang_acc_b(self) -> torch.Tensor:
+    return quat_apply_inverse(self.anchor_quat_w, self.anchor_ang_acc_w)
 
   @property
   def command(self) -> torch.Tensor:
