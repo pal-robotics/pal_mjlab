@@ -256,6 +256,11 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       weight=1.0,
       params={"command_name": "motion", "std": 3.14},
     ),
+    "angular_momentum": RewardTermCfg(
+      func=mdp.angular_momentum_penalty,
+      weight=0.0,
+      params={"sensor_name": "robot/root_angmom", "axes": "xy"},
+    ),
     "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-1e-1),
     "joint_limit": RewardTermCfg(
       func=mdp.joint_pos_limits,
@@ -266,6 +271,20 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.self_collision_cost,
       weight=-10.0,
       params={"sensor_name": "self_collision", "force_threshold": 10.0},
+    ),
+    "motion_joint_pos": RewardTermCfg(
+      func=mdp.motion_joint_position_error_exp,
+      weight=1.0,
+      params={"command_name": "motion", "std": 0.5},
+    ),
+    "motion_joint_vel": RewardTermCfg(
+      func=mdp.motion_joint_velocity_error_exp,
+      weight=0.5,
+      params={"command_name": "motion", "std": 2.0},
+    ),
+    "survival": RewardTermCfg(
+      func=mdp.is_alive,
+      weight=1.0,
     ),
   }
 
