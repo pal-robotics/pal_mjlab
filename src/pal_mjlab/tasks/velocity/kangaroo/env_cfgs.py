@@ -381,8 +381,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg = pal_kangaroo_baseline_env_cfg(play=play)
 
   # nconmax is the max number of contacts at runtime
-  cfg.sim.nconmax = 300
-  cfg.sim.njmax = 300  # This is a reduction
+  cfg.sim.nconmax = 200  # this also sizes CCD collisions as nccdmax is not exposed
+  cfg.sim.njmax = 300  # This is a reduction but should be enough
+  cfg.sim.mujoco.ccd_iterations = (
+    100  # More than enough to solve a capsule against hfield
+  )
 
   # softer terrains
   cfg.scene.spec_fn = _soften_terrain_contacts
