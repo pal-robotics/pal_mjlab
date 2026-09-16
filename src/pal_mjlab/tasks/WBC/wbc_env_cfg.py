@@ -114,7 +114,6 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "imu_projected_gravity": ObservationTermCfg(
       func=mdp.imu_projected_gravity,
-      noise=Unoise(n_min=-0.05, n_max=0.05),
     ),
     "joint_pos": ObservationTermCfg(
       func=mdp.joint_pos_rel,
