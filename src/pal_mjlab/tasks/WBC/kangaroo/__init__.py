@@ -13,13 +13,3 @@ register_mjlab_task(
   rl_cfg=pal_kangaroo_wbc_ppo_runner_cfg(),
   runner_cls=WBCMotionTrackingOnPolicyRunner,
 )
-
-register_mjlab_task(
-  task_id="Mjlab-WBC-Flat-Pal-Kangaroo-No-State-Estimation",
-  env_cfg=pal_kangaroo_flat_wbc_env_cfg(has_state_estimation=False),
-  play_env_cfg=pal_kangaroo_flat_wbc_env_cfg(
-    has_state_estimation=False, play=True
-  ),
-  rl_cfg=pal_kangaroo_wbc_ppo_runner_cfg(),
-  runner_cls=WBCMotionTrackingOnPolicyRunner,
-)
