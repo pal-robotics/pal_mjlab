@@ -382,7 +382,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # nconmax is the max number of contacts at runtime
   cfg.sim.nconmax = 200  # this also sizes CCD collisions as nccdmax is not exposed
-  cfg.sim.njmax = 300  # This is a reduction but should be enough
   cfg.sim.mujoco.ccd_iterations = (
     100  # More than enough to solve a capsule against hfield
   )
@@ -443,7 +442,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )  # duck std, suitable for low velocity
 
   # One gate for every command-gated term, so the rewards stay consistent
-  command_gate = 0.01
+  command_gate = 0.05
   for reward_name in [
     "air_time",
     "foot_clearance",
@@ -545,14 +544,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
-  # The baseline play block configures the inherited generator, which we just
-  # replaced, so re-apply those overrides here.
-  # if play:
-  #   terrain_generator.curriculum = False
-  #   terrain_generator.num_rows = 5
-  #   terrain_generator.num_cols = 5
-  #   terrain_generator.border_width = 10.0
-
   ### CURRICULUM
 
   # TODO: review fairness of the curriculum (https://github.com/mujocolab/mjlab/issues/934)
@@ -566,11 +557,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "reward_name": "action_rate_l2",
       "stages": [
         {"step": 0, "weight": -0.1},
-        {"step": 1000 * 24, "weight": -0.2},
-        {"step": 1500 * 24, "weight": -0.4},
-        {"step": 2000 * 24, "weight": -0.6},
-        {"step": 2500 * 24, "weight": -0.8},
-        {"step": 3000 * 24, "weight": -1.0},
+        {"step": 500 * 24, "weight": -0.2},
+        {"step": 750 * 24, "weight": -0.4},
+        {"step": 1000 * 24, "weight": -0.6},
+        {"step": 1250 * 24, "weight": -0.8},
+        {"step": 1500 * 24, "weight": -1.0},
       ],
     },
   )
@@ -582,11 +573,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "command_name": "twist",
       "standing_stages": [
         {"step": 0, "rel_standing_envs": 0.02},
-        {"step": 1000 * 24, "rel_standing_envs": 0.05},
-        {"step": 1500 * 24, "rel_standing_envs": 0.1},
-        {"step": 2000 * 24, "rel_standing_envs": 0.15},
-        {"step": 2500 * 24, "rel_standing_envs": 0.2},
-        {"step": 3000 * 24, "rel_standing_envs": 0.25},
+        {"step": 500 * 24, "rel_standing_envs": 0.05},
+        {"step": 750 * 24, "rel_standing_envs": 0.1},
+        {"step": 1000 * 24, "rel_standing_envs": 0.15},
+        {"step": 1500 * 24, "rel_standing_envs": 0.2},
+        {"step": 2000 * 24, "rel_standing_envs": 0.25},
       ],
     },
   )
