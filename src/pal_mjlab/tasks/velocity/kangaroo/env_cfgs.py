@@ -432,7 +432,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["air_time"].weight = 2.0
   cfg.rewards["air_time"].params["threshold_min"] = 0.2
   cfg.rewards["air_time"].params["threshold_max"] = 0.45
-  cfg.rewards["air_time"].params["command_threshold"] = 0.01
 
   # Safer torso stance
   cfg.rewards["upright"].weight = 2.0
