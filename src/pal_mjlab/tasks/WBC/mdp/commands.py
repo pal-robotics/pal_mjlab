@@ -47,6 +47,8 @@ class MotionLoader:
         self,
         motion_dir: str,
         body_indexes: torch.Tensor,
+        anchor_body_index: int,
+        step_dt,
         device: str = "cpu",
     ) -> None:
 
@@ -203,6 +205,11 @@ class MotionLoader:
           self.segment_length.float() / self.segment_length.sum().float()
         ).to(device=device)
 
+        anchor_lin_vel = self.body_lin_vel_w[:, anchor_body_index]
+        anchor_ang_vel = self.body_ang_vel_w[:, anchor_body_index]
+        self.anchor_lin_acc_w = torch.gradient(anchor_lin_vel, spacing=step_dt, dim=0)[0]
+        self.anchor_ang_acc_w = torch.gradient(anchor_ang_vel, spacing=step_dt, dim=0)[0]
+
 class MotionCommand(CommandTerm):
   cfg: MotionCommandCfg
   _env: ManagerBasedRlEnv
@@ -222,7 +229,7 @@ class MotionCommand(CommandTerm):
     )
 
     self.motion = MotionLoader(
-      self.cfg.motion_dir, self.body_indexes, device=self.device
+      self.cfg.motion_dir, self.body_indexes, self.motion_anchor_body_index, env.step_dt, device=self.device
     )
     self.time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
     self.body_pos_relative_w = torch.zeros(
@@ -347,6 +354,14 @@ class MotionCommand(CommandTerm):
   @property
   def anchor_ang_vel_w(self) -> torch.Tensor:
     return self.motion.body_ang_vel_w[self.time_steps, self.motion_anchor_body_index]
+
+  @property
+  def anchor_lin_acc_w(self) -> torch.Tensor:
+    return self.motion.anchor_lin_acc_w[self.time_steps]
+
+  @property
+  def anchor_ang_acc_w(self) -> torch.Tensor:
+    return self.motion.anchor_ang_acc_w[self.time_steps]
 
   @property
   def robot_joint_pos(self) -> torch.Tensor:

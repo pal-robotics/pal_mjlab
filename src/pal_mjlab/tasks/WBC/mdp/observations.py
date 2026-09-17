@@ -103,3 +103,53 @@ def ref_joint_vel(
   joint_vel = command.joint_vel
 
   return joint_vel
+
+def _body_lin_vel_in_anchor_frame(
+  anchor_quat_w: torch.Tensor,
+  body_lin_vel_w: torch.Tensor,
+) -> torch.Tensor:
+  num_envs, num_bodies, _ = body_lin_vel_w.shape
+  quat = anchor_quat_w[:, None, :].expand(num_envs, num_bodies, 4).reshape(-1, 4)
+  vel = body_lin_vel_w.reshape(-1, 3)
+  vel_b = quat_apply_inverse(quat, vel)
+  return vel_b.view(num_envs, num_bodies * 3)
+
+
+def _body_ang_vel_in_anchor_frame(
+  anchor_quat_w: torch.Tensor,
+  body_ang_vel_w: torch.Tensor,
+) -> torch.Tensor:
+  num_envs, num_bodies, _ = body_ang_vel_w.shape
+  quat = anchor_quat_w[:, None, :].expand(num_envs, num_bodies, 4).reshape(-1, 4)
+  vel = body_ang_vel_w.reshape(-1, 3)
+  vel_b = quat_apply_inverse(quat, vel)
+  return vel_b.view(num_envs, num_bodies * 3)
+
+def motion_body_lin_vel(
+  env: ManagerBasedRlEnv, command_name: str
+) -> torch.Tensor:
+  """Actual keybody linear velocities in the robot anchor frame."""
+  command = env.command_manager.get_term(command_name)
+  return _body_lin_vel_in_anchor_frame(
+    command.robot_anchor_quat_w, command.robot_body_lin_vel_w
+  )
+
+
+def motion_body_ang_vel(
+  env: ManagerBasedRlEnv, command_name: str
+) -> torch.Tensor:
+  """Actual keybody angular velocities in the robot anchor frame."""
+  command = env.command_manager.get_term(command_name)
+  return _body_ang_vel_in_anchor_frame(
+    command.robot_anchor_quat_w, command.robot_body_ang_vel_w
+  )
+
+
+def ref_base_lin_acc_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+  """Reference anchor linear acceleration in anchor frame (critic privileged)."""
+  return env.command_manager.get_term(command_name).ref_base_lin_acc_b
+
+
+def ref_base_ang_acc_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+  """Reference anchor angular acceleration in anchor frame (critic privileged)."""
+  return env.command_manager.get_term(command_name).ref_base_ang_acc_b
