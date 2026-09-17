@@ -544,7 +544,7 @@ class MotionCommand(CommandTerm):
 
   def _random_start_sampling(self, env_ids: torch.Tensor):
     self.rand_motion[env_ids] = torch.randint(0, self.motion.num_trajectories, (len(env_ids),), device=self.device)
-    self.time_steps[env_ids] = self.motion.segment_start_idx[self.rand_motion]
+    self.time_steps[env_ids] = self.motion.segment_start_idx[self.rand_motion[env_ids]]
 
   def _uniform_sampling(self, env_ids: torch.Tensor):
     num_envs = len(env_ids)
