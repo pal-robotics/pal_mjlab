@@ -114,6 +114,9 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
     "leg_right_4_link",
     "leg_right_5_link",
   )
+  # The joint position range was changed from +/- 0.1 to +/- 0.05 since the passive joints
+  # were also being affected, sometimes causing the knee bar to penetrate the foot.
+  motion_cmd.joint_position_range = (-0.05, 0.05)
 
   ## Rewards
   cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
