@@ -119,6 +119,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "imu_projected_gravity": ObservationTermCfg(
       func=mdp.imu_projected_gravity,
+      params={"sensor_name": "robot/imu_quat"},
     ),
     "joint_pos": ObservationTermCfg(
       func=mdp.joint_pos_rel,

@@ -90,25 +90,6 @@ def pal_kangaroo_flat_wbc_env_cfg(
   )
   motion_cmd.joint_position_range = (-0.05, 0.05)
 
-  ## Observations
-  cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
-    func=mdp.imu_projected_gravity,
-    params={"sensor_name": "robot/imu_quat"},
-    noise=Unoise(n_min=-0.02, n_max=0.02),
-  )
-  cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
-    func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/imu_lin_acc"},
-    noise=Unoise(n_min=-0.05, n_max=0.05),
-  )
-  cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
-    func=mdp.imu_projected_gravity,
-    params={"sensor_name": "robot/imu_quat"},
-  )
-  cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
-    func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/imu_lin_acc"},
-  )
 
   # The hull points should correspond to the respective joints defined in the joint_names_group order
   # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
