@@ -92,6 +92,9 @@ def pal_kangaroo_flat_tracking_env_cfg(
     "arm_right_3_link",
     "arm_right_tip_link",
   )
+  # The joint position range was changed from +/- 0.1 to +/- 0.05 since the passive joints
+  # were also being affected, sometimes causing the knee bar to penetrate the foot.
+  motion_cmd.joint_position_range = (-0.05, 0.05)
 
   ## Observations
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
