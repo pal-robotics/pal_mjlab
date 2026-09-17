@@ -128,6 +128,21 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "joint_vel": ObservationTermCfg(
       func=mdp.joint_vel_rel,
     ),
+    "motion_body_lin_vel": ObservationTermCfg(
+      func=mdp.motion_body_lin_vel, params={"command_name": "motion"}
+    ),
+    "motion_body_ang_vel": ObservationTermCfg(
+      func=mdp.motion_body_ang_vel, params={"command_name": "motion"}
+    ),
+    "ref_joint_vel": ObservationTermCfg(
+      func=mdp.ref_joint_vel, params={"command_name": "motion"}
+    ),
+    "ref_base_lin_acc": ObservationTermCfg(
+      func=mdp.ref_base_lin_acc_b, params={"command_name": "motion"}
+    ),
+    "ref_base_ang_acc": ObservationTermCfg(
+      func=mdp.ref_base_ang_acc_b, params={"command_name": "motion"}
+    ),
   }
 
   observations = {
@@ -290,6 +305,16 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "survival": RewardTermCfg(
       func=mdp.is_alive,
       weight=1.0,
+    ),
+    "motion_root_lin_vel_b": RewardTermCfg(
+      func=mdp.motion_anchor_linear_velocity_body_error_exp,
+      weight=1.0,
+      params={"command_name": "motion", "std": 1.0},
+    ),
+    "motion_root_ang_vel_b": RewardTermCfg(
+      func=mdp.motion_anchor_angular_velocity_body_error_exp,
+      weight=1.0,
+      params={"command_name": "motion", "std": 1.5},
     ),
   }
 
