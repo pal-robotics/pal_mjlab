@@ -19,6 +19,7 @@ from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationT
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.scene import SceneCfg
 from mjlab.sim import MujocoCfg, SimulationCfg
 from pal_mjlab.tasks.WBC import mdp
@@ -347,6 +348,23 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   }
 
   ##
+  # Curriculum
+  ##
+
+  curriculum = {
+    "action_rate_curr": CurriculumTermCfg(
+      func=mdp.reward_curriculum,
+      params={
+        "reward_name": "survival",
+        "stages": [
+          {"step": 0, "weight": 1.0},
+          {"step": 5_000 * 24, "weight": 0.0},
+        ],
+      },
+    ),
+  }
+
+  ##
   # Assemble and return
   ##
 
@@ -358,6 +376,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     events=events,
     rewards=rewards,
     terminations=terminations,
+    curriculum=curriculum,
     viewer=ViewerConfig(
       origin_type=ViewerConfig.OriginType.ASSET_BODY,
       entity_name="robot",
