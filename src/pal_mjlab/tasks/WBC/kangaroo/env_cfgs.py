@@ -23,7 +23,6 @@ from pal_mjlab.tasks.velocity import mdp
 
 
 def pal_kangaroo_flat_wbc_env_cfg(
-  has_state_estimation: bool = True,
   play: bool = False,
 ) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics Talos flat terrain tracking configuration."""
@@ -165,22 +164,6 @@ def pal_kangaroo_flat_wbc_env_cfg(
   )
 
   cfg.viewer.body_name = "base_link"
-
-  # Modify observations if we don't have state estimation.
-  if not has_state_estimation:
-    new_actor_terms = {
-      k: v
-      for k, v in cfg.observations["actor"].terms.items()
-      # I added motion_anchor_ori_b but might not be necessary,
-      # and i wonder if i should add lin acc when state
-      # estimation is false
-      if k not in ["motion_anchor_pos_b", "motion_anchor_ori_b", "base_lin_vel"]
-    }
-    cfg.observations["actor"] = ObservationGroupCfg(
-      terms=new_actor_terms,
-      concatenate_terms=True,
-      enable_corruption=True,
-    )
 
   # Apply play mode overrides.
   if play:
