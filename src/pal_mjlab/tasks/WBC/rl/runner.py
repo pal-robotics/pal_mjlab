@@ -14,6 +14,8 @@ from mjlab.rl.exporter_utils import (
 from mjlab.rl.runner import MjlabOnPolicyRunner
 from mjlab.tasks.tracking.mdp import MotionCommand
 
+from mjlab.rl.multi_critic_runner import MjlabMultiCriticOnPolicyRunner
+
 
 class _OnnxMotionModel(nn.Module):
   """ONNX-exportable model that wraps the policy and bundles motion reference data."""
@@ -44,7 +46,7 @@ class _OnnxMotionModel(nn.Module):
     )
 
 
-class WBCMotionTrackingOnPolicyRunner(MjlabOnPolicyRunner):
+class WBCMotionTrackingOnPolicyRunner(MjlabMultiCriticOnPolicyRunner):
   env: RslRlVecEnvWrapper
 
   def __init__(

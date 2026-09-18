@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.10,<3.14"
 dependencies = [
-    "mjlab>=1.6.0",
+    "mjlab @ git+https://github.com/pal-robotics-forks/mjlab.git@d422215ebdd47e6579dab1fc23d61de7a57ac2a7",
     "moviepy>=2.0"
 ]
 

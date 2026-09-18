@@ -4,12 +4,13 @@ from mjlab.rl import (
   RslRlModelCfg,
   RslRlOnPolicyRunnerCfg,
   RslRlPpoAlgorithmCfg,
+  RslRlMultiCriticOnPolicyRunnerCfg,
 )
 
 
-def pal_kangaroo_wbc_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+def pal_kangaroo_wbc_ppo_runner_cfg() -> RslRlMultiCriticOnPolicyRunnerCfg:
   """Create RL runner configuration for PAL Kangaroo WBC controller task."""
-  return RslRlOnPolicyRunnerCfg(
+  return RslRlMultiCriticOnPolicyRunnerCfg(
     actor=RslRlModelCfg(
       hidden_dims=(1024, 512, 256, 128),
       activation="elu",
@@ -38,9 +39,11 @@ def pal_kangaroo_wbc_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
       lam=0.95,
       desired_kl=0.01,
       max_grad_norm=1.0,
+      class_name="MultiCriticPPO",
+      num_critics=2,
     ),
-    experiment_name="kangaroo_WBC",
+    experiment_name="kangaroo_WBC_multi_critic",
     save_interval=500,
     num_steps_per_env=24,
-    max_iterations=30_000,
+    max_iterations=40_000,
   )

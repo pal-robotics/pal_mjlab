@@ -152,7 +152,12 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       concatenate_terms=True,
       enable_corruption=True,
     ),
-    "critic": ObservationGroupCfg(
+    "critic_0": ObservationGroupCfg(
+      terms=critic_terms,
+      concatenate_terms=True,
+      enable_corruption=False,
+    ),
+    "critic_1": ObservationGroupCfg(
       terms=critic_terms,
       concatenate_terms=True,
       enable_corruption=False,
@@ -261,21 +266,25 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.motion_relative_body_position_error_exp,
       weight=1.5,
       params={"command_name": "motion", "std": 0.15},
+      group="critic_1",
     ),
     "motion_body_ori": RewardTermCfg(
       func=mdp.motion_relative_body_orientation_error_exp,
       weight=1.0,
       params={"command_name": "motion", "std": 0.4},
+      group="critic_1",
     ),
     "motion_body_lin_vel": RewardTermCfg(
       func=mdp.motion_global_body_linear_velocity_error_exp,
       weight=1.0,
       params={"command_name": "motion", "std": 1.0},
+      group="critic_1",
     ),
     "motion_body_ang_vel": RewardTermCfg(
       func=mdp.motion_global_body_angular_velocity_error_exp,
       weight=1.0,
       params={"command_name": "motion", "std": 3.14},
+      group="critic_1",
     ),
     "angular_momentum": RewardTermCfg(
       func=mdp.angular_momentum_penalty,
@@ -297,11 +306,13 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.motion_joint_position_error_exp,
       weight=1.0,
       params={"command_name": "motion", "std": 0.5},
+      group="critic_1",
     ),
     "motion_joint_vel": RewardTermCfg(
       func=mdp.motion_joint_velocity_error_exp,
       weight=0.5,
       params={"command_name": "motion", "std": 2.0},
+      group="critic_1",
     ),
     "survival": RewardTermCfg(
       func=mdp.is_alive,
@@ -348,34 +359,6 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   }
 
   ##
-  # Curriculum
-  ##
-
-  curriculum = {
-    "survival_curr": CurriculumTermCfg(
-      func=mdp.reward_curriculum,
-      params={
-        "reward_name": "survival",
-        "stages": [
-          {"step": 0, "weight": 1.0},
-          {"step": 5_000 * 24, "weight": 0.0},
-        ],
-      },
-    ),
-    "motion_body_pos_curr": CurriculumTermCfg(
-      func=mdp.reward_curriculum,
-      params={
-        "reward_name": "motion_body_pos",
-        "stages": [
-          {"step": 0, "weight": 1.0},
-          {"step": 5_000 * 24, "weight": 1.5},
-          {"step": 15_000 * 24, "weight": 2.0},
-        ],
-      },
-    ),
-  }
-
-  ##
   # Assemble and return
   ##
 
@@ -387,7 +370,6 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     events=events,
     rewards=rewards,
     terminations=terminations,
-    curriculum=curriculum,
     viewer=ViewerConfig(
       origin_type=ViewerConfig.OriginType.ASSET_BODY,
       entity_name="robot",
