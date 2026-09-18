@@ -390,4 +390,5 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     decimation=4,
     episode_length_s=10.0,
+    multiple_critics=True,
   )
