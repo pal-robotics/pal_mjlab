@@ -352,13 +352,24 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
 
   curriculum = {
-    "action_rate_curr": CurriculumTermCfg(
+    "survival_curr": CurriculumTermCfg(
       func=mdp.reward_curriculum,
       params={
         "reward_name": "survival",
         "stages": [
           {"step": 0, "weight": 1.0},
           {"step": 5_000 * 24, "weight": 0.0},
+        ],
+      },
+    ),
+    "motion_body_pos_curr": CurriculumTermCfg(
+      func=mdp.reward_curriculum,
+      params={
+        "reward_name": "motion_body_pos",
+        "stages": [
+          {"step": 0, "weight": 1.0},
+          {"step": 5_000 * 24, "weight": 1.5},
+          {"step": 15_000 * 24, "weight": 2.0},
         ],
       },
     ),
