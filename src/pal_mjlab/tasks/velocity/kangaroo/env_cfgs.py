@@ -387,7 +387,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
 
   # softer terrains
-  # cfg.scene.spec_fn = _soften_terrain_contacts
+  cfg.scene.spec_fn = _soften_terrain_contacts
 
   ### OBSERVATIONS
 
@@ -396,14 +396,14 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # Observation noise configuration naively from duck profile
   # Experimentally it looks like the robot is more reactive with them
-  cfg.observations["actor"].terms["base_ang_vel"].noise = Unoise(
-    n_min=-0.03, n_max=0.03
-  )
-  cfg.observations["actor"].terms["imu_projected_gravity"].noise = Unoise(
-    n_min=-0.01, n_max=0.01
-  )
-  cfg.observations["actor"].terms["joint_pos"].noise = Unoise(n_min=-0.001, n_max=0.001)
-  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.25, n_max=0.25)
+  # cfg.observations["actor"].terms["base_ang_vel"].noise = Unoise(
+  #   n_min=-0.03, n_max=0.03
+  # )
+  # cfg.observations["actor"].terms["imu_projected_gravity"].noise = Unoise(
+  #   n_min=-0.01, n_max=0.01
+  # )
+  # cfg.observations["actor"].terms["joint_pos"].noise = Unoise(n_min=-0.001, n_max=0.001)
+  # cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.25, n_max=0.25)
 
   ### COMMANDS
 
