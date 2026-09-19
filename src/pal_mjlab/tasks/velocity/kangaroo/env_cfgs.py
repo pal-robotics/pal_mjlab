@@ -387,7 +387,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
 
   # softer terrains
-  cfg.scene.spec_fn = _soften_terrain_contacts
+  # cfg.scene.spec_fn = _soften_terrain_contacts
 
   ### OBSERVATIONS
 
