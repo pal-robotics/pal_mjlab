@@ -524,7 +524,13 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
       # Natural ondulation fractal noise
       "perlin_noise": terrain_gen.HfPerlinNoiseTerrainCfg(
-        proportion=0.1, height_range=(0.02, 0.2)
+        proportion=0.1,
+        height_range=(0.02, 0.2),
+        # 10 cm cells (40x40 per 4 m tile, matching hf_discrete_obstacles) keep every
+        # collision geom's AABB under the mjMAXCONPAIR=50 prism budget of the mjwarp
+        # hfield narrowphase, preventing overflow (and its warning spam)
+        resolution=0.10,
+        scale=5.0,
       ),
       # Basic stairs, one ascending + one descending.
       "stairs_up": terrain_gen.BoxPyramidStairsTerrainCfg(
@@ -557,11 +563,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "reward_name": "action_rate_l2",
       "stages": [
         {"step": 0, "weight": -0.1},
-        {"step": 1000 * 24, "weight": -0.2},
-        {"step": 1500 * 24, "weight": -0.4},
-        {"step": 2000 * 24, "weight": -0.6},
-        {"step": 2500 * 24, "weight": -0.8},
-        {"step": 3000 * 24, "weight": -1.0},
+        {"step": 500 * 24, "weight": -0.2},
+        {"step": 750 * 24, "weight": -0.4},
+        {"step": 1000 * 24, "weight": -0.6},
+        {"step": 1250 * 24, "weight": -0.8},
+        {"step": 1500 * 24, "weight": -1.0},
       ],
     },
   )
@@ -573,11 +579,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "command_name": "twist",
       "standing_stages": [
         {"step": 0, "rel_standing_envs": 0.02},
-        {"step": 1000 * 24, "rel_standing_envs": 0.05},
-        {"step": 1500 * 24, "rel_standing_envs": 0.1},
-        {"step": 2000 * 24, "rel_standing_envs": 0.15},
-        {"step": 2500 * 24, "rel_standing_envs": 0.2},
-        {"step": 3000 * 24, "rel_standing_envs": 0.25},
+        {"step": 500 * 24, "rel_standing_envs": 0.05},
+        {"step": 750 * 24, "rel_standing_envs": 0.1},
+        {"step": 1000 * 24, "rel_standing_envs": 0.15},
+        {"step": 1500 * 24, "rel_standing_envs": 0.2},
+        {"step": 2000 * 24, "rel_standing_envs": 0.25},
       ],
     },
   )
