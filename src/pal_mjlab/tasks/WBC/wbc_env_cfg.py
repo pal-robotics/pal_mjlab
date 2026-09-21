@@ -162,6 +162,11 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       concatenate_terms=True,
       enable_corruption=False,
     ),
+    "critic_2": ObservationGroupCfg(
+      terms=critic_terms,
+      concatenate_terms=True,
+      enable_corruption=False,
+    ),
   }
 
   ##
@@ -256,11 +261,13 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.motion_global_anchor_position_error_exp,
       weight=0.5,
       params={"command_name": "motion", "std": 0.5},
+      group="critic_2",
     ),
     "motion_global_root_ori": RewardTermCfg(
       func=mdp.motion_global_anchor_orientation_error_exp,
       weight=1.0,
       params={"command_name": "motion", "std": 0.4},
+      group="critic_2",
     ),
     "motion_body_pos": RewardTermCfg(
       func=mdp.motion_relative_body_position_error_exp,
@@ -322,11 +329,13 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.motion_anchor_linear_velocity_body_error_exp,
       weight=1.0,
       params={"command_name": "motion", "std": 1.0},
+      group="critic_2",
     ),
     "motion_root_ang_vel_b": RewardTermCfg(
       func=mdp.motion_anchor_angular_velocity_body_error_exp,
       weight=1.0,
       params={"command_name": "motion", "std": 1.5},
+      group="critic_2",
     ),
   }
 

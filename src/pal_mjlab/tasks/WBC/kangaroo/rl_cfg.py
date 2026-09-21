@@ -22,7 +22,7 @@ def pal_kangaroo_wbc_ppo_runner_cfg() -> RslRlMultiCriticOnPolicyRunnerCfg:
       },
     ),
     critic=RslRlModelCfg(
-      hidden_dims=(1024, 1024, 512, 256),
+      hidden_dims=(1024, 512, 256),
       activation="elu",
       obs_normalization=True,
     ),
@@ -40,7 +40,7 @@ def pal_kangaroo_wbc_ppo_runner_cfg() -> RslRlMultiCriticOnPolicyRunnerCfg:
       desired_kl=0.01,
       max_grad_norm=1.0,
       class_name="MultiCriticPPO",
-      num_critics=2,
+      num_critics=3,
     ),
     experiment_name="kangaroo_WBC_multi_critic",
     save_interval=500,
