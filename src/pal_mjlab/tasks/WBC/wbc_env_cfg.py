@@ -259,23 +259,39 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "motion_body_pos": RewardTermCfg(
       func=mdp.motion_relative_body_position_error_exp,
-      weight=1.5,
-      params={"command_name": "motion", "std": 0.15},
+      weight=5.0,
+      params={
+        "command_name": "motion",
+        "std": 0.3,
+        "body_names": ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link"),
+      },
     ),
     "motion_body_ori": RewardTermCfg(
       func=mdp.motion_relative_body_orientation_error_exp,
       weight=1.0,
-      params={"command_name": "motion", "std": 0.4},
+      params={
+        "command_name": "motion",
+        "std": 0.4,
+        "body_names": ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link"),
+      },
     ),
     "motion_body_lin_vel": RewardTermCfg(
       func=mdp.motion_global_body_linear_velocity_error_exp,
-      weight=1.0,
-      params={"command_name": "motion", "std": 1.0},
+      weight=2.0,
+      params={
+        "command_name": "motion",
+        "std": 1.0,
+        "body_names": ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link"),
+      },
     ),
     "motion_body_ang_vel": RewardTermCfg(
       func=mdp.motion_global_body_angular_velocity_error_exp,
       weight=1.0,
-      params={"command_name": "motion", "std": 3.14},
+      params={
+        "command_name": "motion",
+        "std": 3.14,
+        "body_names": ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link"),
+      },
     ),
     "angular_momentum": RewardTermCfg(
       func=mdp.angular_momentum_penalty,
@@ -295,12 +311,12 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "motion_joint_pos": RewardTermCfg(
       func=mdp.motion_joint_position_error_exp,
-      weight=1.0,
+      weight=0.5,
       params={"command_name": "motion", "std": 0.5},
     ),
     "motion_joint_vel": RewardTermCfg(
       func=mdp.motion_joint_velocity_error_exp,
-      weight=0.5,
+      weight=0.25,
       params={"command_name": "motion", "std": 2.0},
     ),
     "survival": RewardTermCfg(
