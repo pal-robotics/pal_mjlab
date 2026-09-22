@@ -38,7 +38,7 @@ class UniformHandPositionCommand(CommandTerm):
 
     self.is_base_position_env[env_ids] = r.uniform_(0.0, 1.0) <= self.cfg.rel_base_position
 
-  def _update_command(self) -> None:
+  def _update_command(self, env_ids: torch.Tensor | None) -> None:
     base_position_ids = self.is_base_position_env.nonzero(as_tuple=False).flatten()
     self.hand_position_command[base_position_ids] = torch.tensor(self.cfg.base_position, device=self.device)
 
