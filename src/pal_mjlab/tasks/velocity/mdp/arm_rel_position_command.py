@@ -53,7 +53,7 @@ class UniformHandPositionCommandCfg(CommandTermCfg):
 
   ranges: Ranges
 
-  base_position : float
+  base_position : tuple[float, float, float]
 
   rel_base_position: float = 0.1
   
