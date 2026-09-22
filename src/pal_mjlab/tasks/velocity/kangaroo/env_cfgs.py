@@ -159,6 +159,8 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
   cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.5, n_max=0.5)
 
+  del cfg.observations["actor"].terms["base_lin_acc"]
+
   ### Disabling the use of history length as we haven't seen much improvements with it
   ### Moreover, our best policy #62 doesn't use any history length
   # cfg.observations["actor"].history_length = 5  # Keep last 5 frames
