@@ -66,7 +66,7 @@ def reset_static_joints_by_offset(
     joint_ids=joint_ids,
   )
   asset.set_joint_position_target(
-    joint_pos.squeeze(-1),
+    joint_pos,
     env_ids=env_ids,
     joint_ids=joint_ids,
   )
