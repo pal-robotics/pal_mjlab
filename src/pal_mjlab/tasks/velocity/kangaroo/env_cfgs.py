@@ -760,6 +760,10 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
     },
   )
 
+  # HERE, CUSTOM ACTION FOR PELVIS 1 AND 2
+  # SHOULD BE AN OVERHAUL OF JointPositionAction, but with arbitrary resampling
+  # SHOULD OBVIOUSLY ALSO CHANGE THE METHODS FOR RESETING PELVIS JOINTS (NOT STATIC ANYMORE)
+
   if play :
     cfg.commands["arm_left_command"] = mdp.UniformHandPositionCommandCfg(
       resampling_time_range=(1.0, 10.0),
