@@ -364,9 +364,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # due to https://github.com/google-deepmind/mujoco_warp/blob/c62864ed2bf816c0a724d4cbf153921188f78eae/mujoco_warp/_src/io.py#L649-L660
   # for collision-rich envs, it is recommended to be manually set through experimentation
   cfg.sim.nconmax = 200
-  cfg.sim.mujoco.ccd_iterations = (
-    100  # To avoid memory issues when allocating EPA buffer
-  )
+  # To avoid memory issues when allocating EPA buffer
+  cfg.sim.mujoco.ccd_iterations = 100
 
   ### SENSORS
 
