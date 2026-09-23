@@ -508,9 +508,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "perlin_noise": terrain_gen.HfPerlinNoiseTerrainCfg(
         proportion=0.1,
         height_range=(0.02, 0.2),
-        # 10 cm cells (40x40 per 4 m tile, matching hf_discrete_obstacles) keep every
-        # collision geom's AABB under the mjMAXCONPAIR=50 prism budget of the mjwarp
-        # hfield narrowphase, preventing overflow (and its warning spam)
         resolution=0.10,
         scale=5.0,
       ),
