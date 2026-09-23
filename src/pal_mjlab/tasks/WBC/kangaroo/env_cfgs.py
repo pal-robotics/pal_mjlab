@@ -9,6 +9,7 @@ from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from pal_mjlab.tasks.WBC.mdp import MotionCommandCfg
+from pal_mjlab.tasks.WBC import mdp
 from pal_mjlab.tasks.WBC.wbc_env_cfg import make_wbc_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
@@ -19,8 +20,6 @@ from pal_mjlab.robots import (
   KANGAROO_ACTUATOR_NAMES,
   get_kangaroo_robot_cfg,
 )
-from pal_mjlab.tasks.velocity import mdp
-
 
 def pal_kangaroo_flat_wbc_env_cfg(
   play: bool = False,
@@ -89,6 +88,19 @@ def pal_kangaroo_flat_wbc_env_cfg(
     "arm_right_tip_link",
   )
   motion_cmd.joint_position_range = (-0.05, 0.05)
+
+  # Setup end effector cartesian tracking instead of joint position/velocity tracking
+  cfg.observations["actor"].terms["ref_joint_pos"] = None
+  cfg.observations["actor"].terms["ref_joint_vel"] = None
+
+  end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
+
+  cfg.observations["actor"].terms["ref_body_pos"] = ObservationTermCfg(
+    func=mdp.ref_body_pos_b, params={"command_name": "motion", "body_names": end_effector_body_names}
+  )
+  cfg.observations["actor"].terms["ref_body_ori"] = ObservationTermCfg(
+    func=mdp.ref_body_ori_b, params={"command_name": "motion", "body_names": end_effector_body_names}
+  )
 
 
   # The hull points should correspond to the respective joints defined in the joint_names_group order
