@@ -96,10 +96,20 @@ def pal_kangaroo_flat_wbc_env_cfg(
   end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
 
   cfg.observations["actor"].terms["ref_body_pos"] = ObservationTermCfg(
-    func=mdp.ref_body_pos_b, params={"command_name": "motion", "body_names": end_effector_body_names}
+    func=mdp.ref_body_pos_b, 
+    params={
+      "command_name": "motion", 
+      "body_names": end_effector_body_names,
+    },
+    noise=Unoise(n_min=-0.05, n_max=0.05),
   )
   cfg.observations["actor"].terms["ref_body_ori"] = ObservationTermCfg(
-    func=mdp.ref_body_ori_b, params={"command_name": "motion", "body_names": end_effector_body_names}
+    func=mdp.ref_body_ori_b, 
+    params={
+      "command_name": "motion", 
+      "body_names": end_effector_body_names,
+    },
+    noise=Unoise(n_min=-0.02, n_max=0.02),
   )
 
 
