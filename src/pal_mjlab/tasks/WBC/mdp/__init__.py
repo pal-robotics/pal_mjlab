@@ -1,5 +1,6 @@
 from mjlab.envs.mdp import *  # noqa: F401, F403
-from mjlab.tasks.tracking. mdp import *
+from mjlab.tasks.tracking.mdp import * # noqa: F401, F403
+from pal_mjlab.tasks.velocity.mdp import joint_limits_convex_hull # noqa: F401, F403
 
 from .commands import *  # noqa: F401, F403
 #from .actions import *  # noqa: F401, F403
