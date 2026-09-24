@@ -108,6 +108,15 @@ Model Updates
 Bug Fixes & Reliability
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
+- **Reduced GPU memory usage and fixed hfield contact overflow in the
+  Kangaroo rough velocity task.** ``ccd_iterations`` is now capped at 100
+  to shrink the EPA buffer allocated by mjwarp. The ``perlin_noise``
+  terrain now uses 10 cm cells (40x40 per 4 m tile, like
+  ``hf_discrete_obstacles``), which keeps each collision geom within the
+  mjwarp hfield narrowphase limit (``mjMAXCONPAIR=50``) and stops the
+  overflow warning spam.
+  (`#116 <https://github.com/pal-robotics/pal_mjlab/pull/116>`_)
+
 - **Fixed a CUDA illegal-memory-access crash on reset with mjlab 1.5.1.**
   Training would crash with a CUDA illegal memory access error when
   environments reset. Worked around by pinning a specific mjlab commit;

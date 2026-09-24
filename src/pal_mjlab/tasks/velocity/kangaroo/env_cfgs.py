@@ -364,6 +364,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # due to https://github.com/google-deepmind/mujoco_warp/blob/c62864ed2bf816c0a724d4cbf153921188f78eae/mujoco_warp/_src/io.py#L649-L660
   # for collision-rich envs, it is recommended to be manually set through experimentation
   cfg.sim.nconmax = 200
+  # To avoid memory issues when allocating EPA buffer
+  cfg.sim.mujoco.ccd_iterations = 100
 
   ### SENSORS
 
@@ -504,7 +506,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
       # Natural ondulation fractal noise
       "perlin_noise": terrain_gen.HfPerlinNoiseTerrainCfg(
-        proportion=0.1, height_range=(0.02, 0.2)
+        proportion=0.1,
+        height_range=(0.02, 0.2),
+        resolution=0.10,
+        scale=5.0,
       ),
       # Basic stairs, one ascending + one descending.
       "stairs_up": terrain_gen.BoxPyramidStairsTerrainCfg(
