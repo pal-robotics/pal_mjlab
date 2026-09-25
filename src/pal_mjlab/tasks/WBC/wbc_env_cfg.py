@@ -84,18 +84,6 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "joint_vel": ObservationTermCfg(
       func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.5, n_max=0.5)
     ),
-    "body_pos": ObservationTermCfg(
-      func=mdp.robot_body_pos_b, params={"command_name": "motion"}
-    ),
-    "body_ori": ObservationTermCfg(
-      func=mdp.robot_body_ori_b, params={"command_name": "motion"}
-    ),
-    "body_lin_vel": ObservationTermCfg(
-      func=mdp.motion_body_lin_vel, params={"command_name": "motion"}
-    ),
-    "body_ang_vel": ObservationTermCfg(
-      func=mdp.motion_body_ang_vel, params={"command_name": "motion"}
-    ),
     "reference_body_pos": ObservationTermCfg(
       func=mdp.motion_body_pos_b,
       params={"command_name": "motion"},
@@ -146,6 +134,18 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "ref_base_ang_acc": ObservationTermCfg(
       func=mdp.ref_base_ang_acc_b, params={"command_name": "motion"}
+    ),
+    "body_pos": ObservationTermCfg(
+      func=mdp.robot_body_pos_b, params={"command_name": "motion"}
+    ),
+    "body_ori": ObservationTermCfg(
+      func=mdp.robot_body_ori_b, params={"command_name": "motion"}
+    ),
+    "body_lin_vel": ObservationTermCfg(
+      func=mdp.motion_body_lin_vel, params={"command_name": "motion"}
+    ),
+    "body_ang_vel": ObservationTermCfg(
+      func=mdp.motion_body_ang_vel, params={"command_name": "motion"}
     ),
   }
 
