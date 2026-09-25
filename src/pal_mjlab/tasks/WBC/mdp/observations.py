@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+
 
 import torch
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import BuiltinSensor
-from mjlab.utils.lab_api.math import quat_apply_inverse
+from .commands import MotionCommand
+
+from mjlab.utils.lab_api.math import (
+  matrix_from_quat,
+  subtract_frame_transforms,
+  quat_apply_inverse,
+)
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -153,3 +160,29 @@ def ref_base_lin_acc_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tenso
 def ref_base_ang_acc_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
   """Reference anchor angular acceleration in anchor frame (critic privileged)."""
   return env.command_manager.get_term(command_name).ref_base_ang_acc_b
+
+def motion_body_pos_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+  command = cast(MotionCommand, env.command_manager.get_term(command_name))
+
+  num_bodies = len(command.cfg.body_names)
+  pos_b, _ = subtract_frame_transforms(
+    command.anchor_pos_w[:, None, :].repeat(1, num_bodies, 1),
+    command.anchor_quat_w[:, None, :].repeat(1, num_bodies, 1),
+    command.body_pos_w,
+    command.body_quat_w,
+  )
+
+  return pos_b.view(env.num_envs, -1)
+
+def motion_body_ori_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+  command = cast(MotionCommand, env.command_manager.get_term(command_name))
+
+  num_bodies = len(command.cfg.body_names)
+  _, ori_b = subtract_frame_transforms(
+    command.anchor_pos_w[:, None, :].repeat(1, num_bodies, 1),
+    command.anchor_quat_w[:, None, :].repeat(1, num_bodies, 1),
+    command.body_pos_w,
+    command.body_quat_w,
+  )
+  mat = matrix_from_quat(ori_b)
+  return mat[..., :2].reshape(mat.shape[0], -1)
