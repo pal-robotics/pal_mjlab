@@ -181,8 +181,8 @@ def ref_body_pos_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[
   pos_b, _ = subtract_frame_transforms(
     command.robot_anchor_pos_w[:, None, :].repeat(1, num_bodies, 1),
     command.robot_anchor_quat_w[:, None, :].repeat(1, num_bodies, 1),
-    command.robot_body_pos_w[:, indexes],
-    command.robot_body_quat_w[:, indexes],
+    command.body_pos_w[:, indexes],
+    command.body_quat_w[:, indexes],
   )
 
   return pos_b.view(env.num_envs, -1)
@@ -196,8 +196,8 @@ def ref_body_ori_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[
   _, ori_b = subtract_frame_transforms(
     command.robot_anchor_pos_w[:, None, :].repeat(1, num_bodies, 1),
     command.robot_anchor_quat_w[:, None, :].repeat(1, num_bodies, 1),
-    command.robot_body_pos_w[:, indexes],
-    command.robot_body_quat_w[:, indexes],
+    command.body_pos_w[:, indexes],
+    command.body_quat_w[:, indexes],
   )
   mat = matrix_from_quat(ori_b)
   return mat[..., :2].reshape(mat.shape[0], -1)
