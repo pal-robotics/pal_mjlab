@@ -1,6 +1,7 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
 import math
+from pathlib import Path
 
 import mjlab.terrains as terrain_gen
 from mjlab.envs import ManagerBasedRlEnvCfg
@@ -12,6 +13,7 @@ from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
+from mjlab.managers.recorder_manager import RecorderTermCfg
 from mjlab.sensor import (
   ContactMatch,
   ContactSensorCfg,
@@ -51,6 +53,8 @@ from pal_mjlab.robots import (
   get_kangaroo_stiff_pelvis_robot_cfg,
 )
 from pal_mjlab.tasks.velocity import mdp
+
+from pal_mjlab import PAL_MJLAB_SRC_PATH
 
 
 def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -787,6 +791,18 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
     twist_cmd.ranges.lin_vel_x = (0.0, 0.0)
     twist_cmd.ranges.lin_vel_y = (0.0, 0.0)
     twist_cmd.ranges.ang_vel_z = (0.0, 0.0)
+
+    recorder_terms : dict[str, RecorderTermCfg] = {
+      "CsvRecorder":RecorderTermCfg(
+        func=mdp.CsvRecorder,
+        params={
+          "path": Path(PAL_MJLAB_SRC_PATH / "Recorded_data.csv").resolve(),
+          "asset_cfg":SceneEntityCfg("robot", joint_names=(".*",)),
+        }
+      ),
+    }
+
+    cfg.recorders = recorder_terms
 
   return cfg
 
