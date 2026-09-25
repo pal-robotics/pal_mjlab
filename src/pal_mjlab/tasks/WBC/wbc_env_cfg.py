@@ -66,16 +66,6 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"command_name": "motion"},
       noise=Unoise(n_min=-0.02, n_max=0.02),
     ),
-    # "ref_joint_pos": ObservationTermCfg(
-    #   func=mdp.ref_joint_pos,
-    #   params={"command_name": "motion"},
-    #   noise=Unoise(n_min=-0.05, n_max=0.05),
-    # ),
-    # "ref_joint_vel": ObservationTermCfg(
-    #   func=mdp.ref_joint_vel,
-    #   params={"command_name": "motion"},
-    #   noise=Unoise(n_min=-0.25, n_max=0.25),
-    # ),
     "base_ang_vel": ObservationTermCfg(
       func=mdp.builtin_sensor,
       params={"sensor_name": "robot/imu_ang_vel"},
@@ -100,11 +90,19 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "body_ori": ObservationTermCfg(
       func=mdp.robot_body_ori_b, params={"command_name": "motion"}
     ),
-    "motion_body_lin_vel": ObservationTermCfg(
+    "body_lin_vel": ObservationTermCfg(
       func=mdp.motion_body_lin_vel, params={"command_name": "motion"}
     ),
-    "motion_body_ang_vel": ObservationTermCfg(
+    "body_ang_vel": ObservationTermCfg(
       func=mdp.motion_body_ang_vel, params={"command_name": "motion"}
+    ),
+    "reference_body_pos": ObservationTermCfg(
+      func=mdp.motion_body_pos_b,
+      params={"command_name": "motion"},
+    ),
+     "reference_body_ori": ObservationTermCfg(
+      func=mdp.motion_body_ori_b,
+      params={"command_name": "motion"},
     ),
     "actions": ObservationTermCfg(func=mdp.last_action),
   }
@@ -135,8 +133,13 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "joint_vel": ObservationTermCfg(
       func=mdp.joint_vel_rel,
     ),
+    "ref_joint_pos": ObservationTermCfg(
+      func=mdp.ref_joint_pos,
+      params={"command_name": "motion"},
+    ),
     "ref_joint_vel": ObservationTermCfg(
-      func=mdp.ref_joint_vel, params={"command_name": "motion"}
+      func=mdp.ref_joint_vel, 
+      params={"command_name": "motion"}
     ),
     "ref_base_lin_acc": ObservationTermCfg(
       func=mdp.ref_base_lin_acc_b, params={"command_name": "motion"}
@@ -259,7 +262,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "motion_body_pos": RewardTermCfg(
       func=mdp.motion_relative_body_position_error_exp,
-      weight=5.0,
+      weight=8.0,
       params={
         "command_name": "motion",
         "std": 0.3,
@@ -268,7 +271,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "motion_body_ori": RewardTermCfg(
       func=mdp.motion_relative_body_orientation_error_exp,
-      weight=1.0,
+      weight=2.0,
       params={
         "command_name": "motion",
         "std": 0.4,
