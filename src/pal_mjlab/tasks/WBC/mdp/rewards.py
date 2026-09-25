@@ -88,14 +88,3 @@ def motion_anchor_angular_velocity_body_error_exp(
   error = torch.sum(torch.square(ref_ang_b - robot_ang_b), dim=-1)
 
   return torch.exp(-kappa * error / std**2)
-
-def feet_static(
-    env: ManagerBasedRlEnv,
-    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-) -> torch.Tensor:
-  asset: Entity = env.scene[asset_cfg.name]
-  ang_vel = asset.data.body_link_ang_vel_w[:, asset_cfg.body_ids, :]
-  lin_vel = asset.data.body_link_lin_vel_w[:, asset_cfg.body_ids, :]
-
-  return (torch.sum(torch.square(ang_vel), dim=(1, 2))
-          + torch.sum(torch.square(lin_vel), dim=(1, 2)))

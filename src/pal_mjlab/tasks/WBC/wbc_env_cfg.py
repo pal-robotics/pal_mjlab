@@ -9,8 +9,6 @@ Based on https://github.com/HybridRobotics/whole_body_tracking
 Commit: f8e20c880d9c8ec7172a13d3a88a65e3a5a88448
 """
 
-import math
-
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -29,7 +27,6 @@ from pal_mjlab.tasks.WBC.mdp import MotionCommandCfg
 from mjlab.terrains import TerrainEntityCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
-from mjlab.tasks.velocity import mdp as loco_mdp
 
 VELOCITY_RANGE = {
   "x": (-0.5, 0.5),
@@ -39,6 +36,7 @@ VELOCITY_RANGE = {
   "pitch": (-0.52, 0.52),
   "yaw": (-0.78, 0.78),
 }
+
 
 def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   """Create base tracking task configuration."""
@@ -247,7 +245,6 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
   # Rewards
   ##
-  site_names = ("left_foot", "right_foot")
 
   rewards: dict[str, RewardTermCfg] = {
     "motion_global_root_pos": RewardTermCfg(
@@ -266,7 +263,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "command_name": "motion",
         "std": 0.3,
-        "body_names": ("arm_left_tip_link", "arm_right_tip_link"),
+        "body_names": ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link"),
       },
     ),
     "motion_body_ori": RewardTermCfg(
@@ -275,7 +272,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "command_name": "motion",
         "std": 0.4,
-        "body_names": ("arm_left_tip_link", "arm_right_tip_link"),
+        "body_names": ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link"),
       },
     ),
     "motion_body_lin_vel": RewardTermCfg(
@@ -284,7 +281,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "command_name": "motion",
         "std": 1.0,
-        "body_names": ("arm_left_tip_link", "arm_right_tip_link"),
+        "body_names": ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link"),
       },
     ),
     "motion_body_ang_vel": RewardTermCfg(
@@ -293,7 +290,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "command_name": "motion",
         "std": 3.14,
-        "body_names": ("arm_left_tip_link", "arm_right_tip_link"),
+        "body_names": ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link"),
       },
     ),
     "angular_momentum": RewardTermCfg(
@@ -335,32 +332,6 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.motion_anchor_angular_velocity_body_error_exp,
       weight=1.0,
       params={"command_name": "motion", "std": 1.5},
-    ),
-    "left_foott_flat": RewardTermCfg(
-      func=loco_mdp.upright,
-      weight=1.0,
-      params={
-        "std": math.sqrt(0.2),
-        "asset_cfg": SceneEntityCfg("robot", body_names=("leg_left_foot_link")),
-      },
-    ),
-    "right_foot_flat": RewardTermCfg(
-      func=loco_mdp.upright,
-      weight=1.0,
-      params={
-        "std": math.sqrt(0.2),
-        "asset_cfg": SceneEntityCfg("robot", body_names=("leg_right_foot_link")),
-      },
-    ),
-    "feet_static": RewardTermCfg(
-      func=mdp.feet_static,
-      weight=1.0,
-      params={
-        "asset_cfg": SceneEntityCfg(
-          "robot",
-          body_names=("leg_left_foot_link", "leg_right_foot_link"),
-        ),
-      },
     ),
   }
 
