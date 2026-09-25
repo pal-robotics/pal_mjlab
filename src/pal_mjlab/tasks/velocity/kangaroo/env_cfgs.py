@@ -673,6 +673,9 @@ def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
   #   random_walk_step_std=0.02,
   # )
 
+
+  # IK control for arms - random positions
+
   cfg.actions["arm_left_action"] = mdp.PolicyIndependentDifferentialIKActionCfg(
     entity_name="robot",
     actuator_names=(r"arm_left_.*",),
@@ -712,7 +715,7 @@ def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
       z=(0.0, 0.3),
     ),
     base_position= (0.3, -0.3, -0.2)
-    )
+  )
 
   return cfg
 
@@ -740,29 +743,24 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
   joint_pos_action.scale = KANGAROO_LOWER_BODY_NO_PELVIS_ACTION_SCALE
   joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_NO_PELVIS_ACTUATOR_NAMES
   
-  cfg.events["reset_pelvis_1_joint"] = EventTermCfg(
-    func=mdp.reset_static_joints_by_offset,
-    mode="reset",
-    params={
-      "position_range": (-0.05, 0.05),
-      "velocity_range": (0.0, 0.0),
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(r"pelvis_1.*",)),
-    },
-  )
 
-  cfg.events["reset_pelvis_2_joint"] = EventTermCfg(
-    func=mdp.reset_static_joints_by_offset,
-    mode="reset",
-    params={
-      "position_range": (-0.7, 0.7),
-      "velocity_range": (0.0, 0.0),
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(r"pelvis_2.*",)),
-    },
+  # Joint control for pelvis - random positions
+  
+  cfg.actions["pelvis_action"] = mdp.PelvisActionCfg(
+    entity_name="robot",
+    actuator_names=(r"pelvis_.*",),
+    scale=1.0,
+    use_default_offset=True,
+    command_name="pelvis_command",
   )
-
-  # HERE, CUSTOM ACTION FOR PELVIS 1 AND 2
-  # SHOULD BE AN OVERHAUL OF JointPositionAction, but with arbitrary resampling
-  # SHOULD OBVIOUSLY ALSO CHANGE THE METHODS FOR RESETING PELVIS JOINTS (NOT STATIC ANYMORE)
+  
+  cfg.commands["pelvis_command"] = mdp.PelvisPositionCommandCfg(
+    resampling_time_range=(1.0, 6.0),
+    ranges= mdp.PelvisPositionCommandCfg.Ranges(
+      Pelvis_1=(-0.05, 0.05),
+      Pelvis_2=(-0.7, 0.7),
+    ),
+  )
 
   if play :
     cfg.commands["arm_left_command"] = mdp.UniformHandPositionCommandCfg(

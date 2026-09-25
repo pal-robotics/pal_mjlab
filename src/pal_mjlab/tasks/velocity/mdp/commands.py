@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import torch
@@ -8,6 +8,8 @@ from mjlab.tasks.velocity.mdp.velocity_command import (
   UniformVelocityCommand,
   UniformVelocityCommandCfg,
 )
+
+from mjlab.managers.command_manager import CommandTerm, CommandTermCfg
 
 if TYPE_CHECKING:
   from mjlab.envs.manager_based_rl_env import ManagerBasedRlEnv
@@ -209,3 +211,60 @@ class DualBandVelocityCommandCfg(UniformVelocityCommandCfg):
 
   def build(self, env: ManagerBasedRlEnv) -> DualBandVelocityCommand:
     return DualBandVelocityCommand(self, env)
+
+
+
+class PelvisPositionCommand(CommandTerm):
+  cfg: PelvisPositionCommandCfg
+
+  def __init__(self, cfg: PelvisPositionCommandCfg, env: ManagerBasedRlEnv):
+    super().__init__(cfg, env)
+
+    self.pelvis_command = torch.zeros(self.num_envs, 2, device=self.device)
+
+    self.is_base_position_env = torch.zeros(
+      self.num_envs, dtype=torch.bool, device=self.device
+    )
+
+  @property
+  def command(self) -> torch.Tensor:
+    return self.pelvis_command
+
+  def _update_metrics(self) -> None:
+    pass
+
+  def _resample_command(self, env_ids: torch.Tensor) -> None:
+    r = torch.empty(len(env_ids), device=self.device)
+    self.pelvis_command[env_ids, 0] = r.uniform_(*self.cfg.ranges.Pelvis_1)
+    self.pelvis_command[env_ids, 1] = r.uniform_(*self.cfg.ranges.Pelvis_2)
+
+    self.is_base_position_env[env_ids] = r.uniform_(0.0, 1.0) <= self.cfg.rel_base_position
+
+  def _update_command(self, env_ids: torch.Tensor | None) -> None:
+    base_position_ids = self.is_base_position_env.nonzero(as_tuple=False).flatten()
+    self.pelvis_command[base_position_ids] = torch.zeros((len(base_position_ids), 2,), device=self.device)
+
+@dataclass(kw_only=True)
+class PelvisPositionCommandCfg(CommandTermCfg):
+
+  @dataclass
+  class Ranges:
+    Pelvis_1: tuple[float, float]
+    Pelvis_2: tuple[float, float]
+
+  ranges: Ranges
+
+  rel_base_position: float = 0.1
+  
+  @dataclass
+  class VizCfg:
+    z_offset: float = 0.2
+    scale: float = 0.5
+
+  viz: VizCfg = field(default_factory=VizCfg)
+
+  def build(self, env: ManagerBasedRlEnv) -> PelvisPositionCommand:
+    return PelvisPositionCommand(self, env)
+
+  def __post_init__(self):
+    pass

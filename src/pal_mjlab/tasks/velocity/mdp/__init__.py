@@ -16,4 +16,9 @@ from .policy_independent_differential_ik_action import (  # noqa: F401
   PolicyIndependentDifferentialIKAction,
 )
 
+from .pelvis_random_action import ( # noqa: F401
+    PelvisActionCfg,
+    PelvisAction,
+)
+
 from .arm_rel_position_command import UniformHandPositionCommandCfg # noqa: F401
