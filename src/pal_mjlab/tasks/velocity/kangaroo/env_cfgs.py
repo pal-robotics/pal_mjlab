@@ -747,6 +747,10 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
   assert isinstance(joint_pos_action, JointPositionActionCfg)
   joint_pos_action.scale = KANGAROO_LOWER_BODY_NO_PELVIS_ACTION_SCALE
   joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_NO_PELVIS_ACTUATOR_NAMES
+
+  twist_cmd = cfg.commands["twist"]
+  assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+  twist_cmd.rel_standing_envs = 0.2
   
 
   # Joint control for pelvis - random positions
