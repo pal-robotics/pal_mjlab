@@ -705,9 +705,9 @@ def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
   cfg.commands["arm_left_command"] = mdp.UniformHandPositionCommandCfg(
     resampling_time_range=(1.0, 10.0),
     ranges= mdp.UniformHandPositionCommandCfg.Ranges(
-      x=(-0.5, 0.5),
+      x=(-0.5, 0.7),
       y=(-0.1, 0.5),
-      z=(0.0, 0.3),
+      z=(-0.1, 0.6),
     ),
     base_position= (0.3, 0.3, -0.2)
   )
@@ -715,9 +715,9 @@ def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
   cfg.commands["arm_right_command"] = mdp.UniformHandPositionCommandCfg(
     resampling_time_range=(1.0, 10.0),
     ranges= mdp.UniformHandPositionCommandCfg.Ranges(
-      x=(-0.5, 0.5),
+      x=(-0.5, 0.7),
       y=(-0.5, 0.1),
-      z=(0.0, 0.3),
+      z=(-0.1, 0.6),
     ),
     base_position= (0.3, -0.3, -0.2)
   )
@@ -773,7 +773,7 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
       ranges= mdp.UniformHandPositionCommandCfg.Ranges(
         x=(-0.1, 0.5),
         y=(-0.1, 0.5),
-        z=(0.0, 0.3),
+        z=(-0.1, 0.5),
       ),
       base_position= (0.3, 0.3, -0.2)
     )
@@ -783,15 +783,15 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
       ranges= mdp.UniformHandPositionCommandCfg.Ranges(
         x=(-0.1, 0.5),
         y=(-0.5, 0.1),
-        z=(0.0, 0.3),
+        z=(-0.1, 0.5),
       ),
       base_position= (0.3, -0.3, -0.2)
     )
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.ranges.lin_vel_x = (0.0, 0.0)
-    twist_cmd.ranges.lin_vel_y = (0.0, 0.0)
-    twist_cmd.ranges.ang_vel_z = (0.0, 0.0)
+    twist_cmd.ranges.lin_vel_x = (-0.4, 0.4)
+    twist_cmd.ranges.lin_vel_y = (-0.4, 0.4)
+    twist_cmd.ranges.ang_vel_z = (-0.6, 0.6)
 
     recorder_terms : dict[str, RecorderTermCfg] = {
       "CsvRecorder":RecorderTermCfg(
