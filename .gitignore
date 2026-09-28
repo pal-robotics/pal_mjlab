@@ -25,3 +25,4 @@ docs_build/
 artifacts/
 *.npz
 motion.mp4
+recorded_data/

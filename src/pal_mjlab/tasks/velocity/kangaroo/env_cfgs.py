@@ -802,7 +802,7 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
       "CsvRecorder":RecorderTermCfg(
         func=mdp.CsvRecorder,
         params={
-          "path": Path(PAL_MJLAB_SRC_PATH).resolve(),
+          "path": Path(PAL_MJLAB_SRC_PATH / "recorded_data").resolve(),
           "name" : "Recorded_data",
           "asset_cfg":SceneEntityCfg("robot", joint_names=(".*",)),
           "joint_names": ROBOT_CONFIGS["kangaroo"]["joint_names"],
