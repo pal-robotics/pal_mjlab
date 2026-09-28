@@ -773,7 +773,7 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
 
   if play :
     cfg.commands["arm_left_command"] = mdp.UniformHandPositionCommandCfg(
-      resampling_time_range=(1.0, 10.0),
+      resampling_time_range=(1.0, 3.0),
       ranges= mdp.UniformHandPositionCommandCfg.Ranges(
         x=(-0.1, 0.5),
         y=(-0.1, 0.5),
@@ -783,7 +783,7 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
     )
   
     cfg.commands["arm_right_command"] = mdp.UniformHandPositionCommandCfg(
-      resampling_time_range=(1.0, 10.0),
+      resampling_time_range=(1.0, 3.0),
       ranges= mdp.UniformHandPositionCommandCfg.Ranges(
         x=(-0.1, 0.5),
         y=(-0.5, 0.1),
@@ -796,12 +796,14 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
     twist_cmd.ranges.lin_vel_x = (-0.4, 0.4)
     twist_cmd.ranges.lin_vel_y = (-0.4, 0.4)
     twist_cmd.ranges.ang_vel_z = (-0.6, 0.6)
+    twist_cmd.resampling_time_range=(2.0,5.0)
 
     recorder_terms : dict[str, RecorderTermCfg] = {
       "CsvRecorder":RecorderTermCfg(
         func=mdp.CsvRecorder,
         params={
-          "path": Path(PAL_MJLAB_SRC_PATH / "Recorded_data.csv").resolve(),
+          "path": Path(PAL_MJLAB_SRC_PATH).resolve(),
+          "name" : "Recorded_data",
           "asset_cfg":SceneEntityCfg("robot", joint_names=(".*",)),
           "joint_names": ROBOT_CONFIGS["kangaroo"]["joint_names"],
         }
@@ -809,6 +811,9 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
     }
 
     cfg.recorders = recorder_terms
+
+    # Timeout termination to give impression of episodes
+    cfg.episode_length_s = int(10.0)
 
   return cfg
 

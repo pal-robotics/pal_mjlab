@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 import csv
+from pathlib import Path
 
 import torch
 from mjlab.managers.scene_entity_config import SceneEntityCfg
@@ -18,8 +19,12 @@ if TYPE_CHECKING:
 class CsvRecorder(RecorderTerm):
   def __init__(self, cfg, env):
     super().__init__(cfg, env)
-    self._file = open(cfg.params["path"], "w", newline="")
-    self._writer = csv.writer(self._file)
+    self._root_path = cfg.params["path"]
+    self._name = cfg.params["name"]
+
+    self._episode = 0
+    self.open_writer_on_file()
+
     asset_cfg: SceneEntityCfg = cfg.params["asset_cfg"]
     assert asset_cfg is not None, "Pass asset_cfg param to CsvRecorder term"
     self.asset: Entity = env.scene[asset_cfg.name]
@@ -30,6 +35,10 @@ class CsvRecorder(RecorderTerm):
       device=env.device,
       dtype=torch.long,
     )
+  def record_pre_reset(self, env_ids):
+    self.close()
+    self._episode += 1
+    self.open_writer_on_file()
 
   def record_post_step(self):
     # Skip envs that just reset: their terminal pair was written in record_pre_reset
@@ -53,4 +62,10 @@ class CsvRecorder(RecorderTerm):
       self._writer.writerow(rp.tolist() + ro.tolist() + jp.tolist())
 
   def close(self):
-    self._file.close()
+    if not self._file.closed :
+      self._file.close()
+
+  def open_writer_on_file(self):
+    self._path = Path(self._root_path / f"{self._name}_{self._episode}.csv").resolve()
+    self._file = open(self._path, "w", newline="")
+    self._writer = csv.writer(self._file)
