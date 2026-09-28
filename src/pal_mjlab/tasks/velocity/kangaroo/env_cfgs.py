@@ -55,6 +55,7 @@ from pal_mjlab.robots import (
 from pal_mjlab.tasks.velocity import mdp
 
 from pal_mjlab import PAL_MJLAB_SRC_PATH
+from pal_mjlab.scripts.csv_to_npz import ROBOT_CONFIGS
 
 
 def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -798,6 +799,7 @@ def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBas
         params={
           "path": Path(PAL_MJLAB_SRC_PATH / "Recorded_data.csv").resolve(),
           "asset_cfg":SceneEntityCfg("robot", joint_names=(".*",)),
+          "joint_names": ROBOT_CONFIGS["kangaroo"]["joint_names"],
         }
       ),
     }
