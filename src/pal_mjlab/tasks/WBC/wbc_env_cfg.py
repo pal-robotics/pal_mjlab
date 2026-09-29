@@ -45,6 +45,8 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   # Observations
   ##
 
+  end_effector_body_names = ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link")
+
   actor_terms = {
     "ref_base_height": ObservationTermCfg(
       func=mdp.ref_base_height,
@@ -85,12 +87,14 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.5, n_max=0.5)
     ),
     "reference_body_pos": ObservationTermCfg(
-      func=mdp.motion_body_pos_b,
-      params={"command_name": "motion"},
+      func=mdp.ref_body_pos_b,
+      params={"command_name": "motion",
+              "body_names": end_effector_body_names},
     ),
      "reference_body_ori": ObservationTermCfg(
-      func=mdp.motion_body_ori_b,
-      params={"command_name": "motion"},
+      func=mdp.ref_body_ori_b,
+      params={"command_name": "motion",
+              "body_names": end_effector_body_names},
     ),
     "actions": ObservationTermCfg(func=mdp.last_action),
   }
@@ -146,6 +150,12 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "body_ang_vel": ObservationTermCfg(
       func=mdp.motion_body_ang_vel, params={"command_name": "motion"}
+    ),
+    "full_reference_body_pos": ObservationTermCfg(
+      func=mdp.ref_body_pos_b, params={"command_name": "motion"}
+    ),
+    "full_reference_body_ori": ObservationTermCfg(
+      func=mdp.ref_body_ori_b, params={"command_name": "motion"}
     ),
   }
 
@@ -262,20 +272,20 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "motion_body_pos": RewardTermCfg(
       func=mdp.motion_relative_body_position_error_exp,
-      weight=8.0,
+      weight=1.0,
       params={
         "command_name": "motion",
         "std": 0.3,
-        "body_names": ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link"),
+        "body_names": end_effector_body_names,
       },
     ),
     "motion_body_ori": RewardTermCfg(
       func=mdp.motion_relative_body_orientation_error_exp,
-      weight=2.0,
+      weight=1.0,
       params={
         "command_name": "motion",
         "std": 0.4,
-        "body_names": ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link"),
+        "body_names": end_effector_body_names,
       },
     ),
     "motion_body_lin_vel": RewardTermCfg(
@@ -386,9 +396,18 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       params={
         "reward_name": "motion_body_pos",
         "stages": [
+          {"step": 0, "weight": 2.0},
+          {"step": 5_000 * 24, "weight": 5.0},
+        ],
+      },
+    ),
+    "motion_body_ori_curr": CurriculumTermCfg(
+      func=mdp.reward_curriculum,
+      params={
+        "reward_name": "motion_body_ori",
+        "stages": [
           {"step": 0, "weight": 1.0},
-          {"step": 5_000 * 24, "weight": 1.5},
-          {"step": 15_000 * 24, "weight": 2.0},
+          {"step": 5_000 * 24, "weight": 3.0},
         ],
       },
     ),

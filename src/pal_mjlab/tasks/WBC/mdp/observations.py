@@ -161,28 +161,47 @@ def ref_base_ang_acc_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tenso
   """Reference anchor angular acceleration in anchor frame (critic privileged)."""
   return env.command_manager.get_term(command_name).ref_base_ang_acc_b
 
-def motion_body_pos_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+
+def body_indexes_from_names(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[str, ...]) :
+  assert body_names is not None, "'body_indexes_from_names' method does not support 'None' body_names"
+
+  command = cast(MotionCommand, env.command_manager.get_term(command_name))
+  name_to_idx = {name: i for i, name in enumerate(command.cfg.body_names)}
+  missing = [name for name in body_names if name not in name_to_idx]
+  if missing:
+    raise ValueError(
+      f"body_names {missing} not in motion command bodies {list(command.cfg.body_names)}"
+    )
+  return [name_to_idx[name] for name in body_names]
+
+def ref_body_pos_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[str, ...] | None = None) -> torch.Tensor:
   command = cast(MotionCommand, env.command_manager.get_term(command_name))
 
-  num_bodies = len(command.cfg.body_names)
+  if body_names is None:
+    body_names = command.cfg.body_names
+  indexes = body_indexes_from_names(env, command_name, body_names)
+  num_bodies = len(indexes)
   pos_b, _ = subtract_frame_transforms(
     command.anchor_pos_w[:, None, :].repeat(1, num_bodies, 1),
     command.anchor_quat_w[:, None, :].repeat(1, num_bodies, 1),
-    command.body_pos_w,
-    command.body_quat_w,
+    command.body_pos_w[:, indexes],
+    command.body_quat_w[:, indexes],
   )
 
   return pos_b.view(env.num_envs, -1)
 
-def motion_body_ori_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+def ref_body_ori_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[str, ...] | None = None) -> torch.Tensor:
   command = cast(MotionCommand, env.command_manager.get_term(command_name))
 
-  num_bodies = len(command.cfg.body_names)
+  if body_names is None:
+    body_names = command.cfg.body_names
+  indexes = body_indexes_from_names(env, command_name, body_names)
+  num_bodies = len(indexes)
   _, ori_b = subtract_frame_transforms(
     command.anchor_pos_w[:, None, :].repeat(1, num_bodies, 1),
     command.anchor_quat_w[:, None, :].repeat(1, num_bodies, 1),
-    command.body_pos_w,
-    command.body_quat_w,
+    command.body_pos_w[:, indexes],
+    command.body_quat_w[:, indexes],
   )
   mat = matrix_from_quat(ori_b)
   return mat[..., :2].reshape(mat.shape[0], -1)
