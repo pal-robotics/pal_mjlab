@@ -366,20 +366,7 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   #           ],
   #   },
   # )
-  cfg.curriculum["action_rate_weight"] = CurriculumTermCfg(
-    func=mdp.reward_curriculum,
-    params={
-      "reward_name": "action_rate_l2",
-      "stages": [
-        {"step": 0, "weight": -0.1},
-        {"step": 1000 * 24, "weight": -0.2},
-        {"step": 1500 * 24, "weight": -0.4},
-        {"step": 2000 * 24, "weight": -0.6},
-        {"step": 2500 * 24, "weight": -0.8},
-        {"step": 3000 * 24, "weight": -1.0},
-      ],
-    },
-  )
+
 
   # -- Terminations
 
