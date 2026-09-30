@@ -40,7 +40,7 @@ for p in [
 # Actuator Parameters (BeyondMimic methodology)
 ##
 
-NATURAL_FREQ = 5 * 2.0 * 3.1415926535  # 10Hz
+NATURAL_FREQ = 3.5 * 2.0 * 3.1415926535  # 10Hz
 DAMPING_RATIO = 2.0
 FACTOR = 0.05
 
@@ -129,7 +129,7 @@ def _calc_leg_params(
   viscous_damping: float,
 ) -> dict:
   """Calculate leg actuator parameters."""
-  damping = round(2.0 * DAMPING_RATIO * stiffness / NATURAL_FREQ, 3)
+  damping = round(2.0 * DAMPING_RATIO * stiffness / (10 * 2.0 * 3.1415926535), 3)
   return {
     "armature": armature,
     "stiffness": stiffness,
