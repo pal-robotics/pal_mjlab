@@ -228,6 +228,10 @@ class MotionCommand(CommandTerm):
       device=self.device,
     )
 
+    # if no body name passed, track all
+    if self.cfg.tracked_body_names is None :
+      self.cfg.tracked_body_names = self.cfg.body_names
+
     self.motion = MotionLoader(
       self.cfg.motion_dir, self.body_indexes, self.motion_anchor_body_index, env.step_dt, device=self.device
     )
@@ -876,6 +880,7 @@ class MotionCommandCfg(CommandTermCfg):
   motion_dir: str
   anchor_body_name: str
   body_names: tuple[str, ...]
+  tracked_body_names: tuple[str, ...] | None = None
   entity_name: str
   pose_range: dict[str, tuple[float, float]] = field(default_factory=dict)
   velocity_range: dict[str, tuple[float, float]] = field(default_factory=dict)

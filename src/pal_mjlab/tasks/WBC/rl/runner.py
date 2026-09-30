@@ -107,6 +107,7 @@ class WBCMotionTrackingOnPolicyRunner(MjlabOnPolicyRunner):
         {
           "anchor_body_name": motion_term.cfg.anchor_body_name,
           "body_names": list(motion_term.cfg.body_names),
+          "tracked_body_names": list(motion_term.cfg.tracked_body_names),
         }
       )
       attach_metadata_to_onnx(str(onnx_path), metadata)
