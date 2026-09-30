@@ -48,26 +48,6 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   end_effector_body_names = ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link")
 
   actor_terms = {
-    "ref_base_height": ObservationTermCfg(
-      func=mdp.ref_base_height,
-      params={"command_name": "motion"},
-      noise=Unoise(n_min=-0.01, n_max=0.01),
-    ),
-    "ref_base_lin_vel_b": ObservationTermCfg(
-      func=mdp.ref_base_lin_vel_b,
-      params={"command_name": "motion"},
-      noise=Unoise(n_min=(-0.1, -0.1, -0.05), n_max=(0.1, 0.1, 0.05)),
-    ),
-    "ref_base_ang_vel_b": ObservationTermCfg(
-      func=mdp.ref_base_ang_vel_b,
-      params={"command_name": "motion"},
-      noise=Unoise(n_min=(-0.2, -0.2, -0.3), n_max=(0.2, 0.2, 0.3)),
-    ),
-    "ref_gravity_b": ObservationTermCfg(
-      func=mdp.ref_gravity_b,
-      params={"command_name": "motion"},
-      noise=Unoise(n_min=-0.02, n_max=0.02),
-    ),
     "base_ang_vel": ObservationTermCfg(
       func=mdp.builtin_sensor,
       params={"sensor_name": "robot/imu_ang_vel"},
@@ -156,6 +136,18 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "full_reference_body_ori": ObservationTermCfg(
       func=mdp.ref_body_ori_b, params={"command_name": "motion"}
+    ),
+    "ref_base_height": ObservationTermCfg(
+      func=mdp.ref_base_height, params={"command_name": "motion"} 
+    ),
+    "ref_base_lin_vel_b": ObservationTermCfg(
+      func=mdp.ref_base_lin_vel_b, params={"command_name": "motion"}
+    ),
+    "ref_base_ang_vel_b": ObservationTermCfg(
+      func=mdp.ref_base_ang_vel_b, params={"command_name": "motion"}
+    ),
+    "ref_gravity_b": ObservationTermCfg(
+      func=mdp.ref_gravity_b, params={"command_name": "motion"}
     ),
   }
 
