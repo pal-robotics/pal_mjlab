@@ -31,6 +31,8 @@ def pal_kangaroo_flat_wbc_env_cfg(
   cfg.sim.mujoco.timestep = 0.002
   cfg.decimation = 10
 
+  end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
+
   geom_names = tuple(
     f"{side}_foot{i}_collision"
     for side in ("left", "right")
@@ -88,12 +90,11 @@ def pal_kangaroo_flat_wbc_env_cfg(
     "arm_right_tip_link",
   )
   motion_cmd.joint_position_range = (-0.05, 0.05)
+  motion_cmd.tracked_body_names = end_effector_body_names
 
   # Setup end effector cartesian tracking instead of joint position/velocity tracking
   cfg.observations["actor"].terms["ref_joint_pos"] = None
   cfg.observations["actor"].terms["ref_joint_vel"] = None
-
-  end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
 
   cfg.observations["actor"].terms["ref_body_pos"] = ObservationTermCfg(
     func=mdp.ref_body_pos_b, 
