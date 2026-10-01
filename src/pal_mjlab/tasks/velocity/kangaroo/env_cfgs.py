@@ -385,6 +385,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### OBSERVATIONS
 
+  del cfg.observations["actor"].terms["base_lin_acc"]
+
   # The default scan was deleted, we add a custom one, only to the critic
   cfg.observations["critic"].terms["height_scan"] = ObservationTermCfg(
     func=mdp.height_scan,
