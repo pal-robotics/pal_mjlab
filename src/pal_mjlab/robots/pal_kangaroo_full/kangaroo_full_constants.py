@@ -104,40 +104,97 @@ ANKLE_XY_CONVEX_HULL_POINTS = torch.tensor(
 )
 
 
-NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
+NATURAL_FREQ = 5 * 2.0 * 3.1415926535  # 10Hz
 DAMPING_RATIO = 2.0
-FACTOR = 0.05
 
 
-def _calc_actuator_params(
-  gear_ratio: float, motor_inertia: float, effort: float
-) -> dict:
-  """Calculate armature, stiffness, and damping for an actuator."""
-  armature = FACTOR * motor_inertia * gear_ratio**2
-  stiffness = round(armature * NATURAL_FREQ**2, 3)
-  damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
+def _calc_actuator_params(armature: float, effort: float) -> dict:
+  """The PD gains that put one actuator at NATURAL_FREQ with DAMPING_RATIO.
+
+  A joint driven by a PD against its own reflected inertia is a second-order
+  system, so the gains follow from the inertia and the two design constants::
+
+      k = m * omega_n^2
+      c = 2 * zeta * m * omega_n
+
+  ``m`` is the armature, and it is *read from the model* rather than passed in:
+  reflected inertia is a property of the drive, not of the controller, and the
+  MJCF is where it lives (``<processed_inputs>`` in
+  ``kangaroo_full_model.urdf.xacro``). Deriving the gains from it is what keeps
+  the actuator model honest -- change a gear ratio or a screw lead in the xacro
+  and the gains follow, instead of drifting away from an inertia nobody
+  re-checked.
+  """
   return {
-    "armature": armature,
-    "stiffness": stiffness,
-    "damping": damping,
+    "stiffness": round(armature * NATURAL_FREQ**2, 3),
+    "damping": round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3),
     "effort_limit": effort,
   }
 
 
-def _calc_leg_params(stiffness: float, effort: float) -> dict:
-  """Calculate leg actuator parameters."""
-  damping = round(2.0 * DAMPING_RATIO * stiffness / NATURAL_FREQ, 3)
-  return {
-    "armature": 0.01,
-    "stiffness": stiffness,
-    "damping": damping,
-    "effort_limit": effort,
+def _read_joint_armatures() -> dict[str, float]:
+  """Reflected inertia per joint, as the MJCF resolves it.
+
+  ``MjSpec`` applies the ``<default>`` classes onto the elements at parse time,
+  so this already accounts for the global default (0, because a joint with no
+  rotor has no reflected inertia) and for the per-joint overrides. Parses the
+  spec only (no ``compile()``), so no meshes are loaded.
+  """
+  spec = mujoco.MjSpec.from_file(str(KANG_FULL_XML))
+  return {joint.name: float(joint.armature) for joint in spec.joints}
+
+
+_JOINT_ARMATURES = _read_joint_armatures()
+
+
+def _position_actuator(
+  target_names_expr: tuple[str, ...], effort: float
+) -> BuiltinPositionActuatorCfg:
+  """A position actuator whose gains come from the armature in the MJCF.
+
+  ``target_names_expr`` holds regexes while armatures are keyed by joint name, so
+  targets are resolved with ``re.match``, the way mjlab resolves them. One config
+  is one set of gains, so every joint it claims has to agree on the inertia --
+  a config that straddles two different motors would silently take one of them.
+
+  ``armature`` is left unset on the config so mjlab preserves the XML value
+  (``ActuatorCfg.armature``: "None preserves the XML value"): the number is read
+  here to derive the gains, never written back.
+  """
+  matched = {
+    name: armature
+    for expr in target_names_expr
+    for name, armature in _JOINT_ARMATURES.items()
+    if re.match(expr, name)
   }
+  if not matched:
+    raise ValueError(
+      f"{target_names_expr} matches no joint in {KANG_FULL_XML.name}; "
+      "joint names last changed in the 2026-08 regeneration."
+    )
+  armatures = set(matched.values())
+  if len(armatures) != 1:
+    raise ValueError(
+      f"{target_names_expr} spans more than one armature ({sorted(armatures)}); "
+      "split it so each actuator config covers a single motor."
+    )
+  armature = armatures.pop()
+  if armature <= 0.0:
+    raise ValueError(
+      f"{target_names_expr} resolves to armature {armature} in "
+      f"{KANG_FULL_XML.name}; an actuated joint needs a reflected inertia "
+      "(set it in <processed_inputs> in kangaroo_full_model.urdf.xacro)."
+    )
+  return BuiltinPositionActuatorCfg(
+    target_names_expr=target_names_expr,
+    **_calc_actuator_params(armature, effort),
+  )
 
 
-# Motor parameters: (gear_ratio, motor_inertia, effort_limit)
-S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
-S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
+# Effort limits per motor. The S+ (pelvis, arm 1/2) and S- (arm 3/4) drives; the
+# armature behind each comes from the MJCF, not from here.
+_S_PLUS_EFFORT = 50
+_S_MINUS_EFFORT = 25
 
 
 ##
@@ -234,9 +291,14 @@ def _leg_frames(side: str) -> tuple[_Frame, ...]:
   ``leg_*_5_link`` and can neither move nor collide independently -- but they are
   not. MuJoCo derives each contact's regularization from ``body_invweight0`` of
   the body owning the geom, and that is measured at the body's *own* origin:
-  0.841 at ``leg_*_foot_link`` against 0.630 one body up. Re-expressing the
-  capsules in ``leg_*_5_link`` reproduced every compiled geom pose to 1e-17 and
-  still stiffened the foot contacts by 25%, so the frames are rebuilt here.
+  2.182 at ``leg_*_foot_link`` against 0.793 one body up. Re-expressing the
+  capsules in ``leg_*_5_link`` reproduces every compiled geom pose to 1e-17 and
+  still stiffens the foot contacts by ~2.75x, so the frames are rebuilt here.
+
+  Those numbers were 0.841 and 0.630 while every passive joint carried a 0.01
+  armature. Dropping it (the linkage has no rotor, so it has no reflected
+  inertia) lightened the whole leg subtree and widened the gap, which makes the
+  carrier bodies matter more than they did, not less.
   """
   return (
     _Frame(
@@ -542,60 +604,44 @@ def get_kangaroo_spec() -> mujoco.MjSpec:
 # a reliable guide; these were matched by body and site membership.
 ##
 
-KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"leg_(left|right)_1_actuator$",),
-  **_calc_leg_params(16000.0, _LEG_ACTUATORS_EFFORT_LIMITS[1]),
+KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = _position_actuator(
+  (r"leg_(left|right)_1_actuator$",), _LEG_ACTUATORS_EFFORT_LIMITS[1]
 )
 
-KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"leg_(left|right)_2_actuator$",),
-  **_calc_leg_params(16000.0, _LEG_ACTUATORS_EFFORT_LIMITS[1]),
+KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = _position_actuator(
+  (r"leg_(left|right)_2_actuator$",), _LEG_ACTUATORS_EFFORT_LIMITS[1]
 )
 
-KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"leg_(left|right)_3_actuator$",),
-  **_calc_leg_params(16000.0, _LEG_ACTUATORS_EFFORT_LIMITS[1]),
+KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = _position_actuator(
+  (r"leg_(left|right)_3_actuator$",), _LEG_ACTUATORS_EFFORT_LIMITS[1]
 )
 
-KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"leg_(left|right)_4_actuator$",),
-  **_calc_leg_params(16000.0, _LEG_ACTUATORS_EFFORT_LIMITS[1]),
+KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = _position_actuator(
+  (r"leg_(left|right)_4_actuator$",), _LEG_ACTUATORS_EFFORT_LIMITS[1]
 )
 
-KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"leg_(left|right)_5_actuator$",),
-  **_calc_leg_params(16000.0, _LEG_ACTUATORS_EFFORT_LIMITS[1]),
+KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = _position_actuator(
+  (r"leg_(left|right)_5_actuator$",), _LEG_ACTUATORS_EFFORT_LIMITS[1]
 )
 
-KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(r"leg_(left|right)_length_actuator$",),
-  **_calc_leg_params(200000.0, _LEG_ACTUATORS_EFFORT_LIMITS[0]),
+KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = _position_actuator(
+  (r"leg_(left|right)_length_actuator$",), _LEG_ACTUATORS_EFFORT_LIMITS[0]
 )
 
-KANG_FULL_ARMS_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(
-    "arm_.*_1_joint",
-    "arm_.*_2_joint",
-  ),
-  **S_PLUS,
+KANG_FULL_ARMS_S_PLUS_ACTUATOR_CFG = _position_actuator(
+  ("arm_.*_1_joint", "arm_.*_2_joint"), _S_PLUS_EFFORT
 )
 
-KANG_FULL_ARMS_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(
-    "arm_.*_3_joint",
-    "arm_.*_4_joint",
-  ),
-  **S_MINUS,
+KANG_FULL_ARMS_S_MINUS_ACTUATOR_CFG = _position_actuator(
+  ("arm_.*_3_joint", "arm_.*_4_joint"), _S_MINUS_EFFORT
 )
 
-KANG_FULL_PELVIS_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=("pelvis_1_joint",),
-  **S_PLUS,
+KANG_FULL_PELVIS_1_ACTUATOR_CFG = _position_actuator(
+  ("pelvis_1_joint",), _S_PLUS_EFFORT
 )
 
-KANG_FULL_PELVIS_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=("pelvis_2_joint",),
-  **S_PLUS,
+KANG_FULL_PELVIS_2_ACTUATOR_CFG = _position_actuator(
+  ("pelvis_2_joint",), _S_PLUS_EFFORT
 )
 ##
 # Transmission.
@@ -729,10 +775,58 @@ def get_kangaroo_full_robot_cfg() -> EntityCfg:
   )
 
 
+_RANGE_FRACTION = 0.3
+"""Fraction of its travel that one unit of action addresses on a leg slider."""
+
+_HINGE_ACTION_SCALE = 0.25
+"""Joint displacement, in radians, that one unit of action commands on an arm or
+pelvis hinge.
+
+Stated directly rather than derived. It used to be ``0.25 * effort / stiffness``,
+which held the *torque* per action unit constant -- and then quietly collapsed the
+*motion* per action unit by 20x the moment the arm stiffness was corrected to the
+drive's real reflected inertia (0.2503 rad -> 0.0125 rad, i.e. +/-0.7 deg of arm
+travel). How far one action unit should move a joint is a policy-side choice and
+has nothing to do with how stiff the actuator is, so the two are no longer tied
+together. 0.25 rad is what the arms had before that change, and about 5x the pose
+term's ``std_standing`` of 0.05 rad."""
+
+# Only the leg sliders are scaled by travel. Their strokes are a few centimetres
+# and walking uses all of it, so a fraction of stroke is the right yardstick.
+# The arm and pelvis hinges span up to 5.2 rad but locomotion asks for a few
+# tenths, so a fraction of range hands the policy roughly 6x more authority than
+# it can use. Nothing charges for that: action_rate_l2 is measured on the
+# unscaled action, and the pose term's std_standing is 0.05 rad, which one unit
+# of a range-scaled arm action overshoots by ~31x, flattening its gradient.
+_TRAVEL_SCALED = re.compile(r"leg_")
+
+
+def _read_joint_ranges() -> dict[str, float]:
+  """Range of motion per joint, in metres for slides and radians for hinges.
+
+  Parses the spec only (no ``compile()``), so no meshes are loaded.
+  """
+  spec = mujoco.MjSpec.from_file(str(KANG_FULL_XML))
+  return {joint.name: float(joint.range[1] - joint.range[0]) for joint in spec.joints}
+
+
+_JOINT_RANGES = _read_joint_ranges()
+
+
 def _build_action_scales(
   articulation: EntityArticulationInfoCfg, exclude: set = frozenset()
 ) -> tuple[dict, tuple]:
-  """Build action scale dict and actuator names from articulation config."""
+  """Build action scale dict and actuator names from articulation config.
+
+  Leg sliders get ``_RANGE_FRACTION`` of the travel they drive, so one unit of
+  action addresses the same fraction of stroke on every leg axis. Arm and pelvis
+  hinges take ``_HINGE_ACTION_SCALE`` radians flat; see ``_TRAVEL_SCALED`` for why
+  range is the wrong yardstick there.
+
+  ``target_names_expr`` holds regexes while ranges are keyed by joint name, so
+  targets are resolved with ``re.match``, the way mjlab resolves them. One target
+  is one action dimension, so it has to land on a single nonzero range.
+  """
   scales, names = {}, []
   for a in articulation.actuators:
     e = (
@@ -746,9 +840,18 @@ def _build_action_scales(
       else {n: a.stiffness for n in a.target_names_expr}
     )
     for n in a.target_names_expr:
-      if n in e and n in s and s[n] and n not in exclude:
-        scales[n] = 0.25 * e[n] / s[n]
-        names.append(n)
+      if n not in e or n not in s or not s[n] or n in exclude:
+        continue
+      if _TRAVEL_SCALED.match(n):
+        spans = {r for name, r in _JOINT_RANGES.items() if re.match(n, name)}
+        if len(spans) != 1 or min(spans, default=0.0) <= 0.0:
+          raise ValueError(
+            f"'{n}' must resolve to one nonzero joint range, got {spans or 'no match'}"
+          )
+        scales[n] = _RANGE_FRACTION * spans.pop()
+      else:
+        scales[n] = _HINGE_ACTION_SCALE
+      names.append(n)
   return scales, tuple(names)
 
 
