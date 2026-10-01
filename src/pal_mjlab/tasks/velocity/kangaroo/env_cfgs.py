@@ -412,7 +412,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["air_time"].weight = 1.0
   cfg.rewards["air_time"].params["threshold_min"] = 0.2
   cfg.rewards["air_time"].params["threshold_max"] = 0.45
-  cfg.rewards["air_time"].params["command_threshold"] = 0.1
 
   # More upright = safer torso stance
   cfg.rewards["upright"].weight = 2.0
@@ -421,6 +420,19 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # Tightened from default so the reward stays discriminative at low command speeds
   # instead of flattening into a dead-zone.
   cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(0.1)
+
+  # One gate for every command-gated term, so the rewards stay consistent
+  # and activate in every non-zero command
+  command_gate = 0.02
+  for reward_name in [
+    "air_time",
+    "foot_clearance",
+    "foot_swing_height",
+    "foot_slip",
+    "soft_landing",
+  ]:
+    cfg.rewards[reward_name].params["command_threshold"] = command_gate
+  cfg.rewards["pose"].params["walking_threshold"] = command_gate
 
   ### EVENTS
 
