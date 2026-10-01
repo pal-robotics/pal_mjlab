@@ -273,7 +273,7 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-  cfg.rewards["upright"].weight = 1.25
+  cfg.rewards["upright"].weight = 2.0
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   for reward_name in ["foot_clearance", "foot_slip"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
