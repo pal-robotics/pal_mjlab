@@ -374,7 +374,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     name="terrain_scan",
     frame=ObjRef(type="body", name="pelvis_2_link", entity="robot"),
     ray_alignment="yaw",
-    pattern=GridPatternCfg(size=(1.2, 0.6), resolution=0.1),
+    pattern=GridPatternCfg(size=(1.0, 1.0), resolution=0.05),
     max_distance=2.0,
     exclude_parent_body=True,
     include_geom_groups=(0,),  # Terrain only.
@@ -403,7 +403,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd = cfg.commands["twist"]
   assert isinstance(twist_cmd, mdp.UniformVelocityCommandCfg)
   twist_cmd.ranges.lin_vel_x = (-0.5, 0.5)
-  twist_cmd.ranges.lin_vel_y = (-0.4, 0.4)
+  twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
   twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
 
   ### REWARDS
