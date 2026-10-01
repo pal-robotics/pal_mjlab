@@ -40,7 +40,7 @@ for p in [
 # Actuator Parameters (BeyondMimic methodology)
 ##
 
-NATURAL_FREQ = 5 * 2.0 * 3.1415926535  # 5Hz
+NATURAL_FREQ = 3.5 * 2.0 * 3.1415926535  # 3.5Hz
 DAMPING_RATIO = 2.0
 FACTOR = 0.05
 
