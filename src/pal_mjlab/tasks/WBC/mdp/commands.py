@@ -236,6 +236,7 @@ class MotionCommand(CommandTerm):
       self.cfg.motion_dir, self.body_indexes, self.motion_anchor_body_index, env.step_dt, device=self.device
     )
     self.time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
+    self.fixed_time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
     self.body_pos_relative_w = torch.zeros(
       self.num_envs, len(cfg.body_names), 3, device=self.device
     )
@@ -281,6 +282,8 @@ class MotionCommand(CommandTerm):
       self.motion.trajectory_probs, self.num_envs, replacement=True
     )
 
+    self.moving_envs = torch.ones(self.num_envs, dtype=torch.bool ,device=self.device)
+
 
   @property
   def ref_base_height(self) -> torch.Tensor:
@@ -290,12 +293,12 @@ class MotionCommand(CommandTerm):
   @property
   def ref_base_lin_vel_b(self) -> torch.Tensor:
     """Reference anchor linear velocity in anchor frame (B v̂_IB)."""
-    return quat_apply_inverse(self.anchor_quat_w, self.anchor_lin_vel_w)
+    return quat_apply_inverse(self.anchor_quat_w, self.anchor_lin_vel_w)*self.moving_envs.unsqueeze(-1)
 
   @property
   def ref_base_ang_vel_b(self) -> torch.Tensor:
     """Reference anchor angular velocity in anchor frame (B ω̂_IB)."""
-    return quat_apply_inverse(self.anchor_quat_w, self.anchor_ang_vel_w)
+    return quat_apply_inverse(self.anchor_quat_w, self.anchor_ang_vel_w)*self.moving_envs.unsqueeze(-1)
 
   @property
   def ref_gravity_b(self) -> torch.Tensor:
@@ -304,11 +307,11 @@ class MotionCommand(CommandTerm):
 
   @property
   def ref_base_lin_acc_b(self) -> torch.Tensor:
-    return quat_apply_inverse(self.anchor_quat_w, self.anchor_lin_acc_w)
+    return quat_apply_inverse(self.anchor_quat_w, self.anchor_lin_acc_w)*self.moving_envs.unsqueeze(-1)
 
   @property
   def ref_base_ang_acc_b(self) -> torch.Tensor:
-    return quat_apply_inverse(self.anchor_quat_w, self.anchor_ang_acc_w)
+    return quat_apply_inverse(self.anchor_quat_w, self.anchor_ang_acc_w)*self.moving_envs.unsqueeze(-1)
 
   @property
   def command(self) -> torch.Tensor:
@@ -320,7 +323,7 @@ class MotionCommand(CommandTerm):
 
   @property
   def joint_vel(self) -> torch.Tensor:
-    return self.motion.joint_vel[self.time_steps]
+    return self.motion.joint_vel[self.time_steps]*self.moving_envs.unsqueeze(-1)
 
   @property
   def body_pos_w(self) -> torch.Tensor:
@@ -334,11 +337,13 @@ class MotionCommand(CommandTerm):
 
   @property
   def body_lin_vel_w(self) -> torch.Tensor:
-    return self.motion.body_lin_vel_w[self.time_steps]
+    return self.motion.body_lin_vel_w[self.time_steps]*self.moving_envs[:, None, None]
+
 
   @property
   def body_ang_vel_w(self) -> torch.Tensor:
-    return self.motion.body_ang_vel_w[self.time_steps]
+    return self.motion.body_ang_vel_w[self.time_steps]*self.moving_envs[:, None, None]
+
 
   @property
   def anchor_pos_w(self) -> torch.Tensor:
@@ -353,19 +358,19 @@ class MotionCommand(CommandTerm):
 
   @property
   def anchor_lin_vel_w(self) -> torch.Tensor:
-    return self.motion.body_lin_vel_w[self.time_steps, self.motion_anchor_body_index]
+    return self.motion.body_lin_vel_w[self.time_steps, self.motion_anchor_body_index]*self.moving_envs.unsqueeze(-1)
 
   @property
   def anchor_ang_vel_w(self) -> torch.Tensor:
-    return self.motion.body_ang_vel_w[self.time_steps, self.motion_anchor_body_index]
+    return self.motion.body_ang_vel_w[self.time_steps, self.motion_anchor_body_index]*self.moving_envs.unsqueeze(-1)
 
   @property
   def anchor_lin_acc_w(self) -> torch.Tensor:
-    return self.motion.anchor_lin_acc_w[self.time_steps]
+    return self.motion.anchor_lin_acc_w[self.time_steps]*self.moving_envs.unsqueeze(-1)
 
   @property
   def anchor_ang_acc_w(self) -> torch.Tensor:
-    return self.motion.anchor_ang_acc_w[self.time_steps]
+    return self.motion.anchor_ang_acc_w[self.time_steps]*self.moving_envs.unsqueeze(-1)
 
   @property
   def robot_joint_pos(self) -> torch.Tensor:
@@ -549,6 +554,8 @@ class MotionCommand(CommandTerm):
   def _random_start_sampling(self, env_ids: torch.Tensor):
     self.rand_motion[env_ids] = torch.randint(0, self.motion.num_trajectories, (len(env_ids),), device=self.device)
     self.time_steps[env_ids] = self.motion.segment_start_idx[self.rand_motion[env_ids]]
+    self.moving_envs[env_ids] = ~(torch.rand((len(env_ids),), device=self.device) < self.cfg.rel_fixed_command)
+    self.fixed_time_steps[env_ids] = 0
 
   def _uniform_sampling(self, env_ids: torch.Tensor):
     num_envs = len(env_ids)
@@ -689,10 +696,18 @@ class MotionCommand(CommandTerm):
 
   def _update_command(self, env_ids: torch.Tensor | None = None):
     if env_ids is None:
-      self.time_steps += 1
+      self.time_steps += self.moving_envs
+      self.fixed_time_steps += 1
     else:
-      self.time_steps[env_ids] += 1
-    wrap_ids = torch.where(self.time_steps >= self.motion.segment_end_idx[self.rand_motion])[0]
+      self.time_steps[env_ids] += self.moving_envs[env_ids]
+      self.fixed_time_steps[env_ids] += 1
+    motion_done = self.time_steps >= self.motion.segment_end_idx[self.rand_motion]
+    fixed_done = (
+      (self.fixed_time_steps >= self.cfg.max_timesteps_fixed)
+      & ~self.moving_envs.bool()
+    )
+    wrap_ids = torch.nonzero(motion_done | fixed_done, as_tuple=False).squeeze(-1)
+
     if wrap_ids.numel() > 0:
       self._resample_command(wrap_ids)
 
@@ -890,6 +905,8 @@ class MotionCommandCfg(CommandTermCfg):
   adaptive_uniform_ratio: float = 0.1
   adaptive_alpha: float = 0.001
   sampling_mode: Literal["adaptive", "uniform", "start"] = "adaptive"
+  rel_fixed_command: float = 0.0
+  max_timesteps_fixed: int = 250
 
   @dataclass
   class VizCfg:
