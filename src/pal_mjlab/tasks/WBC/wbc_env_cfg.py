@@ -54,12 +54,12 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "ref_base_lin_vel_b": ObservationTermCfg(
       func=mdp.ref_base_lin_vel_b,
       params={"command_name": "motion"},
-      noise=Unoise(n_min=(-0.05, -0.05, -0.025), n_max=(0.05, 0.05, 0.025)),
+      noise=Unoise(n_min=(-0.025, -0.025, -0.0125), n_max=(0.025, 0.025, 0.0125)),
     ),
     "ref_base_ang_vel_b": ObservationTermCfg(
       func=mdp.ref_base_ang_vel_b,
       params={"command_name": "motion"},
-      noise=Unoise(n_min=(-0.1, -0.1, -0.15), n_max=(0.1, 0.1, 0.15)),
+      noise=Unoise(n_min=(-0.05, -0.05, -0.075), n_max=(0.05, 0.05, 0.075)),
     ),
     "ref_gravity_b": ObservationTermCfg(
       func=mdp.ref_gravity_b,
@@ -310,12 +310,12 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "motion_root_lin_vel_b": RewardTermCfg(
       func=mdp.motion_anchor_linear_velocity_body_error_exp,
       weight=1.0,
-      params={"command_name": "motion", "std": 0.3},
+      params={"command_name": "motion", "std": 0.1},
     ),
     "motion_root_ang_vel_b": RewardTermCfg(
       func=mdp.motion_anchor_angular_velocity_body_error_exp,
       weight=1.0,
-      params={"command_name": "motion", "std": 0.5},
+      params={"command_name": "motion", "std": 0.2},
     ),
   }
 
