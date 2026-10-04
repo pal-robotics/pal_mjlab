@@ -7,6 +7,7 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import MetricsTermCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
@@ -405,6 +406,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd.ranges.lin_vel_x = (-0.5, 0.5)
   twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
   twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
+  twist_cmd.rel_standing_envs = 0.02
 
   ### REWARDS
 
@@ -423,7 +425,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # One gate for every command-gated term, so the rewards stay consistent
   # and activate in every non-zero command
-  command_gate = 0.02
+  command_gate = 0.01
   for reward_name in [
     "air_time",
     "foot_clearance",
@@ -540,6 +542,24 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         platform_width=0.6,
         border_width=0.1,
       ),
+    },
+  )
+
+  # Standing envs
+
+  # Gradually increase standing env fraction after walking is established
+  cfg.curriculum["standing_envs"] = CurriculumTermCfg(
+    func=mdp.standing_envs_curriculum,
+    params={
+      "command_name": "twist",
+      "standing_stages": [
+        {"step": 0, "rel_standing_envs": 0.02},
+        {"step": 500 * 24, "rel_standing_envs": 0.05},
+        {"step": 750 * 24, "rel_standing_envs": 0.1},
+        {"step": 1000 * 24, "rel_standing_envs": 0.15},
+        {"step": 1500 * 24, "rel_standing_envs": 0.2},
+        {"step": 2000 * 24, "rel_standing_envs": 0.25},
+      ],
     },
   )
 
