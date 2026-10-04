@@ -42,7 +42,6 @@ for p in [
 
 NATURAL_FREQ = 3.5 * 2.0 * 3.1415926535  # 3.5Hz
 DAMPING_RATIO = 2.0
-FACTOR = 0.05
 
 HIP_XY_CONVEX_HULL_POINTS = torch.tensor(
   [
@@ -110,7 +109,7 @@ def _calc_actuator_params(
   gear_ratio: float, motor_inertia: float, effort: float
 ) -> dict:
   """Calculate armature, stiffness, and damping for an actuator."""
-  armature = FACTOR * motor_inertia * gear_ratio**2
+  armature = motor_inertia * gear_ratio**2
   stiffness = round(armature * NATURAL_FREQ**2, 3)
   damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
   return {
@@ -160,9 +159,9 @@ def _calc_leg_params_good(
 
 
 # Motor parameters: (gear_ratio, motor_inertia, effort_limit)
-S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
-S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
-XS = _calc_actuator_params(101, 1.3e-5, 25)
+S_PLUS = _calc_actuator_params(121, 3.3e-05, 50)  # arm = 0.483
+S_MINUS = _calc_actuator_params(101, 2.99e-05, 25)  # arm = 0.305
+XS = _calc_actuator_params(101, 1.99e-05, 25)  # arm = 0.203
 
 ##
 # MJCF & Assets
