@@ -54,7 +54,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "ref_base_lin_vel_b": ObservationTermCfg(
       func=mdp.ref_base_lin_vel_b,
       params={"command_name": "motion"},
-      noise=Unoise(n_min=(-0.025, -0.025, -0.0125), n_max=(0.025, 0.025, 0.0125)),
+      noise=Unoise(n_min=(-0.02, -0.02, -0.0125), n_max=(0.02, 0.02, 0.0125)),
     ),
     "ref_base_ang_vel_b": ObservationTermCfg(
       func=mdp.ref_base_ang_vel_b,
@@ -79,7 +79,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "base_ang_vel": ObservationTermCfg(
       func=mdp.builtin_sensor,
       params={"sensor_name": "robot/imu_ang_vel"},
-      noise=Unoise(n_min=-0.2, n_max=0.2),
+      noise=Unoise(n_min=-0.1, n_max=0.1),
     ),
     "imu_projected_gravity": ObservationTermCfg(
         func=mdp.imu_projected_gravity,
@@ -92,7 +92,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       params={"biased": True},
     ),
     "joint_vel": ObservationTermCfg(
-      func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.5, n_max=0.5)
+      func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.3, n_max=0.3)
     ),
     "actions": ObservationTermCfg(func=mdp.last_action),
   }
