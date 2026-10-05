@@ -104,14 +104,14 @@ def pal_kangaroo_flat_wbc_env_cfg(
     },
     noise=Unoise(n_min=-0.05, n_max=0.05),
   )
-  cfg.observations["actor"].terms["ref_body_ori"] = ObservationTermCfg(
-    func=mdp.ref_body_ori_b, 
-    params={
-      "command_name": "motion", 
-      "body_names": end_effector_body_names,
-    },
-    noise=Unoise(n_min=-0.02, n_max=0.02),
-  )
+  # cfg.observations["actor"].terms["ref_body_ori"] = ObservationTermCfg(
+  #   func=mdp.ref_body_ori_b, 
+  #   params={
+  #     "command_name": "motion", 
+  #     "body_names": end_effector_body_names,
+  #   },
+  #   noise=Unoise(n_min=-0.02, n_max=0.02),
+  # )
 
 
   # The hull points should correspond to the respective joints defined in the joint_names_group order
