@@ -312,6 +312,16 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     #   weight=1.0,
     #   params={"command_name": "motion", "std": 1.5},
     # ),
+    "feet_static": RewardTermCfg(
+      func=mdp.feet_static,
+      weight=-0.2,
+      params={
+        "asset_cfg": SceneEntityCfg(
+          "robot",
+          body_names=("leg_left_foot_link", "leg_right_foot_link"),
+          ),
+      },
+    ),
   }
 
   ##
