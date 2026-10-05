@@ -45,7 +45,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   # Observations
   ##
 
-  end_effector_body_names = ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link")
+  end_effector_body_names = ("arm_left_tip_link", "arm_right_tip_link")
 
   actor_terms = {
     "base_ang_vel": ObservationTermCfg(
@@ -105,20 +105,6 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "joint_vel": ObservationTermCfg(
       func=mdp.joint_vel_rel,
     ),
-    "ref_joint_pos": ObservationTermCfg(
-      func=mdp.ref_joint_pos,
-      params={"command_name": "motion"},
-    ),
-    "ref_joint_vel": ObservationTermCfg(
-      func=mdp.ref_joint_vel, 
-      params={"command_name": "motion"}
-    ),
-    "ref_base_lin_acc": ObservationTermCfg(
-      func=mdp.ref_base_lin_acc_b, params={"command_name": "motion"}
-    ),
-    "ref_base_ang_acc": ObservationTermCfg(
-      func=mdp.ref_base_ang_acc_b, params={"command_name": "motion"}
-    ),
     "body_pos": ObservationTermCfg(
       func=mdp.robot_body_pos_b, params={"command_name": "motion"}
     ),
@@ -136,18 +122,6 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "full_reference_body_ori": ObservationTermCfg(
       func=mdp.ref_body_ori_b, params={"command_name": "motion"}
-    ),
-    "ref_base_height": ObservationTermCfg(
-      func=mdp.ref_base_height, params={"command_name": "motion"} 
-    ),
-    "ref_base_lin_vel_b": ObservationTermCfg(
-      func=mdp.ref_base_lin_vel_b, params={"command_name": "motion"}
-    ),
-    "ref_base_ang_vel_b": ObservationTermCfg(
-      func=mdp.ref_base_ang_vel_b, params={"command_name": "motion"}
-    ),
-    "ref_gravity_b": ObservationTermCfg(
-      func=mdp.ref_gravity_b, params={"command_name": "motion"}
     ),
   }
 
@@ -252,16 +226,16 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
 
   rewards: dict[str, RewardTermCfg] = {
-    "motion_global_root_pos": RewardTermCfg(
-      func=mdp.motion_global_anchor_position_error_exp,
-      weight=0.5,
-      params={"command_name": "motion", "std": 0.5},
-    ),
-    "motion_global_root_ori": RewardTermCfg(
-      func=mdp.motion_global_anchor_orientation_error_exp,
-      weight=1.0,
-      params={"command_name": "motion", "std": 0.4},
-    ),
+    # "motion_global_root_pos": RewardTermCfg(
+    #   func=mdp.motion_global_anchor_position_error_exp,
+    #   weight=0.5,
+    #   params={"command_name": "motion", "std": 0.5},
+    # ),
+    # "motion_global_root_ori": RewardTermCfg(
+    #   func=mdp.motion_global_anchor_orientation_error_exp,
+    #   weight=1.0,
+    #   params={"command_name": "motion", "std": 0.4},
+    # ),
     "motion_body_pos": RewardTermCfg(
       func=mdp.motion_relative_body_position_error_exp,
       weight=1.0,
@@ -280,29 +254,29 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
         "body_names": end_effector_body_names,
       },
     ),
-    "motion_body_lin_vel": RewardTermCfg(
-      func=mdp.motion_global_body_linear_velocity_error_exp,
-      weight=2.0,
-      params={
-        "command_name": "motion",
-        "std": 1.0,
-        "body_names": ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link"),
-      },
-    ),
-    "motion_body_ang_vel": RewardTermCfg(
-      func=mdp.motion_global_body_angular_velocity_error_exp,
-      weight=1.0,
-      params={
-        "command_name": "motion",
-        "std": 3.14,
-        "body_names": ("leg_left_5_link", "leg_right_5_link", "arm_left_tip_link", "arm_right_tip_link"),
-      },
-    ),
-    "angular_momentum": RewardTermCfg(
-      func=mdp.angular_momentum_penalty,
-      weight=0.0,
-      params={"sensor_name": "robot/root_angmom", "axes": "xy"},
-    ),
+    # "motion_body_lin_vel": RewardTermCfg(
+    #   func=mdp.motion_global_body_linear_velocity_error_exp,
+    #   weight=2.0,
+    #   params={
+    #     "command_name": "motion",
+    #     "std": 1.0,
+    #     "body_names": end_effector_body_names,
+    #   },
+    # ),
+    # "motion_body_ang_vel": RewardTermCfg(
+    #   func=mdp.motion_global_body_angular_velocity_error_exp,
+    #   weight=1.0,
+    #   params={
+    #     "command_name": "motion",
+    #     "std": 3.14,
+    #     "body_names": end_effector_body_names,
+    #   },
+    # ),
+    # "angular_momentum": RewardTermCfg(
+    #   func=mdp.angular_momentum_penalty,
+    #   weight=0.0,
+    #   params={"sensor_name": "robot/root_angmom", "axes": "xy"},
+    # ),
     "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-1e-1),
     "joint_limit": RewardTermCfg(
       func=mdp.joint_pos_limits,
@@ -328,16 +302,16 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.is_alive,
       weight=1.0,
     ),
-    "motion_root_lin_vel_b": RewardTermCfg(
-      func=mdp.motion_anchor_linear_velocity_body_error_exp,
-      weight=1.0,
-      params={"command_name": "motion", "std": 1.0},
-    ),
-    "motion_root_ang_vel_b": RewardTermCfg(
-      func=mdp.motion_anchor_angular_velocity_body_error_exp,
-      weight=1.0,
-      params={"command_name": "motion", "std": 1.5},
-    ),
+    # "motion_root_lin_vel_b": RewardTermCfg(
+    #   func=mdp.motion_anchor_linear_velocity_body_error_exp,
+    #   weight=1.0,
+    #   params={"command_name": "motion", "std": 1.0},
+    # ),
+    # "motion_root_ang_vel_b": RewardTermCfg(
+    #   func=mdp.motion_anchor_angular_velocity_body_error_exp,
+    #   weight=1.0,
+    #   params={"command_name": "motion", "std": 1.5},
+    # ),
   }
 
   ##
