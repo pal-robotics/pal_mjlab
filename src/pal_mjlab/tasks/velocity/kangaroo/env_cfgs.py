@@ -7,7 +7,6 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import MetricsTermCfg
-from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
@@ -16,9 +15,7 @@ from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import (
   ContactMatch,
   ContactSensorCfg,
-  GridPatternCfg,
   ObjRef,
-  RayCastSensorCfg,
   RingPatternCfg,
   TerrainHeightSensorCfg,
 )
@@ -371,29 +368,29 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   ### SENSORS
 
   # Idealized 1.2x0.6 m elevation map around the robot
-  terrain_scan = RayCastSensorCfg(
-    name="terrain_scan",
-    frame=ObjRef(type="body", name="pelvis_2_link", entity="robot"),
-    ray_alignment="yaw",
-    pattern=GridPatternCfg(size=(1.0, 1.0), resolution=0.05),
-    max_distance=2.0,
-    exclude_parent_body=True,
-    include_geom_groups=(0,),  # Terrain only.
-    debug_vis=True,
-  )
+  # terrain_scan = RayCastSensorCfg(
+  #   name="terrain_scan",
+  #   frame=ObjRef(type="body", name="pelvis_2_link", entity="robot"),
+  #   ray_alignment="yaw",
+  #   pattern=GridPatternCfg(size=(1.0, 1.0), resolution=0.05),
+  #   max_distance=2.0,
+  #   exclude_parent_body=True,
+  #   include_geom_groups=(0,),  # Terrain only.
+  #   debug_vis=True,
+  # )
 
-  cfg.scene.sensors = (cfg.scene.sensors or ()) + (terrain_scan,)
+  # cfg.scene.sensors = (cfg.scene.sensors or ()) + (terrain_scan,)
 
   ### OBSERVATIONS
 
   del cfg.observations["actor"].terms["base_lin_acc"]
 
   # The default scan was deleted, we add a custom one, only to the critic
-  cfg.observations["critic"].terms["height_scan"] = ObservationTermCfg(
-    func=mdp.height_scan,
-    params={"sensor_name": "terrain_scan"},
-    scale=1 / terrain_scan.max_distance,
-  )
+  # cfg.observations["critic"].terms["height_scan"] = ObservationTermCfg(
+  #   func=mdp.height_scan,
+  #   params={"sensor_name": "terrain_scan"},
+  #   scale=1 / terrain_scan.max_distance,
+  # )
 
   ### COMMANDS
 
@@ -425,16 +422,16 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # One gate for every command-gated term, so the rewards stay consistent
   # and activate in every non-zero command
-  command_gate = 0.01
-  for reward_name in [
-    "air_time",
-    "foot_clearance",
-    "foot_swing_height",
-    "foot_slip",
-    "soft_landing",
-  ]:
-    cfg.rewards[reward_name].params["command_threshold"] = command_gate
-  cfg.rewards["pose"].params["walking_threshold"] = command_gate
+  # command_gate = 0.01
+  # for reward_name in [
+  #   "air_time",
+  #   "foot_clearance",
+  #   "foot_swing_height",
+  #   "foot_slip",
+  #   "soft_landing",
+  # ]:
+  #   cfg.rewards[reward_name].params["command_threshold"] = command_gate
+  # cfg.rewards["pose"].params["walking_threshold"] = command_gate
 
   ### EVENTS
 
@@ -548,20 +545,20 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # Standing envs
 
   # Gradually increase standing env fraction after walking is established
-  cfg.curriculum["standing_envs"] = CurriculumTermCfg(
-    func=mdp.standing_envs_curriculum,
-    params={
-      "command_name": "twist",
-      "standing_stages": [
-        {"step": 0, "rel_standing_envs": 0.02},
-        {"step": 500 * 24, "rel_standing_envs": 0.05},
-        {"step": 750 * 24, "rel_standing_envs": 0.1},
-        {"step": 1000 * 24, "rel_standing_envs": 0.15},
-        {"step": 1500 * 24, "rel_standing_envs": 0.2},
-        {"step": 2000 * 24, "rel_standing_envs": 0.25},
-      ],
-    },
-  )
+  # cfg.curriculum["standing_envs"] = CurriculumTermCfg(
+  #   func=mdp.standing_envs_curriculum,
+  #   params={
+  #     "command_name": "twist",
+  #     "standing_stages": [
+  #       {"step": 0, "rel_standing_envs": 0.02},
+  #       {"step": 500 * 24, "rel_standing_envs": 0.05},
+  #       {"step": 750 * 24, "rel_standing_envs": 0.1},
+  #       {"step": 1000 * 24, "rel_standing_envs": 0.15},
+  #       {"step": 1500 * 24, "rel_standing_envs": 0.2},
+  #       {"step": 2000 * 24, "rel_standing_envs": 0.25},
+  #     ],
+  #   },
+  # )
 
   # PLAY
   if play:
