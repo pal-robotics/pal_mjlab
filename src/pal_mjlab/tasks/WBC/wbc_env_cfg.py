@@ -66,12 +66,12 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "joint_vel": ObservationTermCfg(
       func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.5, n_max=0.5)
     ),
-    "reference_body_pos": ObservationTermCfg(
+    "ref_body_pos": ObservationTermCfg(
       func=mdp.ref_body_pos_b,
       params={"command_name": "motion",
               "body_names": end_effector_body_names},
     ),
-     "reference_body_ori": ObservationTermCfg(
+     "ref_body_ori": ObservationTermCfg(
       func=mdp.ref_body_ori_b,
       params={"command_name": "motion",
               "body_names": end_effector_body_names},
@@ -105,6 +105,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "joint_vel": ObservationTermCfg(
       func=mdp.joint_vel_rel,
     ),
+    # Base position and orientation in robot frame
     "body_pos": ObservationTermCfg(
       func=mdp.robot_body_pos_b, params={"command_name": "motion"}
     ),
@@ -312,16 +313,16 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     #   weight=1.0,
     #   params={"command_name": "motion", "std": 1.5},
     # ),
-    "feet_static": RewardTermCfg(
-      func=mdp.feet_static,
-      weight=-0.2,
-      params={
-        "asset_cfg": SceneEntityCfg(
-          "robot",
-          body_names=("leg_left_foot_link", "leg_right_foot_link"),
-          ),
-      },
-    ),
+    # "feet_static": RewardTermCfg(
+    #   func=mdp.feet_static,
+    #   weight=-0.2,
+    #   params={
+    #     "asset_cfg": SceneEntityCfg(
+    #       "robot",
+    #       body_names=("leg_left_foot_link", "leg_right_foot_link"),
+    #       ),
+    #   },
+    # ),
   }
 
   ##
