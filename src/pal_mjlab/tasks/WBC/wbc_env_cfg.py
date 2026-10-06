@@ -9,6 +9,8 @@ Based on https://github.com/HybridRobotics/whole_body_tracking
 Commit: f8e20c880d9c8ec7172a13d3a88a65e3a5a88448
 """
 
+import math
+
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -22,6 +24,7 @@ from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.scene import SceneCfg
 from mjlab.sim import MujocoCfg, SimulationCfg
+from mjlab.tasks.velocity.mdp.rewards import body_angular_velocity_penalty, upright
 from pal_mjlab.tasks.WBC import mdp
 from pal_mjlab.tasks.WBC.mdp import MotionCommandCfg
 from mjlab.terrains import TerrainEntityCfg
@@ -323,6 +326,19 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     #       ),
     #   },
     # ),
+    "upright": RewardTermCfg(
+      func= upright,
+      weight=1.25,
+      params={
+        "std": math.sqrt(0.2),
+        "asset_cfg": SceneEntityCfg("robot", body_names=("pelvis_2_link")),  # Set per-robot.
+      },
+    ),
+    "body_ang_vel": RewardTermCfg(
+      func=body_angular_velocity_penalty,
+      weight=-0.1,
+      params={"asset_cfg": SceneEntityCfg("robot", body_names=("pelvis_2_link"))},  # Set per-robot.
+    ),
   }
 
   ##
