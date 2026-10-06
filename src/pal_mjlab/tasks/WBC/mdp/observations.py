@@ -179,8 +179,8 @@ def ref_body_pos_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[
   indexes = body_indexes_from_names(env, command_name, body_names)
   num_bodies = len(indexes)
   pos_b, _ = subtract_frame_transforms(
-    command.robot_anchor_pos_w[:, None, :].repeat(1, num_bodies, 1),
-    command.robot_anchor_quat_w[:, None, :].repeat(1, num_bodies, 1),
+    command.anchor_pos_w[:, None, :].repeat(1, num_bodies, 1),
+    command.anchor_quat_w[:, None, :].repeat(1, num_bodies, 1),
     command.body_pos_w[:, indexes],
     command.body_quat_w[:, indexes],
   )
@@ -194,8 +194,8 @@ def ref_body_ori_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[
   indexes = body_indexes_from_names(env, command_name, body_names)
   num_bodies = len(indexes)
   _, ori_b = subtract_frame_transforms(
-    command.robot_anchor_pos_w[:, None, :].repeat(1, num_bodies, 1),
-    command.robot_anchor_quat_w[:, None, :].repeat(1, num_bodies, 1),
+    command.anchor_pos_w[:, None, :].repeat(1, num_bodies, 1),
+    command.anchor_quat_w[:, None, :].repeat(1, num_bodies, 1),
     command.body_pos_w[:, indexes],
     command.body_quat_w[:, indexes],
   )
