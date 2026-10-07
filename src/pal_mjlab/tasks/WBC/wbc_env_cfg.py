@@ -242,7 +242,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     # ),
     "motion_body_pos": RewardTermCfg(
       func=mdp.motion_relative_body_position_error_exp,
-      weight=1.0,
+      weight=5.0,
       params={
         "command_name": "motion",
         "std": 0.3,
@@ -251,7 +251,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "motion_body_ori": RewardTermCfg(
       func=mdp.motion_relative_body_orientation_error_exp,
-      weight=1.0,
+      weight=2.0,
       params={
         "command_name": "motion",
         "std": 0.4,
@@ -373,38 +373,38 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   # Curriculum
   ##
 
-  curriculum = {
-    "survival_curr": CurriculumTermCfg(
-      func=mdp.reward_curriculum,
-      params={
-        "reward_name": "survival",
-        "stages": [
-          {"step": 0, "weight": 1.0},
-          {"step": 5_000 * 24, "weight": 0.0},
-        ],
-      },
-    ),
-    "motion_body_pos_curr": CurriculumTermCfg(
-      func=mdp.reward_curriculum,
-      params={
-        "reward_name": "motion_body_pos",
-        "stages": [
-          {"step": 0, "weight": 2.0},
-          {"step": 5_000 * 24, "weight": 5.0},
-        ],
-      },
-    ),
-    "motion_body_ori_curr": CurriculumTermCfg(
-      func=mdp.reward_curriculum,
-      params={
-        "reward_name": "motion_body_ori",
-        "stages": [
-          {"step": 0, "weight": 1.0},
-          {"step": 5_000 * 24, "weight": 3.0},
-        ],
-      },
-    ),
-  }
+  # curriculum = {
+  #   "survival_curr": CurriculumTermCfg(
+  #     func=mdp.reward_curriculum,
+  #     params={
+  #       "reward_name": "survival",
+  #       "stages": [
+  #         {"step": 0, "weight": 1.0},
+  #         {"step": 5_000 * 24, "weight": 0.0},
+  #       ],
+  #     },
+  #   ),
+  #   "motion_body_pos_curr": CurriculumTermCfg(
+  #     func=mdp.reward_curriculum,
+  #     params={
+  #       "reward_name": "motion_body_pos",
+  #       "stages": [
+  #         {"step": 0, "weight": 2.0},
+  #         {"step": 5_000 * 24, "weight": 5.0},
+  #       ],
+  #     },
+  #   ),
+  #   "motion_body_ori_curr": CurriculumTermCfg(
+  #     func=mdp.reward_curriculum,
+  #     params={
+  #       "reward_name": "motion_body_ori",
+  #       "stages": [
+  #         {"step": 0, "weight": 1.0},
+  #         {"step": 5_000 * 24, "weight": 3.0},
+  #       ],
+  #     },
+  #   ),
+  # }
 
   ##
   # Assemble and return
@@ -418,7 +418,6 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     events=events,
     rewards=rewards,
     terminations=terminations,
-    curriculum=curriculum,
     viewer=ViewerConfig(
       origin_type=ViewerConfig.OriginType.ASSET_BODY,
       entity_name="robot",
