@@ -140,25 +140,6 @@ def _calc_leg_params(
   }
 
 
-def _calc_leg_params_good(
-  effort: float,
-  armature: float,
-  frictionloss: float,
-  viscous_damping: float,
-) -> dict:
-  """Calculate leg actuator parameters."""
-  stiffness = round(armature * NATURAL_FREQ**2, 3)
-  damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
-  return {
-    "armature": armature,
-    "stiffness": stiffness,
-    "damping": damping,
-    "effort_limit": effort,
-    "frictionloss": frictionloss,
-    "viscous_damping": viscous_damping,
-  }
-
-
 # Motor parameters: (gear_ratio, motor_inertia, effort_limit)
 S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
 S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
