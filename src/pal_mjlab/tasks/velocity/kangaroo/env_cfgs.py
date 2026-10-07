@@ -12,7 +12,6 @@ from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
-from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.sensor import (
   ContactMatch,
   ContactSensorCfg,
@@ -180,12 +179,15 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
       "operation": "add",
       "ranges": {
-        r"leg_.*_1_joint" : (-0.1,0.1),
-        r"leg_.*_2_joint" : (-0.25,0.25),
-        r"leg_.*_3_joint" : (-0.2,0.2),
-        r"leg_.*_4_joint" : (-0.15,0.15),
-        r"leg_.*_5_joint" : (-0.1,0.1),
-        r"^(?!(?:leg_.*_1_joint|leg_.*_2_joint|leg_.*_3_joint|leg_.*_4_joint|leg_.*_5_joint)$).*" : (-0.008, 0.008)
+        r"leg_.*_1_joint": (-0.1, 0.1),
+        r"leg_.*_2_joint": (-0.25, 0.25),
+        r"leg_.*_3_joint": (-0.2, 0.2),
+        r"leg_.*_4_joint": (-0.15, 0.15),
+        r"leg_.*_5_joint": (-0.1, 0.1),
+        r"^(?!(?:leg_.*_1_joint|leg_.*_2_joint|leg_.*_3_joint|leg_.*_4_joint|leg_.*_5_joint)$).*": (
+          -0.008,
+          0.008,
+        ),
       },
       "shared_random": False,
     },
@@ -198,11 +200,11 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
       "operation": "add",
       "ranges": {
-        r"leg_.*_1_joint" : (-0.2,0.2),
-        r"leg_.*_2_joint" : (-0.2,0.2),
-        r"leg_.*_3_joint" : (-0.1,0.1),
-        r"leg_.*_4_joint" : (-0.1,0.1),
-        r"leg_.*_5_joint" : (-0.1,0.1),
+        r"leg_.*_1_joint": (-0.2, 0.2),
+        r"leg_.*_2_joint": (-0.2, 0.2),
+        r"leg_.*_3_joint": (-0.1, 0.1),
+        r"leg_.*_4_joint": (-0.1, 0.1),
+        r"leg_.*_5_joint": (-0.1, 0.1),
       },
       "shared_random": False,
     },
@@ -215,11 +217,11 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
       "operation": "add",
       "ranges": {
-        r"leg_.*_1_joint" : (-0.1,0.1),
-        r"leg_.*_2_joint" : (-0.25,0.25),
-        r"leg_.*_3_joint" : (-0.075,0.075),
-        r"leg_.*_4_joint" : (-0.05,0.05),
-        r"leg_.*_5_joint" : (-0.005,0.005),
+        r"leg_.*_1_joint": (-0.1, 0.1),
+        r"leg_.*_2_joint": (-0.25, 0.25),
+        r"leg_.*_3_joint": (-0.075, 0.075),
+        r"leg_.*_4_joint": (-0.05, 0.05),
+        r"leg_.*_5_joint": (-0.005, 0.005),
       },
       "shared_random": False,
     },
@@ -366,7 +368,6 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   #           ],
   #   },
   # )
-
 
   # -- Terminations
 
@@ -680,7 +681,7 @@ def pal_kangaroo_lower_body_flat_env_cfg(play: bool = False) -> ManagerBasedRlEn
   cfg.observations["actor"].terms["imu_projected_gravity"].noise = Unoise(
     n_min=-0.025, n_max=0.025
   )
-  #cfg.observations["actor"].terms["base_lin_acc"].noise = Unoise(n_min=-1.0, n_max=1.0)
+  # cfg.observations["actor"].terms["base_lin_acc"].noise = Unoise(n_min=-1.0, n_max=1.0)
 
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
