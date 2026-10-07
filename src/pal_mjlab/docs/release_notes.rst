@@ -107,6 +107,20 @@ Model Updates
 
 Bug Fixes & Reliability
 ^^^^^^^^^^^^^^^^^^^^^^^^
+- **Set the density of the capsule parent geom to zero.**
+  The density of the whole capsule class needs to be zero to avoid
+  generating the inertial properties due to the ``inertiafromgeom``
+  property of the compiler
+  (`#116 <https://github.com/pal-robotics/pal_mjlab/pull/117>`_)
+
+- **Reduced GPU memory usage and fixed hfield contact overflow in the
+  Kangaroo rough velocity task.** ``ccd_iterations`` is now capped at 100
+  to shrink the EPA buffer allocated by mjwarp. The ``perlin_noise``
+  terrain now uses 10 cm cells (40x40 per 4 m tile, like
+  ``hf_discrete_obstacles``), which keeps each collision geom within the
+  mjwarp hfield narrowphase limit (``mjMAXCONPAIR=50``) and stops the
+  overflow warning spam.
+  (`#116 <https://github.com/pal-robotics/pal_mjlab/pull/116>`_)
 
 - **Fixed a CUDA illegal-memory-access crash on reset with mjlab 1.5.1.**
   Training would crash with a CUDA illegal memory access error when

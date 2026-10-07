@@ -381,6 +381,15 @@ def _build_action_scales(
       if isinstance(a.stiffness, dict)
       else {n: a.stiffness for n in a.target_names_expr}
     )
+    # Torque-normalized action scale: at rest, a unit action shifts the PD
+    # target by 0.25 * effort / Kp, producing ~25% of the joint's effort limit
+    # (saturation at |a| ~ 4). This gives every joint the same torque authority
+    # per unit action regardless of its stiffness. The 0.25 is a heuristic
+    # (not derived), inherited from the legged_gym default action_scale
+    # (Rudin et al., CoRL 2021, arXiv:2109.11978) and made torque-relative in
+    # BeyondMimic (Liao et al., 2025, arXiv:2508.08241;
+    # github.com/HybridRobotics/whole_body_tracking), which mjlab's G1 config
+    # follows.
     for n in a.target_names_expr:
       if n in e and n in s and s[n] and n not in exclude:
         scales[n] = 0.25 * e[n] / s[n]
