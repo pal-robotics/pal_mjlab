@@ -161,6 +161,18 @@ dependency issue, check which of these bumps might be relevant first.
 Breaking Changes
 ^^^^^^^^^^^^^^^^
 
+- **Removed the base linear acceleration observation from the Kangaroo
+  velocity tasks.** The ``base_lin_acc`` actor observation term (IMU
+  linear acceleration) is no longer part of the shared
+  ``pal_kangaroo_baseline_env_cfg``, so it is dropped from the
+  full-body, Hands and Grippers Kangaroo velocity tasks (flat and rough).
+  The lower-body tasks (``pal_kangaroo_lower_body_flat_env_cfg`` and
+  ``pal_kangaroo_lower_body_rough_env_cfg``) keep the term, with ``±1.0``
+  noise, until a lower-body policy without it has been trained and
+  tested. This changes the actor observation size, so checkpoints trained
+  with the old observation set can't be loaded into the affected tasks.
+  (`#119 <https://github.com/pal-robotics/pal_mjlab/pull/119>`_)
+
 - **The Hands and Grippers rough tasks are no longer registered.**
   ``Mjlab-Velocity-Rough-Pal-Kangaroo-Hands`` and
   ``Mjlab-Velocity-Rough-Pal-Kangaroo-Grippers`` are commented out while
