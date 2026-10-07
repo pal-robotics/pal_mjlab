@@ -144,11 +144,6 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={"sensor_name": "robot/imu_quat"},
     noise=Unoise(n_min=-0.05, n_max=0.05),
   )
-  cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
-    func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/imu_lin_acc"},
-    noise=Unoise(n_min=-0.5, n_max=0.5),
-  )
   cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
@@ -640,7 +635,13 @@ def pal_kangaroo_lower_body_flat_env_cfg(play: bool = False) -> ManagerBasedRlEn
   cfg.observations["actor"].terms["imu_projected_gravity"].noise = Unoise(
     n_min=-0.025, n_max=0.025
   )
-  cfg.observations["actor"].terms["base_lin_acc"].noise = Unoise(n_min=-1.0, n_max=1.0)
+  # Maintain base linear acceleration for the kangaroo lower body policies
+  # TODO: Train and test a policy without the base linear acceleration term
+  cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
+    func=mdp.builtin_sensor,
+    params={"sensor_name": "robot/imu_lin_acc"},
+    noise=Unoise(n_min=-1.0, n_max=1.0),
+  )
 
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
