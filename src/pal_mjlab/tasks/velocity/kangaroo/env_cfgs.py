@@ -545,6 +545,14 @@ def pal_kangaroo_lower_body_rough_env_cfg(play: bool = False) -> ManagerBasedRlE
 
   cfg.scene.entities = {"robot": get_kangaroo_lower_body_robot_cfg()}
 
+  # Maintain base linear acceleration for the kangaroo lower body policies
+  # TODO: Train and test a policy without the base linear acceleration term
+  cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
+    func=mdp.builtin_sensor,
+    params={"sensor_name": "robot/imu_lin_acc"},
+    noise=Unoise(n_min=-1.0, n_max=1.0),
+  )
+
   # Prevents feet instability
   cfg.rewards["action_rate_l2"].weight = -0.2
 
