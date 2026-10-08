@@ -40,10 +40,8 @@ for p in [
 # Actuator Parameters (BeyondMimic methodology)
 ##
 
-NATURAL_FREQ = 3.5 * 2.0 * 3.1415926535  # 10Hz
-NATURAL_FREQ_10 = 10.0 * 2.0 * 3.1415926535
+NATURAL_FREQ = 3.5 * 2.0 * 3.1415926535  # 3.5Hz
 DAMPING_RATIO = 2.0
-FACTOR = 0.05
 
 HIP_XY_CONVEX_HULL_POINTS = torch.tensor(
   [
@@ -111,7 +109,7 @@ def _calc_actuator_params(
   gear_ratio: float, motor_inertia: float, effort: float
 ) -> dict:
   """Calculate armature, stiffness, and damping for an actuator."""
-  armature = FACTOR * motor_inertia * gear_ratio**2
+  armature = motor_inertia * gear_ratio**2
   stiffness = round(armature * NATURAL_FREQ**2, 3)
   damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
   return {
@@ -123,25 +121,6 @@ def _calc_actuator_params(
 
 
 def _calc_leg_params(
-  stiffness: float,
-  effort: float,
-  armature: float,
-  frictionloss: float,
-  viscous_damping: float,
-) -> dict:
-  """Calculate leg actuator parameters."""
-  damping = round(2.0 * DAMPING_RATIO * stiffness / NATURAL_FREQ_10, 3)
-  return {
-    "armature": armature,
-    "stiffness": stiffness,
-    "damping": damping,
-    "effort_limit": effort,
-    "frictionloss": frictionloss,
-    "viscous_damping": viscous_damping,
-  }
-
-
-def _calc_leg_params_good(
   effort: float,
   armature: float,
   frictionloss: float,
@@ -161,9 +140,9 @@ def _calc_leg_params_good(
 
 
 # Motor parameters: (gear_ratio, motor_inertia, effort_limit)
-S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
-S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
-XS = _calc_actuator_params(101, 1.3e-5, 25)
+S_PLUS = _calc_actuator_params(121, 3.3e-05, 50)  # arm = 0.483
+S_MINUS = _calc_actuator_params(101, 2.99e-05, 25)  # arm = 0.305
+XS = _calc_actuator_params(101, 1.99e-05, 25)  # arm = 0.203
 
 ##
 # MJCF & Assets
@@ -199,27 +178,27 @@ def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
 KANGAROO_LEG_ACTUATORS = (
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_1_joint",),
-    **_calc_leg_params_good(80.0, 0.25, 0.9, 1.65),
+    **_calc_leg_params(80.0, 0.25, 0.9, 1.65),
   ),
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_2_joint",),
-    **_calc_leg_params_good(230.0, 0.5, 4.0, 6.49),
+    **_calc_leg_params(230.0, 0.5, 4.0, 6.49),
   ),
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_3_joint",),
-    **_calc_leg_params_good(139.0, 0.2, 2.34, 2.705),
+    **_calc_leg_params(139.0, 0.2, 2.34, 2.705),
   ),
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_4_joint",),
-    **_calc_leg_params_good(140.0, 0.1, 1.25, 2.8),
+    **_calc_leg_params(140.0, 0.1, 1.25, 2.8),
   ),
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_5_joint",),
-    **_calc_leg_params_good(82.0, 0.05, 0.8, 1.0),
+    **_calc_leg_params(82.0, 0.05, 0.8, 1.0),
   ),
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_length_joint",),
-    **_calc_leg_params(1600.0, 1100.0, 0.01, None, None),
+    **_calc_leg_params(1100.0, 4.1, None, None),
   ),
 )
 
