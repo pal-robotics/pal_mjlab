@@ -46,6 +46,7 @@ from pal_mjlab.robots import (
   get_kangaroo_robot_cfg,
 )
 from pal_mjlab.tasks.velocity import mdp
+from pal_mjlab.terrains import BoxStraightStairsTerrainCfg
 
 
 def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -405,6 +406,8 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd.ranges.lin_vel_x = (-0.5, 0.5)
   twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
   twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
+  # More forward-only commands (x > 0, y = yaw = 0) for pure stair traversal
+  twist_cmd.rel_forward_envs = 0.3  # default 0.2
 
   ### REWARDS
 
@@ -437,6 +440,14 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     "z": (0.01, 0.05),
     "yaw": (-3.14, 3.14),
   }
+  # On straight staircases spawn facing the stairs: at the bottom facing the up
+  # flight (+x), on the landing facing either down flight (+x or -x).
+  cfg.events["reset_base"].func = mdp.reset_root_state_terrain_yaw
+  cfg.events["reset_base"].params["terrain_yaw"] = {
+    "straight_stairs_up": (0.0,),
+    "straight_stairs_down": (0.0, math.pi),
+  }
+  cfg.events["reset_base"].params["yaw_noise"] = 0.3
 
   # Domain Randomization for joint friction
   cfg.events["joint_friction"] = EventTermCfg(
@@ -513,10 +524,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     border_width=20.0,
     curriculum=True,  # one column per sub-terrain; num_cols is ignored
     add_lights=False,
-    # Stairs-focused: ~62% of robots spawn on stairs, ~38% on general rough terrain.
+    # Stairs-focused: ~64% of robots spawn on stairs, ~36% on general rough terrain.
     # In curriculum mode proportion only sets the spawn share of each column.
     sub_terrains={
-      "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.04),
+      "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.03),
       # Fine gravel-like ground: many tiny boxes scattered over a floor.
       "pebbles": terrain_gen.BoxRandomSpreadTerrainCfg(
         proportion=0.05,
@@ -554,7 +565,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
       # Coarse uneven ground: foot-sized cells, larger steps between them.
       "random_grid_coarse": terrain_gen.BoxRandomGridTerrainCfg(
-        proportion=0.06,
+        proportion=0.05,
         grid_width=0.5,
         grid_height_range=(0.01, 0.07),
         platform_width=0.6,
@@ -583,42 +594,42 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       # Stairs, risers up to 20 cm, three tread widths, both directions.
       # Pyramid: spawn on top platform, walk down. Inverted: spawn at bottom, walk up.
       "stairs_down_narrow": terrain_gen.BoxPyramidStairsTerrainCfg(
-        proportion=0.08,
+        proportion=0.06,
         step_height_range=(0.02, 0.2),
         step_width=0.28,
         platform_width=0.6,
         border_width=0.1,
       ),
       "stairs_up_narrow": terrain_gen.BoxInvertedPyramidStairsTerrainCfg(
-        proportion=0.08,
+        proportion=0.06,
         step_height_range=(0.02, 0.2),
         step_width=0.28,
         platform_width=0.6,
         border_width=0.1,
       ),
       "stairs_down": terrain_gen.BoxPyramidStairsTerrainCfg(
-        proportion=0.09,
+        proportion=0.07,
         step_height_range=(0.02, 0.2),
         step_width=0.35,
         platform_width=0.6,
         border_width=0.1,
       ),
       "stairs_up": terrain_gen.BoxInvertedPyramidStairsTerrainCfg(
-        proportion=0.09,
+        proportion=0.07,
         step_height_range=(0.02, 0.2),
         step_width=0.35,
         platform_width=0.6,
         border_width=0.1,
       ),
       "stairs_down_wide": terrain_gen.BoxPyramidStairsTerrainCfg(
-        proportion=0.07,
+        proportion=0.06,
         step_height_range=(0.02, 0.2),
         step_width=0.45,
         platform_width=0.6,
         border_width=0.1,
       ),
       "stairs_up_wide": terrain_gen.BoxInvertedPyramidStairsTerrainCfg(
-        proportion=0.07,
+        proportion=0.06,
         step_height_range=(0.02, 0.2),
         step_width=0.45,
         platform_width=0.6,
@@ -626,7 +637,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
       # Irregular stairs: each riser sampled from the range, scaled by (0.5 + 0.5 * difficulty).
       "random_stairs": terrain_gen.BoxRandomStairsTerrainCfg(
-        proportion=0.08,
+        proportion=0.07,
         step_height_range=(0.04, 0.2),
         step_width=0.35,
         platform_width=0.6,
@@ -634,12 +645,24 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
       # Open-riser stairs (thin slabs), tread narrows from 0.45 to 0.30 with difficulty.
       "open_stairs_up": terrain_gen.BoxOpenStairsTerrainCfg(
-        proportion=0.06,
+        proportion=0.05,
         step_height_range=(0.02, 0.2),
         step_width_range=(0.3, 0.45),
         platform_width=0.6,
         border_width=0.1,
         inverted=True,
+      ),
+      # Straight limited-width staircases with open sides (real stairs without
+      # railings): falling off the sides teaches caution and some fall recovery.
+      "straight_stairs_down": BoxStraightStairsTerrainCfg(
+        proportion=0.04,
+        step_height_range=(0.02, 0.2),
+        spawn="top",
+      ),
+      "straight_stairs_up": BoxStraightStairsTerrainCfg(
+        proportion=0.10,
+        step_height_range=(0.02, 0.2),
+        spawn="bottom",
       ),
     },
   )
