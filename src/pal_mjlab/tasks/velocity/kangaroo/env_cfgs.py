@@ -169,7 +169,7 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     mode="startup",
     func=dr.dof_frictionloss,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
       "operation": "add",
       "ranges": {
         r"leg_.*_1_joint": (-0.1, 0.1),
@@ -190,7 +190,7 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     mode="startup",
     func=dr.dof_damping,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
       "operation": "add",
       "ranges": {
         r"leg_.*_1_joint": (-0.2, 0.2),
@@ -207,7 +207,7 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     mode="startup",
     func=dr.dof_armature,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
       "operation": "add",
       "ranges": {
         r"leg_.*_1_joint": (-0.1, 0.1),
