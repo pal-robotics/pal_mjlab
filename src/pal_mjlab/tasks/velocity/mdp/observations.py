@@ -40,3 +40,46 @@ def imu_projected_gravity(
   # print(f"proj{asset.data.projected_gravity_b}")
   # Project to IMU frame (same as your C++ code)
   return quat_apply_inverse(imu_quat, gravity_w)
+
+
+def ref_base_lin_vel_b(env: ManagerBasedRlEnv, command_name : str) -> torch.Tensor:
+
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+
+  ref = torch.zeros((env.num_envs, 3,), device=env.device)
+  ref[:, :2] = command[:, :2]
+
+  return ref
+
+def ref_base_ang_vel_b(env: ManagerBasedRlEnv, command_name : str) -> torch.Tensor:
+
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+
+  ref = torch.zeros((env.num_envs, 3,), device=env.device)
+  ref[:, 2] = command[:, 2]
+  
+  return ref
+
+def ref_gravity_b(env: ManagerBasedRlEnv) -> torch.Tensor:
+
+  ref = torch.zeros((env.num_envs, 3,), device=env.device)
+  ref[:, 2] = -1.0
+  
+  return ref
+
+
+def ref_base_height(env: ManagerBasedRlEnv, command_name : str) -> torch.Tensor:
+
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+  
+  return command[:, 6]
+
+def ref_body_pos_b(env: ManagerBasedRlEnv, command_name : str) -> torch.Tensor:
+
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+  
+  return command[:, :6]

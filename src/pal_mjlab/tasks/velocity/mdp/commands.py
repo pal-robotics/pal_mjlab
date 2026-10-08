@@ -1,12 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import torch
 from mjlab.tasks.velocity.mdp.velocity_command import (
   UniformVelocityCommand,
   UniformVelocityCommandCfg,
+)
+
+from mjlab.managers.command_manager import (
+  CommandTerm,
+  CommandTermCfg
 )
 
 if TYPE_CHECKING:
@@ -209,3 +214,58 @@ class DualBandVelocityCommandCfg(UniformVelocityCommandCfg):
 
   def build(self, env: ManagerBasedRlEnv) -> DualBandVelocityCommand:
     return DualBandVelocityCommand(self, env)
+
+
+
+class WbcCommand (CommandTerm) :
+  cfg: WbcCommandCfg
+
+  def __init__(self, cfg: WbcCommandCfg, env: ManagerBasedRlEnv):
+    super().__init__(cfg, env)
+
+    self.ee_right_position_command = torch.zeros((self.num_envs, 3,), device=self.device)
+    self.ee_left_position_command = torch.zeros((self.num_envs, 3,), device=self.device)
+    self.base_height_command = torch.zeros((self.num_envs,), device=self.device)
+
+  @property
+  def command(self) -> torch.Tensor:
+    return torch.cat(
+      [self.ee_right_position_command, self.ee_left_position_command, self.base_height_command], dim=-1
+    ) 
+
+  def _update_metrics(self) -> None:
+    pass
+
+  def _resample_command(self, env_ids: torch.Tensor) -> None:
+    r = torch.empty(len(env_ids), device=self.device)
+
+    self.ee_right_position_command[env_ids, 0] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[0]].x)
+    self.ee_right_position_command[env_ids, 1] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[0]].y)
+    self.ee_right_position_command[env_ids, 2] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[0]].z)
+
+    self.ee_left_position_command[env_ids, 0] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[1]].x)
+    self.ee_left_position_command[env_ids, 1] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[1]].y)
+    self.ee_left_position_command[env_ids, 2] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[1]].z)
+
+    self.base_height_command[env_ids] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[2]].z)
+
+@dataclass(kw_only=True)
+class WbcCommandCfg(CommandTermCfg) :
+
+  tracked_body_names: tuple[str, ...]
+
+  @dataclass
+  class Ranges:
+    x: tuple[float, float]
+    y: tuple[float, float]
+    z: tuple[float, float]
+
+  ranges_tracked_bodies: dict[str, Ranges]
+
+  viz = None
+
+  def build(self, env: ManagerBasedRlEnv) -> WbcCommand:
+    return WbcCommand(self, env)
+
+  def __post_init__(self):
+    pass

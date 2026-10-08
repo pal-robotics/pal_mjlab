@@ -666,37 +666,32 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) flat terrain velocity configuration."""
   cfg = pal_kangaroo_rough_env_cfg(play=play)
 
+  end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
 
   actor_terms = {
     "ref_base_height": ObservationTermCfg(
       func=mdp.ref_base_height,
-      params={"command_name": "motion"},
+      params={"command_name": "wbc_command"},
       noise=Unoise(n_min=-0.01, n_max=0.01),
     ),
     "ref_base_lin_vel_b": ObservationTermCfg(
       func=mdp.ref_base_lin_vel_b,
-      params={"command_name": "motion"},
-      noise=Unoise(n_min=(-0.01, -0.01, -0.01), n_max=(0.01, 0.01, 0.01)),
+      params={"command_name": "twist"},
     ),
     "ref_base_ang_vel_b": ObservationTermCfg(
       func=mdp.ref_base_ang_vel_b,
-      params={"command_name": "motion"},
-      noise=Unoise(n_min=(-0.02, -0.02, -0.04), n_max=(0.02, 0.02, 0.04)),
+      params={"command_name": "twist"},
     ),
     "ref_gravity_b": ObservationTermCfg(
       func=mdp.ref_gravity_b,
-      params={"command_name": "motion"},
-      noise=Unoise(n_min=-0.01, n_max=0.01),
     ),
-    "ref_joint_pos": ObservationTermCfg(
-      func=mdp.ref_joint_pos,
-      params={"command_name": "motion"},
+    "ref_body_pos": ObservationTermCfg(
+      func=mdp.ref_body_pos_b, 
+      params={
+        "command_name": "wbc_command", 
+        "body_names": end_effector_body_names,
+      },
       noise=Unoise(n_min=-0.05, n_max=0.05),
-    ),
-    "ref_joint_vel": ObservationTermCfg(
-      func=mdp.ref_joint_vel,
-      params={"command_name": "motion"},
-      noise=Unoise(n_min=-0.25, n_max=0.25),
     ),
     "base_ang_vel": ObservationTermCfg(
       func=mdp.builtin_sensor,
@@ -719,7 +714,32 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     "actions": ObservationTermCfg(func=mdp.last_action),
   }
 
-  cfg.observations["actor"] = 
+  del cfg.observations["critic"]["command"]
+
+  for term_name, term in actor_terms :
+    if term_name not in cfg.observations["critic"].keys() :
+      obs_cfg = term
+      obs_cfg.noise = None
+      cfg.observations["critic"][term_name] = term
+
+  cfg.commands["wbc_command"] = mdp.WbcCommandCfg(
+    tracked_body_names = end_effector_body_names + ("base_link",),
+    tracked_body_ranges= {
+      "arm_right_tip_link" : mdp.WbcCommandCfg.Ranges(
+        x=(0.0, 0.0),
+        y=(0.0, 0.0),
+        z=(0.0, 0.0),
+      ),
+      "arm_left_tip_link" : mdp.WbcCommandCfg.Ranges(
+        x=(0.0, 0.0),
+        y=(0.0, 0.0),
+        z=(0.0, 0.0),
+      ),
+      "base_link" : mdp.WbcCommandCfg.Ranges(
+        z=(0.0, 0.0),
+      ),
+    }
+  )
 
   return cfg
 
