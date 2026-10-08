@@ -660,3 +660,66 @@ def pal_kangaroo_grippers_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
   joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
 
   return cfg
+
+
+def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) flat terrain velocity configuration."""
+  cfg = pal_kangaroo_rough_env_cfg(play=play)
+
+
+  actor_terms = {
+    "ref_base_height": ObservationTermCfg(
+      func=mdp.ref_base_height,
+      params={"command_name": "motion"},
+      noise=Unoise(n_min=-0.01, n_max=0.01),
+    ),
+    "ref_base_lin_vel_b": ObservationTermCfg(
+      func=mdp.ref_base_lin_vel_b,
+      params={"command_name": "motion"},
+      noise=Unoise(n_min=(-0.01, -0.01, -0.01), n_max=(0.01, 0.01, 0.01)),
+    ),
+    "ref_base_ang_vel_b": ObservationTermCfg(
+      func=mdp.ref_base_ang_vel_b,
+      params={"command_name": "motion"},
+      noise=Unoise(n_min=(-0.02, -0.02, -0.04), n_max=(0.02, 0.02, 0.04)),
+    ),
+    "ref_gravity_b": ObservationTermCfg(
+      func=mdp.ref_gravity_b,
+      params={"command_name": "motion"},
+      noise=Unoise(n_min=-0.01, n_max=0.01),
+    ),
+    "ref_joint_pos": ObservationTermCfg(
+      func=mdp.ref_joint_pos,
+      params={"command_name": "motion"},
+      noise=Unoise(n_min=-0.05, n_max=0.05),
+    ),
+    "ref_joint_vel": ObservationTermCfg(
+      func=mdp.ref_joint_vel,
+      params={"command_name": "motion"},
+      noise=Unoise(n_min=-0.25, n_max=0.25),
+    ),
+    "base_ang_vel": ObservationTermCfg(
+      func=mdp.builtin_sensor,
+      params={"sensor_name": "robot/imu_ang_vel"},
+      noise=Unoise(n_min=-0.1, n_max=0.1),
+    ),
+    "imu_projected_gravity": ObservationTermCfg(
+        func=mdp.imu_projected_gravity,
+        params={"sensor_name": "robot/imu_quat"},
+        noise=Unoise(n_min=-0.05, n_max=0.05),
+    ),
+    "joint_pos": ObservationTermCfg(
+      func=mdp.joint_pos_rel,
+      noise=Unoise(n_min=-0.01, n_max=0.01),
+      params={"biased": True},
+    ),
+    "joint_vel": ObservationTermCfg(
+      func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.3, n_max=0.3)
+    ),
+    "actions": ObservationTermCfg(func=mdp.last_action),
+  }
+
+  cfg.observations["actor"] = 
+
+  return cfg
+
