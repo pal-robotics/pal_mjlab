@@ -410,6 +410,9 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["air_time"].weight = 1.0
   cfg.rewards["air_time"].params["threshold_min"] = 0.2
   cfg.rewards["air_time"].params["threshold_max"] = 0.45
+  cfg.rewards["air_time"].params["command_threshold"] = (
+    0.1  # Otherwise it doesn't turn properly
+  )
 
   # More upright = safer torso stance
   cfg.rewards["upright"].weight = 2.0
@@ -418,19 +421,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # Tightened from default so the reward stays discriminative at low command speeds
   # instead of flattening into a dead-zone.
   cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(0.1)
-
-  # One gate for every command-gated term, so the rewards stay consistent
-  # and activate in every non-zero command
-  # command_gate = 0.01
-  # for reward_name in [
-  #   "air_time",
-  #   "foot_clearance",
-  #   "foot_swing_height",
-  #   "foot_slip",
-  #   "soft_landing",
-  # ]:
-  #   cfg.rewards[reward_name].params["command_threshold"] = command_gate
-  # cfg.rewards["pose"].params["walking_threshold"] = command_gate
 
   ### EVENTS
 
@@ -599,24 +589,6 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
     },
   )
-
-  # Standing envs
-
-  # Gradually increase standing env fraction after walking is established
-  # cfg.curriculum["standing_envs"] = CurriculumTermCfg(
-  #   func=mdp.standing_envs_curriculum,
-  #   params={
-  #     "command_name": "twist",
-  #     "standing_stages": [
-  #       {"step": 0, "rel_standing_envs": 0.02},
-  #       {"step": 500 * 24, "rel_standing_envs": 0.05},
-  #       {"step": 750 * 24, "rel_standing_envs": 0.1},
-  #       {"step": 1000 * 24, "rel_standing_envs": 0.15},
-  #       {"step": 1500 * 24, "rel_standing_envs": 0.2},
-  #       {"step": 2000 * 24, "rel_standing_envs": 0.25},
-  #     ],
-  #   },
-  # )
 
   # PLAY
   if play:
