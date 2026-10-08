@@ -407,7 +407,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
   twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
   # More forward-only commands (x > 0, y = yaw = 0) for pure stair traversal
-  twist_cmd.rel_forward_envs = 0.3  # default 0.2
+  twist_cmd.rel_forward_envs = 0.5  # default 0.2
 
   ### REWARDS
 
