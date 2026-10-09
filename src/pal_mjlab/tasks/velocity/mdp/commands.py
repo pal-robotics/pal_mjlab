@@ -239,15 +239,15 @@ class WbcCommand (CommandTerm) :
   def _resample_command(self, env_ids: torch.Tensor) -> None:
     r = torch.empty(len(env_ids), device=self.device)
 
-    self.ee_right_position_command[env_ids, 0] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[0]].x)
-    self.ee_right_position_command[env_ids, 1] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[0]].y)
-    self.ee_right_position_command[env_ids, 2] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[0]].z)
+    self.ee_right_position_command[env_ids, 0] = r.uniform_(*self.cfg.tracked_body_ranges[self.cfg.tracked_body_names[0]].x)
+    self.ee_right_position_command[env_ids, 1] = r.uniform_(*self.cfg.tracked_body_ranges[self.cfg.tracked_body_names[0]].y)
+    self.ee_right_position_command[env_ids, 2] = r.uniform_(*self.cfg.tracked_body_ranges[self.cfg.tracked_body_names[0]].z)
 
-    self.ee_left_position_command[env_ids, 0] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[1]].x)
-    self.ee_left_position_command[env_ids, 1] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[1]].y)
-    self.ee_left_position_command[env_ids, 2] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[1]].z)
+    self.ee_left_position_command[env_ids, 0] = r.uniform_(*self.cfg.tracked_body_ranges[self.cfg.tracked_body_names[1]].x)
+    self.ee_left_position_command[env_ids, 1] = r.uniform_(*self.cfg.tracked_body_ranges[self.cfg.tracked_body_names[1]].y)
+    self.ee_left_position_command[env_ids, 2] = r.uniform_(*self.cfg.tracked_body_ranges[self.cfg.tracked_body_names[1]].z)
 
-    self.base_height_command[env_ids] = r.uniform_(*self.cfg.ranges_tracked_bodies[self.cfg.tracked_body_names[2]].z)
+    self.base_height_command[env_ids] = r.uniform_(*self.cfg.tracked_body_ranges[self.cfg.tracked_body_names[2]].z)
 
 @dataclass(kw_only=True)
 class WbcCommandCfg(CommandTermCfg) :
@@ -256,11 +256,11 @@ class WbcCommandCfg(CommandTermCfg) :
 
   @dataclass
   class Ranges:
-    x: tuple[float, float]
-    y: tuple[float, float]
-    z: tuple[float, float]
+    x: tuple[float, float] = (0.0, 0.0)
+    y: tuple[float, float] = (0.0, 0.0)
+    z: tuple[float, float] = (0.0, 0.0)
 
-  ranges_tracked_bodies: dict[str, Ranges]
+  tracked_body_ranges: dict[str, Ranges]
 
   viz = None
 

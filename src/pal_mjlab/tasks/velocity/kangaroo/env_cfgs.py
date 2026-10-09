@@ -715,13 +715,13 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     "actions": ObservationTermCfg(func=mdp.last_action),
   }
 
-  del cfg.observations["critic"]["command"]
+  del cfg.observations["critic"].terms["command"]
 
-  for term_name, term in actor_terms :
-    if term_name not in cfg.observations["critic"].keys() :
+  for term_name, term in actor_terms.items() :
+    if term_name not in cfg.observations["critic"].terms.keys() :
       obs_cfg = term
       obs_cfg.noise = None
-      cfg.observations["critic"][term_name] = term
+      cfg.observations["critic"].terms[term_name] = term
 
   cfg.commands["wbc_command"] = mdp.WbcCommandCfg(
     tracked_body_names = end_effector_body_names + ("base_link",),
@@ -739,13 +739,14 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "base_link" : mdp.WbcCommandCfg.Ranges(
         z=(0.85, 1.05),
       ),
-    }
+    },
+    resampling_time_range=(1.0, 3.0),
   )
 
   # Rework pose as to not be punishing for upper body end effector tracking
   actuated_joints = REGEX_ALL_ACTUATED_LEG_JOINTS
   cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
-  for pose_type in ("standing", "std_walking", "std_running"):
+  for pose_type in ("std_walking", "std_running"):
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_1_.*"]
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_4_.*"]
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_(?![14]_joint)\d+_joint"]
