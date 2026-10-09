@@ -340,7 +340,7 @@ _ROBOT_CONFIGS = {
 
 def _make_robot_cfg(variant: str) -> EntityCfg:
     return EntityCfg(
-        init_state=KNEES_BENT_KEYFRAME,
+        init_state=INIT_STATE,                              ##############################################################################################################################
         collisions=(FULL_COLLISION,),
         spec_fn=get_spec,
         articulation=KANG_FULL_ARTICULATION,
