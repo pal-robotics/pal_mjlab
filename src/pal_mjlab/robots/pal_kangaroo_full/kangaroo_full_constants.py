@@ -210,16 +210,6 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 
 _FOOT_REGEX = ".*_foot_collision"
 
-# This disables all collisions except the feet.
-# Furthermore, feet self collisions are disabled.
-FEET_ONLY_COLLISION = CollisionCfg(
-  geom_names_expr=(_FOOT_REGEX,),
-  contype=0,
-  conaffinity=1,
-  condim=3,
-  priority=1,
-  friction=(0.6,),
-)
 FULL_COLLISION = CollisionCfg(
   geom_names_expr=(".*_collision",),
   condim={_FOOT_REGEX: 3, ".*_collision": 1},
