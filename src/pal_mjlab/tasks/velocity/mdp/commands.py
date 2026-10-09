@@ -225,7 +225,7 @@ class WbcCommand (CommandTerm) :
 
     self.ee_right_position_command = torch.zeros((self.num_envs, 3,), device=self.device)
     self.ee_left_position_command = torch.zeros((self.num_envs, 3,), device=self.device)
-    self.base_height_command = torch.zeros((self.num_envs,), device=self.device)
+    self.base_height_command = torch.zeros((self.num_envs, 1), device=self.device)
 
   @property
   def command(self) -> torch.Tensor:
