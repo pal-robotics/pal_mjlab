@@ -743,8 +743,10 @@ _FOOT_REGEX = r"(left|right)_foot\d+_collision$"
 
 FULL_COLLISION = CollisionCfg(
   geom_names_expr=(".*_collision",),
+  contype=1,
+  conaffinity=1,
   condim={_FOOT_REGEX: 3, ".*_collision": 1},
-  priority={_FOOT_REGEX: 1},
+  priority={_FOOT_REGEX: 1, ".*_collision": 0},
   friction={_FOOT_REGEX: (0.6,)},
 )
 
@@ -773,44 +775,6 @@ def get_kangaroo_full_robot_cfg() -> EntityCfg:
     spec_fn=get_kangaroo_spec,
     articulation=KANG_FULL_ARTICULATION,
   )
-
-
-_RANGE_FRACTION = 0.3
-"""Fraction of its travel that one unit of action addresses on a leg slider."""
-
-_HINGE_ACTION_SCALE = 0.25
-"""Joint displacement, in radians, that one unit of action commands on an arm or
-pelvis hinge.
-
-Stated directly rather than derived. It used to be ``0.25 * effort / stiffness``,
-which held the *torque* per action unit constant -- and then quietly collapsed the
-*motion* per action unit by 20x the moment the arm stiffness was corrected to the
-drive's real reflected inertia (0.2503 rad -> 0.0125 rad, i.e. +/-0.7 deg of arm
-travel). How far one action unit should move a joint is a policy-side choice and
-has nothing to do with how stiff the actuator is, so the two are no longer tied
-together. 0.25 rad is what the arms had before that change, and about 5x the pose
-term's ``std_standing`` of 0.05 rad."""
-
-# Only the leg sliders are scaled by travel. Their strokes are a few centimetres
-# and walking uses all of it, so a fraction of stroke is the right yardstick.
-# The arm and pelvis hinges span up to 5.2 rad but locomotion asks for a few
-# tenths, so a fraction of range hands the policy roughly 6x more authority than
-# it can use. Nothing charges for that: action_rate_l2 is measured on the
-# unscaled action, and the pose term's std_standing is 0.05 rad, which one unit
-# of a range-scaled arm action overshoots by ~31x, flattening its gradient.
-_TRAVEL_SCALED = re.compile(r"leg_")
-
-
-def _read_joint_ranges() -> dict[str, float]:
-  """Range of motion per joint, in metres for slides and radians for hinges.
-
-  Parses the spec only (no ``compile()``), so no meshes are loaded.
-  """
-  spec = mujoco.MjSpec.from_file(str(KANG_FULL_XML))
-  return {joint.name: float(joint.range[1] - joint.range[0]) for joint in spec.joints}
-
-
-_JOINT_RANGES = _read_joint_ranges()
 
 
 def _build_action_scales(
