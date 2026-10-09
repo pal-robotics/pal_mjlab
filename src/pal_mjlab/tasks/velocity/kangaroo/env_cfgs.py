@@ -169,9 +169,53 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     mode="startup",
     func=dr.dof_frictionloss,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
       "operation": "add",
-      "ranges": (-0.008, 0.008),
+      "ranges": {
+        r"leg_.*_1_joint": (-0.1, 0.1),
+        r"leg_.*_2_joint": (-0.25, 0.25),
+        r"leg_.*_3_joint": (-0.2, 0.2),
+        r"leg_.*_4_joint": (-0.15, 0.15),
+        r"leg_.*_5_joint": (-0.1, 0.1),
+        r"^(?!(?:leg_.*_1_joint|leg_.*_2_joint|leg_.*_3_joint|leg_.*_4_joint|leg_.*_5_joint)$).*": (
+          -0.008,
+          0.008,
+        ),
+      },
+      "shared_random": False,
+    },
+  )
+  # Domain Randomization for joint damping
+  cfg.events["joint_damping"] = EventTermCfg(
+    mode="startup",
+    func=dr.dof_damping,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+      "operation": "add",
+      "ranges": {
+        r"leg_.*_1_joint": (-0.2, 0.2),
+        r"leg_.*_2_joint": (-0.2, 0.2),
+        r"leg_.*_3_joint": (-0.1, 0.1),
+        r"leg_.*_4_joint": (-0.1, 0.1),
+        r"leg_.*_5_joint": (-0.1, 0.1),
+      },
+      "shared_random": False,
+    },
+  )
+  # Domain Randomization for joint armature
+  cfg.events["joint_armature"] = EventTermCfg(
+    mode="startup",
+    func=dr.dof_armature,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),
+      "operation": "add",
+      "ranges": {
+        r"leg_.*_1_joint": (-0.1, 0.1),
+        r"leg_.*_2_joint": (-0.25, 0.25),
+        r"leg_.*_3_joint": (-0.075, 0.075),
+        r"leg_.*_4_joint": (-0.05, 0.05),
+        r"leg_.*_5_joint": (-0.005, 0.005),
+      },
       "shared_random": False,
     },
   )
@@ -283,7 +327,7 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-  cfg.rewards["upright"].weight = 1.25
+  cfg.rewards["upright"].weight = 2.0
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   for reward_name in ["foot_clearance", "foot_slip"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
