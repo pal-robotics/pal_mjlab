@@ -7,7 +7,6 @@ import torch
 
 from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
-from mjlab.utils.os import update_assets
 from mjlab.utils.spec_config import CollisionCfg
 
 from pal_mjlab import PAL_MJLAB_SRC_PATH
@@ -124,16 +123,14 @@ S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
 XS = _calc_actuator_params(101, 1.3e-5, 25)
 
 
-def get_assets(meshdir: str) -> dict[str, bytes]:
-    assets: dict[str, bytes] = {}
-    update_assets(assets, KANG_FULL_XML.parent / "assets", meshdir)
-    return assets
+
+def _load_spec(xml_path: Path) -> mujoco.MjSpec:
+  spec = mujoco.MjSpec.from_file(str(xml_path))
+  return spec
 
 
-def get_spec() -> mujoco.MjSpec:
-    spec = mujoco.MjSpec.from_file(str(KANG_FULL_XML))
-    spec.assets = get_assets(spec.meshdir)
-    return spec
+def get_kangaroo_spec() -> mujoco.MjSpec:
+  return _load_spec(KANG_FULL_XML)
     
 ##
 # Actuator config.
@@ -488,7 +485,7 @@ _EXCLUDED_JOINTS = { }
 
 
 _ROBOT_CONFIGS = {
-    "kangaroo_full": (get_spec, KANG_FULL_ARTICULATION, FULL_COLLISION),
+    "kangaroo_full": (get_kangaroo_spec, KANG_FULL_ARTICULATION, FULL_COLLISION),
 }
 
 
@@ -496,7 +493,7 @@ def _make_robot_cfg(variant: str) -> EntityCfg:
     return EntityCfg(
         init_state=INIT_STATE,
         collisions=(FULL_COLLISION,),
-        spec_fn=get_spec,
+        spec_fn=get_kangaroo_spec,
         articulation=KANG_FULL_ARTICULATION,
     )
 

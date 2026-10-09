@@ -8,7 +8,13 @@ from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
-from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.sensor import (
+  ContactMatch,
+  ContactSensorCfg,
+  ObjRef,
+  RingPatternCfg,
+  TerrainHeightSensorCfg,
+)
 from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers import MetricsTermCfg
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
@@ -87,7 +93,14 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         reduce="none",
         num_slots=1,
     )
-    cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
+    # Remove the default terrain scan sensor
+    cfg.scene.sensors = tuple(s for s in cfg.scene.sensors if s.name != "terrain_scan")
+
+    cfg.scene.sensors = (cfg.scene.sensors or ()) + (
+        feet_ground_cfg,
+        self_collision_cfg,
+        body_ground_cfg,
+    )
 
     if (
         cfg.scene.terrain is not None
@@ -106,6 +119,15 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
     twist_cmd.viz.z_offset = 1.15
+
+    # Wire foot height scan to per-foot sites.
+    for sensor in cfg.scene.sensors or ():
+        if sensor.name == "foot_height_scan":
+            assert isinstance(sensor, TerrainHeightSensorCfg)
+            sensor.frame = tuple(
+                ObjRef(type="site", name=s, entity="robot") for s in site_names
+            )
+            sensor.pattern = RingPatternCfg.single_ring(radius=0.03, num_samples=6)
 
     #-- Observations
     cfg.observations["actor"].terms["joint_pos"].params[
@@ -149,9 +171,6 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         func=mdp.builtin_sensor,
         params={"sensor_name": "robot/global_angvel"},
     )
-    cfg.observations["critic"].terms["foot_height"].params[
-        "asset_cfg"
-    ].site_names = site_names
 
     ### Disabling the use of history length as we haven't seen much improvements with it
     ### Moreover, our best policy #62 doesn't use any history length
@@ -222,7 +241,7 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     }
     cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
     cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-    for reward_name in ["foot_clearance", "foot_swing_height", "foot_slip"]:
+    for reward_name in ["foot_clearance", "foot_slip"]:
         cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
     cfg.rewards["body_ang_vel"].weight = -0.05
     cfg.rewards["angular_momentum"].weight = -0.02
@@ -285,218 +304,6 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
                 "joint_torque_mag": MetricsTermCfg(func=mdp.joint_torques_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
                 "action_rate_l2": MetricsTermCfg(func=mdp.action_rate_l2, params={}),
                 "action_acc_l2": MetricsTermCfg(func=mdp.action_acc_l2, params={})}
-
-    #-- Terminations
-
-    cfg.terminations["illegal_contacts"] = TerminationTermCfg(
-        func=mdp.illegal_contact,
-        params={"sensor_name": "body_ground_contact"},
-    )
-
-    # Apply play mode overrides.
-    if play:
-        # Effectively infinite episode length.
-        cfg.episode_length_s = int(1e9)
-
-        cfg.observations["actor"].enable_corruption = False
-        cfg.events.pop("push_robot", None)
-        cfg.events["randomize_terrain"] = EventTermCfg(
-            func=mdp.randomize_terrain,
-            mode="reset",
-            params={},
-        )
-
-        if cfg.scene.terrain is not None:
-            if cfg.scene.terrain.terrain_generator is not None:
-                cfg.scene.terrain.terrain_generator.curriculum = False
-                cfg.scene.terrain.terrain_generator.num_cols = 5
-                cfg.scene.terrain.terrain_generator.num_rows = 5
-                cfg.scene.terrain.terrain_generator.border_width = 10.0
-
-    return cfg
-
-
-def pal_kangaroo_full_rough_env_cfg_MAC_Test(play: bool = False) -> ManagerBasedRlEnvCfg:
-    """Create PAL Robotics kangaroo_full rough terrain velocity configuration."""
-    cfg = make_velocity_env_cfg()
-    cfg.scene.entities = {"robot": get_kangaroo_full_robot_cfg()}
-    cfg.sim.nconmax = None
-    cfg.sim.mujoco.ccd_iterations = 500
-    cfg.sim.contact_sensor_maxmatch = 500
-    cfg.sim.mujoco.timestep = 0.002
-    cfg.decimation = 10
-
-    site_names = ("left_foot", "right_foot")
-    geom_names = tuple(
-        f"{side}_foot_collision"
-        for side in ("left", "right")
-    )
-
-    _ACTUATED_JOINT_RE = (
-        r".*_hip_z_slider$"
-        r"|.*_hip_xy_slider_l$"
-        r"|.*_hip_xy_slider_r$"
-        r"|.*_ankle_xy_slider_l$"
-        r"|.*_ankle_xy_slider_r$"
-        r"|.*_leg_length_slider$"
-        r"|pelvis_1_joint$"
-        r"|pelvis_2_joint$"
-        r"|arm_.*_[1-4]_joint$"
-    )
-
-    feet_ground_cfg = ContactSensorCfg(
-        name="feet_ground_contact",
-        primary=ContactMatch(
-            mode="subtree",
-            pattern=r"^(left_ankle_xy_foot|right_ankle_xy_foot)$",  # subtree so foot link is included
-            entity="robot",
-        ),
-        secondary=ContactMatch(mode="body", pattern="terrain"),
-        fields=("found", "force"),
-        reduce="netforce",
-        num_slots=1,
-        track_air_time=True,
-    )
-    body_ground_cfg = ContactSensorCfg(
-        name="body_ground_contact",
-        primary=ContactMatch(
-            mode="body",
-            pattern=r"^(left_leg_length_femur|right_leg_length_femur|left_leg_length_tibia|right_leg_length_tibia)$",
-            entity="robot",
-        ),
-        secondary=ContactMatch(mode="body", pattern="terrain"),
-        fields=("found",),
-        reduce="none",
-        num_slots=1,
-    )
-    self_collision_cfg = ContactSensorCfg(
-        name="self_collision",
-        primary=ContactMatch(mode="subtree", pattern="baselink", entity="robot"),
-        secondary=ContactMatch(mode="subtree", pattern="baselink", entity="robot"),
-        fields=("found",),
-        reduce="none",
-        num_slots=1,
-    )
-    cfg.scene.sensors = (feet_ground_cfg, self_collision_cfg, body_ground_cfg)
-
-    if (
-        cfg.scene.terrain is not None
-        and cfg.scene.terrain.terrain_generator is not None
-    ):
-        cfg.scene.terrain.terrain_generator.curriculum = True
-
-    joint_pos_action = cfg.actions["joint_pos"]
-    assert isinstance(joint_pos_action, JointPositionActionCfg)
-    joint_pos_action.scale = KANG_FULL_ACTION_SCALE
-    joint_pos_action.actuator_names = KANG_FULL_ACTUATOR_NAMES
-
-    cfg.viewer.body_name = "pelvis_2_link"
-
-    assert cfg.commands is not None
-    twist_cmd = cfg.commands["twist"]
-    assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.viz.z_offset = 1.15
-
-    #-- Observations
-
-    cfg.observations["actor"].terms["height_scan"] = None
-    cfg.observations["critic"].terms["height_scan"] = None
-    cfg.observations["actor"].terms["base_lin_vel"] = None
-    cfg.observations["actor"].terms["projected_gravity"] = None
-    cfg.observations["actor"].terms["base_ang_vel"] = ObservationTermCfg(
-        func=mdp.builtin_sensor,
-        params={"sensor_name": "robot/global_angvel"},
-    )
-    cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
-        func=mdp.imu_projected_gravity,
-        params={"sensor_name": "robot/orientation"},
-        noise=Unoise(n_min=-0.5, n_max=0.5),
-    )
-    cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
-        func=mdp.builtin_sensor,
-        params={"sensor_name": "robot/local_linacc"},
-        noise=Unoise(n_min=-0.5, n_max=0.5),
-    )
-    cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
-        func=mdp.imu_projected_gravity,
-        params={"sensor_name": "robot/orientation"},
-    )
-    cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
-        func=mdp.builtin_sensor,
-        params={"sensor_name": "robot/local_linacc"},
-    )
-    cfg.observations["critic"].terms["base_lin_vel"] = ObservationTermCfg(
-        func=mdp.builtin_sensor,
-        params={"sensor_name": "robot/local_linvel"},
-    )
-    cfg.observations["critic"].terms["base_ang_vel"] = ObservationTermCfg(
-        func=mdp.builtin_sensor,
-        params={"sensor_name": "robot/global_angvel"},
-    )
-    cfg.observations["critic"].terms["foot_height"].params[
-        "asset_cfg"
-    ].site_names = site_names
-
-    ### Disabling the use of history length as we haven't seen much improvements with it
-    ### Moreover, our best policy #62 doesn't use any history length
-    # cfg.observations["actor"].history_length = 5  # Keep last 5 frames
-    # cfg.observations["critic"].history_length = 5  # Keep last 5 frames
-    
-    #-- Events
-
-    cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
-    cfg.events["base_com"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-    cfg.events["joint_friction"] = EventTermCfg(
-        mode="startup",
-        func=dr.geom_friction,
-        domain_randomization=True,
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]),
-            "ranges": (-0.008, 0.008),
-            "operation": "add",
-        },
-    )
-    cfg.events["encoder_bias"].params["asset_cfg"].joint_names = [r"^(?!.*_leg_length_slider$).*"]
-    cfg.events["leg_length_encoder_bias"] = EventTermCfg(
-        mode="startup",
-        func=mdp.randomize_encoder_bias,
-        params={
-            "asset_cfg": SceneEntityCfg(
-                "robot", joint_names=[r".*_leg_length_slider$"]
-            ),
-            "bias_range": (-0.005, 0.005),
-        },
-    )
-
-    #-- Rewards
-
-    cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
-
-
-    for reward_name in ["foot_clearance", "foot_swing_height", "foot_slip"]:
-        cfg.rewards[reward_name] = None
-    cfg.rewards["pose"] = None
-    cfg.rewards["angular_momentum"] = None
-    cfg.rewards["air_time"] = None
-    cfg.rewards["self_collisions"] = None
-    cfg.rewards["joint_velocity_limit"] = None
-    cfg.rewards["convex_hull_joint_limits_hip"] = None
-    cfg.rewards["convex_hull_joint_limits_ankle"] = None
-    cfg.rewards["electrical_power_cost"] = None
-    cfg.rewards["dof_pos_limits"] = None
-    cfg.rewards["soft_landing"] = None
-    cfg.rewards["body_ang_vel"] = None
-    cfg.rewards["action_rate_ñ2"] = None
-
-
-
-    ## Metrics
-    cfg.metrics = {"joint_vel_mag": MetricsTermCfg(func=mdp.joint_velocity_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
-                "joint_acc_mag": MetricsTermCfg(func=mdp.joint_accelerations_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
-                "joint_torque_mag": MetricsTermCfg(func=mdp.joint_torques_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
-                "action_rate_l2": MetricsTermCfg(func=mdp.action_rate_l2, params={}),
-                "action_acc_l2": MetricsTermCfg(func=mdp.action_acc_l2, params={})}
-
 
     #-- Terminations
 
