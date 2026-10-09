@@ -1,8 +1,10 @@
 """PAL Robotics Kangaroo (full-model) constants."""
 
+import re
 from pathlib import Path
 
 import mujoco
+import numpy as np
 import torch
 from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
@@ -251,23 +253,61 @@ KANG_FULL_PELVIS_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
 # Keyframes.
 ##
 
+_JOINT_NQ = {
+  mujoco.mjtJoint.mjJNT_FREE: 7,
+  mujoco.mjtJoint.mjJNT_BALL: 4,
+  mujoco.mjtJoint.mjJNT_SLIDE: 1,
+  mujoco.mjtJoint.mjJNT_HINGE: 1,
+}
 
+
+def _read_keyframe(
+  key_name: str,
+) -> tuple[tuple[float, float, float], dict[str, float]]:
+  """Read a keyframe from the MJCF into ``(root_pos, {joint_regex: qpos})``.
+
+  Kangaroo's legs are closed kinematic chains, so the passive linkage joints
+  cannot be left at zero: the initial state has to sit on the constraint
+  manifold, or the solver opens the reset by tearing the loops apart. mjlab
+  defaults any joint absent from ``joint_pos`` to 0.0, so the pose has to be
+  given in full — read it from the generator's keyframe rather than restating
+  62 linkage angles here by hand.
+
+  Keys are anchored regexes, not plain names: mjlab resolves ``joint_pos`` with
+  ``re.match`` and takes the first hit, so a bare ``left_hip_xy_cross`` would
+  also claim ``left_hip_xy_cross_l`` and silently mis-pose the linkage.
+
+  Parses the spec only (no ``compile()``), so no meshes are loaded.
+  """
+  spec = mujoco.MjSpec.from_file(str(KANG_FULL_XML))
+  key = next((k for k in spec.keys if k.name == key_name), None)
+  if key is None:
+    raise ValueError(
+      f"{KANG_FULL_XML.name} has no '{key_name}' keyframe; "
+      f"found {[k.name for k in spec.keys]}"
+    )
+  qpos = np.asarray(key.qpos)
+  root_pos = (0.0, 0.0, 0.0)
+  joint_pos: dict[str, float] = {}
+  adr = 0
+  for joint in spec.joints:
+    nq = _JOINT_NQ[joint.type]
+    if joint.type == mujoco.mjtJoint.mjJNT_FREE:
+      root_pos = tuple(float(v) for v in qpos[adr : adr + 3])  # type: ignore[assignment]
+    else:
+      joint_pos[re.escape(joint.name) + "$"] = float(qpos[adr])
+    adr += nq
+  return root_pos, joint_pos
+
+
+KANG_FULL_HOME_POS, KANG_FULL_HOME_JOINT_POS = _read_keyframe("home")
+
+# The generator's "home" pose: base at 1.02 m, arms out, legs lightly bent. It
+# covers all 82 non-free joints because the leg loops have to close; do not
+# reduce it to the actuated subset, since mjlab zero-fills whatever is missing.
 INIT_STATE = EntityCfg.InitialStateCfg(
-  pos=(0.0, 0.0, 1.02),
-  joint_pos={
-    ".*_hip_z_slider": 0.0,
-    ".*_hip_xy_slider_l": 0.0,
-    ".*_hip_xy_slider_r": 0.0,
-    ".*_ankle_xy_slider_l": 0.0,
-    ".*_ankle_xy_slider_r": 0.0,
-    ".*_leg_length_slider$": 0.0,
-    "arm_left_1_joint": 0.24,
-    "arm_right_1_joint": -0.24,
-    "arm_.*_2_joint": 1.32,
-    "arm_left_3_joint": 1.57,
-    "arm_right_3_joint": -1.57,
-    "arm_.*_4_joint": 0.8,
-  },
+  pos=KANG_FULL_HOME_POS,
+  joint_pos=KANG_FULL_HOME_JOINT_POS,
   joint_vel={".*": 0.0},
 )
 
