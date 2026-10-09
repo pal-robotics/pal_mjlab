@@ -450,7 +450,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # shin contact above force_threshold, i.e. proportional to contact duration.
   cfg.rewards["shin_contacts"] = RewardTermCfg(
     func=mdp.self_collision_cost,  # generic: counts contacts of the given sensor
-    weight=(-0.5 / cfg.decimation),  # -0.5 per fully-in-contact policy step
+    weight=(-1.0 / cfg.decimation),  # -0.5 per fully-in-contact policy step
     params={"sensor_name": shin_ground_cfg.name, "force_threshold": 10.0},
   )
 
