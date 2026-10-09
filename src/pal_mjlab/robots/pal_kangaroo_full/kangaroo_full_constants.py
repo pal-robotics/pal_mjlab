@@ -22,6 +22,43 @@ KANG_FULL_XML: Path = (
 assert KANG_FULL_XML.exists()
 
 
+NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10Hz
+DAMPING_RATIO = 2.0
+FACTOR = 0.05
+
+
+def _calc_actuator_params(
+    gear_ratio: float, motor_inertia: float, effort: float
+) -> dict:
+    """Calculate armature, stiffness, and damping for an actuator."""
+    armature = FACTOR * motor_inertia * gear_ratio**2
+    stiffness = round(armature * NATURAL_FREQ**2, 3)
+    damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
+    return {
+        "armature": armature,
+        "stiffness": stiffness,
+        "damping": damping,
+        "effort_limit": effort,
+    }
+
+
+def _calc_leg_params(stiffness: float, effort: float) -> dict:
+    """Calculate leg actuator parameters."""
+    damping = round(2.0 * DAMPING_RATIO * stiffness / NATURAL_FREQ, 3)
+    return {
+        "armature": 0.01,
+        "stiffness": stiffness,
+        "damping": damping,
+        "effort_limit": effort,
+    }
+
+
+# Motor parameters: (gear_ratio, motor_inertia, effort_limit)
+S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
+S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
+XS = _calc_actuator_params(101, 1.3e-5, 25)
+
+
 def get_assets(meshdir: str) -> dict[str, bytes]:
     assets: dict[str, bytes] = {}
     update_assets(assets, KANG_FULL_XML.parent / "assets", meshdir)
@@ -154,6 +191,8 @@ KANG_FULL_BENT_KNEES_JOINTS = {
     "right_ankle_xy_crank_l__ankle_xy_bar1_l": 0.49179553985595703,
     "right_hip_xy_legholder__ankle_xy_crank_r": -0.02863118425011635,
     "right_ankle_xy_crank_r__ankle_xy_bar1_r": 0.49185508489608765,
+    "arm_left_2_joint" : 1.49179553985595703,
+    "arm_right_2_joint" : 1.49179553985595703,
 }
 
 # Passive
@@ -169,60 +208,42 @@ KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_hip_z_slider",
     ),
-    effort_limit=3000.0,
-    armature=0.01,
-    stiffness=75000.0,
-    damping=550.0,
+    **_calc_leg_params(100.0, 80.0),
 )
 
 KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_hip_xy_slider_l",
     ),
-    effort_limit=3000.0,
-    armature=0.01,
-    stiffness=175000.0,
-    damping=840.0,
+    **_calc_leg_params(100.0, 80.0),
 )
 
 KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_hip_xy_slider_r",
     ),
-    effort_limit=3000.0,
-    armature=0.01,
-    stiffness=175000.0,
-    damping=840.0,
+    **_calc_leg_params(100.0, 80.0),
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_ankle_xy_slider_l",
     ),
-    effort_limit=3000.0,
-    armature=0.01,
-    stiffness=200000.0,
-    damping=890.0,
+    **_calc_leg_params(100.0, 80.0),
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_ankle_xy_slider_r",
     ),
-    effort_limit=3000.0,
-    armature=0.01,
-    stiffness=200000.0,
-    damping=890.0,
+    **_calc_leg_params(100.0, 80.0),
 )
 
 KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_leg_length_slider$",
     ),
-    effort_limit=5000.0,
-    armature=0.01,
-    stiffness=250000.0,
-    damping=1000.0,
+    **_calc_leg_params(100.0, 80.0),
 )
 
 KANG_FULL_ARMS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
@@ -232,30 +253,21 @@ KANG_FULL_ARMS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
         "arm_.*_3_joint",
         "arm_.*_4_joint",
     ),
-    armature=0.01,
-    effort_limit=43.0,
-    stiffness=100.0,
-    damping=0.0,
+    **S_PLUS,
 )
 
 KANG_FULL_PELVIS_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         "pelvis_1_joint",
     ),
-    effort_limit=100.0,
-    armature=0.01,
-    stiffness=500.0,
-    damping=0.0,
+    **S_PLUS,
 )
 
 KANG_FULL_PELVIS_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         "pelvis_2_joint",
     ),
-    effort_limit=100.0,
-    armature=0.01,
-    stiffness=500.0,
-    damping=0.0,
+    **S_PLUS,
 )
 ##
 # Keyframes.
@@ -285,30 +297,23 @@ KNEES_BENT_KEYFRAME = EntityCfg.InitialStateCfg(
 # Collision config.
 ##
 
-_foot_regex = ".*_foot_collision"
+_FOOT_REGEX = ".*_foot_collision"
 
 # This disables all collisions except the feet.
 # Furthermore, feet self collisions are disabled.
 FEET_ONLY_COLLISION = CollisionCfg(
-    geom_names_expr=[_foot_regex],
+    geom_names_expr=(_FOOT_REGEX,),
     contype=0,
     conaffinity=1,
     condim=3,
     priority=1,
     friction=(0.6,),
-    solimp=(0.9, 0.95, 0.023),
 )
-
-# This enables all collisions, excluding self collisions.
-# Foot collisions are given custom condim, friction and solimp.
 FULL_COLLISION = CollisionCfg(
-    geom_names_expr=[".*_collision"],
-    condim={_foot_regex: 3},
-    priority={_foot_regex: 1},
-    friction={_foot_regex: (0.6,)},
-    solimp={_foot_regex: (0.9, 0.95, 0.023)},
-    contype=1,
-    conaffinity=0,
+    geom_names_expr=(".*_collision",),
+    condim={_FOOT_REGEX: 3, ".*_collision": 1},
+    priority={_FOOT_REGEX: 1},
+    friction={_FOOT_REGEX: (0.6,)},
 )
 
 
@@ -340,7 +345,7 @@ _ROBOT_CONFIGS = {
 
 def _make_robot_cfg(variant: str) -> EntityCfg:
     return EntityCfg(
-        init_state=INIT_STATE,                              ##############################################################################################################################
+        init_state=KNEES_BENT_KEYFRAME,                              ##############################################################################################################################
         collisions=(FULL_COLLISION,),
         spec_fn=get_spec,
         articulation=KANG_FULL_ARTICULATION,
