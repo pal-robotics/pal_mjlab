@@ -56,3 +56,4 @@ filterwarnings = [
 
 [project.scripts]
 play_wbc = "pal_mjlab.scripts.play_wbc:main"
+train_custom = "pal_mjlab.scripts.train_custom:main"
