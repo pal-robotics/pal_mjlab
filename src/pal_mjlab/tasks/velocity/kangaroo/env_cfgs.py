@@ -42,6 +42,7 @@ from pal_mjlab.robots import (
   KANGAROO_LOWER_BODY_ACTION_SCALE,
   KANGAROO_LOWER_BODY_ACTUATOR_NAMES,
   REGEX_ALL_ACTUATED_JOINTS,
+  REGEX_ALL_ACTUATED_LEG_JOINTS,
   REGEX_FEMUR_AND_KNEE_LINKS,
   REGEX_LEG_LENGTH_JOINTS_ONLY,
   get_kangaroo_grippers_robot_cfg,
@@ -726,19 +727,46 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     tracked_body_names = end_effector_body_names + ("base_link",),
     tracked_body_ranges= {
       "arm_right_tip_link" : mdp.WbcCommandCfg.Ranges(
-        x=(0.0, 0.0),
-        y=(0.0, 0.0),
-        z=(0.0, 0.0),
+        x=(-0.1, 0.5),
+        y=(-0.5, 0.1),
+        z=(-0.1, 0.5),
       ),
       "arm_left_tip_link" : mdp.WbcCommandCfg.Ranges(
-        x=(0.0, 0.0),
-        y=(0.0, 0.0),
-        z=(0.0, 0.0),
+        x=(-0.1, 0.5),
+        y=(-0.1, 0.5),
+        z=(-0.1, 0.5),
       ),
       "base_link" : mdp.WbcCommandCfg.Ranges(
-        z=(0.0, 0.0),
+        z=(0.85, 1.05),
       ),
     }
+  )
+
+  # Rework pose as to not be punishing for upper body end effector tracking
+  actuated_joints = REGEX_ALL_ACTUATED_LEG_JOINTS
+  cfg.rewards["pose"].params["asset_cfg"].joint_names = (actuated_joints,)
+  for pose_type in ("standing", "std_walking", "std_running"):
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_1_.*"]
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_4_.*"]
+    del cfg.rewards["pose"].params[pose_type][r"arm_.*_(?![14]_joint)\d+_joint"]
+
+  # Add rewards for tracking base link and end effector commands
+  cfg.rewards["track_end_effector_target"] = RewardTermCfg(
+    func=mdp.track_ee_target,
+    weight=1.5,
+    params={
+      "command_name" : "wbc_command",
+      "std" : math.sqrt(0.25),
+    }
+  )
+
+  cfg.rewards["track_base_heigth"] = RewardTermCfg(
+    func=mdp.track_base_height,
+    weight=1.0,
+    params={
+      "command_name" : "wbc_command",
+      "std" : math.sqrt(0.25),
+    },
   )
 
   return cfg
