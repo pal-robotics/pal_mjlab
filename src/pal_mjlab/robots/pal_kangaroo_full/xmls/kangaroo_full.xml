@@ -641,8 +641,8 @@
                 <body name="left_tibia" pos="0.0725074 0.373018 0">
                   <inertial pos="-0.043384 0.113356 -5.8e-05" quat="0.333064 0.622893 -0.333075 0.624606" mass="0.766071" diaginertia="0.011253 0.0110503 0.000445683"/>
                   <joint name="left_tibia" pos="0 0 0" axis="0 0 1" range="-3.14159 3.14159"/>
-                  <geom name="leg_left_knee_collision" size="0.04" fromto="0.03896 0.02628 0 -0.21337 0.29688 0" class="collision"/>
-                  <geom name="leg_left_knee_bar_collision" size="0.05" fromto="-0.063 0 0 -0.21337 0.29688 0" class="collision"/>
+                  <geom name="leg_left_knee_collision" size="0.04" fromto="0.03896 0.02628 0 -0.16904 0.24934 0" class="collision"/>
+                  <geom name="leg_left_knee_bar_collision" size="0.05" fromto="-0.063 0 0 -0.18400 0.23889 0" class="collision"/>
                   <body name="left_femur_rod_connect_b" pos="-0.0240466 0.0867281 0" quat="0.931533 0 0 0.363658">
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
@@ -994,8 +994,8 @@
                 <body name="right_tibia" pos="0.0725074 0.373018 0">
                   <inertial pos="-0.043384 0.113356 -5.8e-05" quat="0.333064 0.622893 -0.333075 0.624606" mass="0.766071" diaginertia="0.011253 0.0110503 0.000445683"/>
                   <joint name="right_tibia" pos="0 0 0" axis="0 0 1" range="-3.14159 3.14159"/>
-                  <geom name="leg_right_knee_collision" size="0.04" fromto="0.03896 0.02628 0 -0.21337 0.29688 0" class="collision"/>
-                  <geom name="leg_right_knee_bar_collision" size="0.05" fromto="-0.063 0 0 -0.21337 0.29688 0" class="collision"/>
+                  <geom name="leg_right_knee_collision" size="0.04" fromto="0.03896 0.02628 0 -0.16904 0.24934 0" class="collision"/>
+                  <geom name="leg_right_knee_bar_collision" size="0.05" fromto="-0.063 0 0 -0.18400 0.23889 0" class="collision"/>
                   <body name="right_femur_rod_connect_b" pos="-0.0240466 0.0867281 0" quat="0.931533 0 0 0.363658">
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
