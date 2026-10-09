@@ -133,24 +133,6 @@ def get_kangaroo_spec() -> mujoco.MjSpec:
 # Actuator config.
 ##
 
-KANG_FULL_LINEAR_ACTUATORS = (
-  ".*_hip_z_slider",
-  ".*_hip_xy_slider_l",
-  ".*_hip_xy_slider_r",
-  ".*_ankle_xy_slider_l",
-  ".*_ankle_xy_slider_r",
-  ".*_leg_length_slider$",
-)
-
-KANG_FULL_REVOLUTE_ACTUATORS = (
-  "arm_.*_1_joint",
-  "arm_.*_2_joint",
-  "arm_.*_3_joint",
-  "arm_.*_4_joint",
-  "pelvis_1_joint",
-  "pelvis_2_joint",
-)
-
 ##
 # Initial State
 ##
