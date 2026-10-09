@@ -117,10 +117,10 @@
         <inertial pos="-0.019996 -2e-06 0.003623" quat="0.999691 0 0.0248385 0" mass="1.61061" diaginertia="0.00677426 0.006367 0.00383074"/>
         <body name="pelvis_1_link" pos="0 0 0.052" quat="0.707105 0 0.707108 0">
           <inertial pos="-0.02593 -1e-06 0.001466" quat="0.99984 0 -0.0179004 0" mass="1.24856" diaginertia="0.00539676 0.004808 0.00324424"/>
-          <joint name="pelvis_1_joint" pos="0 0 0" axis="0 0 -1" range="-0.349066 0.349066" actuatorfrcrange="-100 100"/>
+          <joint name="pelvis_1_joint" pos="0 0 0" axis="0 0 -1" range="-0.349066 0.349066" actuatorfrcrange="-100 100" armature="0.012649824"/>
           <body name="pelvis_2_link" pos="-0.0591 0 0" quat="0.707105 0 -0.707108 0">
             <inertial pos="0 0 -0.011237" quat="0.0905443 0.701286 -0.0905443 0.701286" mass="0.438705" diaginertia="0.001283 0.000678889 0.000634111"/>
-            <joint name="pelvis_2_joint" pos="0 0 0" axis="0 0 -1" range="-1.309 1.309" actuatorfrcrange="-100 100"/>
+            <joint name="pelvis_2_joint" pos="0 0 0" axis="0 0 -1" range="-1.309 1.309" actuatorfrcrange="-100 100" armature="0.012649824"/>
             <body name="torso_link" pos="0 0 0.0061">
               <inertial pos="-0.008953 0.001581 0.216619" quat="0.999943 0.00619727 0.00134963 -0.0085383" mass="15.1027" diaginertia="0.342274 0.311149 0.128841"/>
               <body name="torso_imu_link" pos="0.071 -0.0014 0.02" quat="0 0.707107 -0.707107 0">
@@ -231,16 +231,16 @@
                 <inertial pos="0 0 0" mass="9.05e-07" diaginertia="0 0 0"/>
                 <body name="arm_left_1_link" quat="1.34924e-11 -3.67321e-06 1 -3.67321e-06">
                   <inertial pos="0.0070639 0.0030301 -0.05724" quat="0.991252 0.0809813 -0.0910271 0.0507521" mass="1.1788" diaginertia="0.00192068 0.00177268 0.000875278"/>
-                  <joint name="arm_left_1_joint" pos="0 0 0" axis="0 0 -1" range="-2.61799 2.61799" actuatorfrcrange="-43 43"/>
+                  <joint name="arm_left_1_joint" pos="0 0 0" axis="0 0 -1" range="-2.61799 2.61799" actuatorfrcrange="-43 43" armature="0.25299648"/>
                   <body name="arm_left_2_link" pos="0.03711 0.02 -0.17011" quat="0.707105 0 0.707108 0">
                     <inertial pos="0.029543 -0.0049762 -0.03224" quat="0.0848392 0.690549 -0.0139433 0.718157" mass="1.2955" diaginertia="0.00278545 0.00260446 0.00100708"/>
-                    <joint name="arm_left_2_joint" pos="0 0 0" axis="0 0 1" range="-1.13446 2.44346" actuatorfrcrange="-43 43"/>
+                    <joint name="arm_left_2_joint" pos="0 0 0" axis="0 0 1" range="-1.13446 2.44346" actuatorfrcrange="-43 43" armature="0.25299648"/>
                     <body name="arm_left_3_link" pos="0.15989 -0.02 -0.03711" quat="0.707105 0 -0.707108 0">
                       <inertial pos="-0.00706385 -0.00303013 -0.0572396" quat="0.991251 -0.0809737 0.0910312 0.0507756" mass="1.17879" diaginertia="0.00192065 0.00177272 0.000875276"/>
-                      <joint name="arm_left_3_joint" pos="0 0 0" axis="0 0 -1" range="-2.61799 2.61799" actuatorfrcrange="-43 43"/>
+                      <joint name="arm_left_3_joint" pos="0 0 0" axis="0 0 -1" range="-2.61799 2.61799" actuatorfrcrange="-43 43" armature="0.13261299999999998"/>
                       <body name="arm_left_4_link" pos="-0.03711 -0.02 -0.17011" quat="9.38184e-07 0.707105 9.38187e-07 -0.707108">
                         <inertial pos="0.0752641 -0.0079317 -0.023427" quat="0.573967 0.373833 0.602191 0.410095" mass="1.43535" diaginertia="0.0210305 0.0210101 0.00117153"/>
-                        <joint name="arm_left_4_joint" pos="0 0 0" axis="0 0 1" range="-1.1345 2.4435" actuatorfrcrange="-43 43"/>
+                        <joint name="arm_left_4_joint" pos="0 0 0" axis="0 0 1" range="-1.1345 2.4435" actuatorfrcrange="-43 43" armature="0.13261299999999998"/>
                         <body name="arm_left_tool_link" pos="0.35 -0.02 -0.0255"/>
                         <geom material="mtl_fake_forearm_left_link" mesh="fake_forearm_left_link" class="visual" pos="" quat=""/>
                         <geom mesh="fake_forearm_left_link" class="collision" pos="" quat=""/>
@@ -266,16 +266,16 @@
                 <inertial pos="0 0 0" mass="9.05e-07" diaginertia="0 0 0"/>
                 <body name="arm_right_1_link" quat="1.34924e-11 -3.67321e-06 1 -3.67321e-06">
                   <inertial pos="0.0070639 0.0030301 -0.05724" quat="0.991252 0.0809813 -0.0910271 0.0507521" mass="1.1788" diaginertia="0.00192068 0.00177268 0.000875278"/>
-                  <joint name="arm_right_1_joint" pos="0 0 0" axis="0 0 -1" range="-2.61799 2.61799" actuatorfrcrange="-43 43"/>
+                  <joint name="arm_right_1_joint" pos="0 0 0" axis="0 0 -1" range="-2.61799 2.61799" actuatorfrcrange="-43 43" armature="0.25299648"/>
                   <body name="arm_right_2_link" pos="0.03711 0.02 -0.17011" quat="0.707105 0 0.707108 0">
                     <inertial pos="0.029543 -0.0049762 -0.03224" quat="0.0848392 0.690549 -0.0139433 0.718157" mass="1.2955" diaginertia="0.00278545 0.00260446 0.00100708"/>
-                    <joint name="arm_right_2_joint" pos="0 0 0" axis="0 0 1" range="-1.13446 2.44346" actuatorfrcrange="-43 43"/>
+                    <joint name="arm_right_2_joint" pos="0 0 0" axis="0 0 1" range="-1.13446 2.44346" actuatorfrcrange="-43 43" armature="0.25299648"/>
                     <body name="arm_right_3_link" pos="0.15989 -0.02 -0.03711" quat="0.707105 0 -0.707108 0">
                       <inertial pos="-0.00706385 -0.00303013 -0.0572396" quat="0.991251 -0.0809737 0.0910312 0.0507756" mass="1.17879" diaginertia="0.00192065 0.00177272 0.000875276"/>
-                      <joint name="arm_right_3_joint" pos="0 0 0" axis="0 0 -1" range="-2.61799 2.61799" actuatorfrcrange="-43 43"/>
+                      <joint name="arm_right_3_joint" pos="0 0 0" axis="0 0 -1" range="-2.61799 2.61799" actuatorfrcrange="-43 43" armature="0.13261299999999998"/>
                       <body name="arm_right_4_link" pos="-0.03711 -0.02 -0.17011" quat="9.38184e-07 0.707105 9.38187e-07 -0.707108">
                         <inertial pos="0.0752641 -0.0079317 -0.023427" quat="0.573967 0.373833 0.602191 0.410095" mass="1.43535" diaginertia="0.0210305 0.0210101 0.00117153"/>
-                        <joint name="arm_right_4_joint" pos="0 0 0" axis="0 0 1" range="-1.1345 2.4435" actuatorfrcrange="-43 43"/>
+                        <joint name="arm_right_4_joint" pos="0 0 0" axis="0 0 1" range="-1.1345 2.4435" actuatorfrcrange="-43 43" armature="0.13261299999999998"/>
                         <body name="arm_right_tool_link" pos="0.35 -0.02 -0.0255"/>
                         <geom material="mtl_fake_forearm_right_link" mesh="fake_forearm_right_link" class="visual" pos="" quat=""/>
                         <geom mesh="fake_forearm_right_link" class="collision" pos="" quat=""/>
@@ -371,12 +371,12 @@
         <geom material="mtl_pelvis_base_link" mesh="pelvis_base_link" class="visual" pos="" quat=""/>
         <geom mesh="pelvis_base_link" class="collision" pos="" quat=""/>
       </body>
-      <body name="left_hip_z_motor" pos="-0.1148 0.0988312 -0.0296" quat="0.702958 -0.0764878 0.702958 0.0764878">
+      <body name="left_hip_z_motor" pos="-0.1148 0.0988312 -0.0296" quat="0.702958 -0.0764878 0.702958 0.0764878" childclass="zero_friction_joint">
         <inertial pos="-2e-06 0.000133 -0.020649" quat="0.761187 0.0111748 -0.00910741 0.648372" mass="0.776604" diaginertia="0.000566409 0.000553678 0.000461913"/>
         <joint name="left_hip_z_motor" pos="0 0 0" axis="1 0 0" range="-3.14159 3.14159"/>
         <body name="left_hip_z_slider">
           <inertial pos="4.2e-05 -4.2e-05 0.043356" quat="0.707107 0 0 0.707107" mass="0.124259" diaginertia="0.000177 0.000174 5e-06"/>
-          <joint name="leg_left_1_actuator" pos="0 0 0" axis="0 0 1" type="slide" range="-0.02609 0.01042"/>
+          <joint name="leg_left_1_actuator" pos="0 0 0" axis="0 0 1" type="slide" range="-0.02609 0.01042" armature="72.09" damping="589.46" frictionloss="11.73"/>
           <body name="left_hip_z_slider_connect_a" pos="0 0 0.0912226" quat="0.0764878 -0.702958 0.0764878 -0.702958">
             <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
           </body>
@@ -389,7 +389,7 @@
         <geom mesh="left_hip_z_motor" class="collision" pos="" quat=""/>
         <site name="left_hip_z_motor" pos="0 0 0" quat="1.0 0 0 0"/>
       </body>
-      <body name="left_hip_z" pos="-0.01469 0.08 -0.0166">
+      <body name="left_hip_z" pos="-0.01469 0.08 -0.0166" childclass="zero_friction_joint">
         <inertial pos="0.010057 -0.000187 -0.09373" quat="0.999312 -0.016951 -0.0328248 0.00338385" mass="0.594262" diaginertia="0.00197802 0.00145996 0.000588024"/>
         <joint name="left_hip_z" pos="0 0 0" axis="0 0 -1" range="-3.14159 3.14159"/>
         <body name="left_hip_xy_bracket_l" pos="0.0625 0.035 -0.06685" quat="0.707107 0 0.707107 0">
@@ -400,7 +400,7 @@
             <joint name="left_hip_xy_motor_l" pos="0 0 0" axis="0 -1 0" range="-3.14159 3.14159"/>
             <body name="left_hip_xy_slider_l">
               <inertial pos="-3.7e-05 -0.000655 0.033339" quat="0.999954 0.0096105 0 0" mass="0.143457" diaginertia="0.000322 0.000319115 6.88466e-06"/>
-              <joint name="leg_left_2_actuator" pos="0 0 0" axis="0 0 1" type="slide" range="-0.03634 0.04097"/>
+              <joint name="leg_left_2_actuator" pos="0 0 0" axis="0 0 1" type="slide" range="-0.03634 0.04097" armature="72.09" damping="589.46" frictionloss="11.73"/>
               <body name="left_hip_xy_slider_l_connect_a" pos="0 0 0.0934433" quat="0.705604 -0.0460688 0.0460688 -0.705604">
                 <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
               </body>
@@ -425,7 +425,7 @@
             <joint name="left_hip_xy_motor_r" pos="0 0 0" axis="0 1 0" range="-3.14159 3.14159"/>
             <body name="left_hip_xy_slider_r">
               <inertial pos="-3.7e-05 -0.000655 0.033339" quat="0.999954 0.0096105 0 0" mass="0.143457" diaginertia="0.000322 0.000319115 6.88466e-06"/>
-              <joint name="leg_left_3_actuator" pos="0 0 0" axis="0 0 1" type="slide" range="-0.03634 0.04097"/>
+              <joint name="leg_left_3_actuator" pos="0 0 0" axis="0 0 1" type="slide" range="-0.03634 0.04097" armature="72.09" damping="589.46" frictionloss="11.73"/>
               <body name="left_hip_xy_slider_r_connect_a" pos="0 0 0.0934433" quat="0.705604 -0.0460688 0.0460688 -0.705604">
                 <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
               </body>
@@ -476,7 +476,7 @@
                 <joint name="left_ankle_motor_l" pos="0 0 0" axis="0 0 -1" range="-3.14159 3.14159"/>
                 <body name="left_ankle_slider_l">
                   <inertial pos="-4.2e-05 -0.031044 -4.2e-05" quat="0.707107 0.707107 0 0" mass="0.124259" diaginertia="0.000177 0.000174 5e-06"/>
-                  <joint name="leg_left_4_actuator" pos="0 0 0" axis="0 -1 0" type="slide" range="-0.03634 0.04097"/>
+                  <joint name="leg_left_5_actuator" pos="0 0 0" axis="0 -1 0" type="slide" range="-0.03634 0.04097" armature="72.09" damping="589.46" frictionloss="11.73"/>
                   <body name="left_ankle_slider_l_connect_a" pos="0 -0.0789217 0">
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
@@ -494,7 +494,7 @@
                 <joint name="left_ankle_motor_r" pos="0 0 0" axis="0 0 -1" range="-3.14159 3.14159"/>
                 <body name="left_ankle_slider_r">
                   <inertial pos="4.2e-05 -0.031044 4.2e-05" quat="0.707107 0.707107 0 0" mass="0.124259" diaginertia="0.000177 0.000174 5e-06"/>
-                  <joint name="leg_left_5_actuator" pos="0 0 0" axis="0 -1 0" type="slide" range="-0.02437 0.02437"/>
+                  <joint name="leg_left_4_actuator" pos="0 0 0" axis="0 -1 0" type="slide" range="-0.02437 0.02437" armature="72.09" damping="589.46" frictionloss="11.73"/>
                   <body name="left_ankle_slider_r_connect_a" pos="0 -0.0789217 0">
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
@@ -643,7 +643,7 @@
                 </body>
                 <body name="left_femur_slider" pos="0.0305074 0.245497 0" quat="0 0 -0.707107 -0.707107">
                   <inertial pos="-0.001557 0.000208 -0.034495" quat="0.995827 -0.00689425 -0.0640447 0.0646438" mass="0.582003" diaginertia="0.000350609 0.000343893 0.000138497"/>
-                  <joint name="leg_left_length_actuator" pos="0 0 0" axis="0 0 -1" type="slide" range="0 0.1506"/>
+                  <joint name="leg_left_length_actuator" pos="0 0 0" axis="0 0 -1" type="slide" range="0 0.1506" armature="50.72" damping="650" frictionloss="15"/>
                   <body name="left_knee_rods">
                     <inertial pos="-0.008977 2.1e-05 0.107125" quat="0.999129 0 -0.0417239 0" mass="0.31247" diaginertia="0.00223464 0.00212 0.000128358"/>
                     <joint name="left_knee_rods" pos="0 0 0" axis="0 -1 0" range="-3.14159 3.14159"/>
@@ -744,12 +744,12 @@
         <site name="left_hip_z" pos="0 0 0" quat="1.0 0 0 0"/>
         <site name="left_hip_z_slider_connect_b" pos="-0.0110254942326755 0.0384504678375337 -0.0130000000000005" quat="0 1.0 0 0"/>
       </body>
-      <body name="right_hip_z_motor" pos="-0.1148 -0.0988312 -0.0296" quat="0.702958 0.0764878 0.702958 -0.0764878">
+      <body name="right_hip_z_motor" pos="-0.1148 -0.0988312 -0.0296" quat="0.702958 0.0764878 0.702958 -0.0764878" childclass="zero_friction_joint">
         <inertial pos="-2e-06 -0.000133 -0.020649" quat="0.648372 -0.00910741 0.0111748 0.761187" mass="0.776604" diaginertia="0.000566409 0.000553678 0.000461913"/>
         <joint name="right_hip_z_motor" pos="0 0 0" axis="1 0 0" range="-3.14159 3.14159"/>
         <body name="right_hip_z_slider">
           <inertial pos="4.2e-05 -4.2e-05 0.043356" quat="0.707107 0 0 0.707107" mass="0.124259" diaginertia="0.000177 0.000174 5e-06"/>
-          <joint name="leg_right_1_actuator" pos="0 0 0" axis="0 0 1" type="slide" range="-0.02609 0.01042"/>
+          <joint name="leg_right_1_actuator" pos="0 0 0" axis="0 0 1" type="slide" range="-0.02609 0.01042" armature="72.09" damping="589.46" frictionloss="11.73"/>
           <body name="right_hip_z_slider_connect_a" pos="0 0 0.0912226" quat="0.0764878 -0.702958 0.0764878 -0.702958">
             <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
           </body>
@@ -762,7 +762,7 @@
         <geom mesh="right_hip_z_motor" class="collision" pos="" quat=""/>
         <site name="right_hip_z_motor" pos="0 0 0" quat="1.0 0 0 0"/>
       </body>
-      <body name="right_hip_z" pos="-0.01469 -0.08 -0.0166">
+      <body name="right_hip_z" pos="-0.01469 -0.08 -0.0166" childclass="zero_friction_joint">
         <inertial pos="0.010057 0.000187 -0.09373" quat="0.999312 0.016951 -0.0328248 -0.00338385" mass="0.594262" diaginertia="0.00197802 0.00145996 0.000588024"/>
         <joint name="right_hip_z" pos="0 0 0" axis="0 0 -1" range="-3.14159 3.14159"/>
         <body name="right_hip_xy_bracket_r" pos="0.0625 -0.035 -0.06685" quat="0.707107 0 0.707107 0">
@@ -773,7 +773,7 @@
             <joint name="right_hip_xy_motor_r" pos="0 0 0" axis="0 -1 0" range="-3.14159 3.14159"/>
             <body name="right_hip_xy_slider_r">
               <inertial pos="-3.7e-05 -0.000655 0.033339" quat="0.999954 0.0096105 0 0" mass="0.143457" diaginertia="0.000322 0.000319115 6.88466e-06"/>
-              <joint name="leg_right_3_actuator" pos="0 0 0" axis="0 0 1" type="slide" range="-0.03634 0.04097"/>
+              <joint name="leg_right_3_actuator" pos="0 0 0" axis="0 0 1" type="slide" range="-0.03634 0.04097" armature="72.09" damping="589.46" frictionloss="11.73"/>
               <body name="right_hip_xy_slider_r_connect_a" pos="0 0 0.0934433" quat="0.705604 -0.0460688 0.0460688 -0.705604">
                 <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
               </body>
@@ -798,7 +798,7 @@
             <joint name="right_hip_xy_motor_l" pos="0 0 0" axis="0 1 0" range="-3.14159 3.14159"/>
             <body name="right_hip_xy_slider_l">
               <inertial pos="-3.7e-05 -0.000655 0.033339" quat="0.999954 0.0096105 0 0" mass="0.143457" diaginertia="0.000322 0.000319115 6.88466e-06"/>
-              <joint name="leg_right_2_actuator" pos="0 0 0" axis="0 0 1" type="slide" range="-0.03634 0.04097"/>
+              <joint name="leg_right_2_actuator" pos="0 0 0" axis="0 0 1" type="slide" range="-0.03634 0.04097" armature="72.09" damping="589.46" frictionloss="11.73"/>
               <body name="right_hip_xy_slider_l_connect_a" pos="0 0 0.0934433" quat="0.705604 -0.0460688 0.0460688 -0.705604">
                 <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
               </body>
@@ -847,7 +847,7 @@
                 <joint name="right_ankle_motor_l" pos="0 0 0" axis="0 0 -1" range="-3.14159 3.14159"/>
                 <body name="right_ankle_slider_l">
                   <inertial pos="-4.2e-05 -0.031044 -4.2e-05" quat="0.707107 0.707107 0 0" mass="0.124259" diaginertia="0.000177 0.000174 5e-06"/>
-                  <joint name="leg_right_4_actuator" pos="0 0 0" axis="0 -1 0" type="slide" range="-0.03634 0.04097"/>
+                  <joint name="leg_right_5_actuator" pos="0 0 0" axis="0 -1 0" type="slide" range="-0.03634 0.04097" armature="72.09" damping="589.46" frictionloss="11.73"/>
                   <body name="right_ankle_slider_l_connect_a" pos="0 -0.0789217 0">
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
@@ -865,7 +865,7 @@
                 <joint name="right_ankle_motor_r" pos="0 0 0" axis="0 0 -1" range="-3.14159 3.14159"/>
                 <body name="right_ankle_slider_r">
                   <inertial pos="4.2e-05 -0.031044 4.2e-05" quat="0.707107 0.707107 0 0" mass="0.124259" diaginertia="0.000177 0.000174 5e-06"/>
-                  <joint name="leg_right_5_actuator" pos="0 0 0" axis="0 -1 0" type="slide" range="-0.02437 0.02437"/>
+                  <joint name="leg_right_4_actuator" pos="0 0 0" axis="0 -1 0" type="slide" range="-0.02437 0.02437" armature="72.09" damping="589.46" frictionloss="11.73"/>
                   <body name="right_ankle_slider_r_connect_a" pos="0 -0.0789217 0">
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
@@ -1014,7 +1014,7 @@
                 </body>
                 <body name="right_femur_slider" pos="0.0305074 0.245497 0" quat="0 0 -0.707107 -0.707107">
                   <inertial pos="-0.001557 0.000208 -0.034495" quat="0.995827 -0.00689425 -0.0640447 0.0646438" mass="0.582003" diaginertia="0.000350609 0.000343893 0.000138497"/>
-                  <joint name="leg_right_length_actuator" pos="0 0 0" axis="0 0 -1" type="slide" range="0 0.1506"/>
+                  <joint name="leg_right_length_actuator" pos="0 0 0" axis="0 0 -1" type="slide" range="0 0.1506" armature="50.72" damping="650" frictionloss="15"/>
                   <body name="right_knee_rods">
                     <inertial pos="-0.008977 2.1e-05 0.107125" quat="0.999129 0 -0.0417239 0" mass="0.31247" diaginertia="0.00223464 0.00212 0.000128358"/>
                     <joint name="right_knee_rods" pos="0 0 0" axis="0 -1 0" range="-3.14159 3.14159"/>
@@ -1133,18 +1133,30 @@
     <scale contactheight="0.2" contactwidth="0.5" forcewidth="0.3"/>
     <quality shadowsize="8192"/>
   </visual>
-  <asset>
-    <texture builtin="gradient" height="800" rgb1="0.45 0.59 0.79" rgb2="0.30 0.41 0.60" type="skybox" width="800"/>
-    <texture builtin="checker" height="300" mark="edge" markrgb="0 0 0" name="groundplane" rgb1="1 1 1" rgb2="1 1 1" type="2d" width="300"/>
-    <material name="groundplane" reflectance="0" texrepeat="5 5" texture="groundplane" texuniform="true"/>
-  </asset>
-  <worldbody>
-    <geom conaffinity="0" contype="1" material="groundplane" name="floor" size="0 0 0.01" type="plane"/>
-  </worldbody>
   <option timestep="0.0005"/>
   <default>
-    <joint armature="0.01" damping="5" frictionloss="1" limited="true"/>
+    <!--
+          armature is reflected rotor inertia, so the only joints that have any are the
+          ones with a rotor behind them. The default is therefore 0, and every actuated
+          joint states its own in <processed_inputs> (the ball screws, the pelvis and
+          arm 1-4). The linkage joints that close the legs are passive: no motor, no
+          armature.
+          Caveat for arm_type 5dof/7dof: <processed_inputs> only sets arm 1-4, so arm
+          5-7 would fall through to 0 here rather than to the old 0.01. The full model is
+          only built with 4dof arms today; give those joints their own armature before
+          building a 5dof or 7dof variant.
+        -->
+    <joint armature="0" damping="5" frictionloss="1" limited="true"/>
     <site group="5" rgba="1 0 0 1" size="0.01"/>
+    <!--
+          Frictionless joints for the legs. Attached to the leg subtrees through a
+          childclass in <processed_inputs>, so it reaches the passive linkage joints as
+          well as the screws; the screws then override damping and frictionloss with
+          their own measured values, and the linkage keeps 0.
+        -->
+    <default class="zero_friction_joint">
+      <joint damping="0" frictionloss="0"/>
+    </default>
   </default>
   <contact>
     <exclude body1="arm_left_1_link" body2="arm_left_2_link"/>

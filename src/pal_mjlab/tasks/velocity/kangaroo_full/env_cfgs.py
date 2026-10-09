@@ -43,8 +43,8 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # dont match the values used during training does not work properly
   # this should not be the case as long as timestep * decimation does not change
   # however we observed that it changes (TODO investigate) 
-  cfg.sim.mujoco.timestep = 0.005
-  cfg.decimation = 4
+  cfg.sim.mujoco.timestep = 0.002
+  cfg.decimation = 10
 
   # The sole frame of each foot. Not "left_foot": that is only a prefix of the four
   # foot corner sites, so as a regex it silently selects 4 sites per foot.
