@@ -25,10 +25,10 @@ from pal_mjlab.robots.pal_kangaroo_full.kangaroo_full_constants import (  # noqa
   HIP_XY_CONVEX_HULL_POINTS,
   KANG_FULL_ACTION_SCALE,
   KANG_FULL_ACTUATOR_NAMES,
+  KANG_FULL_LEG_LENGTH_VEL_LIMIT,
   get_kangaroo_full_robot_cfg,
 )
 from pal_mjlab.tasks.velocity import mdp
-from pal_mjlab.tasks.velocity.kangaroo_full import mdp as mdp_kgr_full
 
 
 def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -53,6 +53,14 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   _LEG_ACTUATOR_RE = (
     r"leg_(left|right)_[1-5]_actuator$|leg_(left|right)_length_actuator$"
   )
+  _LEG_LENGTH_ACTUATOR_RE = r"leg_(left|right)_length_actuator$"
+  # Screws grouped by the coordinate they drive, for per-group encoder bias.
+  _SCREW_BIAS_GROUPS = {
+    "hip_z": r"leg_(left|right)_1_actuator$",
+    "hip_xy": r"leg_(left|right)_[23]_actuator$",
+    "ankle_xy": r"leg_(left|right)_[45]_actuator$",
+    "leg_length": _LEG_LENGTH_ACTUATOR_RE,
+  }
   _ACTUATED_JOINT_RE = (
     _LEG_ACTUATOR_RE + r"|pelvis_1_joint$|pelvis_2_joint$|arm_.*_[1-4]_joint$"
   )
@@ -179,32 +187,69 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "shared_random": False,
     },
   )
+  # Encoder bias, in ball-screw units. pal_kangaroo corrupts joint angles by
+  # +/-0.015 rad (+/-0.005 m on leg length)
   cfg.events["encoder_bias"].params["asset_cfg"].joint_names = [
-    r"^(?!leg_(left|right)_length_actuator$).*"
+    r"^(?!leg_(left|right)_([1-5]|length)_actuator$).*"
   ]
-  cfg.events["leg_length_encoder_bias"] = EventTermCfg(
-    mode="startup",
-    func=dr.encoder_bias,
-    params={
-      "asset_cfg": SceneEntityCfg(
-        "robot", joint_names=[r"leg_(left|right)_length_actuator$"]
-      ),
-      "bias_range": (-0.005, 0.005),
-    },
-  )
+  for _name, _bias in (
+    ("hip_z", 0.0006),
+    ("hip_xy", 0.0007),
+    ("ankle_xy", 0.0004),
+    ("leg_length", 0.00133),
+  ):
+    cfg.events[f"{_name}_encoder_bias"] = EventTermCfg(
+      mode="startup",
+      func=dr.encoder_bias,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=[_SCREW_BIAS_GROUPS[_name]]),
+        "bias_range": (-_bias, _bias),
+      },
+    )
 
   # -- Rewards
 
   cfg.rewards["pose"].params["asset_cfg"].joint_names = (_ACTUATED_JOINT_RE,)
-  cfg.rewards["pose"].params["std_standing"] = {_ACTUATED_JOINT_RE: 0.05}
+  # pal_kangaroo applies a blanket 0.05 to every actuated joint when standing. For
+  # the arms and pelvis that carries over unchanged; for the screws it is translated
+  # the same way as std_walking / std_running above.
+  cfg.rewards["pose"].params["std_standing"] = {
+    r"leg_(left|right)_1_actuator$": 0.001998,
+    r"leg_(left|right)_2_actuator$": 0.002970,
+    r"leg_(left|right)_3_actuator$": 0.002966,
+    r"leg_(left|right)_length_actuator$": 0.013251,
+    r"leg_(left|right)_4_actuator$": 0.001721,
+    r"leg_(left|right)_5_actuator$": 0.001721,
+    r"pelvis_1_joint$|pelvis_2_joint$|arm_.*_[1-4]_joint$": 0.05,
+  }
+  # Screw-space stds translated from pal_kangaroo's joint-space ones, so the two
+  # tasks penalise the same physical posture error.
+  #
+  # variable_posture scores mean_j ((q_j - q_j*) / std_j)^2. Writing dq = J dx for
+  # the transmission Jacobian J = d(joint)/d(screw), the simple model's penalty is a
+  # quadratic form in dx whose diagonal is sum_j (J[j,i] / std_q_j)^2; matching that
+  # gives std_x_i = 1 / sqrt(sum_j (J[j,i] / std_q_j)^2), which is what the numbers
+  # below are. J was measured at the home keyframe by solving the equality-constraint
+  # Jacobian for each screw (see _TRANSMISSION_AT_HOME):
+  #   screw 1      -> hip yaw                        25.031 rad/m
+  #   screws 2,3   -> hip pitch 8.53, hip roll +-14.52 rad/m   (differential pair)
+  #   screws 4,5   -> ankle pitch -14.29, ankle roll +-25.29    (differential pair)
+  #   screw length -> leg length                     -3.7734 m/m
+  #
+  # The two differential pairs cannot be matched exactly: for them J^T K J carries
+  # off-diagonal terms worth ~50% of the diagonal, which two independent stds have no
+  # way to express. The diagonal match above is the closest two-number approximation.
+  #
+  # Arms and pelvis are identity-mapped -- same joint names, axes and ranges in both
+  # models -- so they take pal_kangaroo's values verbatim.
   cfg.rewards["pose"].params["std_walking"] = {
     # Lower body. 1 = hip yaw, 2/3 = hip xy, 4/5 = ankle xy.
-    r"leg_(left|right)_1_actuator$": 0.01,
-    r"leg_(left|right)_2_actuator$": 0.01,
-    r"leg_(left|right)_3_actuator$": 0.01,
-    r"leg_(left|right)_length_actuator$": 0.05,
-    r"leg_(left|right)_4_actuator$": 0.01,
-    r"leg_(left|right)_5_actuator$": 0.01,
+    r"leg_(left|right)_1_actuator$": 0.005993,
+    r"leg_(left|right)_2_actuator$": 0.009913,
+    r"leg_(left|right)_3_actuator$": 0.009899,
+    r"leg_(left|right)_length_actuator$": 0.026501,
+    r"leg_(left|right)_4_actuator$": 0.003857,
+    r"leg_(left|right)_5_actuator$": 0.003857,
     # Waist.
     r"pelvis_1.*": 0.08,
     r"pelvis_2.*": 0.2,
@@ -215,12 +260,12 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   }
   cfg.rewards["pose"].params["std_running"] = {
     # Lower body. 1 = hip yaw, 2/3 = hip xy, 4/5 = ankle xy.
-    r"leg_(left|right)_1_actuator$": 0.015,
-    r"leg_(left|right)_2_actuator$": 0.015,
-    r"leg_(left|right)_3_actuator$": 0.015,
-    r"leg_(left|right)_length_actuator$": 0.08,
-    r"leg_(left|right)_4_actuator$": 0.015,
-    r"leg_(left|right)_5_actuator$": 0.015,
+    r"leg_(left|right)_1_actuator$": 0.007990,
+    r"leg_(left|right)_2_actuator$": 0.013411,
+    r"leg_(left|right)_3_actuator$": 0.013391,
+    r"leg_(left|right)_length_actuator$": 0.039752,
+    r"leg_(left|right)_4_actuator$": 0.005765,
+    r"leg_(left|right)_5_actuator$": 0.005765,
     # Waist.
     r"pelvis_1.*": 0.08,
     r"pelvis_2.*": 0.3,
@@ -243,15 +288,19 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={"sensor_name": self_collision_cfg.name},
   )
 
-  # pal_kangaroo penalises leg-length velocity with mjlab's linear joint_vel_limits
-  # at -10.0 and a +/-1.6 limit. That limit is in its own leg-length coordinate,
-  # which spans 0.582 m against 0.151 m of ball-screw travel here, so it does not
-  # carry over. This term is the full model's own: quadratic past limits already
-  # expressed in screw units, over all six leg actuators.
-  cfg.rewards["joint_velocity_limit"] = RewardTermCfg(
-    func=mdp_kgr_full.joint_vel_limit,
-    weight=-0.02,
-    params={"asset_cfg": SceneEntityCfg("robot", joint_names=KANG_FULL_ACTUATOR_NAMES)},
+  # pal_kangaroo's term verbatim, with the limit converted into ball-screw units
+  cfg.rewards["joint_vel_limits"] = RewardTermCfg(
+    func=mdp.joint_vel_limits,
+    weight=-10.0,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(_LEG_LENGTH_ACTUATOR_RE,)),
+      "velocity_limits": {
+        _LEG_LENGTH_ACTUATOR_RE: (
+          -KANG_FULL_LEG_LENGTH_VEL_LIMIT,
+          KANG_FULL_LEG_LENGTH_VEL_LIMIT,
+        )
+      },
+    },
   )
 
   # The hull points should correspond to the respective joints defined in the joint_names_group order
@@ -293,14 +342,6 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
-  cfg.rewards["electrical_power_cost"] = RewardTermCfg(
-    func=mdp.electrical_power_cost,
-    weight=0.0,  # To be defined
-    params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=KANG_FULL_ACTUATOR_NAMES),
-    },
-  )
-
   ## Metrics
   cfg.metrics = {
     "joint_vel_mag": MetricsTermCfg(
@@ -317,6 +358,10 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     ),
     "action_rate_l2": MetricsTermCfg(func=mdp.action_rate_l2, params={}),
     "action_acc_l2": MetricsTermCfg(func=mdp.action_acc_l2, params={}),
+    "max_feet_delta_vel_along_gravity": MetricsTermCfg(
+      func=mdp.max_feet_delta_velocity_along_gravity,
+      params={"asset_cfg": SceneEntityCfg("robot", site_names=site_names)},
+    ),
   }
 
   # -- Terminations

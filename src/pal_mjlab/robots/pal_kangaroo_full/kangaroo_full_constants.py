@@ -137,6 +137,7 @@ def _calc_leg_params(stiffness: float, effort: float) -> dict:
 
 # Motor parameters: (gear_ratio, motor_inertia, effort_limit)
 S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
+S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
 
 
 ##
@@ -571,14 +572,20 @@ KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
   **_calc_leg_params(200000.0, _LEG_ACTUATORS_EFFORT_LIMITS[0]),
 )
 
-KANG_FULL_ARMS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+KANG_FULL_ARMS_S_PLUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
   target_names_expr=(
     "arm_.*_1_joint",
     "arm_.*_2_joint",
+  ),
+  **S_PLUS,
+)
+
+KANG_FULL_ARMS_S_MINUS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+  target_names_expr=(
     "arm_.*_3_joint",
     "arm_.*_4_joint",
   ),
-  **S_PLUS,
+  **S_MINUS,
 )
 
 KANG_FULL_PELVIS_1_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
@@ -590,6 +597,26 @@ KANG_FULL_PELVIS_2_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
   target_names_expr=("pelvis_2_joint",),
   **S_PLUS,
 )
+##
+# Transmission.
+##
+
+# approx values for the velocity ratios.
+KANG_FULL_TRANSMISSION_AT_HOME: dict[str, dict[str, float]] = {
+  "1": {"hip_yaw": 25.031},
+  "2": {"hip_pitch": 8.526, "hip_roll": 14.518},
+  "3": {"hip_pitch": 8.524, "hip_roll": -14.541},
+  "4": {"ankle_pitch": -14.291, "ankle_roll": 25.287},
+  "5": {"ankle_pitch": -14.292, "ankle_roll": -25.287},
+  "length": {"leg_length": -3.7734},
+}
+
+# pal_kangaroo caps leg-length joint velocity at +/-1.6 m/s. Same physical cap,
+# expressed on the ball screw that produces it.
+KANG_FULL_LEG_LENGTH_VEL_LIMIT = 1.6 / abs(
+  KANG_FULL_TRANSMISSION_AT_HOME["length"]["leg_length"]
+)
+
 ##
 # Keyframes.
 ##
@@ -684,11 +711,12 @@ KANG_FULL_ARTICULATION = EntityArticulationInfoCfg(
     KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG,
     KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG,
     KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG,
-    KANG_FULL_ARMS_ACTUATOR_CFG,
+    KANG_FULL_ARMS_S_PLUS_ACTUATOR_CFG,
+    KANG_FULL_ARMS_S_MINUS_ACTUATOR_CFG,
     KANG_FULL_PELVIS_1_ACTUATOR_CFG,
     KANG_FULL_PELVIS_2_ACTUATOR_CFG,
   ),
-  soft_joint_pos_limit_factor=0.99,
+  soft_joint_pos_limit_factor=0.9,
 )
 
 
