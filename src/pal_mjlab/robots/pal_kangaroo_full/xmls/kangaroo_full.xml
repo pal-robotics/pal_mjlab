@@ -1,0 +1,683 @@
+<mujoco model="kangaroo">
+  <compiler angle="radian" meshdir="assets" autolimits="true"/>
+
+  <option timestep="0.001" integrator="implicitfast"  />
+
+  <size nkey="1"/>
+
+  <default>
+    <joint limited="true" stiffness="0" damping="3" frictionloss="0.1" />
+    <default class="motor"/>
+    <default class="position">
+      <general group="1" biastype="affine" gainprm="60" biasprm="0 -60"/>
+    </default>
+    <default class="velocity">
+      <general group="2" biastype="affine" biasprm="0 0 -1"/>
+    </default>
+    <default class="collision">
+      <geom type="capsule" group="3" rgba="1 0.65 0 0.2"/>
+    </default>
+    <default class="box_collision">
+      <geom type="box" group="3" rgba="1 0.65 0 0.2"/>
+    </default>
+    <default class="visual">
+      <geom type="mesh" contype="0" conaffinity="0" group="1"/>
+    </default>
+    <default class="color_midnight_bueno">
+      <geom contype="0" conaffinity="0" group="1" rgba="0.07059 0.16078 0.18824 1"/>
+    </default>
+    <default class="color_midnight">
+      <geom contype="0" conaffinity="0" group="1" rgba="0.33 0.33 0.33 1"/>
+    </default>
+    <default class="color_metal">
+      <geom contype="0" conaffinity="0" group="1" rgba="0.66666 0.66275 0.67843 1"/>
+    </default>
+    <default class="color_motor">
+      <geom contype="0" conaffinity="0" group="1" rgba="0.45 0.45 0.45 1"/>
+    </default>
+    <default class="color_bar">
+      <geom contype="0" conaffinity="0" group="1" rgba="0.14117 0.14117 0.65882 1"/>
+    </default>
+    <default class="color_kangaroo">
+      <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.15625 0.15625 0.15625 1"/>
+    </default>
+  </default>
+
+  <asset>
+    <mesh name="baselink" content_type="model/stl" file="base_link/base_link_convex.stl"/>
+    <mesh name="hip_z_slider" content_type="model/stl" file="hip_z/slider_convex.stl"/>
+    <mesh name="left_hip_z_motor" content_type="model/stl" file="hip_z/left/motor_convex.stl"/>
+    <mesh name="left_hip_z_yaw" content_type="model/stl" file="hip_z/left/yaw_convex.stl"/>
+    <mesh name="right_hip_z_motor" content_type="model/stl" file="hip_z/right/motor_convex.stl"/>
+    <mesh name="right_hip_z_yaw" content_type="model/stl" file="hip_z/right/yaw_convex.stl"/>
+    <mesh name="hip_xy_bracket_l" content_type="model/stl" file="hip_xy/bracket_convex_l.stl"/>
+    <mesh name="hip_xy_bracket_r" content_type="model/stl" file="hip_xy/bracket_convex_r.stl"/>
+    <mesh name="hip_xy_motor" content_type="model/stl" file="hip_xy/motor_convex.stl"/>
+    <mesh name="hip_xy_slider_r" content_type="model/stl" file="hip_xy/slider_convex_r.stl"/>
+    <mesh name="hip_xy_slider_l" content_type="model/stl" file="hip_xy/slider_convex_l.stl"/>
+    <mesh name="hip_xy_ujoint1" content_type="model/stl" file="hip_xy/ujoint1_convex.stl"/>
+    <mesh name="hip_xy_uj2_l" content_type="model/stl" file="hip_xy/ujoint2_convex_l.stl"/>
+    <mesh name="hip_xy_uj2_r" content_type="model/stl" file="hip_xy/ujoint2_convex_r.stl"/>
+    <mesh name="left_hip_xy_legholder" content_type="model/stl" file="hip_xy/left/legholder_convex.stl"/>
+    <mesh name="right_hip_xy_legholder" content_type="model/stl" file="hip_xy/right/legholder_convex.stl"/>
+    <mesh name="leg_length_femur" content_type="model/stl" file="leg_length/femur_convex.stl"/>
+    <mesh name="leg_length_slider" content_type="model/stl" file="leg_length/nut_convex.stl"/>
+    <mesh name="leg_length_triangle" content_type="model/stl" file="leg_length/triangle_convex.stl"/>
+    <mesh name="leg_length_tibia" content_type="model/stl" file="leg_length/tibia_convex.stl"/>
+    <mesh name="leg_length_bar1" content_type="model/stl" file="leg_length/bar1_convex.stl"/>
+    <mesh name="leg_length_bar2" content_type="model/stl" file="leg_length/bar2_convex.stl"/>
+    <mesh name="leg_length_bar3" content_type="model/stl" file="leg_length/bar3_convex.stl"/>
+    <mesh name="ankle_baselink" content_type="model/stl" file="ankle_xy/legholder_convex.stl"/>
+    <mesh name="ankle_xy_motor" content_type="model/stl" file="ankle_xy/motor_convex.stl"/>
+    <mesh name="ankle_xy_slider" content_type="model/stl" file="ankle_xy/slider_convex.stl"/>
+    <mesh name="ankle_xy_crank_l" content_type="model/stl" file="ankle_xy/crank_convex_l.stl"/>
+    <mesh name="ankle_xy_crank_r" content_type="model/stl" file="ankle_xy/crank_convex_r.stl"/>
+    <mesh name="ankle_xy_femur" content_type="model/stl" file="ankle_xy/femur_convex.stl"/>
+    <mesh name="ankle_xy_butterfly_l" content_type="model/stl" file="ankle_xy/butterfly_convex_l.stl"/>
+    <mesh name="ankle_xy_bar1_l" content_type="model/stl" file="ankle_xy/femurbar_convex_l.stl"/>
+    <mesh name="ankle_xy_bar1_r" content_type="model/stl" file="ankle_xy/femurbar_convex_r.stl"/>
+    <mesh name="ankle_xy_bar2_l" content_type="model/stl" file="ankle_xy/tibiabar_convex_l.stl"/>
+    <mesh name="ankle_xy_butterfly_r" content_type="model/stl" file="ankle_xy/butterfly_convex_r.stl"/>
+    <mesh name="ankle_xy_tibia" content_type="model/stl" file="ankle_xy/tibia_convex.stl"/>
+    <mesh name="ankle_xy_bar2_r" content_type="model/stl" file="ankle_xy/tibiabar_convex_r.stl"/>
+    <mesh name="ankle_xy_ujfoot" content_type="model/stl" file="ankle_xy/ujfoot_convex.stl"/>
+    <mesh name="ankle_xy_foot" content_type="model/stl" file="ankle_xy/foot_convex.stl"/>
+    <mesh name="arm_base_link" content_type="model/stl" file="arms/arm_base_link.stl"/>
+    <mesh name="arm_1_link" content_type="model/stl" file="arms/arm_1_link.stl"/>
+    <mesh name="arm_2_link" content_type="model/stl" file="arms/arm_2_link.stl"/>
+    <mesh name="arm_3_link" content_type="model/stl" file="arms/arm_3_link.stl"/>
+    <mesh name="arm_left_4_link" content_type="model/stl" file="arms/arm_left_4_link.stl"/>
+    <mesh name="arm_right_4_link" content_type="model/stl" file="arms/arm_right_4_link.stl"/>
+    <mesh name="torso_link" content_type="model/stl" file="torso/torso_link.stl"/>
+    <mesh name="base_link_with_pelvis" content_type="model/stl" file="base_link/base_link_with_pelvis_convex.stl"/>
+    <mesh name="pelvis_base_link" content_type="model/stl" file="pelvis/pelvis_base_link_convex.stl"/>
+    <mesh name="pelvis_1_link" content_type="model/stl" file="pelvis/pelvis_1_link_convex.stl"/>
+    <mesh name="pelvis_2_link" content_type="model/stl" file="pelvis/pelvis_2_link_convex.stl"/>
+  </asset>
+
+  <worldbody>
+    <body name="baselink" pos="0 0 1.2">
+      <inertial pos="-0.10388 0.00292576 -0.0173482" quat="0.534501 0.501589 -0.492841 0.468855" mass="4.49765" diaginertia="0.0360221 0.0259667 0.017944"/>
+      <joint name="origin" type="free"/>
+      <geom class="color_midnight" type="mesh" density="0" mesh="base_link_with_pelvis"/>
+      <geom class="color_midnight" pos="-0.0918 0 -0.0455" quat="1 0 0 0" type="mesh" density="0" mesh="pelvis_base_link"/>
+      <geom name="baselink_collision" class="collision" size="0.0588148 0.0758545" pos="-0.105334 -2.0459e-05 -0.0039883" quat="0.690602 0.00028847 0.723235 -1.36639e-06"/>
+      <site name="torso_frame" pos="-0.093 0 0"/>
+      <camera name="track" pos="1.678 -2.065 0.499" quat="0.73208 0.595558 0.208701 0.256543" mode="trackcom"/>
+      <camera name="side" pos="0 -2.2 1" quat="0.850651 0.525731 0 0" mode="trackcom"/>
+      <camera name="back" pos="-2.2 0 1" quat="0.601501 0.371748 -0.371748 -0.601501" mode="trackcom"/>
+      <camera name="front" pos="2.2 0 1" quat="0.601501 0.371748 0.371748 0.601501" mode="trackcom"/>
+      <body name="pelvis_1_link" pos="-0.0918 0 0.0065" quat="0.707105 0 0.707108 0">
+        <inertial pos="-0.02593 -1e-06 0.001466" quat="0.99984 0 -0.0179004 0" mass="1.24856" diaginertia="0.00539676 0.004808 0.00324424"/>
+        <joint name="pelvis_1_joint" pos="0 0 0" axis="0 0 -1" range="-0.349066 0.349066" actuatorfrcrange="-100 100"/>
+        <geom class="color_midnight" type="mesh" density="0" mesh="pelvis_1_link"/>
+        <body name="pelvis_2_link" pos="-0.0591 0 0" quat="0.707105 0 -0.707108 0">
+          <inertial pos="-0.0094475 -0.000699115 0.225171" quat="0.999839 0.0102462 0.00296523 -0.0144017" mass="14.1163" diaginertia="0.334022 0.305744 0.125574"/>
+          <joint name="pelvis_2_joint" pos="0 0 0" axis="0 0 -1" range="-1.309 1.309" actuatorfrcrange="-100 100"/>
+          <geom class="color_midnight" type="mesh" density="0" mesh="pelvis_2_link"/>
+          <geom class="color_midnight" pos="0 0 0.0061" type="mesh" density="0" mesh="torso_link"/>
+          <geom name="pelvis_2_link_collision" class="collision" size="0.163724 0.162985" pos="4.77798e-07 -1.67441e-06 0.234507" quat="1 -3.97075e-06 -1.19191e-05 0"/>
+          <geom class="color_midnight" pos="0 0.105954 0.390496" quat="0.766033 0.642802 0 0" type="mesh" density="0" mesh="arm_base_link"/>
+          <geom class="color_midnight" pos="0 -0.105954 0.390496" quat="1.01637e-06 8.52866e-07 0.642802 0.766033" type="mesh" density="0" mesh="arm_base_link"/>
+          <site name="imu" pos="0.071 -0.0014 0.0261" quat="0 -0.707107 0.707107 0"/>
+          <body name="arm_left_1_link" pos="0 0.120835 0.387873" quat="0.766033 0.642802 0 0">
+            <inertial pos="-0.0065019 -0.002469 -0.040465" quat="0.939587 0.00749227 -0.143667 0.310611" mass="0.84824" diaginertia="0.00252565 0.00231317 0.000718382"/>
+            <joint name="arm_left_1_joint" pos="0 0 0" axis="0 0 -1" range="-2.618 2.618" actuatorfrcrange="-43 43"/>
+            <geom class="color_midnight" type="mesh" density="0" mesh="arm_1_link"/>
+            <geom name="arm_left_1_link_collision" class="collision" size="0.0486559 0.0706888" pos="-0.0112961 -0.00871686 -0.0875926" quat="0.993843 -0.0674454 0.087908 1.78949e-08"/>
+            <body name="arm_left_2_link" pos="-0.028337 -0.02 -0.155" quat="0.707105 0 -0.707108 0">
+              <inertial pos="-0.0295938 0.0049455 -0.024457" quat="0.205775 0.624918 0.297011 0.69204" mass="0.944175" diaginertia="0.00378412 0.0036803 0.000932577"/>
+              <joint name="arm_left_2_joint" pos="0 0 0" axis="0 0 1" range="-1.1345 2.4435" actuatorfrcrange="-43 43"/>
+              <geom class="color_midnight" type="mesh" density="0" mesh="arm_2_link"/>
+              <geom name="arm_left_2_link_collision" class="collision" size="0.0645032 0.0664882" pos="-0.0638385 0.00999977 -0.0388" quat="0.659371 0.116779 0.742693 -1.43134e-06"/>
+              <body name="arm_left_3_link" pos="-0.175 0.02 -0.028337" quat="0.707105 0 0.707108 0">
+                <inertial pos="0.0055739 0.0021181 -0.0345099" quat="0.939747 -0.00744705 0.146164 0.308959" mass="0.98919" diaginertia="0.00277623 0.00255027 0.000868792"/>
+                <joint name="arm_left_3_joint" pos="0 0 0" axis="0 0 -1" range="-2.618 2.618" actuatorfrcrange="-43 43"/>
+                <geom class="color_midnight" type="mesh" density="0" mesh="arm_3_link"/>
+                <geom name="arm_left_3_link_collision" class="collision" size="0.0661152 0.0583363" pos="0.00922975 0.00265488 -0.0826432" quat="0.180736 -0.514963 0.837942 5.70431e-07"/>
+                <body name="arm_left_4_link" pos="0.0283 0.02 -0.155" quat="0.707105 0 0.707108 0">
+                  <inertial pos="0.0752641 -0.0079317 -0.023427" quat="0.573967 0.373833 0.602191 0.410095" mass="1.43535" diaginertia="0.0210305 0.0210101 0.00117153"/>
+                  <joint name="arm_left_4_joint" pos="0 0 0" axis="0 0 1" range="-1.1345 2.4435" actuatorfrcrange="-43 43"/>
+                  <geom class="color_midnight" type="mesh" density="0" mesh="arm_left_4_link"/>
+                  <geom name="arm_left_4_link_collision" class="collision" size="0.054849 0.219217" pos="0.210246 -0.0167497 -0.0171982" quat="0.733112 0.0532001 0.678025 -2.2842e-07"/>
+                </body>
+              </body>
+            </body>
+          </body>
+          <body name="arm_right_1_link" pos="-3.94869e-08 -0.120835 0.387873" quat="1.01637e-06 8.52866e-07 0.642802 0.766033">
+            <inertial pos="-0.0065019 -0.002469 -0.040465" quat="0.939587 0.00749227 -0.143667 0.310611" mass="0.84824" diaginertia="0.00252565 0.00231317 0.000718382"/>
+            <joint name="arm_right_1_joint" pos="0 0 0" axis="0 0 -1" range="-2.618 2.618" actuatorfrcrange="-43 43"/>
+            <geom class="color_midnight" type="mesh" density="0" mesh="arm_1_link"/>
+            <geom name="arm_right_1_link_collision" class="collision" size="0.0486559 0.0706888" pos="-0.0112961 -0.00871686 -0.0875926" quat="0.993843 -0.0674454 0.087908 1.78949e-08"/>
+            <body name="arm_right_2_link" pos="-0.028337 -0.02 -0.155" quat="0.707105 0 -0.707108 0">
+              <inertial pos="-0.0295938 0.0049455 -0.024457" quat="0.205775 0.624918 0.297011 0.69204" mass="0.944175" diaginertia="0.00378412 0.0036803 0.000932577"/>
+              <joint name="arm_right_2_joint" pos="0 0 0" axis="0 0 1" range="-1.1345 2.4435" actuatorfrcrange="-43 43"/>
+              <geom class="color_midnight" type="mesh" density="0" mesh="arm_2_link"/>
+              <geom name="arm_right_2_link_collision" class="collision" size="0.0645032 0.0664882" pos="-0.0638385 0.00999977 -0.0388" quat="0.659371 0.116779 0.742693 -1.43134e-06"/>
+              <body name="arm_right_3_link" pos="-0.175 0.02 -0.028337" quat="0.707105 0 0.707108 0">
+                <inertial pos="0.0055739 0.0021181 -0.0345099" quat="0.939747 -0.00744705 0.146164 0.308959" mass="0.98919" diaginertia="0.00277623 0.00255027 0.000868792"/>
+                <joint name="arm_right_3_joint" pos="0 0 0" axis="0 0 -1" range="-2.618 2.618" actuatorfrcrange="-43 43"/>
+                <geom class="color_midnight" type="mesh" density="0" mesh="arm_3_link"/>
+                <geom name="arm_right_3_link_collision" class="collision" size="0.0661152 0.0583363" pos="0.00922975 0.00265488 -0.0826432" quat="0.180736 -0.514963 0.837942 5.70431e-07"/>
+                <body name="arm_right_4_link" pos="0.0283 0.02 -0.155" quat="0.707105 0 0.707108 0">
+                  <inertial pos="0.0752641 -0.0079317 -0.023427" quat="0.573967 0.373833 0.602191 0.410095" mass="1.43535" diaginertia="0.0210305 0.0210101 0.00117153"/>
+                  <joint name="arm_right_4_joint" pos="0 0 0" axis="0 0 1" range="-1.1345 2.4435" actuatorfrcrange="-43 43"/>
+                  <geom class="color_midnight" type="mesh" density="0" mesh="arm_right_4_link"/>
+                  <geom name="arm_right_4_link_collision" class="collision" size="0.0559132 0.220143" pos="0.210649 -0.0172373 -0.0265895" quat="0.717524 0.0513886 0.694636 -1.38234e-06"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="left_hip_z_motor" pos="-0.115116 0.0988312 -0.03075" quat="0 0.994132 0.10817 0">
+        <inertial pos="-0.0198448 -0.00018953 -1.431e-05" quat="0.491263 0.492859 0.505887 0.509734" mass="0.663583" diaginertia="0.000509878 0.0005049 0.000411062"/>
+        <joint name="baselink__left_hip_z_motor" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+        <geom class="color_motor" type="mesh" mesh="left_hip_z_motor"/>
+        <body name="left_hip_z_slider" pos="0.0144 0 0" quat="0.707107 0.707107 0 0">
+          <inertial pos="0.028985 4.2e-05 -4.2e-05" quat="0 0.707107 0 0.707107" mass="0.124321" diaginertia="0.00017669 0.00017429 5.05e-06"/>
+          <joint name="left_hip_z_slider" pos="0 0 0" axis="1 0 0" type="slide" range="-0.025 0.011"/>
+          <geom class="color_metal" type="mesh" mesh="hip_z_slider"/>
+        </body>
+      </body>
+      <body name="left_hip_z_yaw" pos="-0.0150026 0.08 -0.0585">
+        <inertial pos="0.00983698 0.00040169 -0.0500141" quat="0.998966 -0.0316981 -0.0324318 0.0030877" mass="0.578901" diaginertia="0.00191295 0.00137125 0.000609879"/>
+        <joint name="left_hip_z_yaw" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+        <geom class="color_midnight" type="mesh" mesh="left_hip_z_yaw"/>
+        <geom name="left_hip_z_yaw_collision" class="collision" size="0.0795723 0.0413497" pos="0.0460974 2.61722e-07 -0.00312961"/>
+        <body name="left_hip_xy_bracket_l" pos="0.011 0.035 -0.0261" quat="0.707107 0 0.707107 0">
+          <inertial pos="2.97e-06 0.0037508 0.0431978" quat="0.999383 -0.0351144 0 0" mass="0.155679" diaginertia="0.00023559 0.000188894 8.86261e-05"/>
+          <joint name="left_hipyaw_yaw__hip_xy_bracket_l" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+          <geom class="color_midnight" type="mesh" mesh="hip_xy_bracket_l"/>
+          <body name="left_hip_xy_motor_l" pos="0 0 0.0515" quat="0.705518 0.705518 -0.0473783 0.0473783">
+            <inertial pos="-0.0200679 0.00018157 1.073e-05" quat="0.509971 0.503468 0.497096 0.489229" mass="0.666224" diaginertia="0.000521312 0.000515979 0.000411389"/>
+            <joint name="left_hip_xy_bracket_l__hip_xy_motor_l" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+            <geom class="color_motor" type="mesh" mesh="hip_xy_motor"/>
+            <body name="left_hip_xy_slider_l" pos="0.0144 0 0" quat="0.707107 0 0.707107 0">
+              <inertial pos="-0.000691 3.7e-05 0.016269" quat="0.707071 0.00711456 0.00711456 0.707071" mass="0.141683" diaginertia="0.000308 0.000305121 6.87924e-06"/>
+              <joint name="left_hip_xy_slider_l" pos="0 0 0" axis="0 0 1" type="slide" range="-0.015 0.015"/>
+              <geom class="color_metal" type="mesh" mesh="hip_xy_slider_l"/>
+            </body>
+          </body>
+        </body>
+        <body name="left_hip_xy_bracket_r" pos="0.011 -0.035 -0.0261" quat="0.707107 0 0.707107 0">
+          <inertial pos="2.97e-06 0.0037508 0.0431978" quat="0.999383 0.0351144 0 0" mass="0.155679" diaginertia="0.00023559 0.000188894 8.86261e-05"/>
+          <joint name="left_hip_xy_baselink__hip_xy_bracket_r" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+          <geom class="color_midnight" type="mesh" mesh="hip_xy_bracket_r"/>
+          <body name="left_hip_xy_motor_r" pos="0 0 0.0515" quat="0.705518 0.705518 -0.0473783 0.0473783">
+            <inertial pos="-0.0200679 0.00018157 1.073e-05" quat="0.509971 0.503468 0.497096 0.489229" mass="0.666224" diaginertia="0.000521312 0.000515979 0.000411389"/>
+            <joint name="left_hip_xy_bracket_r__hip_xy_motor_r" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+            <geom class="color_motor" type="mesh" mesh="hip_xy_motor"/>
+            <body name="left_hip_xy_slider_r" pos="0.0144 0 0" quat="0.707107 0 0.707107 0">
+              <inertial pos="-0.000691 3.7e-05 0.016269" quat="0.707071 -0.00711456 -0.00711456 0.707071" mass="0.141683" diaginertia="0.000308 0.000305121 6.87924e-06"/>
+              <joint name="left_hip_xy_slider_r" pos="0 0 0" axis="0 0 1" type="slide" range="-0.015 0.015"/>
+              <geom class="color_metal" type="mesh" mesh="hip_xy_slider_r"/>
+            </body>
+          </body>
+        </body>
+        <body name="left_hip_xy_ujoint1" pos="0.015 0 -0.11875" quat="0.707107 -0.707107 0 0">
+          <inertial pos="-0.00292778 0 9.621e-05" quat="0 0.706922 0 0.707291" mass="0.0905313" diaginertia="8.276e-05 8.014e-05 6.09998e-06"/>
+          <joint name="left_hip_xy_pitch" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+          <geom class="color_midnight" type="mesh" mesh="hip_xy_ujoint1"/>
+          <body name="left_hip_xy_legholder" quat="0 0.707107 0 0.707107">
+            <inertial pos="0.0459815 -0.0341806 -0.014903" quat="0.349785 0.609115 0.689347 0.177285" mass="1.69246" diaginertia="0.0103907 0.00759529 0.00466948"/>
+            <joint name="left_hip_xy_roll" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+            <geom class="color_midnight" type="mesh" mesh="left_hip_xy_legholder"/>
+            <body name="left_leg_length_femur" pos="0.0669 -0.09 0" quat="0.704929 -0.0554561 -0.704929 0.0554561">
+              <inertial pos="0.04008 -0.0813715 0.00260816" quat="0.450831 0.52571 -0.482394 0.536355" mass="2.83733" diaginertia="0.0414631 0.0411182 0.00249731"/>
+              <joint name="left_hip_xy_legholder__leg_length_femur" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+              <geom class="color_midnight" type="mesh" mesh="leg_length_femur"/>
+              <geom name="left_leg_length_femur_collision" class="collision" size="0.0910718 0.15" pos="0.01 -0.12 0" quat="0.701057 0.701057 0.092296 0.092296"/>
+              <body name="left_leg_length_slider" pos="0.0305074 -0.246299 0" quat="-0.5 0.5 -0.5 -0.5">
+                <inertial pos="0.0140841 -0.0017013 0.0347779" quat="0.754177 0.120557 0.247283 0.596267" mass="0.591973" diaginertia="0.000398985 0.000376416 0.000125018"/>
+                <joint name="left_leg_length_slider" pos="0 0 0" axis="0 0 1" type="slide" range="0 0.18"/>
+                <geom class="color_metal" type="mesh" mesh="leg_length_slider"/>
+                <body name="left_leg_length_bar3" pos="0.019505 0 0" quat="0.706322 -0.033299 0.706322 -0.033299">
+                  <inertial pos="0.1075 0 -2.025e-05" quat="0 0.707107 0 0.707107" mass="0.162348" diaginertia="0.00109138 0.00108964 4.83e-06"/>
+                  <joint name="left_leg_length_slider__leg_length_bar3" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                  <geom class="color_bar" type="mesh" mesh="leg_length_bar3"/>
+                </body>
+                <body name="left_leg_length_bar4" pos="-0.019505 0 0" quat="0.706322 -0.033299 0.706322 -0.033299">
+                  <inertial pos="0.1075 0 -2.025e-05" quat="0 0.707107 0 0.707107" mass="0.162348" diaginertia="0.00109138 0.00108964 4.83e-06"/>
+                  <joint name="left_leg_length_slider__leg_length_bar4" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                  <geom class="color_bar" type="mesh" mesh="leg_length_bar3"/>
+                </body>
+              </body>
+              <body name="left_leg_length_triangle" pos="-0.0365418 0.0162695 0" quat="0.870373 0 0 -0.492393">
+                <inertial pos="0.0238132 -0.0362118 0.00024433" quat="0.264626 0.669801 -0.209111 0.661523" mass="0.107984" diaginertia="0.000117063 0.00011017 2.52366e-05"/>
+                <joint name="left_leg_length_femur__leg_length_triangle" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                <geom class="color_motor" type="mesh" mesh="leg_length_triangle"/>
+                <body name="left_leg_length_bar2" pos="0.0636396 -0.0636396 0" quat="0.991035 0 0 -0.133604">
+                  <inertial pos="0.202135 0 -1.4e-05" quat="0 0.707107 0 0.707107" mass="0.220918" diaginertia="0.00501595 0.0050142 6.09e-06"/>
+                  <joint name="left_leg_length_triangle__leg_length_bar2" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                  <geom class="color_bar" type="mesh" mesh="leg_length_bar2"/>
+                </body>
+              </body>
+              <body name="left_ankle_xy_butterfly_l" pos="0.0725074 -0.373018 -0.038" quat="0.999957 0 0 0.00929622">
+                <inertial pos="-0.020976 -0.00160159 -0.0081551" quat="-0.128553 0.588084 0.0852878 0.793951" mass="0.119974" diaginertia="8.93537e-05 5.92209e-05 3.74854e-05"/>
+                <joint name="left_ankle_xy_femur__ankle_xy_butterfly_l" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                <geom class="color_motor" type="mesh" mesh="ankle_xy_butterfly_l"/>
+                <body name="left_ankle_xy_bar2_l" pos="-0.0519615 0.03 -0.005">
+                  <inertial pos="-0.119218 -0.205928 0.00501213" quat="0.602247 0.321714 -0.621204 0.384584" mass="0.148648" diaginertia="0.00252624 0.00252534 3.27043e-06"/>
+                  <!-- TODO: check this substitution ball-to-hinge -->
+                  <!-- <joint name="left_ankle_xy_butterfly_l__ankle_xy_bar2_l" pos="0 0 0" type="ball"/> -->
+                  <joint name="left_ankle_xy_butterfly_l__ankle_xy_bar2_l" type="hinge" axis="0 0 -1"  range="-3.14159 3.14159"  />
+                  <geom class="color_bar" type="mesh" mesh="ankle_xy_bar2_l"/>
+                </body>
+              </body>
+              <body name="left_ankle_xy_butterfly_r" pos="0.0725074 -0.373018 0.038" quat="0.999957 0 0 0.00929622">
+                <inertial pos="-0.020976 -0.00160159 0.0081551" quat="-0.0852878 0.793951 0.128553 0.588084" mass="0.119974" diaginertia="8.93537e-05 5.92209e-05 3.74854e-05"/>
+                <joint name="left_ankle_xy_femur__ankle_xy_butterfly_r" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                <geom class="color_motor" type="mesh" mesh="ankle_xy_butterfly_r"/>
+                <body name="left_ankle_xy_bar2_r" pos="-0.0519615 0.03 0.005">
+                  <inertial pos="-0.119218 -0.205928 -0.00501213" quat="0.621204 0.384584 -0.602247 0.321714" mass="0.148648" diaginertia="0.00252624 0.00252534 3.27043e-06"/>
+                  <!-- <joint name="left_ankle_xy_butterfly_r__ankle_xy_bar2_r" pos="0 0 0" type="ball"/> -->
+                  <joint name="left_ankle_xy_butterfly_r__ankle_xy_bar2_r" type="hinge" axis="0 0 -1"  range="-3.14159 3.14159"  />
+                  <geom class="color_bar" type="mesh" mesh="ankle_xy_bar2_r"/>
+                </body>
+              </body>
+              <body name="left_leg_length_tibia" pos="0.0725074 -0.373018 0">
+                <inertial pos="-0.0445773 -0.124807 7.71e-05" quat="0.623523 0.335307 -0.621684 0.335107" mass="0.704557" diaginertia="0.0104622 0.0102916 0.000376787"/>
+                <joint name="left_knee" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                <geom name="left_knee_collision" class="collision" size="0.06 0.12" pos="-0.12 -0.18 0" quat="0.653281 0.653281 -0.270598 -0.270598"/>
+                <geom class="color_midnight" type="mesh" mesh="leg_length_tibia"/>
+                <body name="left_ankle_xy_ujfoot" pos="-0.184228 -0.332355 0" quat="0.968156 0 0 -0.250349">
+                  <inertial pos="-0.00759993 0 0" quat="0.5 0.5 0.5 0.5" mass="0.0905832" diaginertia="3.549e-05 3.319e-05 5.74e-06"/>
+                  <joint name="left_ankle_xy_pitch" pos="0 0 0" axis="0 0 1" range="-0.3491 0.3491"/>
+                  <geom class="color_midnight" type="mesh" mesh="ankle_xy_ujfoot"/>
+                  <body name="left_ankle_xy_foot" quat="0.707107 0 -0.707107 0">
+                    <inertial pos="0 -0.04 -0.01" quat="0.696364 0.122788 -0.122788 0.696364" mass="0.826924" diaginertia="0.0019868 0.00170803 0.000338695"/>
+                    <joint name="left_ankle_xy_roll" pos="0 0 0" axis="0 0 1" range="-0.3491 0.3491"/>
+                    <geom class="color_midnight" type="mesh" mesh="ankle_xy_foot"/>
+                    <geom name="left_foot_collision" class="box_collision" size="0.045 0.008 0.12" pos="0 -0.033 -0.011283" quat="0.984808 0.173648 0 0"/>
+                    <site name="left_foot" pos="0 -0.033 -0.011283" size="0.015"/>
+                  </body>
+                </body>
+              </body>
+            </body>
+            <body name="left_leg_length_bar1" pos="0.0669 -0.0176282 -0.0893718" quat="-0.440663 0.553006 0.440663 -0.553006">
+              <inertial pos="-0.045 0 0" quat="0 0.707107 0 0.707107" mass="0.124689" diaginertia="0.00016646 0.00016353 4.72e-06"/>
+              <joint name="left_leg_length_baselink__leg_length_bar1" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+              <geom class="color_bar" type="mesh" mesh="leg_length_bar1"/>
+            </body>
+            <body name="left_ankle_xy_motor_l" pos="0.1149 -0.04665 -0.0750844" quat="0.630585 0.319942 -0.630585 -0.319942">
+              <inertial pos="-0.0198448 -0.00018953 -1.431e-05" quat="0.491263 0.492859 0.505887 0.509734" mass="0.663583" diaginertia="0.000509878 0.0005049 0.000411062"/>
+              <joint name="left_hip_xy_legholder__ankle_xy_motor_l" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+              <geom class="color_motor" type="mesh" mesh="ankle_xy_motor"/>
+              <body name="left_ankle_xy_slider_l" pos="0.0144 0 0" quat="0.707107 0.707107 0 0">
+                <inertial pos="0.0163915 4.171e-05 -4.23e-05" quat="-0.00050036 0.707313 0.000460596 0.706901" mass="0.124321" diaginertia="0.00017669 0.00017429 5.04963e-06"/>
+                <joint name="left_ankle_xy_slider_l" pos="0 0 0" axis="1 0 0" type="slide" range="-0.015 0.015"/>
+                <geom class="color_metal" type="mesh" mesh="ankle_xy_slider"/>
+              </body>
+            </body>
+            <body name="left_ankle_xy_motor_r" pos="0.0189 -0.04665 -0.0750844" quat="-0.630585 -0.319942 0.630585 0.319942">
+              <inertial pos="-0.0198448 -0.00018953 -1.431e-05" quat="0.491263 0.492859 0.505887 0.509734" mass="0.663583" diaginertia="0.000509878 0.0005049 0.000411062"/>
+              <joint name="left_hip_xy_legholder__ankle_xy_motor_r" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+              <geom class="color_motor" type="mesh" mesh="ankle_xy_motor"/>
+              <body name="left_ankle_xy_slider_r" pos="0.0144 0 0" quat="0.707107 0.707107 0 0">
+                <inertial pos="0.0163915 4.171e-05 -4.23e-05" quat="0.000460596 0.706901 -0.00050036 0.707313" mass="0.124321" diaginertia="0.00017669 0.00017429 5.04963e-06"/>
+                <joint name="left_ankle_xy_slider_r" pos="0 0 0" axis="1 0 0" type="slide" range="-0.015 0.015"/>
+                <geom class="color_metal" type="mesh" mesh="ankle_xy_slider"/>
+              </body>
+            </body>
+            <body name="left_ankle_xy_crank_l" pos="0.1269 -0.09 0" quat="0.704061 -0.0655563 -0.704061 0.0655563">
+              <inertial pos="-0.0173898 -0.0127606 0.00438955" quat="-0.12693 0.739911 0.236305 0.616912" mass="0.0671587" diaginertia="4.73059e-05 4.36726e-05 8.26148e-06"/>
+              <joint name="left_hip_xy_legholder__ankle_xy_crank_l" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+              <geom class="color_midnight" type="mesh" mesh="ankle_xy_crank_l"/>
+              <body name="left_ankle_xy_bar1_l" pos="-0.0522634 -0.0294711 0.012" quat="0.999897 0 0 -0.014336">
+                <inertial pos="0.0362529 -0.186513 -0.00896453" quat="0.446819 0.565111 -0.452002 0.52602" mass="0.109632" diaginertia="0.00156521 0.00156515 1.75882e-06"/>
+                <joint name="left_ankle_xy_crank_l__ankle_xy_bar1_l" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                <geom class="color_bar" type="mesh" mesh="ankle_xy_bar1_l"/>
+              </body>
+            </body>
+            <body name="left_ankle_xy_crank_r" pos="0.0069 -0.09 0" quat="0.704061 -0.0655563 -0.704061 0.0655563">
+              <inertial pos="-0.0173898 -0.0127606 -0.00438955" quat="-0.236305 0.616912 0.12693 0.739911" mass="0.0671587" diaginertia="4.73059e-05 4.36726e-05 8.26148e-06"/>
+              <joint name="left_hip_xy_legholder__ankle_xy_crank_r" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+              <geom class="color_midnight" type="mesh" mesh="ankle_xy_crank_r"/>
+              <body name="left_ankle_xy_bar1_r" pos="-0.0522634 -0.0294711 -0.012" quat="0.999897 0 0 -0.014336">
+                <inertial pos="0.0362529 -0.186513 0.00896453" quat="0.452002 0.52602 -0.446819 0.565111" mass="0.109632" diaginertia="0.00156521 0.00156515 1.75882e-06"/>
+                <joint name="left_ankle_xy_crank_r__ankle_xy_bar1_r" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                <geom class="color_bar" type="mesh" mesh="ankle_xy_bar1_r"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="right_hip_z_motor" pos="-0.115116 -0.0988312 -0.03075" quat="0 -0.994132 0.10817 0">
+        <inertial pos="-0.0198448 0.00018953 -1.431e-05" quat="0.509734 0.505887 0.492859 0.491263" mass="0.663583" diaginertia="0.000509878 0.0005049 0.000411062"/>
+        <joint name="baselink__right_hip_z_motor" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+        <geom class="color_motor" type="mesh" mesh="right_hip_z_motor"/>
+        <body name="right_hip_z_slider" pos="0.0144 0 0" quat="0.707107 0.707107 0 0">
+          <inertial pos="0.028985 4.2e-05 -4.2e-05" quat="0 0.707107 0 0.707107" mass="0.124321" diaginertia="0.00017669 0.00017429 5.05e-06"/>
+          <joint name="right_hip_z_slider" pos="0 0 0" axis="1 0 0" type="slide" range="-0.025 0.011"/>
+          <geom class="color_metal" type="mesh" mesh="hip_z_slider"/>
+        </body>
+      </body>
+      <body name="right_hip_z_yaw" pos="-0.0150026 -0.08 -0.0585">
+        <inertial pos="0.00983698 -0.00040169 -0.0500141" quat="0.998966 0.0316981 -0.0324318 -0.0030877" mass="0.578901" diaginertia="0.00191295 0.00137125 0.000609879"/>
+        <joint name="right_hip_z_yaw" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+        <geom class="color_midnight" type="mesh" mesh="right_hip_z_yaw"/>
+        <geom name="right_hip_z_yaw_collision" class="collision" size="0.0795723 0.0413497" pos="0.0460974 -2.61722e-07 -0.00312961"/>
+        <body name="right_hip_xy_bracket_l" pos="0.011 0.035 -0.0261" quat="0.707107 0 0.707107 0">
+          <inertial pos="2.97e-06 0.0037508 0.0431978" quat="0.999383 -0.0351144 0 0" mass="0.155679" diaginertia="0.00023559 0.000188894 8.86261e-05"/>
+          <joint name="right_hipyaw_yaw__hip_xy_bracket_l" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+          <geom class="color_midnight" type="mesh" mesh="hip_xy_bracket_l"/>
+          <body name="right_hip_xy_motor_l" pos="0 0 0.0515" quat="0.705518 0.705518 -0.0473783 0.0473783">
+            <inertial pos="-0.0200679 0.00018157 1.073e-05" quat="0.509971 0.503468 0.497096 0.489229" mass="0.666224" diaginertia="0.000521312 0.000515979 0.000411389"/>
+            <joint name="right_hip_xy_bracket_l__hip_xy_motor_l" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+            <geom class="color_motor" type="mesh" mesh="hip_xy_motor"/>
+            <body name="right_hip_xy_slider_l" pos="0.0144 0 0" quat="0.707107 0 0.707107 0">
+              <inertial pos="-0.000691 3.7e-05 0.016269" quat="0.707071 0.00711456 0.00711456 0.707071" mass="0.141683" diaginertia="0.000308 0.000305121 6.87924e-06"/>
+              <joint name="right_hip_xy_slider_l" pos="0 0 0" axis="0 0 1" type="slide" range="-0.04 0.04"/>
+              <geom class="color_metal" type="mesh" mesh="hip_xy_slider_l"/>
+            </body>
+          </body>
+        </body>
+        <body name="right_hip_xy_bracket_r" pos="0.011 -0.035 -0.0261" quat="0.707107 0 0.707107 0">
+          <inertial pos="2.97e-06 0.0037508 0.0431978" quat="0.999383 0.0351144 0 0" mass="0.155679" diaginertia="0.00023559 0.000188894 8.86261e-05"/>
+          <joint name="right_hip_xy_baselink__hip_xy_bracket_r" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+          <geom class="color_midnight" type="mesh" mesh="hip_xy_bracket_r"/>
+          <body name="right_hip_xy_motor_r" pos="0 0 0.0515" quat="0.705518 0.705518 -0.0473783 0.0473783">
+            <inertial pos="-0.0200679 0.00018157 1.073e-05" quat="0.509971 0.503468 0.497096 0.489229" mass="0.666224" diaginertia="0.000521312 0.000515979 0.000411389"/>
+            <joint name="right_hip_xy_bracket_r__hip_xy_motor_r" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+            <geom class="color_motor" type="mesh" mesh="hip_xy_motor"/>
+            <body name="right_hip_xy_slider_r" pos="0.0144 0 0" quat="0.707107 0 0.707107 0">
+              <inertial pos="-0.000691 3.7e-05 0.016269" quat="0.707071 -0.00711456 -0.00711456 0.707071" mass="0.141683" diaginertia="0.000308 0.000305121 6.87924e-06"/>
+              <joint name="right_hip_xy_slider_r" pos="0 0 0" axis="0 0 1" type="slide" range="-0.015 0.015"/>
+              <geom class="color_metal" type="mesh" mesh="hip_xy_slider_r"/>
+            </body>
+          </body>
+        </body>
+        <body name="right_hip_xy_ujoint1" pos="0.015 0 -0.11875" quat="0.707107 -0.707107 0 0">
+          <inertial pos="-0.00292778 0 9.621e-05" quat="0 0.706922 0 0.707291" mass="0.0905313" diaginertia="8.276e-05 8.014e-05 6.09998e-06"/>
+          <joint name="right_hip_xy_pitch" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+          <geom class="color_midnight" type="mesh" mesh="hip_xy_ujoint1"/>
+          <body name="right_hip_xy_legholder" quat="0 0.707107 0 0.707107">
+            <inertial pos="-0.0459815 -0.0341806 -0.014903" quat="0.689347 0.177285 0.349785 0.609115" mass="1.69246" diaginertia="0.0103907 0.00759529 0.00466948"/>
+            <joint name="right_hip_xy_roll" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+            <geom class="color_midnight" type="mesh" mesh="right_hip_xy_legholder"/>
+            <body name="right_leg_length_femur" pos="-0.0669 -0.09 0" quat="0.704929 -0.0554561 -0.704929 0.0554561">
+              <inertial pos="0.04008 -0.0813715 0.00260816" quat="0.450831 0.52571 -0.482394 0.536355" mass="2.83733" diaginertia="0.0414631 0.0411182 0.00249731"/>
+              <joint name="right_hip_xy_legholder__leg_length_femur" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+              <geom class="color_midnight" type="mesh" mesh="leg_length_femur"/>
+              <geom name="right_leg_length_femur_collision" class="collision" size="0.0910718 0.15" pos="0.01 -0.12 0" quat="0.701057 0.701057 0.092296 0.092296"/>
+              <body name="right_leg_length_slider" pos="0.0305074 -0.246299 0" quat="-0.5 0.5 -0.5 -0.5">
+                <inertial pos="0.0140841 -0.0017013 0.0347779" quat="0.754177 0.120557 0.247283 0.596267" mass="0.591973" diaginertia="0.000398985 0.000376416 0.000125018"/>
+                <joint name="right_leg_length_slider" pos="0 0 0" axis="0 0 1" type="slide" range="0 0.18"/>
+                <geom class="color_metal" type="mesh" mesh="leg_length_slider"/>
+                <body name="right_leg_length_bar3" pos="0.019505 0 0" quat="0.706322 -0.033299 0.706322 -0.033299">
+                  <inertial pos="0.1075 0 -2.025e-05" quat="0 0.707107 0 0.707107" mass="0.162348" diaginertia="0.00109138 0.00108964 4.83e-06"/>
+                  <joint name="right_leg_length_slider__leg_length_bar3" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                  <geom class="color_bar" type="mesh" mesh="leg_length_bar3"/>
+                </body>
+                <body name="right_leg_length_bar4" pos="-0.019505 0 0" quat="0.706322 -0.033299 0.706322 -0.033299">
+                  <inertial pos="0.1075 0 -2.025e-05" quat="0 0.707107 0 0.707107" mass="0.162348" diaginertia="0.00109138 0.00108964 4.83e-06"/>
+                  <joint name="right_leg_length_slider__leg_length_bar4" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                  <geom class="color_bar" type="mesh" mesh="leg_length_bar3"/>
+                </body>
+              </body>
+              <body name="right_leg_length_triangle" pos="-0.0365418 0.0162695 0" quat="0.870373 0 0 -0.492393">
+                <inertial pos="0.0238132 -0.0362118 0.00024433" quat="0.264626 0.669801 -0.209111 0.661523" mass="0.107984" diaginertia="0.000117063 0.00011017 2.52366e-05"/>
+                <joint name="right_leg_length_femur__leg_length_triangle" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                <geom class="color_motor" type="mesh" mesh="leg_length_triangle"/>
+                <body name="right_leg_length_bar2" pos="0.0636396 -0.0636396 0" quat="0.991035 0 0 -0.133604">
+                  <inertial pos="0.202135 0 -1.4e-05" quat="0 0.707107 0 0.707107" mass="0.220918" diaginertia="0.00501595 0.0050142 6.09e-06"/>
+                  <joint name="right_leg_length_triangle__leg_length_bar2" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                  <geom class="color_bar" type="mesh" mesh="leg_length_bar2"/>
+                </body>
+              </body>
+              <body name="right_ankle_xy_butterfly_l" pos="0.0725074 -0.373018 -0.038" quat="0.999957 0 0 0.00929622">
+                <inertial pos="-0.020976 -0.00160159 -0.0081551" quat="-0.128553 0.588084 0.0852878 0.793951" mass="0.119974" diaginertia="8.93537e-05 5.92209e-05 3.74854e-05"/>
+                <joint name="right_ankle_xy_femur__ankle_xy_butterfly_l" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                <geom class="color_motor" type="mesh" mesh="ankle_xy_butterfly_l"/>
+                <body name="right_ankle_xy_bar2_l" pos="-0.0519615 0.03 -0.005">
+                  <inertial pos="-0.119218 -0.205928 0.00501213" quat="0.602247 0.321714 -0.621204 0.384584" mass="0.148648" diaginertia="0.00252624 0.00252534 3.27043e-06"/>
+                  <!-- <joint name="right_ankle_xy_butterfly_l__ankle_xy_bar2_l" pos="0 0 0" type="ball"/> -->
+                  <joint name="right_ankle_xy_butterfly_l__ankle_xy_bar2_l" type="hinge" axis="0 0 -1"  range="-3.14159 3.14159"  />
+                  <geom class="color_bar" type="mesh" mesh="ankle_xy_bar2_l"/>
+                </body>
+              </body>
+              <body name="right_ankle_xy_butterfly_r" pos="0.0725074 -0.373018 0.038" quat="0.999957 0 0 0.00929622">
+                <inertial pos="-0.020976 -0.00160159 0.0081551" quat="-0.0852878 0.793951 0.128553 0.588084" mass="0.119974" diaginertia="8.93537e-05 5.92209e-05 3.74854e-05"/>
+                <joint name="right_ankle_xy_femur__ankle_xy_butterfly_r" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                <geom class="color_motor" type="mesh" mesh="ankle_xy_butterfly_r"/>
+                <body name="right_ankle_xy_bar2_r" pos="-0.0519615 0.03 0.005">
+                  <inertial pos="-0.119218 -0.205928 -0.00501213" quat="0.621204 0.384584 -0.602247 0.321714" mass="0.148648" diaginertia="0.00252624 0.00252534 3.27043e-06"/>
+                  <!-- <joint name="right_ankle_xy_butterfly_r__ankle_xy_bar2_r" pos="0 0 0" type="ball"/> -->
+                  <joint name="right_ankle_xy_butterfly_r__ankle_xy_bar2_r" type="hinge" axis="0 0 -1"  range="-3.14159 3.14159"  />
+                  <geom class="color_bar" type="mesh" mesh="ankle_xy_bar2_r"/>
+                </body>
+              </body>
+              <body name="right_leg_length_tibia" pos="0.0725074 -0.373018 0">
+                <inertial pos="-0.0445773 -0.124807 7.71e-05" quat="0.623523 0.335307 -0.621684 0.335107" mass="0.704557" diaginertia="0.0104622 0.0102916 0.000376787"/>
+                <joint name="right_knee" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                <geom class="color_midnight" type="mesh" mesh="leg_length_tibia"/>
+                <geom name="right_leg_length_tibia_collision" class="collision" size="0.06 0.12" pos="-0.12 -0.18 0" quat="0.653281 0.653281 -0.270598 -0.270598"/>
+                <body name="right_ankle_xy_ujfoot" pos="-0.184228 -0.332355 0" quat="0.968156 0 0 -0.250349">
+                  <inertial pos="-0.00759993 0 0" quat="0.5 0.5 0.5 0.5" mass="0.0905832" diaginertia="3.549e-05 3.319e-05 5.74e-06"/>
+                  <joint name="right_ankle_xy_pitch" pos="0 0 0" axis="0 0 1" range="-0.3491 0.3491"/>
+                  <geom class="color_midnight" type="mesh" mesh="ankle_xy_ujfoot"/>
+                  <body name="right_ankle_xy_foot" quat="0.707107 0 -0.707107 0">
+                    <inertial pos="0 -0.04 -0.01" quat="0.696364 0.122788 -0.122788 0.696364" mass="0.826924" diaginertia="0.0019868 0.00170803 0.000338695"/>
+                    <joint name="right_ankle_xy_roll" pos="0 0 0" axis="0 0 1" range="-0.3491 0.3491"/>
+                    <geom class="color_midnight" type="mesh" mesh="ankle_xy_foot"/>
+                    <geom name="right_foot_collision" class="box_collision" size="0.045 0.008 0.12" pos="0 -0.033 -0.011283" quat="0.984808 0.173648 0 0"/>
+                    <site name="right_foot" pos="0 -0.033 -0.011283" size="0.015"/>
+                  </body>
+                </body>
+              </body>
+            </body>
+            <body name="right_leg_length_bar1" pos="-0.0669 -0.0176282 -0.0893718" quat="-0.440663 0.553006 0.440663 -0.553006">
+              <inertial pos="-0.045 0 0" quat="0 0.707107 0 0.707107" mass="0.124689" diaginertia="0.00016646 0.00016353 4.72e-06"/>
+              <joint name="right_leg_length_baselink__leg_length_bar1" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+              <geom class="color_bar" type="mesh" mesh="leg_length_bar1"/>
+            </body>
+            <body name="right_ankle_xy_motor_l" pos="-0.0189 -0.04665 -0.0750844" quat="-0.630585 -0.319942 0.630585 0.319942">
+              <inertial pos="-0.0198448 -0.00018953 -1.431e-05" quat="0.491263 0.492859 0.505887 0.509734" mass="0.663583" diaginertia="0.000509878 0.0005049 0.000411062"/>
+              <joint name="right_hip_xy_legholder__ankle_xy_motor_l" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+              <geom class="color_motor" type="mesh" mesh="ankle_xy_motor"/>
+              <body name="right_ankle_xy_slider_l" pos="0.0144 0 0" quat="0.707107 0.707107 0 0">
+                <inertial pos="0.0163915 4.171e-05 -4.23e-05" quat="0.000460596 0.706901 -0.00050036 0.707313" mass="0.124321" diaginertia="0.00017669 0.00017429 5.04963e-06"/>
+                <joint name="right_ankle_xy_slider_l" pos="0 0 0" axis="1 0 0" type="slide" range="-0.015 0.015"/>
+                <geom class="color_metal" type="mesh" mesh="ankle_xy_slider"/>
+              </body>
+            </body>
+            <body name="right_ankle_xy_motor_r" pos="-0.1149 -0.04665 -0.0750844" quat="0.630585 0.319942 -0.630585 -0.319942">
+              <inertial pos="-0.0198448 -0.00018953 -1.431e-05" quat="0.491263 0.492859 0.505887 0.509734" mass="0.663583" diaginertia="0.000509878 0.0005049 0.000411062"/>
+              <joint name="right_hip_xy_legholder__ankle_xy_motor_r" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+              <geom class="color_motor" type="mesh" mesh="ankle_xy_motor"/>
+              <body name="right_ankle_xy_slider_r" pos="0.0144 0 0" quat="0.707107 0.707107 0 0">
+                <inertial pos="0.0163915 4.171e-05 -4.23e-05" quat="-0.00050036 0.707313 0.000460596 0.706901" mass="0.124321" diaginertia="0.00017669 0.00017429 5.04963e-06"/>
+                <joint name="right_ankle_xy_slider_r" pos="0 0 0" axis="1 0 0" type="slide" range="-0.015 0.015"/>
+                <geom class="color_metal" type="mesh" mesh="ankle_xy_slider"/>
+              </body>
+            </body>
+            <body name="right_ankle_xy_crank_l" pos="-0.0069 -0.09 0" quat="0.704061 -0.0655563 -0.704061 0.0655563">
+              <inertial pos="-0.0173898 -0.0127606 0.00438955" quat="-0.12693 0.739911 0.236305 0.616912" mass="0.0671587" diaginertia="4.73059e-05 4.36726e-05 8.26148e-06"/>
+              <joint name="right_hip_xy_legholder__ankle_xy_crank_l" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+              <geom class="color_midnight" type="mesh" mesh="ankle_xy_crank_l"/>
+              <body name="right_ankle_xy_bar1_l" pos="-0.0522634 -0.0294711 0.012" quat="0.999897 0 0 -0.014336">
+                <inertial pos="0.0362529 -0.186513 -0.00896453" quat="0.446819 0.565111 -0.452002 0.52602" mass="0.109632" diaginertia="0.00156521 0.00156515 1.75882e-06"/>
+                <joint name="right_ankle_xy_crank_l__ankle_xy_bar1_l" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                <geom class="color_bar" type="mesh" mesh="ankle_xy_bar1_l"/>
+              </body>
+            </body>
+            <body name="right_ankle_xy_crank_r" pos="-0.1269 -0.09 0" quat="0.704061 -0.0655563 -0.704061 0.0655563">
+              <inertial pos="-0.0173898 -0.0127606 -0.00438955" quat="-0.236305 0.616912 0.12693 0.739911" mass="0.0671587" diaginertia="4.73059e-05 4.36726e-05 8.26148e-06"/>
+              <joint name="right_hip_xy_legholder__ankle_xy_crank_r" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+              <geom class="color_midnight" type="mesh" mesh="ankle_xy_crank_r"/>
+              <body name="right_ankle_xy_bar1_r" pos="-0.0522634 -0.0294711 -0.012" quat="0.999897 0 0 -0.014336">
+                <inertial pos="0.0362529 -0.186513 0.00896453" quat="0.452002 0.52602 -0.446819 0.565111" mass="0.109632" diaginertia="0.00156521 0.00156515 1.75882e-06"/>
+                <joint name="right_ankle_xy_crank_r__ankle_xy_bar1_r" pos="0 0 0" axis="0 0 1" range="-3.14 3.14"/>
+                <geom class="color_bar" type="mesh" mesh="ankle_xy_bar1_r"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <contact>
+    <exclude body1="baselink" body2="pelvis_1_link"/>
+    <exclude body1="baselink" body2="pelvis_2_link"/>
+    <exclude body1="baselink" body2="left_hip_z_motor"/>
+    <exclude body1="baselink" body2="left_hip_z_slider"/>
+    <exclude body1="baselink" body2="left_hip_z_yaw"/>
+    <exclude body1="baselink" body2="left_hip_xy_bracket_l"/>
+    <exclude body1="baselink" body2="left_hip_xy_motor_l"/>
+    <exclude body1="baselink" body2="left_hip_xy_slider_l"/>
+    <exclude body1="baselink" body2="left_hip_xy_bracket_r"/>
+    <exclude body1="baselink" body2="left_hip_xy_motor_r"/>
+    <exclude body1="baselink" body2="left_hip_xy_slider_r"/>
+    <exclude body1="baselink" body2="right_hip_z_motor"/>
+    <exclude body1="baselink" body2="right_hip_z_slider"/>
+    <exclude body1="baselink" body2="right_hip_z_yaw"/>
+    <exclude body1="baselink" body2="right_hip_xy_bracket_l"/>
+    <exclude body1="baselink" body2="right_hip_xy_motor_l"/>
+    <exclude body1="baselink" body2="right_hip_xy_slider_l"/>
+    <exclude body1="baselink" body2="right_hip_xy_bracket_r"/>
+    <exclude body1="baselink" body2="right_hip_xy_motor_r"/>
+    <exclude body1="baselink" body2="right_hip_xy_slider_r"/>
+    <exclude body1="pelvis_2_link" body2="left_hip_z_yaw"/>
+    <exclude body1="pelvis_2_link" body2="right_hip_z_yaw"/>
+    <exclude body1="left_hip_z_slider" body2="left_hip_z_yaw"/>
+    <exclude body1="left_hip_z_yaw" body2="left_hip_xy_legholder"/>
+    <exclude body1="left_hip_z_yaw" body2="left_leg_length_femur"/>
+    <exclude body1="left_hip_xy_bracket_l" body2="left_hip_xy_motor_l"/>
+    <exclude body1="left_hip_xy_bracket_l" body2="left_hip_xy_slider_l"/>
+    <exclude body1="left_hip_xy_motor_l" body2="left_hip_xy_slider_l"/>
+    <exclude body1="left_hip_xy_slider_l" body2="left_hip_xy_legholder"/>
+    <exclude body1="left_hip_xy_bracket_r" body2="left_hip_xy_motor_r"/>
+    <exclude body1="left_hip_xy_bracket_r" body2="left_hip_xy_slider_r"/>
+    <exclude body1="left_hip_xy_motor_r" body2="left_hip_xy_slider_r"/>
+    <exclude body1="left_hip_xy_slider_r" body2="left_hip_xy_legholder"/>
+    <exclude body1="left_hip_xy_legholder" body2="left_leg_length_triangle"/>
+    <exclude body1="left_hip_xy_legholder" body2="left_ankle_xy_slider_l"/>
+    <exclude body1="left_hip_xy_legholder" body2="left_ankle_xy_slider_r"/>
+    <exclude body1="left_leg_length_femur" body2="left_leg_length_bar3"/>
+    <exclude body1="left_leg_length_femur" body2="left_leg_length_bar4"/>
+    <exclude body1="left_leg_length_femur" body2="left_ankle_xy_bar2_l"/>
+    <exclude body1="left_leg_length_femur" body2="left_ankle_xy_bar2_r"/>
+    <exclude body1="left_leg_length_femur" body2="left_ankle_xy_crank_l"/>
+    <exclude body1="left_leg_length_femur" body2="left_ankle_xy_crank_r"/>
+    <exclude body1="left_leg_length_bar3" body2="left_ankle_xy_butterfly_l"/>
+    <exclude body1="left_leg_length_bar3" body2="left_leg_length_tibia"/>
+    <exclude body1="left_leg_length_bar4" body2="left_ankle_xy_butterfly_r"/>
+    <exclude body1="left_leg_length_bar4" body2="left_leg_length_tibia"/>
+    <exclude body1="left_leg_length_triangle" body2="left_leg_length_bar1"/>
+    <exclude body1="left_leg_length_bar2" body2="left_leg_length_tibia"/>
+    <exclude body1="left_ankle_xy_butterfly_l" body2="left_leg_length_tibia"/>
+    <exclude body1="left_ankle_xy_butterfly_l" body2="left_ankle_xy_bar1_l"/>
+    <exclude body1="left_ankle_xy_bar2_l" body2="left_ankle_xy_foot"/>
+    <exclude body1="left_ankle_xy_butterfly_r" body2="left_leg_length_tibia"/>
+    <exclude body1="left_ankle_xy_butterfly_r" body2="left_ankle_xy_bar1_r"/>
+    <exclude body1="left_ankle_xy_bar2_r" body2="left_ankle_xy_foot"/>
+    <exclude body1="left_leg_length_tibia" body2="left_ankle_xy_foot"/>
+    <exclude body1="left_ankle_xy_slider_l" body2="left_ankle_xy_crank_l"/>
+    <exclude body1="left_ankle_xy_slider_r" body2="left_ankle_xy_crank_r"/>
+    <exclude body1="right_hip_z_slider" body2="right_hip_z_yaw"/>
+    <exclude body1="right_hip_z_yaw" body2="right_hip_xy_legholder"/>
+    <exclude body1="right_hip_z_yaw" body2="right_leg_length_femur"/>
+    <exclude body1="right_hip_xy_bracket_l" body2="right_hip_xy_motor_l"/>
+    <exclude body1="right_hip_xy_bracket_l" body2="right_hip_xy_slider_l"/>
+    <exclude body1="right_hip_xy_motor_l" body2="right_hip_xy_slider_l"/>
+    <exclude body1="right_hip_xy_slider_l" body2="right_hip_xy_legholder"/>
+    <exclude body1="right_hip_xy_bracket_r" body2="right_hip_xy_motor_r"/>
+    <exclude body1="right_hip_xy_bracket_r" body2="right_hip_xy_slider_r"/>
+    <exclude body1="right_hip_xy_motor_r" body2="right_hip_xy_slider_r"/>
+    <exclude body1="right_hip_xy_slider_r" body2="right_hip_xy_legholder"/>
+    <exclude body1="right_hip_xy_legholder" body2="right_leg_length_triangle"/>
+    <exclude body1="right_hip_xy_legholder" body2="right_ankle_xy_slider_l"/>
+    <exclude body1="right_hip_xy_legholder" body2="right_ankle_xy_slider_r"/>
+    <exclude body1="right_leg_length_femur" body2="right_leg_length_bar3"/>
+    <exclude body1="right_leg_length_femur" body2="right_leg_length_bar4"/>
+    <exclude body1="right_leg_length_femur" body2="right_ankle_xy_bar2_l"/>
+    <exclude body1="right_leg_length_femur" body2="right_ankle_xy_bar2_r"/>
+    <exclude body1="right_leg_length_femur" body2="right_ankle_xy_crank_l"/>
+    <exclude body1="right_leg_length_femur" body2="right_ankle_xy_crank_r"/>
+    <exclude body1="right_leg_length_bar3" body2="right_ankle_xy_butterfly_l"/>
+    <exclude body1="right_leg_length_bar3" body2="right_leg_length_tibia"/>
+    <exclude body1="right_leg_length_bar4" body2="right_ankle_xy_butterfly_r"/>
+    <exclude body1="right_leg_length_bar4" body2="right_leg_length_tibia"/>
+    <exclude body1="right_leg_length_triangle" body2="right_leg_length_bar1"/>
+    <exclude body1="right_leg_length_bar2" body2="right_leg_length_tibia"/>
+    <exclude body1="right_ankle_xy_butterfly_l" body2="right_leg_length_tibia"/>
+    <exclude body1="right_ankle_xy_butterfly_l" body2="right_ankle_xy_bar1_l"/>
+    <exclude body1="right_ankle_xy_bar2_l" body2="right_ankle_xy_foot"/>
+    <exclude body1="right_ankle_xy_butterfly_r" body2="right_leg_length_tibia"/>
+    <exclude body1="right_ankle_xy_butterfly_r" body2="right_ankle_xy_bar1_r"/>
+    <exclude body1="right_ankle_xy_bar2_r" body2="right_ankle_xy_foot"/>
+    <exclude body1="right_leg_length_tibia" body2="right_ankle_xy_foot"/>
+    <exclude body1="right_ankle_xy_slider_l" body2="right_ankle_xy_crank_l"/>
+    <exclude body1="right_ankle_xy_slider_r" body2="right_ankle_xy_crank_r"/>
+  </contact>
+
+  <equality>
+    <connect name="left_hip_z_slider" body1="left_hip_z_slider" body2="left_hip_z_yaw" anchor="0.0768226 0 0" solref="0.0025 1"/>
+    <connect name="left_hip_xy_slider_la" body1="left_hip_xy_slider_l" body2="left_hip_xy_legholder" anchor="0 0 0.0790894" solref="0.0025"/>
+    <connect name="left_hip_xy_slider_ra" body1="left_hip_xy_slider_r" body2="left_hip_xy_legholder" anchor="0 0 0.0790894" solref="0.0025"/>
+    <connect name="left_bar1_triangle" body1="left_leg_length_bar1" body2="left_leg_length_triangle" anchor="-0.09 0 0" solref="0.0025 1"/>
+    <connect name="left_bar2_tibia" body1="left_leg_length_bar2" body2="left_leg_length_tibia" anchor="0.40427 0 0" solref="0.0025 1"/>
+    <connect name="left_bar3_tibia" body1="left_leg_length_bar3" body2="left_leg_length_tibia" anchor="0.215 0 0" solref="0.0025 1"/>
+    <connect name="left_bar4_tibia" body1="left_leg_length_bar4" body2="left_leg_length_tibia" anchor="0.215 0 0" solref="0.0025 1"/>
+    <connect name="left_crank_slider_l" body1="left_ankle_xy_slider_l" body2="left_ankle_xy_crank_l" anchor="0.0642292 0 0" solref="1e-05 0.6"/>
+    <connect name="left_femur_l" body1="left_ankle_xy_butterfly_l" body2="left_ankle_xy_bar1_l" anchor="-0.0519615 -0.03 -0.028" solref="1e-05 0.6"/>
+    <connect name="left_tibia_l" body1="left_ankle_xy_foot" body2="left_ankle_xy_bar2_l" anchor="-0.035 0 0.06" solref="1e-05 0.6"/>
+    <connect name="left_crank_slider_r" body1="left_ankle_xy_slider_r" body2="left_ankle_xy_crank_r" anchor="0.0642292 0 0" solref="1e-05 0.6"/>
+    <connect name="left_femur_r" body1="left_ankle_xy_butterfly_r" body2="left_ankle_xy_bar1_r" anchor="-0.0519615 -0.03 0.028" solref="1e-05 0.6"/>
+    <connect name="left_tibia_r" body1="left_ankle_xy_foot" body2="left_ankle_xy_bar2_r" anchor="0.035 0 0.06" solref="1e-05 0.6"/>
+    <connect name="right_hip_z_slider" body1="right_hip_z_slider" body2="right_hip_z_yaw" anchor="0.0768226 0 0" solref="0.0025 1"/>
+    <connect name="right_hip_xy_slider_la" body1="right_hip_xy_slider_l" body2="right_hip_xy_legholder" anchor="0 0 0.0790894" solref="0.0025"/>
+    <connect name="right_hip_xy_slider_ra" body1="right_hip_xy_slider_r" body2="right_hip_xy_legholder" anchor="0 0 0.0790894" solref="0.0025"/>
+    <connect name="right_bar1_triangle" body1="right_leg_length_bar1" body2="right_leg_length_triangle" anchor="-0.09 0 0" solref="0.0025 1"/>
+    <connect name="right_bar2_tibia" body1="right_leg_length_bar2" body2="right_leg_length_tibia" anchor="0.40427 0 0" solref="0.0025 1"/>
+    <connect name="right_bar3_tibia" body1="right_leg_length_bar3" body2="right_leg_length_tibia" anchor="0.215 0 0" solref="0.0025 1"/>
+    <connect name="right_bar4_tibia" body1="right_leg_length_bar4" body2="right_leg_length_tibia" anchor="0.215 0 0" solref="0.0025 1"/>
+    <connect name="right_crank_slider_l" body1="right_ankle_xy_slider_l" body2="right_ankle_xy_crank_l" anchor="0.0642292 0 0" solref="1e-05 0.6"/>
+    <connect name="right_femur_l" body1="right_ankle_xy_butterfly_l" body2="right_ankle_xy_bar1_l" anchor="-0.0519615 -0.03 -0.028" solref="1e-05 0.6"/>
+    <connect name="right_tibia_l" body1="right_ankle_xy_foot" body2="right_ankle_xy_bar2_l" anchor="-0.035 0 0.06" solref="1e-05 0.6"/>
+    <connect name="right_crank_slider_r" body1="right_ankle_xy_slider_r" body2="right_ankle_xy_crank_r" anchor="0.0642292 0 0" solref="1e-05 0.6"/>
+    <connect name="right_femur_r" body1="right_ankle_xy_butterfly_r" body2="right_ankle_xy_bar1_r" anchor="-0.0519615 -0.03 0.028" solref="1e-05 0.6"/>
+    <connect name="right_tibia_r" body1="right_ankle_xy_foot" body2="right_ankle_xy_bar2_r" anchor="0.035 0 0.06" solref="1e-05 0.6"/>
+  </equality>
+
+  <actuator>
+    <general name="pelvis_1_actuator_position" class="position" joint="pelvis_1_joint" ctrllimited="true" ctrlrange="-0.349066 0.349066" gainprm="500" biasprm="0 -500"/>
+    <general name="pelvis_2_actuator_position" class="position" joint="pelvis_2_joint" ctrllimited="true" ctrlrange="-1.309 1.309" gainprm="500" biasprm="0 -500"/>
+    <general name="arm_left_1_actuator_position" class="position" joint="arm_left_1_joint" ctrllimited="true" ctrlrange="-2.618 2.618" gainprm="100" biasprm="0 -100"/>
+    <general name="arm_left_2_actuator_position" class="position" joint="arm_left_2_joint" ctrllimited="true" ctrlrange="-1.1345 2.4435" gainprm="100" biasprm="0 -100"/>
+    <general name="arm_left_3_actuator_position" class="position" joint="arm_left_3_joint" ctrllimited="true" ctrlrange="-2.618 2.618" gainprm="100" biasprm="0 -100"/>
+    <general name="arm_left_4_actuator_position" class="position" joint="arm_left_4_joint" ctrllimited="true" ctrlrange="-1.1345 2.4435" gainprm="100" biasprm="0 -100"/>
+    <general name="arm_right_1_actuator_position" class="position" joint="arm_right_1_joint" ctrllimited="true" ctrlrange="-2.618 2.618" gainprm="100" biasprm="0 -100"/>
+    <general name="arm_right_2_actuator_position" class="position" joint="arm_right_2_joint" ctrllimited="true" ctrlrange="-1.1345 2.4435" gainprm="100" biasprm="0 -100"/>
+    <general name="arm_right_3_actuator_position" class="position" joint="arm_right_3_joint" ctrllimited="true" ctrlrange="-2.618 2.618" gainprm="100" biasprm="0 -100"/>
+    <general name="arm_right_4_actuator_position" class="position" joint="arm_right_4_joint" ctrllimited="true" ctrlrange="-1.1345 2.4435" gainprm="100" biasprm="0 -100"/>
+    <general name="pos_left_hip_z" class="position" joint="left_hip_z_slider" ctrllimited="true" ctrlrange="-0.025 0.011" gainprm="100000" biasprm="0 -100000 -1000"/>
+    <general name="pos_left_hip_xy_l" class="position" joint="left_hip_xy_slider_l" ctrllimited="true" ctrlrange="-0.04 0.04" gainprm="100000" biasprm="0 -100000 -1000"/>
+    <general name="pos_left_hip_xy_r" class="position" joint="left_hip_xy_slider_r" ctrllimited="true" ctrlrange="-0.04 0.04" gainprm="100000" biasprm="0 -100000 -1000"/>
+    <general name="pos_left_leg_length" class="position" joint="left_leg_length_slider" ctrllimited="true" ctrlrange="0 0.149" gainprm="1000000" biasprm="0 -1000000 -1000"/>
+    <general name="pos_left_ankle_xy_motor_l" class="position" joint="left_ankle_xy_slider_l" ctrllimited="true" ctrlrange="-0.02 0.02" gainprm="1000000" biasprm="0 -1000000 -1000"/>
+    <general name="pos_left_ankle_xy_motor_r" class="position" joint="left_ankle_xy_slider_r" ctrllimited="true" ctrlrange="-0.02 0.02" gainprm="1000000" biasprm="0 -1000000 -1000"/>
+    <general name="pos_right_hip_z" class="position" joint="right_hip_z_slider" ctrllimited="true" ctrlrange="-0.025 0.011" gainprm="100000" biasprm="0 -100000 -1000"/>
+    <general name="pos_right_hip_xy_l" class="position" joint="right_hip_xy_slider_l" ctrllimited="true" ctrlrange="-0.04 0.04" gainprm="100000" biasprm="0 -100000 -1000"/>
+    <general name="pos_right_hip_xy_r" class="position" joint="right_hip_xy_slider_r" ctrllimited="true" ctrlrange="-0.04 0.04" gainprm="100000" biasprm="0 -100000 -1000"/>
+    <general name="pos_right_leg_length" class="position" joint="right_leg_length_slider" ctrllimited="true" ctrlrange="0 0.149" gainprm="1000000" biasprm="0 -1000000 -1000"/>
+    <general name="pos_right_ankle_xy_motor_l" class="position" joint="right_ankle_xy_slider_l" ctrllimited="true" ctrlrange="-0.02 0.02" gainprm="1000000" biasprm="0 -1000000 -1000"/>
+    <general name="pos_right_ankle_xy_motor_r" class="position" joint="right_ankle_xy_slider_r" ctrllimited="true" ctrlrange="-0.02 0.02" gainprm="1000000" biasprm="0 -1000000 -1000"/>
+  </actuator>
+
+  <sensor>
+    <gyro site="imu" name="gyro"/>
+    <velocimeter site="imu" name="local_linvel"/>
+    <accelerometer  site="imu" name="local_linacc" />
+    <framepos objtype="site" objname="imu" name="position"/>
+    <framezaxis objtype="site" objname="imu" name="upvector"/>
+    <framexaxis objtype="site" objname="imu" name="forwardvector"/>
+    <framelinvel objtype="site" objname="imu" name="global_linvel"/>
+    <frameangvel objtype="site" objname="imu" name="global_angvel"/>
+    <framequat objtype="site" objname="imu" name="orientation"/>
+    <framelinvel objtype="site" objname="right_foot" name="right_foot_global_linvel"/>
+    <framelinvel objtype="site" objname="left_foot" name="left_foot_global_linvel"/>
+  </sensor>
+</mujoco>
