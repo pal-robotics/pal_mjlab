@@ -19,6 +19,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import ConvexHull
 
+from .observations import ref_base_height, ref_body_pos_b
+from mjlab.utils.lab_api.math import subtract_frame_transforms
+
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
 
@@ -520,3 +523,58 @@ def body_ang_vel_xy_l2_penalty(
   asset: Entity = env.scene[asset_cfg.name]
   ang_vel_b = asset.data.root_link_ang_vel_b  # body frame for consistency
   return torch.sum(torch.square(ang_vel_b[:, :2]), dim=1)
+
+
+
+
+##
+# WBC control fine tuning rewards
+##
+
+
+def track_base_height(
+  env: ManagerBasedRlEnv,
+  std: float,
+  command_name: str,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Track the reference base height with an exponential kernel."""
+  asset: Entity = env.scene[asset_cfg.name]
+
+  z = asset.data.root_link_pos_w[:, 2]
+  z_ref = ref_base_height(env, command_name).reshape(env.num_envs)
+
+  error = torch.square(z - z_ref)
+  env.extras["log"]["Metrics/base_height_error"] = torch.mean(torch.sqrt(error))
+  return torch.exp(-error / std**2)
+
+
+def track_ee_target(
+  env: ManagerBasedRlEnv,
+  std: float,
+  command_name: str,
+  body_names: tuple[str, ...],
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Track reference EE positions expressed in the base frame."""
+  asset: Entity = env.scene[asset_cfg.name]
+  n = len(body_names)
+
+  # Reference EE positions in base frame, (N, n*3)
+  ref_pos_b = ref_body_pos_b(env, command_name, body_names).view(env.num_envs, n, 3)
+
+  # Actual EE positions in the robot base frame
+  body_ids, _ = asset.find_bodies(body_names, preserve_order=True)
+  root_pos = asset.data.root_link_pos_w[:, None, :].expand(-1, n, -1)
+  root_quat = asset.data.root_link_quat_w[:, None, :].expand(-1, n, -1)
+  actual_pos_b, _ = subtract_frame_transforms(
+    root_pos,
+    root_quat,
+    asset.data.body_link_pos_w[:, body_ids],
+    asset.data.body_link_quat_w[:, body_ids],
+  )
+
+  error = torch.square(ref_pos_b - actual_pos_b).sum(dim=-1).mean(dim=-1)  # (N,)
+  env.extras["log"]["Metrics/ee_pos_error"] = torch.mean(torch.sqrt(error))
+  return torch.exp(-error / std**2)
+
