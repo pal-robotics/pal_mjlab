@@ -133,38 +133,6 @@ def get_kangaroo_spec() -> mujoco.MjSpec:
 # Actuator config.
 ##
 
-KANG_FULL_PASSIVE_JOINTS = (
-  "baselink__.*_hip_z_motor",
-  ".*_hip_z_yaw",
-  ".*_hipyaw_yaw__hip_xy_bracket_l",
-  ".*_hip_xy_bracket_l__hip_xy_motor_l",
-  ".*_hip_xy_baselink__hip_xy_bracket_r",
-  ".*_hip_xy_bracket_r__hip_xy_motor_r",
-  ".*_hip_xy_pitch",
-  ".*_hip_xy_roll",
-  ".*_hip_xy_legholder__leg_length_femur",
-  ".*_leg_length_slider__leg_length_bar3",
-  ".*_leg_length_slider__leg_length_bar4",
-  ".*_leg_length_femur__leg_length_triangle",
-  ".*_leg_length_triangle__leg_length_bar2",
-  ".*_ankle_xy_femur__ankle_xy_butterfly_l",
-  ".*_ankle_xy_butterfly_l__ankle_xy_bar2_l",
-  ".*_ankle_xy_femur__ankle_xy_butterfly_r",
-  ".*_ankle_xy_butterfly_r__ankle_xy_bar2_r",
-  ".*_knee",
-  ".*_ankle_xy_pitch",
-  ".*_ankle_xy_roll",
-  ".*_leg_length_baselink__leg_length_bar1",
-  ".*_hip_xy_legholder__ankle_xy_motor_l",
-  ".*_hip_xy_legholder__ankle_xy_motor_r",
-  ".*_hip_xy_legholder__ankle_xy_crank_l",
-  ".*_ankle_xy_crank_l__ankle_xy_bar1_l",
-  ".*_hip_xy_legholder__ankle_xy_crank_r",
-  ".*_ankle_xy_crank_r__ankle_xy_bar1_r",
-)
-
-KANG_FULL_MEASURED_PASSIVE_JOINTS = None  # TODO
-
 KANG_FULL_LINEAR_ACTUATORS = (
   ".*_hip_z_slider",
   ".*_hip_xy_slider_l",
@@ -331,17 +299,6 @@ KANG_FULL_BENT_KNEES_JOINTS = {
   "arm_right_2_joint": 1.49179553985595703,
 }
 
-# Passive
-"""
-KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-    target_names_expr=KANG_FULL_PASSIVE_JOINTS,
-    effort_limit=100.0,
-    armature=0.01,
-    stiffness=0.0,
-    damping=0.0,
-)
-"""
-
 KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
   target_names_expr=(".*_hip_z_slider",),
   **_calc_leg_params(16000.0, _LEG_ACTUATORS_EFFORT_LIMITS[1]),
@@ -447,7 +404,6 @@ FULL_COLLISION = CollisionCfg(
 
 KANG_FULL_ARTICULATION = EntityArticulationInfoCfg(
   actuators=(
-    # KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG,
     KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG,
     KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG,
     KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG,
