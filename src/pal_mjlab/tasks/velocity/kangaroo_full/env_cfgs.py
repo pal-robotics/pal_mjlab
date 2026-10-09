@@ -265,6 +265,14 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         },
     )
 
+    cfg.rewards["electrical_power_cost"] = RewardTermCfg(
+        func=mdp.electrical_power_cost,
+        weight=-0.5,
+        params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(r".*",)),
+        },
+    )
+
     ## Metrics
     cfg.metrics = {"joint_vel_mag": MetricsTermCfg(func=mdp.joint_velocity_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
                 "joint_acc_mag": MetricsTermCfg(func=mdp.joint_accelerations_magnitude, params={"asset_cfg": SceneEntityCfg("robot", joint_names=(".*",))}),
