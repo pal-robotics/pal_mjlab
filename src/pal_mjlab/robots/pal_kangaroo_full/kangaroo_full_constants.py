@@ -215,28 +215,28 @@ KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_hip_xy_slider_l",
     ),
-    **_calc_leg_params(1600.0, 1100.0),
+    **_calc_leg_params(16000.0, 1100.0),
 )
 
 KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_hip_xy_slider_r",
     ),
-    **_calc_leg_params(1600.0, 1100.0),
+    **_calc_leg_params(16000.0, 1100.0),
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_ankle_xy_slider_l",
     ),
-    **_calc_leg_params(1600.0, 1100.0),
+    **_calc_leg_params(16000.0, 1100.0),
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_ankle_xy_slider_r",
     ),
-    **_calc_leg_params(1600.0, 1100.0),
+    **_calc_leg_params(16000.0, 1100.0),
 )
 
 KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
