@@ -140,6 +140,11 @@ S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
 
 _COLLISION_GROUP = 3
 
+# Torso IMU site, on pelvis_2_link. Same body and pose as the "imu" site the
+# pre-2026-08 hand-written model carried, so root-state sensors read the same.
+_IMU_SITE = "torso_imu_link"
+_ROOT_BODY = "base_link"
+
 # Scene-only assets bundled with the generated model.
 _SCENE_GEOMS = ("floor",)
 _SCENE_MATERIALS = ("groundplane",)
@@ -436,6 +441,53 @@ def _replace_collisions(spec: mujoco.MjSpec) -> None:
     )
 
 
+def _add_state_sensors(spec: mujoco.MjSpec) -> None:
+  """Add the root-state sensors the velocity task observes.
+
+  The generator emits only three IMU sensors (quat/gyro/accel), but the task's
+  observations and mjlab's ``angular_momentum`` reward reference the set the
+  previous hand-written model carried. The generated ``torso_imu_link`` site sits
+  on ``pelvis_2_link`` at the same pose the old ``imu`` site did, so these read
+  identically to before.
+
+  Names and types match pal_kangaroo's hand-written model exactly, so the two
+  robots can share observation configs -- and mjlab's own defaults, which ask for
+  ``robot/imu_ang_vel`` and ``robot/imu_lin_vel``, resolve without an override.
+
+  ``imu_ang_vel`` is a GYRO, i.e. angular velocity in the *site's* frame. That is
+  what a real IMU reports; a FRAMEANGVEL would be world-frame and could not be
+  fed from hardware without first estimating the base orientation.
+  """
+  existing = {sensor.name for sensor in spec.sensors}
+  site = _IMU_SITE
+  specs: tuple[tuple[str, mujoco.mjtSensor, mujoco.mjtObj, str], ...] = (
+    ("imu_quat", mujoco.mjtSensor.mjSENS_FRAMEQUAT, mujoco.mjtObj.mjOBJ_SITE, site),
+    ("imu_ang_vel", mujoco.mjtSensor.mjSENS_GYRO, mujoco.mjtObj.mjOBJ_SITE, site),
+    (
+      "imu_lin_vel",
+      mujoco.mjtSensor.mjSENS_VELOCIMETER,
+      mujoco.mjtObj.mjOBJ_SITE,
+      site,
+    ),
+    (
+      "imu_lin_acc",
+      mujoco.mjtSensor.mjSENS_ACCELEROMETER,
+      mujoco.mjtObj.mjOBJ_SITE,
+      site,
+    ),
+    (
+      "root_angmom",
+      mujoco.mjtSensor.mjSENS_SUBTREEANGMOM,
+      mujoco.mjtObj.mjOBJ_BODY,
+      _ROOT_BODY,
+    ),
+  )
+  for name, sensor_type, objtype, objname in specs:
+    if name in existing:
+      continue
+    spec.add_sensor(name=name, type=sensor_type, objtype=objtype, objname=objname)
+
+
 def _normalize_spec(spec: mujoco.MjSpec) -> mujoco.MjSpec:
   # Drop the XML's <motor> actuators; mjlab adds <position> actuators of its own
   # from KANG_FULL_ARTICULATION and does not remove pre-existing ones.
@@ -456,6 +508,7 @@ def _normalize_spec(spec: mujoco.MjSpec) -> mujoco.MjSpec:
   _style_visuals(spec)
   _replace_collisions(spec)
   _name_geoms(spec)
+  _add_state_sensors(spec)
   return spec
 
 
