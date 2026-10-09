@@ -41,26 +41,28 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.sim.mujoco.timestep = 0.002
   cfg.decimation = 10
 
-  site_names = ("left_foot", "right_foot")
-  geom_names = tuple(f"{side}_foot_collision" for side in ("left", "right"))
+  # The sole frame of each foot. Not "left_foot": that is only a prefix of the four
+  # foot corner sites, so as a regex it silently selects 4 sites per foot.
+  site_names = ("left_sole_link", "right_sole_link")
+  # The six sole capsules per foot, from the pal_kangaroo collision set.
+  geom_names = tuple(rf"{side}_foot\d+_collision" for side in ("left", "right"))
 
+  # The 22 actuated joints. The leg ball-screws are numbered per leg rather than
+  # named after the joint they drive: 1 hip yaw, 2/3 hip xy, 4/5 ankle xy, plus
+  # leg length. See kangaroo_full_constants for the mapping.
+  _LEG_ACTUATOR_RE = (
+    r"leg_(left|right)_[1-5]_actuator$|leg_(left|right)_length_actuator$"
+  )
   _ACTUATED_JOINT_RE = (
-    r".*_hip_z_slider$"
-    r"|.*_hip_xy_slider_l$"
-    r"|.*_hip_xy_slider_r$"
-    r"|.*_ankle_xy_slider_l$"
-    r"|.*_ankle_xy_slider_r$"
-    r"|.*_leg_length_slider$"
-    r"|pelvis_1_joint$"
-    r"|pelvis_2_joint$"
-    r"|arm_.*_[1-4]_joint$"
+    _LEG_ACTUATOR_RE + r"|pelvis_1_joint$|pelvis_2_joint$|arm_.*_[1-4]_joint$"
   )
 
   feet_ground_cfg = ContactSensorCfg(
     name="feet_ground_contact",
     primary=ContactMatch(
       mode="subtree",
-      pattern=r"^(left_ankle_xy_foot|right_ankle_xy_foot)$",  # subtree so foot link is included
+      # subtree so the welded foot/ankle capsule frames are included
+      pattern=r"^(leg_left_5_link|leg_right_5_link)$",
       entity="robot",
     ),
     secondary=ContactMatch(mode="body", pattern="terrain"),
@@ -73,7 +75,7 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     name="body_ground_contact",
     primary=ContactMatch(
       mode="body",
-      pattern=r"^(left_leg_length_femur|right_leg_length_femur|left_leg_length_tibia|right_leg_length_tibia)$",
+      pattern=r"^(left_femur|right_femur|left_tibia|right_tibia)$",
       entity="robot",
     ),
     secondary=ContactMatch(mode="body", pattern="terrain"),
@@ -83,8 +85,8 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
   self_collision_cfg = ContactSensorCfg(
     name="self_collision",
-    primary=ContactMatch(mode="subtree", pattern="baselink", entity="robot"),
-    secondary=ContactMatch(mode="subtree", pattern="baselink", entity="robot"),
+    primary=ContactMatch(mode="subtree", pattern="base_link", entity="robot"),
+    secondary=ContactMatch(mode="subtree", pattern="base_link", entity="robot"),
     fields=("found",),
     reduce="none",
     num_slots=1,
@@ -136,33 +138,33 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["actor"].terms["projected_gravity"] = None
   cfg.observations["actor"].terms["base_ang_vel"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/global_angvel"},
+    params={"sensor_name": "robot/imu_ang_vel"},
   )
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
-    params={"sensor_name": "robot/orientation"},
+    params={"sensor_name": "robot/imu_quat"},
     noise=Unoise(n_min=-0.5, n_max=0.5),
   )
   cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/local_linacc"},
+    params={"sensor_name": "robot/imu_lin_acc"},
     noise=Unoise(n_min=-0.5, n_max=0.5),
   )
   cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
-    params={"sensor_name": "robot/orientation"},
+    params={"sensor_name": "robot/imu_quat"},
   )
   cfg.observations["critic"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/local_linacc"},
+    params={"sensor_name": "robot/imu_lin_acc"},
   )
   cfg.observations["critic"].terms["base_lin_vel"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/local_linvel"},
+    params={"sensor_name": "robot/imu_lin_vel"},
   )
   cfg.observations["critic"].terms["base_ang_vel"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/global_angvel"},
+    params={"sensor_name": "robot/imu_ang_vel"},
   )
 
   ### Disabling the use of history length as we haven't seen much improvements with it
@@ -185,13 +187,15 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
   cfg.events["encoder_bias"].params["asset_cfg"].joint_names = [
-    r"^(?!.*_leg_length_slider$).*"
+    r"^(?!leg_(left|right)_length_actuator$).*"
   ]
   cfg.events["leg_length_encoder_bias"] = EventTermCfg(
     mode="startup",
     func=dr.encoder_bias,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=[r".*_leg_length_slider$"]),
+      "asset_cfg": SceneEntityCfg(
+        "robot", joint_names=[r"leg_(left|right)_length_actuator$"]
+      ),
       "bias_range": (-0.005, 0.005),
     },
   )
@@ -201,13 +205,13 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["pose"].params["asset_cfg"].joint_names = (_ACTUATED_JOINT_RE,)
   cfg.rewards["pose"].params["std_standing"] = {_ACTUATED_JOINT_RE: 0.05}
   cfg.rewards["pose"].params["std_walking"] = {
-    # Lower body.
-    r".*_hip_z_slider": 0.01,
-    r".*_hip_xy_slider_l": 0.01,
-    r".*_hip_xy_slider_r": 0.01,
-    r".*_leg_length_slider$": 0.05,
-    r".*_ankle_xy_slider_l": 0.01,
-    r".*_ankle_xy_slider_r": 0.01,
+    # Lower body. 1 = hip yaw, 2/3 = hip xy, 4/5 = ankle xy.
+    r"leg_(left|right)_1_actuator$": 0.01,
+    r"leg_(left|right)_2_actuator$": 0.01,
+    r"leg_(left|right)_3_actuator$": 0.01,
+    r"leg_(left|right)_length_actuator$": 0.05,
+    r"leg_(left|right)_4_actuator$": 0.01,
+    r"leg_(left|right)_5_actuator$": 0.01,
     # Waist.
     r"pelvis_1.*": 0.08,
     r"pelvis_2.*": 0.2,
@@ -217,13 +221,13 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     r"arm_.*_(?![14]_joint)\d+_joint": 0.1,
   }
   cfg.rewards["pose"].params["std_running"] = {
-    # Lower body.
-    r".*_hip_z_slider": 0.015,
-    r".*_hip_xy_slider_l": 0.015,
-    r".*_hip_xy_slider_r": 0.015,
-    r".*_leg_length_slider$": 0.08,
-    r".*_ankle_xy_slider_l": 0.015,
-    r".*_ankle_xy_slider_r": 0.015,
+    # Lower body. 1 = hip yaw, 2/3 = hip xy, 4/5 = ankle xy.
+    r"leg_(left|right)_1_actuator$": 0.015,
+    r"leg_(left|right)_2_actuator$": 0.015,
+    r"leg_(left|right)_3_actuator$": 0.015,
+    r"leg_(left|right)_length_actuator$": 0.08,
+    r"leg_(left|right)_4_actuator$": 0.015,
+    r"leg_(left|right)_5_actuator$": 0.015,
     # Waist.
     r"pelvis_1.*": 0.08,
     r"pelvis_2.*": 0.3,
@@ -259,9 +263,12 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(r".*",)),
       "metrics_suffix": "hipXY",
+      # TODO(unverified): the hip pitch/roll pair was inferred from the joint axes
+      # (*_hip_xy_cross is +Y, *_hip_xy is -X) but not confirmed against the
+      # linkage. Check before raising this weight above 0.
       "joint_names_group": [
-        [r"left_hip_xy_pitch", r"left_hip_xy_roll"],
-        [r"right_hip_xy_pitch", r"right_hip_xy_roll"],
+        [r"left_hip_xy_cross$", r"left_hip_xy$"],
+        [r"right_hip_xy_cross$", r"right_hip_xy$"],
       ],
       "margin": 0.02,
       "hull_points": HIP_XY_CONVEX_HULL_POINTS,
@@ -275,9 +282,10 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "asset_cfg": SceneEntityCfg("robot", joint_names=(r".*",)),
       "margin": 0.02,
       "metrics_suffix": "ankleXY",
+      # leg_*_4_joint is pitch (axis +Y), leg_*_5_joint is roll (axis -X).
       "joint_names_group": [
-        [r"left_ankle_xy_pitch", r"left_ankle_xy_roll"],
-        [r"right_ankle_xy_pitch", r"right_ankle_xy_roll"],
+        [r"leg_left_4_joint$", r"leg_left_5_joint$"],
+        [r"leg_right_4_joint$", r"leg_right_5_joint$"],
       ],
       "hull_points": ANKLE_XY_CONVEX_HULL_POINTS,
     },

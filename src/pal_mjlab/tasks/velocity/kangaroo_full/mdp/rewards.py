@@ -11,15 +11,9 @@ if TYPE_CHECKING:
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
-_ACTUATED_LEG_JOINT_RE_1 = r"|.*_leg_length_slider$"
+_ACTUATED_LEG_JOINT_RE_1 = r"leg_(left|right)_length_actuator$"
 
-_ACTUATED_LEG_JOINT_RE_2 = (
-  r".*_hip_z_slider$"
-  r"|.*_hip_xy_slider_l$"
-  r"|.*_hip_xy_slider_r$"
-  r"|.*_ankle_xy_slider_l$"
-  r"|.*_ankle_xy_slider_r$"
-)
+_ACTUATED_LEG_JOINT_RE_2 = r"leg_(left|right)_[1-5]_actuator$"
 
 
 def joint_vel_limit(
