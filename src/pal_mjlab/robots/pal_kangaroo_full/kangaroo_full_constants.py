@@ -189,35 +189,42 @@ def get_kangaroo_spec() -> mujoco.MjSpec:
 
 ##
 # Actuator config.
+#
+# The generated model numbers the prismatic ball-screw actuators per leg rather
+# than naming them after the joint they drive:
+#   1 -> hip yaw        2 -> hip xy left     3 -> hip xy right
+#   4 -> ankle xy left  5 -> ankle xy right  length -> leg length
+# Note the right leg declares 3 before 2, so ordinal position in the XML is not
+# a reliable guide; these were matched by body and site membership.
 ##
 
 KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(".*_hip_z_slider",),
+  target_names_expr=(r"leg_(left|right)_1_actuator$",),
   **_calc_leg_params(16000.0, _LEG_ACTUATORS_EFFORT_LIMITS[1]),
 )
 
 KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(".*_hip_xy_slider_l",),
+  target_names_expr=(r"leg_(left|right)_2_actuator$",),
   **_calc_leg_params(16000.0, _LEG_ACTUATORS_EFFORT_LIMITS[1]),
 )
 
 KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(".*_hip_xy_slider_r",),
+  target_names_expr=(r"leg_(left|right)_3_actuator$",),
   **_calc_leg_params(16000.0, _LEG_ACTUATORS_EFFORT_LIMITS[1]),
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(".*_ankle_xy_slider_l",),
+  target_names_expr=(r"leg_(left|right)_4_actuator$",),
   **_calc_leg_params(16000.0, _LEG_ACTUATORS_EFFORT_LIMITS[1]),
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(".*_ankle_xy_slider_r",),
+  target_names_expr=(r"leg_(left|right)_5_actuator$",),
   **_calc_leg_params(16000.0, _LEG_ACTUATORS_EFFORT_LIMITS[1]),
 )
 
 KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
-  target_names_expr=(".*_leg_length_slider$",),
+  target_names_expr=(r"leg_(left|right)_length_actuator$",),
   **_calc_leg_params(200000.0, _LEG_ACTUATORS_EFFORT_LIMITS[0]),
 )
 
