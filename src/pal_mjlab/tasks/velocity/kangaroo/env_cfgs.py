@@ -690,7 +690,6 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       func=mdp.ref_body_pos_b, 
       params={
         "command_name": "wbc_command", 
-        "body_names": end_effector_body_names,
       },
       noise=Unoise(n_min=-0.05, n_max=0.05),
     ),
