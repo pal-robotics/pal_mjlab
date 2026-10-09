@@ -137,10 +137,6 @@ S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
 
 _COLLISION_GROUP = 3
 
-# Bodies carrying the sole geoms. Renamed so the ``*_foot_collision`` convention
-# shared with the other PAL robots keeps working.
-_FOOT_BODIES = {"leg_left_5_link": "left_foot", "leg_right_5_link": "right_foot"}
-
 # Scene-only assets bundled with the generated model.
 _SCENE_GEOMS = ("floor",)
 _SCENE_MATERIALS = ("groundplane",)
@@ -148,14 +144,14 @@ _SCENE_TEXTURES = ("groundplane", "")  # "" is the unnamed skybox.
 
 
 def _name_geoms(spec: mujoco.MjSpec) -> None:
-  """Give every geom a name derived from its body, so regexes can select it.
+  """Name the generator's anonymous geoms, so regexes can select them.
 
-  mjlab's ``CollisionCfg`` looks geoms up by name and disables every geom it does
-  not match; with the generated model's unnamed geoms that lookup collapses onto a
-  single empty name and silently disables collision on the whole robot.
+  The hand-written collision capsules carry names already; this covers the ~90
+  auto-generated visual meshes. mjlab's ``CollisionCfg`` looks geoms up by name
+  and disables every geom it does not match, so leaving them anonymous makes that
+  lookup collapse onto a single empty name.
   """
   for body in spec.bodies:
-    stem = _FOOT_BODIES.get(body.name, body.name)
     counts: dict[str, int] = {}
     for geom in body.geoms:
       if geom.name:
@@ -163,7 +159,7 @@ def _name_geoms(spec: mujoco.MjSpec) -> None:
       kind = "collision" if geom.group == _COLLISION_GROUP else "visual"
       index = counts.get(kind, 0)
       counts[kind] = index + 1
-      geom.name = f"{stem}_{kind}" + (f"_{index}" if index else "")
+      geom.name = f"{body.name}_{kind}" + (f"_{index}" if index else "")
 
 
 def _normalize_spec(spec: mujoco.MjSpec) -> mujoco.MjSpec:
@@ -321,9 +317,9 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 # Collision config.
 ##
 
-# Geom names come from ``_name_geoms``: "<body>_collision" for every group-3 geom,
-# with the two sole bodies renamed to left_foot / right_foot.
-_FOOT_REGEX = r"(left|right)_foot_collision$"
+# The six sole capsules per foot, named left_foot0_collision .. left_foot10_collision
+# to match pal_kangaroo. Excludes the ankle capsules, which stay at condim 1.
+_FOOT_REGEX = r"(left|right)_foot\d+_collision$"
 
 FULL_COLLISION = CollisionCfg(
   geom_names_expr=(".*_collision",),
