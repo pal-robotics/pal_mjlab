@@ -17,6 +17,16 @@ from pal_mjlab import PAL_MJLAB_SRC_PATH
 # MJCF and assets.
 ##
 
+# LEG EFFORT LIMITS SETS FOR BETTER TESTING
+# L_SETx = [<leg length effort limit>, <other leg actuators effort limit>]
+L_SET1 = [1100.0, 1100.0] # Default | Used in most early trainings
+L_SET2 = [1100.0, 3000.0]
+L_SET3 = [3000.0, 3000.0]
+L_SET4 = [5000.0, 3000.0]
+
+
+ACTIVE_SET = L_SET1
+
 KANG_FULL_XML: Path = (
     PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo_full" / "xmls" / "kangaroo_full.xml"
 )
@@ -271,42 +281,42 @@ KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_hip_z_slider",
     ),
-    **_calc_leg_params(16000.0, 1100.0),
+    **_calc_leg_params(16000.0, ACTIVE_SET[1]),
 )
 
 KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_hip_xy_slider_l",
     ),
-    **_calc_leg_params(16000.0, 1100.0),
+    **_calc_leg_params(16000.0, ACTIVE_SET[1]),
 )
 
 KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_hip_xy_slider_r",
     ),
-    **_calc_leg_params(16000.0, 1100.0),
+    **_calc_leg_params(16000.0, ACTIVE_SET[1]),
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_L_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_ankle_xy_slider_l",
     ),
-    **_calc_leg_params(16000.0, 1100.0),
+    **_calc_leg_params(16000.0, ACTIVE_SET[1]),
 )
 
 KANG_FULL_ANKLE_XY_SLIDERS_R_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_ankle_xy_slider_r",
     ),
-    **_calc_leg_params(16000.0, 1100.0),
+    **_calc_leg_params(16000.0, ACTIVE_SET[1]),
 )
 
 KANG_FULL_LEG_LENGTH_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
         ".*_leg_length_slider$",
     ),
-    **_calc_leg_params(16000.0, 1100.0),
+    **_calc_leg_params(16000.0, ACTIVE_SET[0]),
 )
 
 KANG_FULL_ARMS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
