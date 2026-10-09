@@ -234,25 +234,13 @@ KANG_FULL_ARTICULATION = EntityArticulationInfoCfg(
 )
 
 
-_EXCLUDED_JOINTS = {}
-
-
-_ROBOT_CONFIGS = {
-  "kangaroo_full": (get_kangaroo_spec, KANG_FULL_ARTICULATION, FULL_COLLISION),
-}
-
-
-def _make_robot_cfg(variant: str) -> EntityCfg:
+def get_kangaroo_full_robot_cfg() -> EntityCfg:
   return EntityCfg(
     init_state=INIT_STATE,
     collisions=(FULL_COLLISION,),
     spec_fn=get_kangaroo_spec,
     articulation=KANG_FULL_ARTICULATION,
   )
-
-
-def get_kangaroo_full_robot_cfg() -> EntityCfg:
-  return _make_robot_cfg("kangaroo_full")
 
 
 def _build_action_scales(
@@ -283,7 +271,7 @@ def _build_action_scales(
 ##
 
 KANG_FULL_ACTION_SCALE, KANG_FULL_ACTUATOR_NAMES = _build_action_scales(
-  KANG_FULL_ARTICULATION, _EXCLUDED_JOINTS
+  KANG_FULL_ARTICULATION
 )
 
 
