@@ -136,14 +136,14 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.observations["critic"].terms["height_scan"] = None
   cfg.observations["actor"].terms["base_lin_vel"] = None
   cfg.observations["actor"].terms["projected_gravity"] = None
-  cfg.observations["actor"].terms["base_ang_vel"] = ObservationTermCfg(
-    func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/imu_ang_vel"},
-  )
+  # base_ang_vel is deliberately not overridden: _add_state_sensors names the
+  # model's sensors as pal_kangaroo does, so mjlab's default term (robot/
+  # imu_ang_vel, a body-frame gyro, noise +/-0.2) resolves as-is. Same for the
+  # critic's base_lin_vel / base_ang_vel.
   cfg.observations["actor"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
-    noise=Unoise(n_min=-0.5, n_max=0.5),
+    noise=Unoise(n_min=-0.05, n_max=0.05),
   )
   cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
     func=mdp.builtin_sensor,
@@ -158,14 +158,7 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.builtin_sensor,
     params={"sensor_name": "robot/imu_lin_acc"},
   )
-  cfg.observations["critic"].terms["base_lin_vel"] = ObservationTermCfg(
-    func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/imu_lin_vel"},
-  )
-  cfg.observations["critic"].terms["base_ang_vel"] = ObservationTermCfg(
-    func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/imu_ang_vel"},
-  )
+  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.5, n_max=0.5)
 
   ### Disabling the use of history length as we haven't seen much improvements with it
   ### Moreover, our best policy #62 doesn't use any history length
@@ -237,6 +230,7 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
+  cfg.rewards["upright"].weight = 1.25
   cfg.rewards["body_ang_vel"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   for reward_name in ["foot_clearance", "foot_slip"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = site_names
@@ -249,9 +243,14 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={"sensor_name": self_collision_cfg.name},
   )
 
+  # pal_kangaroo penalises leg-length velocity with mjlab's linear joint_vel_limits
+  # at -10.0 and a +/-1.6 limit. That limit is in its own leg-length coordinate,
+  # which spans 0.582 m against 0.151 m of ball-screw travel here, so it does not
+  # carry over. This term is the full model's own: quadratic past limits already
+  # expressed in screw units, over all six leg actuators.
   cfg.rewards["joint_velocity_limit"] = RewardTermCfg(
     func=mdp_kgr_full.joint_vel_limit,
-    weight=0.0,  # -0.02,
+    weight=-0.02,
     params={"asset_cfg": SceneEntityCfg("robot", joint_names=KANG_FULL_ACTUATOR_NAMES)},
   )
 
@@ -259,13 +258,15 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
   cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
     func=mdp.joint_limits_convex_hull,
-    weight=0.0,  # -10.0
+    weight=-10.0,
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(r".*",)),
       "metrics_suffix": "hipXY",
-      # TODO(unverified): the hip pitch/roll pair was inferred from the joint axes
-      # (*_hip_xy_cross is +Y, *_hip_xy is -X) but not confirmed against the
-      # linkage. Check before raising this weight above 0.
+      # Confirmed against pal_kangaroo by kinematics, not just joint axes: the
+      # chain base -> femur is hip_z -> hip_xy_cross -> hip_xy here against
+      # leg_*_1/2/3_joint there, and driving each of the last two moves the leg
+      # the same way -- except roll, which is inverted. That flip is corrected in
+      # HIP_XY_CONVEX_HULL_POINTS, not here.
       "joint_names_group": [
         [r"left_hip_xy_cross$", r"left_hip_xy$"],
         [r"right_hip_xy_cross$", r"right_hip_xy$"],
@@ -277,12 +278,13 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   cfg.rewards["convex_hull_joint_limits_ankle"] = RewardTermCfg(
     func=mdp.joint_limits_convex_hull,
-    weight=0.0,  # -10.0
+    weight=-10.0,
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=(r".*",)),
       "margin": 0.02,
       "metrics_suffix": "ankleXY",
-      # leg_*_4_joint is pitch (axis +Y), leg_*_5_joint is roll (axis -X).
+      # Same joint names, axes and ranges as pal_kangaroo, and driving each moves
+      # the foot the same way, so ANKLE_XY_CONVEX_HULL_POINTS transfers as-is.
       "joint_names_group": [
         [r"leg_left_4_joint$", r"leg_left_5_joint$"],
         [r"leg_right_4_joint$", r"leg_right_5_joint$"],

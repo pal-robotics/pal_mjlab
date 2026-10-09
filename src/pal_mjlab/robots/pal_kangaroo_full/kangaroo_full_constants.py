@@ -32,6 +32,16 @@ KANG_FULL_XML: Path = (
 assert KANG_FULL_XML.exists()
 
 
+# Hip (pitch, roll) feasible region.
+#
+# Same points as pal_kangaroo's, with the roll column negated: the full model's
+# hip roll turns the opposite way. Driving ``left_hip_xy`` by +0.1 rad swings the
+# femur -9.3 mm in Y, where +0.1 rad on the simple model's ``leg_left_3_joint``
+# -- which these points were measured against -- swings it +8.7 mm. Pitch agrees
+# (-8.9 mm vs -9.0 mm in X), so only the second column flips. The region is not
+# symmetric in roll (-0.413 .. +0.467), so leaving it unflipped would hold the
+# leg to a mirrored region. scipy rebuilds the hull, so the winding change is
+# irrelevant.
 HIP_XY_CONVEX_HULL_POINTS = torch.tensor(
   [
     [-0.742, 0.035],
@@ -62,7 +72,7 @@ HIP_XY_CONVEX_HULL_POINTS = torch.tensor(
     [-0.742, 0.222],
     [-0.742, 0.133],
   ]
-)
+) * torch.tensor([1.0, -1.0])  # (pitch, roll) -> roll flipped, see above
 
 ANKLE_XY_CONVEX_HULL_POINTS = torch.tensor(
   [
