@@ -236,7 +236,7 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["joint_velocity_limit"] = RewardTermCfg(
         func=mdp.joint_vel_limit,
         weight = 0.0, #-0.02,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=KANG_FULL_ACTUATOR_NAMES), "limit_scale": 1.0},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=KANG_FULL_ACTUATOR_NAMES)},
     )
 
     # The hull points should correspond to the respective joints defined in the joint_names_group order

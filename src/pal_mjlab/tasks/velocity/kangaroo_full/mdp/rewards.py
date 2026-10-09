@@ -76,12 +76,11 @@ def stand_still_joint_deviation_l1(
 def  joint_vel_limit (
     env: ManagerBasedRlEnv,
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-    limit_scale : float = 1.0,
 ) -> torch.Tensor:
     asset: Entity = env.scene[asset_cfg.name]
 
-    limit_leg_length = limit_scale * 0.0026     # 0.26 cm
-    limit_leg_sliders = limit_scale * 0.0020    # 0.20 cm
+    limit_leg_length = 0.26
+    limit_leg_sliders = 0.25  # Experiments showed 30 is probable limit 
 
     # Only work with the actuated joints
     leg_ids_1, _ = asset.find_joints_by_actuator_names(_ACTUATED_LEG_JOINT_RE_1)
