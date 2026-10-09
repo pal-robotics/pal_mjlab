@@ -382,7 +382,29 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     debug_vis=True,
   )
 
-  cfg.scene.sensors = (cfg.scene.sensors or ()) + (terrain_scan,)
+  # The tibia brushing stair noses is expected (the actor is blind and feels risers
+  # with the shins): only the femur stays an illegal contact, tibia contacts are
+  # penalized instead (see "shin_contacts" reward).
+  for sensor in cfg.scene.sensors or ():
+    if sensor.name == "body_ground_contact":
+      assert isinstance(sensor, ContactSensorCfg)
+      sensor.primary.pattern = r"^(leg_left_femur_link|leg_right_femur_link)$"
+
+  shin_ground_cfg = ContactSensorCfg(
+    name="shin_ground_contact",
+    primary=ContactMatch(
+      mode="body",
+      pattern=r"^(leg_left_knee_link|leg_right_knee_link)$",
+      entity="robot",
+    ),
+    secondary=ContactMatch(mode="body", pattern="terrain"),
+    fields=("found", "force"),
+    reduce="none",
+    num_slots=1,
+    history_length=cfg.decimation,  # Every physics substep of the policy step
+  )
+
+  cfg.scene.sensors = (cfg.scene.sensors or ()) + (terrain_scan, shin_ground_cfg)
 
   ### OBSERVATIONS
 
@@ -422,6 +444,15 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # Higher swing apex so 20 cm risers aren't penalized
   # (foot_clearance intentionally untouched: increasing it goes unstable)
   cfg.rewards["foot_swing_height"].params["target_height"] = 0.15
+
+  # Mild penalty for tibia-terrain contact (no longer a termination).
+  # With force history the cost is the number of substeps (0..decimation) with a
+  # shin contact above force_threshold, i.e. proportional to contact duration.
+  cfg.rewards["shin_contacts"] = RewardTermCfg(
+    func=mdp.self_collision_cost,  # generic: counts contacts of the given sensor
+    weight=(-0.5 / cfg.decimation),  # -0.5 per fully-in-contact policy step
+    params={"sensor_name": shin_ground_cfg.name, "force_threshold": 10.0},
+  )
 
   # More upright = safer torso stance
   cfg.rewards["upright"].weight = 2.0
