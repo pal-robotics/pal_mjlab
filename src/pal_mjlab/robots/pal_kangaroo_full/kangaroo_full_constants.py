@@ -643,11 +643,16 @@ def _read_keyframe(
 
 KANG_FULL_HOME_POS, KANG_FULL_HOME_JOINT_POS = _read_keyframe("home")
 
-# The generator's "home" pose: base at 1.02 m, arms out, legs lightly bent. It
-# covers all 82 non-free joints because the leg loops have to close; do not
-# reduce it to the actuated subset, since mjlab zero-fills whatever is missing.
+
+
+_GROUND_OFFSET = -0.1147
+
 INIT_STATE = EntityCfg.InitialStateCfg(
-  pos=KANG_FULL_HOME_POS,
+  pos=(
+    KANG_FULL_HOME_POS[0],
+    KANG_FULL_HOME_POS[1],
+    KANG_FULL_HOME_POS[2] + _GROUND_OFFSET,
+  ),
   joint_pos=KANG_FULL_HOME_JOINT_POS,
   joint_vel={".*": 0.0},
 )
