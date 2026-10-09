@@ -23,9 +23,10 @@ L_SET1 = [1100.0, 1100.0] # Default | Used in most early trainings
 L_SET2 = [1100.0, 3000.0]
 L_SET3 = [3000.0, 3000.0]
 L_SET4 = [5000.0, 3000.0]
+L_SET5 = [5000.0, 2000.0]
 
 
-ACTIVE_SET = L_SET1
+ACTIVE_SET = L_SET5
 
 KANG_FULL_XML: Path = (
     PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo_full" / "xmls" / "kangaroo_full.xml"
@@ -356,10 +357,12 @@ INIT_STATE = EntityCfg.InitialStateCfg(
         ".*_ankle_xy_slider_l": 0.0,
         ".*_ankle_xy_slider_r": 0.0,
         ".*_leg_length_slider$": 0.0,
-        "arm_left_2_joint" : 1.49179553985595703,
-        "arm_right_2_joint" : 1.49179553985595703,
-        "arm_left_1_joint" : -0.3,
-        "arm_right_1_joint" : 0.3,
+        "arm_left_1_joint": 0.24,
+        "arm_right_1_joint": -0.24,
+        "arm_.*_2_joint": 1.32,
+        "arm_left_3_joint": 1.57,
+        "arm_right_3_joint": -1.57,
+        "arm_.*_4_joint": 0.8,
     },
     joint_vel={".*": 0.0},
 )
