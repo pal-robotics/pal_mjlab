@@ -466,6 +466,7 @@
               <site name="left_hip_xy_slider_r_connect_b" pos="0 0 0" quat="1.0 0 0 0"/>
             </body>
             <body name="left_femur_bearing" pos="0 0.0669 -0.09" quat="0.704553 -0.704549 -0.0600671 -0.0600668">
+              <geom name="leg_left_femur_collision" size="0.08 0.2" pos="0.03 0.2 0" quat="0.0308436 0.0308436 0.7064338 0.7064338" class="collision"/>
               <body name="left_ankle_motor_l" pos="-0.06666 -0.05543 0.048" quat="0.228743 0 0 0.973487">
                 <inertial pos="0.000133 0.020649 2e-06" quat="0.703746 0.705813 0.0462663 -0.0665485" mass="0.776604" diaginertia="0.000566409 0.000553678 0.000461913"/>
                 <joint name="left_ankle_motor_l" pos="0 0 0" axis="0 0 -1" range="-3.14159 3.14159"/>
@@ -818,7 +819,7 @@
               <site name="right_hip_xy_slider_l_connect_b" pos="0 0 0" quat="1.0 0 0 0"/>
             </body>
             <body name="right_femur_bearing" pos="0 -0.0669 -0.09" quat="0.704553 -0.704549 -0.0600671 -0.0600668">
-              <geom name="leg_right_femur_collision" size="0.0910718 0.2" pos="0.043456 0.000622273 -0.115825" quat="0.194464 0.00344037 0.980904 2.41185e-06" class="collision"/>
+              <geom name="leg_right_femur_collision" size="0.08 0.2" pos="0.03 0.2 0" quat="0.0308436 0.0308436 0.7064338 0.7064338" class="collision"/>
               <body name="right_ankle_motor_l" pos="-0.06666 -0.05543 0.048" quat="0.228743 0 0 0.973487">
                 <inertial pos="0.000133 0.020649 2e-06" quat="0.703746 0.705813 0.0462663 -0.0665485" mass="0.776604" diaginertia="0.000566409 0.000553678 0.000461913"/>
                 <joint name="right_ankle_motor_l" pos="0 0 0" axis="0 0 -1" range="-3.14159 3.14159"/>
