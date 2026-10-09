@@ -116,8 +116,6 @@ def _calc_leg_params(stiffness: float, effort: float) -> dict:
 
 # Motor parameters: (gear_ratio, motor_inertia, effort_limit)
 S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
-S_MINUS = _calc_actuator_params(101, 1.3e-5, 25)
-XS = _calc_actuator_params(101, 1.3e-5, 25)
 
 
 def _load_spec(xml_path: Path) -> mujoco.MjSpec:
