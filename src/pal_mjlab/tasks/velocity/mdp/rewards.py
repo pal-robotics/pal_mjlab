@@ -560,8 +560,8 @@ def track_ee_target(
   asset: Entity = env.scene[asset_cfg.name]
   n = len(body_names)
 
-  # Reference EE positions in base frame, (N, n*3)
-  ref_pos_b = ref_body_pos_b(env, command_name, body_names).view(env.num_envs, n, 3)
+  # Reference EE positions in base frame, (N, n, 3)
+  ref_pos_b = ref_body_pos_b(env, command_name).view(env.num_envs, n, 3)
 
   # Actual EE positions in the robot base frame
   body_ids, _ = asset.find_bodies(body_names, preserve_order=True)

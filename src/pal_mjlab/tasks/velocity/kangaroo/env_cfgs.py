@@ -7,7 +7,7 @@ from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import MetricsTermCfg
 from mjlab.managers.event_manager import EventTermCfg
-from mjlab.managers.observation_manager import ObservationTermCfg
+from mjlab.managers.observation_manager import ObservationTermCfg, ObservationGroupCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
@@ -714,6 +714,12 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     "actions": ObservationTermCfg(func=mdp.last_action),
   }
 
+  cfg.observations["actor"] = ObservationGroupCfg(
+    terms=actor_terms,
+    concatenate_terms=True,
+    enable_corruption=True,
+  )
+
   del cfg.observations["critic"].terms["command"]
 
   for term_name, term in actor_terms.items() :
@@ -749,6 +755,8 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_1_.*"]
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_4_.*"]
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_(?![14]_joint)\d+_joint"]
+    del cfg.rewards["pose"].params[pose_type][r"pelvis_1.*"]
+    del cfg.rewards["pose"].params[pose_type][r"pelvis_2.*"]
 
   # Add rewards for tracking base link and end effector commands
   cfg.rewards["track_end_effector_target"] = RewardTermCfg(
@@ -757,6 +765,7 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={
       "command_name" : "wbc_command",
       "std" : math.sqrt(0.25),
+      "body_names" : end_effector_body_names,
     }
   )
 

@@ -70,16 +70,15 @@ def ref_gravity_b(env: ManagerBasedRlEnv) -> torch.Tensor:
   return ref
 
 
-def ref_base_height(env: ManagerBasedRlEnv, command_name : str) -> torch.Tensor:
+def ref_base_height(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+
+  return command[:, 6:7].clone()
+
+def ref_body_pos_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
 
   command = env.command_manager.get_command(command_name)
   assert command is not None, f"Command '{command_name}' not found."
   
-  return command[:, 6]
-
-def ref_body_pos_b(env: ManagerBasedRlEnv, command_name : str) -> torch.Tensor:
-
-  command = env.command_manager.get_command(command_name)
-  assert command is not None, f"Command '{command_name}' not found."
-  
-  return command[:, :6]
+  return command[:, :6].clone()

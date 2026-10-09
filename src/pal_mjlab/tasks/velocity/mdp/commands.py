@@ -247,7 +247,10 @@ class WbcCommand (CommandTerm) :
     self.ee_left_position_command[env_ids, 1] = r.uniform_(*self.cfg.tracked_body_ranges[self.cfg.tracked_body_names[1]].y)
     self.ee_left_position_command[env_ids, 2] = r.uniform_(*self.cfg.tracked_body_ranges[self.cfg.tracked_body_names[1]].z)
 
-    self.base_height_command[env_ids] = r.uniform_(*self.cfg.tracked_body_ranges[self.cfg.tracked_body_names[2]].z)
+    self.base_height_command[env_ids, 0] = r.uniform_(*self.cfg.tracked_body_ranges[self.cfg.tracked_body_names[2]].z)
+
+  def _update_command(self, env_ids: torch.Tensor | None) -> None:
+    pass
 
 @dataclass(kw_only=True)
 class WbcCommandCfg(CommandTermCfg) :
