@@ -118,9 +118,69 @@ def _calc_leg_params(stiffness: float, effort: float) -> dict:
 S_PLUS = _calc_actuator_params(121, 1.728e-5, 50)
 
 
-def _load_spec(xml_path: Path) -> mujoco.MjSpec:
-  spec = mujoco.MjSpec.from_file(str(xml_path))
+##
+# Spec normalization.
+#
+# The generated MJCF is a standalone viewer scene: it ships a floor, a skybox and
+# 22 <motor> actuators, and it leaves every robot geom unnamed. mjlab expects a
+# bare robot (the scene supplies terrain and lighting), builds its own <position>
+# actuators, and matches geoms by name, so all three are fixed up on load.
+##
+
+_COLLISION_GROUP = 3
+
+# Bodies carrying the sole geoms. Renamed so the ``*_foot_collision`` convention
+# shared with the other PAL robots keeps working.
+_FOOT_BODIES = {"leg_left_5_link": "left_foot", "leg_right_5_link": "right_foot"}
+
+# Scene-only assets bundled with the generated model.
+_SCENE_GEOMS = ("floor",)
+_SCENE_MATERIALS = ("groundplane",)
+_SCENE_TEXTURES = ("groundplane", "")  # "" is the unnamed skybox.
+
+
+def _name_geoms(spec: mujoco.MjSpec) -> None:
+  """Give every geom a name derived from its body, so regexes can select it.
+
+  mjlab's ``CollisionCfg`` looks geoms up by name and disables every geom it does
+  not match; with the generated model's unnamed geoms that lookup collapses onto a
+  single empty name and silently disables collision on the whole robot.
+  """
+  for body in spec.bodies:
+    stem = _FOOT_BODIES.get(body.name, body.name)
+    counts: dict[str, int] = {}
+    for geom in body.geoms:
+      if geom.name:
+        continue
+      kind = "collision" if geom.group == _COLLISION_GROUP else "visual"
+      index = counts.get(kind, 0)
+      counts[kind] = index + 1
+      geom.name = f"{stem}_{kind}" + (f"_{index}" if index else "")
+
+
+def _normalize_spec(spec: mujoco.MjSpec) -> mujoco.MjSpec:
+  # Drop the XML's <motor> actuators; mjlab adds <position> actuators of its own
+  # from KANG_FULL_ARTICULATION and does not remove pre-existing ones.
+  for actuator in list(spec.actuators):
+    spec.delete(actuator)
+
+  # Drop the standalone viewer scene, which would duplicate mjlab's terrain.
+  for geom in list(spec.worldbody.geoms):
+    if geom.name in _SCENE_GEOMS:
+      spec.delete(geom)
+  for material in list(spec.materials):
+    if material.name in _SCENE_MATERIALS:
+      spec.delete(material)
+  for texture in list(spec.textures):
+    if texture.name in _SCENE_TEXTURES:
+      spec.delete(texture)
+
+  _name_geoms(spec)
   return spec
+
+
+def _load_spec(xml_path: Path) -> mujoco.MjSpec:
+  return _normalize_spec(mujoco.MjSpec.from_file(str(xml_path)))
 
 
 def get_kangaroo_spec() -> mujoco.MjSpec:
@@ -208,7 +268,9 @@ INIT_STATE = EntityCfg.InitialStateCfg(
 # Collision config.
 ##
 
-_FOOT_REGEX = ".*_foot_collision"
+# Geom names come from ``_name_geoms``: "<body>_collision" for every group-3 geom,
+# with the two sole bodies renamed to left_foot / right_foot.
+_FOOT_REGEX = r"(left|right)_foot_collision$"
 
 FULL_COLLISION = CollisionCfg(
   geom_names_expr=(".*_collision",),
