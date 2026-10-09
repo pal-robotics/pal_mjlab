@@ -20,13 +20,13 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
+
 - **Update identified parameters, add domain randomization for joint armature,
   friction loss and viscous damping, and lower natural frequency from 10Hz to 5 Hz**
   Training with identified parameters and lower natural frequency have resulted in
   policies with smoother and more stable effort command profiles. Policies trained
   with these changes have shown consistent improvement to previous ones.
   (`#119 <https://github.com/pal-robotics/pal_mjlab/pull/119>`_)
-
 
 - **Removing custom height targets and weights for foot_swing_height and
   foot_clearance rewards in Kangaroo rough velocity task.** Removing values
