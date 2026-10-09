@@ -1,27 +1,6 @@
 <mujoco model="full-legs-7">
   <compiler angle="radian" meshdir="assets/" texturedir="assets/"/>
-
-  <default>
-    <joint armature="0.01" damping="5" frictionloss="1" limited="true"/>
-    <default class="kangaroo">
-      <!-- stiffer contact (solref="0.002 1") worsened sim2real, using defaults -->
-      <!-- <geom solref="0.002 1" priority="1"/> -->
-      <site group="5" rgba="1 0 0 1" size="0.01" />
-      <default class="visual">
-          <geom type="mesh" contype="0" conaffinity="0" group="2" density="0" material="dark_gray"/>
-      </default>
-      <default class="collision">
-          <geom type="capsule" group="3" material="bright_orange" contype="1" conaffinity="1"/>
-          <default class="foot_capsule">
-            <geom type="capsule" size="0.01" density="0"/>
-          </default>
-      </default>
-    </default>
-  </default>
-
   <asset>
-    <material name="dark_gray"      rgba="0.298039 0.298039 0.298039 1"/>
-    <material name="bright_orange"  rgba="1 0.65 0 0.2"/>
     <mesh file="full/base_link_with_pelvis/base_link_with_pelvis.obj" scale="1.0 1.0 1.0"/>
     <material name="mtl_base_link_with_pelvis" specular="0.20000000000000004" shininess="1.0" rgba="0.29803922 0.29803922 0.29803922 1.0"/>
     <mesh file="full/handle/handle.obj" scale="1.0 1.0 1.0"/>
@@ -126,12 +105,13 @@
     <material name="mtl_fake_forearm_right_link" specular="0.20000000000000004" shininess="1.0" rgba="0.29803922 0.29803922 0.29803922 1.0"/>
   </asset>
   <worldbody>
-    <body name="base_link" pos="0 0 1.02" quat="1 0 0 0" childclass="kangaroo">
+    <body name="base_link" pos="0 0 1.02" quat="1 0 0 0">
       <freejoint name="floating_base_joint"/>
       <inertial pos="-0.109747 -5.1e-05 -0.014501" quat="0.524198 0.52286 -0.475695 0.47492" mass="4.95191" diaginertia="0.0512783 0.0358327 0.0254259"/>
       <body name="back_handle">
         <inertial pos="-0.1742 2.256e-05 -0.0026718" quat="0.350797 0.350792 -0.613958 0.613957" mass="0.32489" diaginertia="0.00645011 0.00511549 0.0015135"/>
         <geom material="mtl_handle" mesh="handle" class="visual" pos="" quat=""/>
+        <geom mesh="handle" class="collision" pos="" quat=""/>
       </body>
       <body name="pelvis_base_link" pos="-0.0918 0 -0.0455">
         <inertial pos="-0.019996 -2e-06 0.003623" quat="0.999691 0 0.0248385 0" mass="1.61061" diaginertia="0.00677426 0.006367 0.00383074"/>
@@ -139,12 +119,12 @@
           <inertial pos="-0.02593 -1e-06 0.001466" quat="0.99984 0 -0.0179004 0" mass="1.24856" diaginertia="0.00539676 0.004808 0.00324424"/>
           <joint name="pelvis_1_joint" pos="0 0 0" axis="0 0 -1" range="-0.349066 0.349066" actuatorfrcrange="-100 100"/>
           <body name="pelvis_2_link" pos="-0.0591 0 0" quat="0.707105 0 -0.707108 0">
-            <geom name="pelvis_2_collision" size="0.163724 0.162985" pos="4.77798e-07 -1.67441e-06 0.234507" quat="1 -3.97075e-06 -1.19191e-05 0" class="collision"/>
             <inertial pos="0 0 -0.011237" quat="0.0905443 0.701286 -0.0905443 0.701286" mass="0.438705" diaginertia="0.001283 0.000678889 0.000634111"/>
             <joint name="pelvis_2_joint" pos="0 0 0" axis="0 0 -1" range="-1.309 1.309" actuatorfrcrange="-100 100"/>
             <body name="torso_link" pos="0 0 0.0061">
               <inertial pos="-0.008953 0.001581 0.216619" quat="0.999943 0.00619727 0.00134963 -0.0085383" mass="15.1027" diaginertia="0.342274 0.311149 0.128841"/>
               <body name="torso_imu_link" pos="0.071 -0.0014 0.02" quat="0 0.707107 -0.707107 0">
+                <geom size="0.005 0.005 0.005" type="box" class="collision"/>
                 <geom size="0.005 0.005 0.005" type="box" class="visual"/>
               </body>
               <body name="torso_front_up_rgbd_camera_bottom_screw_frame" pos="0.1056 0 0.40767" quat="0.965926 0 0.25882 0">
@@ -169,6 +149,7 @@
                     <body name="torso_front_up_rgbd_camera_gyro_optical_frame" quat="0.5 -0.5 0.5 -0.5"/>
                   </body>
                   <geom material="material_d435_0" mesh="d435" class="visual" pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5"/>
+                  <geom mesh="d435" class="collision" pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5"/>
                 </body>
               </body>
               <body name="torso_front_down_rgbd_camera_bottom_screw_frame" pos="0.095041 0 0.186487" quat="0.866025 0 0.500001 0">
@@ -193,6 +174,7 @@
                     <body name="torso_front_down_rgbd_camera_gyro_optical_frame" quat="0.5 -0.5 0.5 -0.5"/>
                   </body>
                   <geom material="material_d435_0" mesh="d435" class="visual" pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5"/>
+                  <geom mesh="d435" class="collision" pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5"/>
                 </body>
               </body>
               <body name="torso_rear_up_rgbd_camera_bottom_screw_frame" pos="-0.1056 0 0.40767" quat="1.28159e-06 -0.25882 3.43401e-07 0.965926">
@@ -217,6 +199,7 @@
                     <body name="torso_rear_up_rgbd_camera_gyro_optical_frame" quat="0.5 -0.5 0.5 -0.5"/>
                   </body>
                   <geom material="material_d435_0" mesh="d435" class="visual" pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5"/>
+                  <geom mesh="d435" class="collision" pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5"/>
                 </body>
               </body>
               <body name="torso_rear_down_rgbd_camera_bottom_screw_frame" pos="-0.095041 0 0.186487" quat="1.14904e-06 -0.500001 6.63399e-07 0.866025">
@@ -241,6 +224,7 @@
                     <body name="torso_rear_down_rgbd_camera_gyro_optical_frame" quat="0.5 -0.5 0.5 -0.5"/>
                   </body>
                   <geom material="material_d435_0" mesh="d435" class="visual" pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5"/>
+                  <geom mesh="d435" class="collision" pos="0.0043 -0.0175 0" quat="0.5 0.5 0.5 0.5"/>
                 </body>
               </body>
               <body name="arm_left_base_link" pos="0 0.105954 0.384396" quat="0.642802 -0.766033 1.86923e-06 1.63502e-07">
@@ -255,24 +239,28 @@
                       <inertial pos="-0.00706385 -0.00303013 -0.0572396" quat="0.991251 -0.0809737 0.0910312 0.0507756" mass="1.17879" diaginertia="0.00192065 0.00177272 0.000875276"/>
                       <joint name="arm_left_3_joint" pos="0 0 0" axis="0 0 -1" range="-2.61799 2.61799" actuatorfrcrange="-43 43"/>
                       <body name="arm_left_4_link" pos="-0.03711 -0.02 -0.17011" quat="9.38184e-07 0.707105 9.38187e-07 -0.707108">
-                        <geom name="arm_left_4_collision" size="0.054849 0.219217" pos="0.210246 -0.0167497 -0.0171982" quat="0.733112 0.0532001 0.678025 -2.2842e-07" class="collision"/>
                         <inertial pos="0.0752641 -0.0079317 -0.023427" quat="0.573967 0.373833 0.602191 0.410095" mass="1.43535" diaginertia="0.0210305 0.0210101 0.00117153"/>
                         <joint name="arm_left_4_joint" pos="0 0 0" axis="0 0 1" range="-1.1345 2.4435" actuatorfrcrange="-43 43"/>
                         <body name="arm_left_tool_link" pos="0.35 -0.02 -0.0255"/>
                         <geom material="mtl_fake_forearm_left_link" mesh="fake_forearm_left_link" class="visual" pos="" quat=""/>
+                        <geom mesh="fake_forearm_left_link" class="collision" pos="" quat=""/>
                         <site name="arm_left_4_link" pos="0 0 0" quat="1.0 0 0 0"/>
                         <site name="arm_left_tool_link" pos="0.35 -0.02 -0.0255" quat="1.0 0 0 0"/>
                       </body>
                       <geom material="mtl_arm3_link" mesh="arm3_link" class="visual" pos="" quat=""/>
+                      <geom mesh="arm3_link" class="collision" pos="" quat=""/>
                       <site name="arm_left_3_link" pos="0 0 0" quat="1.0 0 0 0"/>
                     </body>
                     <geom material="mtl_arm2_link" mesh="arm2_link" class="visual" pos="" quat=""/>
+                    <geom mesh="arm2_link" class="collision" pos="" quat=""/>
                     <site name="arm_left_2_link" pos="0 0 0" quat="1.0 0 0 0"/>
                   </body>
                   <geom material="mtl_arm1_link" mesh="arm1_link" class="visual" pos="" quat=""/>
+                  <geom mesh="arm1_link" class="collision" pos="" quat=""/>
                   <site name="arm_left_1_link" pos="0 0 0" quat="1.0 0 0 0"/>
                 </body>
                 <geom material="mtl_arm_base_link" mesh="arm_base_link" class="visual" pos="" quat=""/>
+                <geom mesh="arm_base_link" class="collision" pos="" quat=""/>
               </body>
               <body name="arm_right_base_link" pos="0 -0.105954 0.384396" quat="1.01637e-06 8.52866e-07 0.766033 -0.642802">
                 <inertial pos="0 0 0" mass="9.05e-07" diaginertia="0 0 0"/>
@@ -286,28 +274,34 @@
                       <inertial pos="-0.00706385 -0.00303013 -0.0572396" quat="0.991251 -0.0809737 0.0910312 0.0507756" mass="1.17879" diaginertia="0.00192065 0.00177272 0.000875276"/>
                       <joint name="arm_right_3_joint" pos="0 0 0" axis="0 0 -1" range="-2.61799 2.61799" actuatorfrcrange="-43 43"/>
                       <body name="arm_right_4_link" pos="-0.03711 -0.02 -0.17011" quat="9.38184e-07 0.707105 9.38187e-07 -0.707108">
-                        <geom name="arm_right_4_collision" size="0.0559132 0.220143" pos="0.210649 -0.0172373 -0.0265895" quat="0.717524 0.0513886 0.694636 -1.38234e-06" class="collision"/>
                         <inertial pos="0.0752641 -0.0079317 -0.023427" quat="0.573967 0.373833 0.602191 0.410095" mass="1.43535" diaginertia="0.0210305 0.0210101 0.00117153"/>
                         <joint name="arm_right_4_joint" pos="0 0 0" axis="0 0 1" range="-1.1345 2.4435" actuatorfrcrange="-43 43"/>
                         <body name="arm_right_tool_link" pos="0.35 -0.02 -0.0255"/>
                         <geom material="mtl_fake_forearm_right_link" mesh="fake_forearm_right_link" class="visual" pos="" quat=""/>
+                        <geom mesh="fake_forearm_right_link" class="collision" pos="" quat=""/>
                         <site name="arm_right_4_link" pos="0 0 0" quat="1.0 0 0 0"/>
                         <site name="arm_right_tool_link" pos="0.35 -0.02 -0.0255" quat="1.0 0 0 0"/>
                       </body>
                       <geom material="mtl_arm3_link" mesh="arm3_link" class="visual" pos="" quat=""/>
+                      <geom mesh="arm3_link" class="collision" pos="" quat=""/>
                       <site name="arm_right_3_link" pos="0 0 0" quat="1.0 0 0 0"/>
                     </body>
                     <geom material="mtl_arm2_link" mesh="arm2_link" class="visual" pos="" quat=""/>
+                    <geom mesh="arm2_link" class="collision" pos="" quat=""/>
                     <site name="arm_right_2_link" pos="0 0 0" quat="1.0 0 0 0"/>
                   </body>
                   <geom material="mtl_arm1_link" mesh="arm1_link" class="visual" pos="" quat=""/>
+                  <geom mesh="arm1_link" class="collision" pos="" quat=""/>
                   <site name="arm_right_1_link" pos="0 0 0" quat="1.0 0 0 0"/>
                 </body>
                 <geom material="mtl_arm_base_link" mesh="arm_base_link" class="visual" pos="" quat=""/>
+                <geom mesh="arm_base_link" class="collision" pos="" quat=""/>
               </body>
               <geom material="mtl_torso_link" mesh="torso_link" class="visual" pos="" quat=""/>
+              <geom mesh="torso_link" class="collision" pos="" quat=""/>
             </body>
             <geom material="mtl_pelvis_2_link" mesh="pelvis_2_link" class="visual" pos="" quat=""/>
+            <geom mesh="pelvis_2_link" class="collision" pos="" quat=""/>
             <site name="torso_imu_link" pos="0.071 -0.0014 0.0261" quat="0 0.7071067811865476 -0.7071067811865475 0"/>
             <site name="pelvis_2_link" pos="0 0 0" quat="1.0 0 0 0"/>
             <site name="torso_link" pos="0 0 0.0061" quat="1.0 0 0 0"/>
@@ -371,9 +365,11 @@
             <site name="arm_right_base_link" pos="0 -0.105954 0.390496" quat="1.016368251162654e-06 8.528659190506519e-07 0.7660326804895602 -0.6428016275805616"/>
           </body>
           <geom material="mtl_pelvis_1_link" mesh="pelvis_1_link" class="visual" pos="" quat=""/>
+          <geom mesh="pelvis_1_link" class="collision" pos="" quat=""/>
           <site name="pelvis_1_link" pos="0 0 0" quat="1.0 0 0 0"/>
         </body>
         <geom material="mtl_pelvis_base_link" mesh="pelvis_base_link" class="visual" pos="" quat=""/>
+        <geom mesh="pelvis_base_link" class="collision" pos="" quat=""/>
       </body>
       <body name="left_hip_z_motor" pos="-0.1148 0.0988312 -0.0296" quat="0.702958 -0.0764878 0.702958 0.0764878">
         <inertial pos="-2e-06 0.000133 -0.020649" quat="0.761187 0.0111748 -0.00910741 0.648372" mass="0.776604" diaginertia="0.000566409 0.000553678 0.000461913"/>
@@ -385,10 +381,12 @@
             <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
           </body>
           <geom material="mtl_left_hip_z_slider" mesh="left_hip_z_slider" class="visual" pos="" quat=""/>
+          <geom mesh="left_hip_z_slider" class="collision" pos="" quat=""/>
           <site name="left_hip_z_slider" pos="0 0 0" quat="1.0 0 0 0"/>
           <site name="left_hip_z_slider_connect_a" pos="0 0 0.0912225776418345" quat="-0.07648777758438371 0.7029577653601968 -0.07648777758438864 0.7029577653601967"/>
         </body>
         <geom material="mtl_left_hip_z_motor" mesh="left_hip_z_motor" class="visual" pos="" quat=""/>
+        <geom mesh="left_hip_z_motor" class="collision" pos="" quat=""/>
         <site name="left_hip_z_motor" pos="0 0 0" quat="1.0 0 0 0"/>
       </body>
       <body name="left_hip_z" pos="-0.01469 0.08 -0.0166">
@@ -407,13 +405,16 @@
                 <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
               </body>
               <geom material="mtl_left_hip_xy_slider_l" mesh="left_hip_xy_slider_l" class="visual" pos="" quat=""/>
+              <geom mesh="left_hip_xy_slider_l" class="collision" pos="" quat=""/>
               <site name="left_hip_xy_slider_l" pos="0 0 0" quat="1.0 0 0 0"/>
               <site name="left_hip_xy_slider_l_connect_a" pos="0 0 0.0934432715608783" quat="0.7056044680840776 -0.04606880310778746 0.04606880310778761 -0.7056044680840803"/>
             </body>
             <geom material="mtl_left_hip_xy_motor_l" mesh="left_hip_xy_motor_l" class="visual" pos="" quat=""/>
+            <geom mesh="left_hip_xy_motor_l" class="collision" pos="" quat=""/>
             <site name="left_hip_xy_motor_l" pos="0 0 0" quat="1.0 0 0 0"/>
           </body>
           <geom material="mtl_hip_xy_bracket_l" mesh="hip_xy_bracket_l" class="visual" pos="" quat=""/>
+          <geom mesh="hip_xy_bracket_l" class="collision" pos="" quat=""/>
           <site name="left_hip_xy_bracket_l" pos="0 0 0" quat="1.0 0 0 0"/>
         </body>
         <body name="left_hip_xy_bracket_r" pos="0.0625 -0.035 -0.06685" quat="0.707107 0 0.707107 0">
@@ -429,14 +430,16 @@
                 <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
               </body>
               <geom material="mtl_left_hip_xy_slider_r" mesh="left_hip_xy_slider_r" class="visual" pos="" quat=""/>
+              <geom mesh="left_hip_xy_slider_r" class="collision" pos="" quat=""/>
               <site name="left_hip_xy_slider_r" pos="0 0 0" quat="1.0 0 0 0"/>
               <site name="left_hip_xy_slider_r_connect_a" pos="0 0 0.0934432715608789" quat="0.7056044680840776 -0.04606880310778746 0.04606880310778761 -0.7056044680840803"/>
             </body>
             <geom material="mtl_left_hip_xy_motor_r" mesh="left_hip_xy_motor_r" class="visual" pos="" quat=""/>
+            <geom mesh="left_hip_xy_motor_r" class="collision" pos="" quat=""/>
             <site name="left_hip_xy_motor_r" pos="0 0 0" quat="1.0 0 0 0"/>
-            <geom name="left_hip_xy_motor_r_collision" size="0.04" fromto="-0.01 0 -0.015 -0.01 0 0.0" class="collision"/>
           </body>
           <geom material="mtl_hip_xy_bracket_r" mesh="hip_xy_bracket_r" class="visual" pos="" quat=""/>
+          <geom mesh="hip_xy_bracket_r" class="collision" pos="" quat=""/>
           <site name="left_hip_xy_bracket_r" pos="0 0 0" quat="1.0 0 0 0"/>
         </body>
         <body name="left_hip_xy_cross" pos="0.015 0 -0.1595">
@@ -452,6 +455,7 @@
                 <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
               </body>
               <geom material="mtl_left_hip_xy_cross_l" mesh="left_hip_xy_cross_l" class="visual" pos="" quat=""/>
+              <geom mesh="left_hip_xy_cross_l" class="collision" pos="" quat=""/>
               <site name="left_hip_xy_cross_l" pos="0 0 0" quat="1.0 0 0 0"/>
               <site name="left_hip_xy_slider_l_connect_b" pos="0 0 0" quat="1.0 0 0 0"/>
             </body>
@@ -462,6 +466,7 @@
                 <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
               </body>
               <geom material="mtl_left_hip_xy_cross_r" mesh="left_hip_xy_cross_r" class="visual" pos="" quat=""/>
+              <geom mesh="left_hip_xy_cross_r" class="collision" pos="" quat=""/>
               <site name="left_hip_xy_cross_r" pos="0 0 0" quat="1.0 0 0 0"/>
               <site name="left_hip_xy_slider_r_connect_b" pos="0 0 0" quat="1.0 0 0 0"/>
             </body>
@@ -476,10 +481,12 @@
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
                   <geom material="mtl_ankle_slider_l" mesh="ankle_slider_l" class="visual" pos="" quat=""/>
+                  <geom mesh="ankle_slider_l" class="collision" pos="" quat=""/>
                   <site name="left_ankle_slider_l" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="left_ankle_slider_l_connect_a" pos="0 -0.0789216548465015 0" quat="1.0 0 0 0"/>
                 </body>
                 <geom material="mtl_ankle_motor_l" mesh="ankle_motor_l" class="visual" pos="" quat=""/>
+                <geom mesh="ankle_motor_l" class="collision" pos="" quat=""/>
                 <site name="left_ankle_motor_l" pos="0 0 0" quat="1.0 0 0 0"/>
               </body>
               <body name="left_ankle_motor_r" pos="-0.06666 -0.05544 -0.048" quat="0.228743 0 0 0.973487">
@@ -492,10 +499,12 @@
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
                   <geom material="mtl_ankle_slider_r" mesh="ankle_slider_r" class="visual" pos="" quat=""/>
+                  <geom mesh="ankle_slider_r" class="collision" pos="" quat=""/>
                   <site name="left_ankle_slider_r" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="left_ankle_slider_r_connect_a" pos="0 -0.0789216548465007 0" quat="1.0 0 0 0"/>
                 </body>
                 <geom material="mtl_ankle_motor_r" mesh="ankle_motor_r" class="visual" pos="" quat=""/>
+                <geom mesh="ankle_motor_r" class="collision" pos="" quat=""/>
                 <site name="left_ankle_motor_r" pos="0 0 0" quat="1.0 0 0 0"/>
               </body>
               <body name="left_ankle_crank_l" pos="0 0 0.048" quat="0.924578 0 0 0.380993">
@@ -508,6 +517,7 @@
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
                   <geom material="mtl_ankle_femur_bar_l" mesh="ankle_femur_bar_l" class="visual" pos="" quat=""/>
+                  <geom mesh="ankle_femur_bar_l" class="collision" pos="" quat=""/>
                   <site name="left_ankle_femur_bar_l" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="left_ankle_femur_bar_l_connect_a" pos="0.379290649794729 -0.0152128645603287 0.0175263153618152" quat="0.7536182905102049 0.011954157024163251 0.010423482183054259 -0.6571209335864271"/>
                 </body>
@@ -515,6 +525,7 @@
                   <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                 </body>
                 <geom material="mtl_ankle_crank_l" mesh="ankle_crank_l" class="visual" pos="" quat=""/>
+                <geom mesh="ankle_crank_l" class="collision" pos="" quat=""/>
                 <site name="left_ankle_crank_l" pos="0 0 0" quat="1.0 0 0 0"/>
                 <site name="left_ankle_slider_l_connect_b" pos="-0.0116368987741742 0.0330088258942932 0" quat="0.5823824866638635 0 0 0.8129149028202244"/>
               </body>
@@ -528,6 +539,7 @@
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
                   <geom material="mtl_ankle_femur_bar_r" mesh="ankle_femur_bar_r" class="visual" pos="" quat=""/>
+                  <geom mesh="ankle_femur_bar_r" class="collision" pos="" quat=""/>
                   <site name="left_ankle_femur_bar_r" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="left_ankle_femur_bar_r_connect_a" pos="0.379290649794729 -0.0146493337149796 -0.0179999999999986" quat="0.753713095057847 0 0 -0.6572035988476638"/>
                 </body>
@@ -535,6 +547,7 @@
                   <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                 </body>
                 <geom material="mtl_ankle_crank_r" mesh="ankle_crank_r" class="visual" pos="" quat=""/>
+                <geom mesh="ankle_crank_r" class="collision" pos="" quat=""/>
                 <site name="left_ankle_crank_r" pos="0 0 0" quat="1.0 0 0 0"/>
                 <site name="left_ankle_slider_r_connect_b" pos="-0.0116368987741745 0.0330088258942931 0" quat="0.5823831579627639 0 0 0.8129144218928082"/>
               </body>
@@ -545,13 +558,13 @@
                   <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                 </body>
                 <geom material="mtl_hip_xy_link" mesh="hip_xy_link" class="visual" pos="" quat=""/>
+                <geom mesh="hip_xy_link" class="collision" pos="" quat=""/>
                 <site name="left_hip_xy_link" pos="0 0 0" quat="1.0 0 0 0"/>
                 <site name="left_hip_xy_link_connect_a" pos="0.0196289730052707 0.0878333844204943 0" quat="0.6666418021136001 0 0 0.7453782312857893"/>
               </body>
               <body name="left_femur">
                 <inertial pos="0.040023 0.081883 0.000265" quat="0.528917 0.458374 -0.539139 0.468476" mass="2.85287" diaginertia="0.0391432 0.038988 0.00314488"/>
                 <joint name="left_femur" pos="0 0 0" axis="0 0 1" range="-3.14159 3.14159"/>
-                <geom name="leg_left_femur_collision" size="0.08 0.2" pos="0.03 0.2 0" quat="0.0308436 0.0308436 0.7064338 0.7064338" class="collision"/>
                 <body name="left_femur_triangle" pos="-0.0365418 -0.0162695 0" quat="0.600911 0 0 0.799316">
                   <inertial pos="0.042539 0.008295 -0.000244" quat="0.0476089 0.709999 -0.0358618 0.701675" mass="0.107984" diaginertia="0.000117013 0.000110186 2.48015e-05"/>
                   <joint name="left_femur_triangle" pos="0 0 0" axis="0 0 -1" range="-3.14159 3.14159"/>
@@ -565,10 +578,12 @@
                       <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                     </body>
                     <geom material="mtl_femur_rod" mesh="femur_rod" class="visual" pos="" quat=""/>
+                    <geom mesh="femur_rod" class="collision" pos="" quat=""/>
                     <site name="left_femur_rod" pos="0 0 0" quat="1.0 0 0 0"/>
                     <site name="left_femur_rod_connect_a" pos="0 0.40427 0" quat="0.8733552867227546 0 0 0.48708371267515715"/>
                   </body>
                   <geom material="mtl_femur_triangle" mesh="femur_triangle" class="visual" pos="" quat=""/>
+                  <geom mesh="femur_triangle" class="collision" pos="" quat=""/>
                   <site name="left_femur_triangle" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="left_hip_xy_link_connect_b" pos="0.0285967949314291 0.0279682555703746 0" quat="1.0 0 0 0"/>
                 </body>
@@ -585,6 +600,7 @@
                         <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                       </body>
                       <geom material="mtl_ankle_tibia_bar_l" mesh="ankle_tibia_bar_l" class="visual" pos="" quat=""/>
+                      <geom mesh="ankle_tibia_bar_l" class="collision" pos="" quat=""/>
                       <site name="left_ankle_tibia_bar_l2" pos="0 0 0" quat="1.0 0 0 0"/>
                       <site name="left_ankle_tibia_bar_l_connect_a" pos="-0.198131731601769 0.324131156991243 -0.00910000000000777" quat="0 -0.0931145555743388 0.9956554020042242 0"/>
                     </body>
@@ -594,6 +610,7 @@
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
                   <geom material="mtl_butterfly_l" mesh="butterfly_l" class="visual" pos="" quat=""/>
+                  <geom mesh="butterfly_l" class="collision" pos="" quat=""/>
                   <site name="left_butterfly_l" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="left_ankle_femur_bar_l_connect_b" pos="-0.0517732616638391 0.0303237427882477 0.0660000000000009" quat="0.9999664145182386 0 0 -0.00819572056247199"/>
                 </body>
@@ -610,6 +627,7 @@
                         <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                       </body>
                       <geom material="mtl_ankle_tibia_bar_r" mesh="ankle_tibia_bar_r" class="visual" pos="" quat=""/>
+                      <geom mesh="ankle_tibia_bar_r" class="collision" pos="" quat=""/>
                       <site name="left_ankle_tibia_bar_r2" pos="0 0 0" quat="1.0 0 0 0"/>
                       <site name="left_ankle_tibia_bar_r_conenct_a" pos="-0.198131731601772 0.324131156991243 0.0090999999999922" quat="0 -0.0931145555743388 0.9956554020042242 0"/>
                     </body>
@@ -619,6 +637,7 @@
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
                   <geom material="mtl_butterfly_r" mesh="butterfly_r" class="visual" pos="" quat=""/>
+                  <geom mesh="butterfly_r" class="collision" pos="" quat=""/>
                   <site name="left_butterfly_r" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="left_ankle_femur_bar_r_connect_b" pos="-0.0517732616638352 0.0303237427882473 -0.0659999999999991" quat="0.9999664145182386 0 0 -0.008195720562472138"/>
                 </body>
@@ -632,17 +651,17 @@
                       <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                     </body>
                     <geom material="mtl_knee_rods" mesh="knee_rods" class="visual" pos="" quat=""/>
+                    <geom mesh="knee_rods" class="collision" pos="" quat=""/>
                     <site name="left_knee_rods" pos="0 0 0" quat="1.0 0 0 0"/>
                     <site name="left_knee_rods_connect_a" pos="-0.0179533860942924 0 0.214249097845823" quat="-0.2571448418718471 0.25714484187184833 0.6586930471006229 0.6586930471006214"/>
                   </body>
                   <geom material="mtl_femur_slider" mesh="femur_slider" class="visual" pos="" quat=""/>
+                  <geom mesh="femur_slider" class="collision" pos="" quat=""/>
                   <site name="left_femur_slider" pos="0 0 0" quat="1.0 0 0 0"/>
                 </body>
                 <body name="left_tibia" pos="0.0725074 0.373018 0">
                   <inertial pos="-0.043384 0.113356 -5.8e-05" quat="0.333064 0.622893 -0.333075 0.624606" mass="0.766071" diaginertia="0.011253 0.0110503 0.000445683"/>
                   <joint name="left_tibia" pos="0 0 0" axis="0 0 1" range="-3.14159 3.14159"/>
-                  <geom name="leg_left_knee_collision" size="0.04" fromto="0.03896 0.02628 0 -0.16904 0.24934 0" class="collision"/>
-                  <geom name="leg_left_knee_bar_collision" size="0.05" fromto="-0.063 0 0 -0.18400 0.23889 0" class="collision"/>
                   <body name="left_femur_rod_connect_b" pos="-0.0240466 0.0867281 0" quat="0.931533 0 0 0.363658">
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
@@ -657,18 +676,6 @@
                           <inertial pos="-0.00759995 -6.94998e-09 5.88281e-08" quat="3.61787e-06 0.707107 3.61787e-06 0.707106" mass="0.0905838" diaginertia="2.98863e-05 2.92763e-05 4.05264e-06"/>
                           <joint name="leg_left_4_joint" pos="0 0 0" axis="0 1 0" range="-0.741765 0.663225" actuatorfrcrange="-140 140"/>
                           <body name="leg_left_5_link">
-                            <body name="leg_left_foot_link" pos="0 0 -0.034" quat="0.9848078 0 -0.1736482 0">
-                              <geom name="left_foot0_collision"  class="foot_capsule" fromto="-0.0830 -0.035 0 0.110 -0.0330 0"/>
-                              <geom name="left_foot2_collision"  class="foot_capsule" fromto="-0.0975 -0.021 0 0.120 -0.0215 0"/>
-                              <geom name="left_foot4_collision"  class="foot_capsule" fromto="-0.0985 -0.007 0 0.122 -0.0065 0"/>
-                              <geom name="left_foot6_collision"  class="foot_capsule" fromto="-0.0985  0.007 0 0.122  0.0065 0"/>
-                              <geom name="left_foot8_collision"  class="foot_capsule" fromto="-0.0975  0.021 0 0.120  0.0215 0"/>
-                              <geom name="left_foot10_collision" class="foot_capsule" fromto="-0.0830  0.035 0 0.110  0.0330 0"/>
-                              <body name="leg_left_ankle_link">
-                                <geom name="leg_left_ankle_collision" class="collision" density="0" size="0.03" fromto="-0.04 0.0 0.03 0.02 0.0 0.03"/>
-                                <geom name="leg_left_ankle_bar_collision" class="collision" density="0" size="0.03" fromto="-0.045 -0.035 0.05 -0.045 0.035 0.05"/>
-                              </body>
-                            </body>
                             <inertial pos="0.00560127 -5.98529e-06 -0.0297244" quat="-8.95501e-06 0.58162 -1.58775e-05 0.813461" mass="0.61563" diaginertia="0.0019868 0.00170803 0.000338695"/>
                             <joint name="leg_left_5_joint" pos="0 0 0" axis="-1 0 0" range="-0.471239 0.471239" actuatorfrcrange="-82 82"/>
                             <body name="leg_left_5_aligned_link" quat="0.984808 0 -0.173648 0">
@@ -686,6 +693,7 @@
                               </body>
                             </body>
                             <geom material="mtl_leg_7_link" mesh="leg_7_link" class="visual" pos="" quat=""/>
+                            <geom mesh="leg_7_link" class="collision" pos="" quat=""/>
                             <site name="leg_left_5_link" pos="0 0 0" quat="1.0 0 0 0"/>
                             <site name="leg_left_5_aligned_link" pos="0 0 0" quat="0.9848077530122079 0 -0.17364817766693036 0"/>
                             <site name="left_ankle_tibia_bar_l_connect_b" pos="-0.05999128289808573 0.0339 -1.9396954590078508e-05" quat="0.12278780396897834 -0.12278780396896732 0.6963642403200229 0.696364240320015"/>
@@ -697,13 +705,16 @@
                             <site name="left_foot_lower_right" pos="-0.07473494288332039 -0.045 -0.07242884999933963" quat="0.9848077530122079 0 -0.17364817766693036 0"/>
                           </body>
                           <geom material="mtl_leg_6_link" mesh="leg_6_link" class="visual" pos="" quat="0.984808 0 -0.173648 0"/>
+                          <geom mesh="leg_6_link" class="collision" pos="" quat="0.984808 0 -0.173648 0"/>
                           <site name="leg_left_4_link" pos="0 0 0" quat="1.0 0 0 0"/>
                         </body>
                       </body>
                     </body>
                     <geom material="mtl_leg_ankle_cross" mesh="leg_ankle_cross" class="visual" pos="" quat=""/>
+                    <geom mesh="leg_ankle_cross" class="collision" pos="" quat=""/>
                   </body>
                   <geom material="mtl_tibia" mesh="tibia" class="visual" pos="" quat=""/>
+                  <geom mesh="tibia" class="collision" pos="" quat=""/>
                   <site name="left_tibia" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="left_femur_rod_connect_b" pos="-0.0240466139057105 0.0867280828778637 0" quat="0.9315326406505532 0 0 0.3636577228694688"/>
                   <site name="left_knee_rods_connect_b" pos="-0.0240466139057105 0.0867280828778637 0" quat="0.9315326406505532 0 0 0.3636577228694688"/>
@@ -712,20 +723,24 @@
                   <site name="left_ankle_connection_frame" pos="-0.192846305557029 0.327429843528358 0" quat="-0.060069651935482346 -0.06006964963257362 0.7045506637616008 0.7045506626939312"/>
                 </body>
                 <geom material="mtl_femur" mesh="femur" class="visual" pos="" quat=""/>
+                <geom mesh="femur" class="collision" pos="" quat=""/>
                 <site name="left_femur" pos="0 0 0" quat="1.0 0 0 0"/>
               </body>
             </body>
             <geom material="mtl_left_hip_xy" mesh="left_hip_xy" class="visual" pos="" quat=""/>
+            <geom mesh="left_hip_xy" class="collision" pos="" quat=""/>
             <site name="left_hip_xy" pos="0 0 0" quat="1.0 0 0 0"/>
             <site name="left_femur_bearing" pos="0 0.0669 -0.09" quat="0.7045531218487466 -0.7045486642997518 -0.06006714485168692 -0.0600667648203836"/>
           </body>
           <geom material="mtl_left_hip_xy_cross" mesh="left_hip_xy_cross" class="visual" pos="" quat=""/>
+          <geom mesh="left_hip_xy_cross" class="collision" pos="" quat=""/>
           <site name="left_hip_xy_cross" pos="0 0 0" quat="1.0 0 0 0"/>
         </body>
         <body name="left_hip_z_slider_connect_b" pos="-0.0110255 0.0384505 -0.013" quat="0 1 0 0">
           <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
         </body>
         <geom material="mtl_left_hip_z" mesh="left_hip_z" class="visual" pos="" quat=""/>
+        <geom mesh="left_hip_z" class="collision" pos="" quat=""/>
         <site name="left_hip_z" pos="0 0 0" quat="1.0 0 0 0"/>
         <site name="left_hip_z_slider_connect_b" pos="-0.0110254942326755 0.0384504678375337 -0.0130000000000005" quat="0 1.0 0 0"/>
       </body>
@@ -739,10 +754,12 @@
             <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
           </body>
           <geom material="mtl_left_hip_z_slider" mesh="left_hip_z_slider" class="visual" pos="" quat=""/>
+          <geom mesh="left_hip_z_slider" class="collision" pos="" quat=""/>
           <site name="right_hip_z_slider" pos="0 0 0" quat="1.0 0 0 0"/>
           <site name="right_hip_z_slider_connect_a" pos="0 0 0.0912225776418345" quat="-0.07648777758438371 0.7029577653601968 -0.07648777758438864 0.7029577653601967"/>
         </body>
         <geom material="mtl_right_hip_z_motor" mesh="right_hip_z_motor" class="visual" pos="" quat=""/>
+        <geom mesh="right_hip_z_motor" class="collision" pos="" quat=""/>
         <site name="right_hip_z_motor" pos="0 0 0" quat="1.0 0 0 0"/>
       </body>
       <body name="right_hip_z" pos="-0.01469 -0.08 -0.0166">
@@ -761,13 +778,16 @@
                 <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
               </body>
               <geom material="mtl_left_hip_xy_slider_l" mesh="left_hip_xy_slider_l" class="visual" pos="" quat=""/>
+              <geom mesh="left_hip_xy_slider_l" class="collision" pos="" quat=""/>
               <site name="right_hip_xy_slider_r" pos="0 0 0" quat="1.0 0 0 0"/>
               <site name="right_hip_xy_slider_r_connect_a" pos="0 0 0.0934432715608783" quat="0.7056044680840776 -0.04606880310778746 0.04606880310778761 -0.7056044680840803"/>
             </body>
             <geom material="mtl_left_hip_xy_motor_l" mesh="left_hip_xy_motor_l" class="visual" pos="" quat=""/>
+            <geom mesh="left_hip_xy_motor_l" class="collision" pos="" quat=""/>
             <site name="right_hip_xy_motor_r" pos="0 0 0" quat="1.0 0 0 0"/>
           </body>
           <geom material="mtl_hip_xy_bracket_r" mesh="hip_xy_bracket_r" class="visual" pos="" quat=""/>
+          <geom mesh="hip_xy_bracket_r" class="collision" pos="" quat=""/>
           <site name="right_hip_xy_bracket_r" pos="0 0 0" quat="1.0 0 0 0"/>
         </body>
         <body name="right_hip_xy_bracket_l" pos="0.0625 0.035 -0.06685" quat="0.707107 0 0.707107 0">
@@ -783,14 +803,16 @@
                 <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
               </body>
               <geom material="mtl_left_hip_xy_slider_r" mesh="left_hip_xy_slider_r" class="visual" pos="" quat=""/>
+              <geom mesh="left_hip_xy_slider_r" class="collision" pos="" quat=""/>
               <site name="right_hip_xy_slider_l" pos="0 0 0" quat="1.0 0 0 0"/>
               <site name="right_hip_xy_slider_l_connect_a" pos="0 0 0.0934432715608789" quat="0.7056044680840776 -0.04606880310778746 0.04606880310778761 -0.7056044680840803"/>
             </body>
             <geom material="mtl_left_hip_xy_motor_r" mesh="left_hip_xy_motor_r" class="visual" pos="" quat=""/>
+            <geom mesh="left_hip_xy_motor_r" class="collision" pos="" quat=""/>
             <site name="right_hip_xy_motor_l" pos="0 0 0" quat="1.0 0 0 0"/>
-            <geom name="right_hip_xy_motor_l_collision" size="0.04" fromto="-0.01 0 -0.015 -0.01 0 0.0" class="collision"/>
           </body>
           <geom material="mtl_hip_xy_bracket_l" mesh="hip_xy_bracket_l" class="visual" pos="" quat=""/>
+          <geom mesh="hip_xy_bracket_l" class="collision" pos="" quat=""/>
           <site name="right_hip_xy_bracket_l" pos="0 0 0" quat="1.0 0 0 0"/>
         </body>
         <body name="right_hip_xy_cross" pos="0.015 0 -0.1595">
@@ -815,6 +837,7 @@
                 <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
               </body>
               <geom material="mtl_left_hip_xy_cross_r" mesh="left_hip_xy_cross_r" class="visual" pos="" quat=""/>
+              <geom mesh="left_hip_xy_cross_r" class="collision" pos="" quat=""/>
               <site name="right_hip_xy_cross_l" pos="0 0 0" quat="1.0 0 0 0"/>
               <site name="right_hip_xy_slider_l_connect_b" pos="0 0 0" quat="1.0 0 0 0"/>
             </body>
@@ -829,10 +852,12 @@
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
                   <geom material="mtl_ankle_slider_l" mesh="ankle_slider_l" class="visual" pos="" quat=""/>
+                  <geom mesh="ankle_slider_l" class="collision" pos="" quat=""/>
                   <site name="right_ankle_slider_l" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="right_ankle_slider_l_connect_a" pos="0 -0.0789216548465015 0" quat="1.0 0 0 0"/>
                 </body>
                 <geom material="mtl_ankle_motor_l" mesh="ankle_motor_l" class="visual" pos="" quat=""/>
+                <geom mesh="ankle_motor_l" class="collision" pos="" quat=""/>
                 <site name="right_ankle_motor_l" pos="0 0 0" quat="1.0 0 0 0"/>
               </body>
               <body name="right_ankle_motor_r" pos="-0.06666 -0.05544 -0.048" quat="0.228743 0 0 0.973487">
@@ -845,10 +870,12 @@
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
                   <geom material="mtl_ankle_slider_r" mesh="ankle_slider_r" class="visual" pos="" quat=""/>
+                  <geom mesh="ankle_slider_r" class="collision" pos="" quat=""/>
                   <site name="right_ankle_slider_r" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="right_ankle_slider_r_connect_a" pos="0 -0.0789216548465007 0" quat="1.0 0 0 0"/>
                 </body>
                 <geom material="mtl_ankle_motor_r" mesh="ankle_motor_r" class="visual" pos="" quat=""/>
+                <geom mesh="ankle_motor_r" class="collision" pos="" quat=""/>
                 <site name="right_ankle_motor_r" pos="0 0 0" quat="1.0 0 0 0"/>
               </body>
               <body name="right_ankle_crank_l" pos="0 0 0.048" quat="0.924578 0 0 0.380993">
@@ -861,6 +888,7 @@
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
                   <geom material="mtl_ankle_femur_bar_l" mesh="ankle_femur_bar_l" class="visual" pos="" quat=""/>
+                  <geom mesh="ankle_femur_bar_l" class="collision" pos="" quat=""/>
                   <site name="right_ankle_femur_bar_l" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="right_ankle_femur_bar_l_connect_a" pos="0.379290649794729 -0.0152128645603287 0.0175263153618152" quat="0.7536182905102049 0.011954157024163251 0.010423482183054259 -0.6571209335864271"/>
                 </body>
@@ -868,6 +896,7 @@
                   <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                 </body>
                 <geom material="mtl_ankle_crank_l" mesh="ankle_crank_l" class="visual" pos="" quat=""/>
+                <geom mesh="ankle_crank_l" class="collision" pos="" quat=""/>
                 <site name="right_ankle_crank_l" pos="0 0 0" quat="1.0 0 0 0"/>
                 <site name="right_ankle_slider_l_connect_b" pos="-0.0116368987741742 0.0330088258942932 0" quat="0.5823824866638635 0 0 0.8129149028202244"/>
               </body>
@@ -881,6 +910,7 @@
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
                   <geom material="mtl_ankle_femur_bar_r" mesh="ankle_femur_bar_r" class="visual" pos="" quat=""/>
+                  <geom mesh="ankle_femur_bar_r" class="collision" pos="" quat=""/>
                   <site name="right_ankle_femur_bar_r" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="right_ankle_femur_bar_r_connect_a" pos="0.379290649794729 -0.0146493337149796 -0.0179999999999986" quat="0.753713095057847 0 0 -0.6572035988476638"/>
                 </body>
@@ -888,6 +918,7 @@
                   <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                 </body>
                 <geom material="mtl_ankle_crank_r" mesh="ankle_crank_r" class="visual" pos="" quat=""/>
+                <geom mesh="ankle_crank_r" class="collision" pos="" quat=""/>
                 <site name="right_ankle_crank_r" pos="0 0 0" quat="1.0 0 0 0"/>
                 <site name="right_ankle_slider_r_connect_b" pos="-0.0116368987741745 0.0330088258942931 0" quat="0.5823831579627639 0 0 0.8129144218928082"/>
               </body>
@@ -898,13 +929,13 @@
                   <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                 </body>
                 <geom material="mtl_hip_xy_link" mesh="hip_xy_link" class="visual" pos="" quat=""/>
+                <geom mesh="hip_xy_link" class="collision" pos="" quat=""/>
                 <site name="right_hip_xy_link" pos="0 0 0" quat="1.0 0 0 0"/>
                 <site name="right_hip_xy_link_connect_a" pos="0.0196289730052707 0.0878333844204943 0" quat="0.6666418021136001 0 0 0.7453782312857893"/>
               </body>
               <body name="right_femur">
                 <inertial pos="0.040023 0.081883 0.000265" quat="0.528917 0.458374 -0.539139 0.468476" mass="2.85287" diaginertia="0.0391432 0.038988 0.00314488"/>
                 <joint name="right_femur" pos="0 0 0" axis="0 0 1" range="-3.14159 3.14159"/>
-                <geom name="leg_right_femur_collision" size="0.08 0.2" pos="0.03 0.2 0" quat="0.0308436 0.0308436 0.7064338 0.7064338" class="collision"/>
                 <body name="right_femur_triangle" pos="-0.0365418 -0.0162695 0" quat="0.600911 0 0 0.799316">
                   <inertial pos="0.042539 0.008295 -0.000244" quat="0.0476089 0.709999 -0.0358618 0.701675" mass="0.107984" diaginertia="0.000117013 0.000110186 2.48015e-05"/>
                   <joint name="right_femur_triangle" pos="0 0 0" axis="0 0 -1" range="-3.14159 3.14159"/>
@@ -918,10 +949,12 @@
                       <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                     </body>
                     <geom material="mtl_femur_rod" mesh="femur_rod" class="visual" pos="" quat=""/>
+                    <geom mesh="femur_rod" class="collision" pos="" quat=""/>
                     <site name="right_femur_rod" pos="0 0 0" quat="1.0 0 0 0"/>
                     <site name="right_femur_rod_connect_a" pos="0 0.40427 0" quat="0.8733552867227546 0 0 0.48708371267515715"/>
                   </body>
                   <geom material="mtl_femur_triangle" mesh="femur_triangle" class="visual" pos="" quat=""/>
+                  <geom mesh="femur_triangle" class="collision" pos="" quat=""/>
                   <site name="right_femur_triangle" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="right_hip_xy_link_connect_b" pos="0.0285967949314291 0.0279682555703746 0" quat="1.0 0 0 0"/>
                 </body>
@@ -938,6 +971,7 @@
                         <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                       </body>
                       <geom material="mtl_ankle_tibia_bar_l" mesh="ankle_tibia_bar_l" class="visual" pos="" quat=""/>
+                      <geom mesh="ankle_tibia_bar_l" class="collision" pos="" quat=""/>
                       <site name="right_ankle_tibia_bar_l2" pos="0 0 0" quat="1.0 0 0 0"/>
                       <site name="right_ankle_tibia_bar_l_connect_a" pos="-0.198131731601769 0.324131156991243 -0.00910000000000777" quat="0 -0.0931145555743388 0.9956554020042242 0"/>
                     </body>
@@ -947,6 +981,7 @@
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
                   <geom material="mtl_butterfly_l" mesh="butterfly_l" class="visual" pos="" quat=""/>
+                  <geom mesh="butterfly_l" class="collision" pos="" quat=""/>
                   <site name="right_butterfly_l" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="right_ankle_femur_bar_l_connect_b" pos="-0.0517732616638391 0.0303237427882477 0.0660000000000009" quat="0.9999664145182386 0 0 -0.00819572056247199"/>
                 </body>
@@ -963,6 +998,7 @@
                         <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                       </body>
                       <geom material="mtl_ankle_tibia_bar_r" mesh="ankle_tibia_bar_r" class="visual" pos="" quat=""/>
+                      <geom mesh="ankle_tibia_bar_r" class="collision" pos="" quat=""/>
                       <site name="right_ankle_tibia_bar_r2" pos="0 0 0" quat="1.0 0 0 0"/>
                       <site name="right_ankle_tibia_bar_r_conenct_a" pos="-0.198131731601772 0.324131156991243 0.0090999999999922" quat="0 -0.0931145555743388 0.9956554020042242 0"/>
                     </body>
@@ -972,6 +1008,7 @@
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
                   <geom material="mtl_butterfly_r" mesh="butterfly_r" class="visual" pos="" quat=""/>
+                  <geom mesh="butterfly_r" class="collision" pos="" quat=""/>
                   <site name="right_butterfly_r" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="right_ankle_femur_bar_r_connect_b" pos="-0.0517732616638352 0.0303237427882473 -0.0659999999999991" quat="0.9999664145182386 0 0 -0.008195720562472138"/>
                 </body>
@@ -985,17 +1022,17 @@
                       <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                     </body>
                     <geom material="mtl_knee_rods" mesh="knee_rods" class="visual" pos="" quat=""/>
+                    <geom mesh="knee_rods" class="collision" pos="" quat=""/>
                     <site name="right_knee_rods" pos="0 0 0" quat="1.0 0 0 0"/>
                     <site name="right_knee_rods_connect_a" pos="-0.0179533860942924 0 0.214249097845823" quat="-0.2571448418718471 0.25714484187184833 0.6586930471006229 0.6586930471006214"/>
                   </body>
                   <geom material="mtl_femur_slider" mesh="femur_slider" class="visual" pos="" quat=""/>
+                  <geom mesh="femur_slider" class="collision" pos="" quat=""/>
                   <site name="right_femur_slider" pos="0 0 0" quat="1.0 0 0 0"/>
                 </body>
                 <body name="right_tibia" pos="0.0725074 0.373018 0">
                   <inertial pos="-0.043384 0.113356 -5.8e-05" quat="0.333064 0.622893 -0.333075 0.624606" mass="0.766071" diaginertia="0.011253 0.0110503 0.000445683"/>
                   <joint name="right_tibia" pos="0 0 0" axis="0 0 1" range="-3.14159 3.14159"/>
-                  <geom name="leg_right_knee_collision" size="0.04" fromto="0.03896 0.02628 0 -0.16904 0.24934 0" class="collision"/>
-                  <geom name="leg_right_knee_bar_collision" size="0.05" fromto="-0.063 0 0 -0.18400 0.23889 0" class="collision"/>
                   <body name="right_femur_rod_connect_b" pos="-0.0240466 0.0867281 0" quat="0.931533 0 0 0.363658">
                     <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
                   </body>
@@ -1010,18 +1047,6 @@
                           <inertial pos="-0.00759995 -6.94998e-09 5.88281e-08" quat="3.61787e-06 0.707107 3.61787e-06 0.707106" mass="0.0905838" diaginertia="2.98863e-05 2.92763e-05 4.05264e-06"/>
                           <joint name="leg_right_4_joint" pos="0 0 0" axis="0 1 0" range="-0.741765 0.663225" actuatorfrcrange="-140 140"/>
                           <body name="leg_right_5_link">
-                            <body name="leg_right_foot_link" pos="0 0 -0.034" quat="0.9848078 0 -0.1736482 0">
-                              <geom name="right_foot0_collision"  class="foot_capsule" fromto="-0.0830 -0.035 0 0.110 -0.0330 0"/>
-                              <geom name="right_foot2_collision"  class="foot_capsule" fromto="-0.0975 -0.021 0 0.120 -0.0215 0"/>
-                              <geom name="right_foot4_collision"  class="foot_capsule" fromto="-0.0985 -0.007 0 0.122 -0.0065 0"/>
-                              <geom name="right_foot6_collision"  class="foot_capsule" fromto="-0.0985  0.007 0 0.122  0.0065 0"/>
-                              <geom name="right_foot8_collision"  class="foot_capsule" fromto="-0.0975  0.021 0 0.120  0.0215 0"/>
-                              <geom name="right_foot10_collision" class="foot_capsule" fromto="-0.0830  0.035 0 0.110  0.0330 0"/>
-                              <body name="leg_right_ankle_link">
-                                <geom name="leg_right_ankle_collision" class="collision" density="0" size="0.03" fromto="-0.04 0.0 0.03 0.02 0.0 0.03"/>
-                                <geom name="leg_right_ankle_bar_collision" class="collision" density="0" size="0.03" fromto="-0.045 -0.035 0.05 -0.045 0.035 0.05"/>
-                              </body>
-                            </body>
                             <inertial pos="0.00560127 -5.98529e-06 -0.0297244" quat="-8.95501e-06 0.58162 -1.58775e-05 0.813461" mass="0.61563" diaginertia="0.0019868 0.00170803 0.000338695"/>
                             <joint name="leg_right_5_joint" pos="0 0 0" axis="-1 0 0" range="-0.471239 0.471239" actuatorfrcrange="-82 82"/>
                             <body name="leg_right_5_aligned_link" quat="0.984808 0 -0.173648 0">
@@ -1039,6 +1064,7 @@
                               </body>
                             </body>
                             <geom material="mtl_leg_7_link" mesh="leg_7_link" class="visual" pos="" quat=""/>
+                            <geom mesh="leg_7_link" class="collision" pos="" quat=""/>
                             <site name="leg_right_5_link" pos="0 0 0" quat="1.0 0 0 0"/>
                             <site name="leg_right_5_aligned_link" pos="0 0 0" quat="0.9848077530122079 0 -0.17364817766693036 0"/>
                             <site name="right_ankle_tibia_bar_l_connect_b" pos="-0.05999128289808573 0.0339 -1.9396954590078508e-05" quat="0.12278780396897834 -0.12278780396896732 0.6963642403200229 0.696364240320015"/>
@@ -1050,13 +1076,16 @@
                             <site name="right_foot_lower_right" pos="-0.07473494288332039 -0.045 -0.07242884999933963" quat="0.9848077530122079 0 -0.17364817766693036 0"/>
                           </body>
                           <geom material="mtl_leg_6_link" mesh="leg_6_link" class="visual" pos="" quat="0.984808 0 -0.173648 0"/>
+                          <geom mesh="leg_6_link" class="collision" pos="" quat="0.984808 0 -0.173648 0"/>
                           <site name="leg_right_4_link" pos="0 0 0" quat="1.0 0 0 0"/>
                         </body>
                       </body>
                     </body>
                     <geom material="mtl_leg_ankle_cross" mesh="leg_ankle_cross" class="visual" pos="" quat=""/>
+                    <geom mesh="leg_ankle_cross" class="collision" pos="" quat=""/>
                   </body>
                   <geom material="mtl_tibia" mesh="tibia" class="visual" pos="" quat=""/>
+                  <geom mesh="tibia" class="collision" pos="" quat=""/>
                   <site name="right_tibia" pos="0 0 0" quat="1.0 0 0 0"/>
                   <site name="right_femur_rod_connect_b" pos="-0.0240466139057105 0.0867280828778637 0" quat="0.9315326406505532 0 0 0.3636577228694688"/>
                   <site name="right_knee_rods_connect_b" pos="-0.0240466139057105 0.0867280828778637 0" quat="0.9315326406505532 0 0 0.3636577228694688"/>
@@ -1065,24 +1094,29 @@
                   <site name="right_ankle_connection_frame" pos="-0.192846305557029 0.327429843528358 0" quat="-0.060069651935482346 -0.06006964963257362 0.7045506637616008 0.7045506626939312"/>
                 </body>
                 <geom material="mtl_femur" mesh="femur" class="visual" pos="" quat=""/>
+                <geom mesh="femur" class="collision" pos="" quat=""/>
                 <site name="right_femur" pos="0 0 0" quat="1.0 0 0 0"/>
               </body>
             </body>
             <geom material="mtl_right_hip_xy" mesh="right_hip_xy" class="visual" pos="" quat=""/>
+            <geom mesh="right_hip_xy" class="collision" pos="" quat=""/>
             <site name="right_hip_xy" pos="0 0 0" quat="1.0 0 0 0"/>
             <site name="right_femur_bearing" pos="0 -0.0669 -0.09" quat="0.7045531218487466 -0.7045486642997518 -0.06006714485168692 -0.0600667648203836"/>
           </body>
           <geom material="mtl_left_hip_xy_cross" mesh="left_hip_xy_cross" class="visual" pos="" quat=""/>
+          <geom mesh="left_hip_xy_cross" class="collision" pos="" quat=""/>
           <site name="right_hip_xy_cross" pos="0 0 0" quat="1.0 0 0 0"/>
         </body>
         <body name="right_hip_z_slider_connect_b" pos="-0.0110255 -0.0384505 -0.013" quat="0 1 0 0">
           <inertial pos="1e-05 1e-05 1e-05" mass="1e-05" diaginertia="1e-05 1e-05 1e-05"/>
         </body>
         <geom material="mtl_right_hip_z" mesh="right_hip_z" class="visual" pos="" quat=""/>
+        <geom mesh="right_hip_z" class="collision" pos="" quat=""/>
         <site name="right_hip_z" pos="0 0 0" quat="1.0 0 0 0"/>
         <site name="right_hip_z_slider_connect_b" pos="-0.0110254942326755 -0.0384504678375337 -0.0130000000000005" quat="0 1.0 0 0"/>
       </body>
       <geom material="mtl_base_link_with_pelvis" mesh="base_link_with_pelvis" class="visual" pos="" quat=""/>
+      <geom mesh="base_link_with_pelvis" class="collision" pos="" quat=""/>
       <site name="base_link" pos="0 0 0" quat="1.0 0 0 0"/>
       <site name="back_handle" pos="0 0 0" quat="1.0 0 0 0"/>
       <site name="pelvis_base_link" pos="-0.0918000000000001 0 -0.0455" quat="1.0 0 0 0"/>
@@ -1108,6 +1142,10 @@
     <geom conaffinity="0" contype="1" material="groundplane" name="floor" size="0 0 0.01" type="plane"/>
   </worldbody>
   <option timestep="0.0005"/>
+  <default>
+    <joint armature="0.01" damping="5" frictionloss="1" limited="true"/>
+    <site group="5" rgba="1 0 0 1" size="0.01"/>
+  </default>
   <contact>
     <exclude body1="arm_left_1_link" body2="arm_left_2_link"/>
     <exclude body1="arm_left_1_link" body2="pelvis_2_link"/>
@@ -1267,6 +1305,14 @@
     <exclude body1="pelvis_base_link" body2="pelvis_1_link"/>
     <exclude body1="pelvis_base_link" body2="right_hip_z"/>
   </contact>
+  <default>
+    <default class="visual">
+      <geom conaffinity="0" contype="0" group="2" type="mesh"/>
+    </default>
+    <default class="collision">
+      <geom group="3" type="mesh"/>
+    </default>
+  </default>
   <equality>
     <connect site1="left_hip_z_slider_connect_a" site2="left_hip_z_slider_connect_b" solimp="0.99 0.999 0.001" solref="0.002 1"/>
     <connect site1="left_hip_xy_slider_l_connect_a" site2="left_hip_xy_slider_l_connect_b" solimp="0.99 0.999 0.001" solref="0.002 1"/>
