@@ -38,8 +38,13 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.sim.nconmax = None
   cfg.sim.mujoco.ccd_iterations = 500
   cfg.sim.contact_sensor_maxmatch = 500
-  cfg.sim.mujoco.timestep = 0.002
-  cfg.decimation = 10
+
+  # if timestep and decimation used when playing the policy
+  # dont match the values used during training does not work properly
+  # this should not be the case as long as timestep * decimation does not change
+  # however we observed that it changes (TODO investigate) 
+  cfg.sim.mujoco.timestep = 0.005
+  cfg.decimation = 4
 
   # The sole frame of each foot. Not "left_foot": that is only a prefix of the four
   # foot corner sites, so as a regex it silently selects 4 sites per foot.
