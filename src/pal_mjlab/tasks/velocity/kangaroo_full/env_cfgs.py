@@ -181,12 +181,12 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards["pose"].params["std_standing"] = {_ACTUATED_JOINT_RE: 0.05}
     cfg.rewards["pose"].params["std_walking"] = {
         # Lower body.
-        r".*_hip_z_slider": 0.15,
-        r".*_hip_xy_slider_l": 0.3,
-        r".*_hip_xy_slider_r": 0.15,
-        r".*_leg_length_slider$": 0.15,
-        r".*_ankle_xy_slider_l": 0.25,
-        r".*_ankle_xy_slider_r": 0.1,
+        r".*_hip_z_slider": 0.01,
+        r".*_hip_xy_slider_l": 0.01,
+        r".*_hip_xy_slider_r": 0.01,
+        r".*_leg_length_slider$": 0.05,
+        r".*_ankle_xy_slider_l": 0.01,
+        r".*_ankle_xy_slider_r": 0.01,
         # Waist.
         r"pelvis_1.*": 0.08,
         r"pelvis_2.*": 0.2,
@@ -197,12 +197,12 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     }
     cfg.rewards["pose"].params["std_running"] = {
         # Lower body.
-        r".*_hip_z_slider": 0.2,
-        r".*_hip_xy_slider_l": 0.5,
-        r".*_hip_xy_slider_r": 0.2,
-        r".*_leg_length_slider$": 0.25,
-        r".*_ankle_xy_slider_l": 0.35,
-        r".*_ankle_xy_slider_r": 0.15,
+        r".*_hip_z_slider": 0.015,
+        r".*_hip_xy_slider_l": 0.015,
+        r".*_hip_xy_slider_r": 0.015,
+        r".*_leg_length_slider$": 0.08,
+        r".*_ankle_xy_slider_l": 0.015,
+        r".*_ankle_xy_slider_r": 0.015,
         # Waist.
         r"pelvis_1.*": 0.08,
         r"pelvis_2.*": 0.3,
@@ -222,6 +222,12 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         func=mdp.self_collision_cost,
         weight=-1.0,
         params={"sensor_name": self_collision_cfg.name},
+    )
+
+    cfg.rewards["joint_velocity_limit"] = RewardTermCfg(
+        func=mdp.joint_vel_limit,
+        weight = -0.02,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*"]), "limit_scale": 1.0},
     )
 
     ## Metrics
