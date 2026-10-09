@@ -346,6 +346,7 @@ KANG_FULL_BENT_KNEES_JOINTS = {
 }
 
 # Passive
+'''
 KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=KANG_FULL_PASSIVE_JOINTS,
     effort_limit=100.0,
@@ -353,6 +354,7 @@ KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     stiffness=0.0,
     damping=0.0,
 )
+'''
 
 KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
     target_names_expr=(
@@ -476,7 +478,7 @@ FULL_COLLISION = CollisionCfg(
 
 KANG_FULL_ARTICULATION = EntityArticulationInfoCfg(
     actuators=(
-        KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG,
+        #KANG_FULL_LEGS_PASSIVE_ACTUATOR_CFG,
         KANG_FULL_HIP_Z_SLIDERS_ACTUATOR_CFG,
         KANG_FULL_HIP_XY_SLIDERS_L_ACTUATOR_CFG,
         KANG_FULL_HIP_XY_SLIDERS_R_ACTUATOR_CFG,
