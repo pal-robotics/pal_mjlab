@@ -34,6 +34,7 @@ cpu = ["torch>=2.7.0"]
 conflicts = [
   [{extra = "cu128"}, {extra = "cpu"}],
 ]
+constraint-dependencies = ["setuptools<82"]
 # moviepy 2.x caps pillow at <12 while mjviser (via mjlab) needs >=12.2.
 # The cap is precautionary; moviepy works with pillow 12, so lift it.
 override-dependencies = ["pillow>=12.2.0"]
