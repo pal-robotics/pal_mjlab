@@ -215,6 +215,7 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"leg_.*_3_joint": (-0.075, 0.075),
         r"leg_.*_4_joint": (-0.05, 0.05),
         r"leg_.*_5_joint": (-0.005, 0.005),
+        r"leg_.*_length_joint": (-0.5, 0.5),
       },
       "shared_random": False,
     },
@@ -228,65 +229,6 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={
       "asset_cfg": SceneEntityCfg("robot", joint_names=[REGEX_LEG_LENGTH_JOINTS_ONLY]),
       "bias_range": (-0.005, 0.005),
-    },
-  )
-
-  # Domain Randomization for joint friction
-  cfg.events["joint_friction"] = EventTermCfg(
-    mode="startup",
-    func=dr.dof_frictionloss,
-    params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
-      "operation": "add",
-      "ranges": {
-        r"leg_.*_1_joint": (-0.1, 0.1),
-        r"leg_.*_2_joint": (-0.25, 0.25),
-        r"leg_.*_3_joint": (-0.2, 0.2),
-        r"leg_.*_4_joint": (-0.15, 0.15),
-        r"leg_.*_5_joint": (-0.1, 0.1),
-        r"^(?!(?:leg_.*_1_joint|leg_.*_2_joint|leg_.*_3_joint|leg_.*_4_joint|leg_.*_5_joint)$).*": (
-          -0.008,
-          0.008,
-        ),
-      },
-      "shared_random": False,
-    },
-  )
-
-  # Domain Randomization for joint damping
-  cfg.events["joint_damping"] = EventTermCfg(
-    mode="startup",
-    func=dr.dof_damping,
-    params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
-      "operation": "add",
-      "ranges": {
-        r"leg_.*_1_joint": (-0.2, 0.2),
-        r"leg_.*_2_joint": (-0.2, 0.2),
-        r"leg_.*_3_joint": (-0.1, 0.1),
-        r"leg_.*_4_joint": (-0.1, 0.1),
-        r"leg_.*_5_joint": (-0.1, 0.1),
-      },
-      "shared_random": False,
-    },
-  )
-
-  # Domain Randomization for joint armature
-  cfg.events["joint_armature"] = EventTermCfg(
-    mode="startup",
-    func=dr.dof_armature,
-    params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(".*",)),  # Set per-robot.
-      "operation": "add",
-      "ranges": {
-        r"leg_.*_1_joint": (-0.1, 0.1),
-        r"leg_.*_2_joint": (-0.25, 0.25),
-        r"leg_.*_3_joint": (-0.075, 0.075),
-        r"leg_.*_4_joint": (-0.05, 0.05),
-        r"leg_.*_5_joint": (-0.005, 0.005),
-        r"leg_.*_length_joint": (-0.5, 0.5),
-      },
-      "shared_random": False,
     },
   )
 
