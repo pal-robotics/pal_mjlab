@@ -18,7 +18,10 @@ from pal_mjlab.robots import (
   HIP_XY_CONVEX_HULL_POINTS,
   KANGAROO_ACTION_SCALE,
   KANGAROO_ACTUATOR_NAMES,
+  KANGAROO_GRIPPERS_ACTION_SCALE,
+  KANGAROO_GRIPPERS_ACTUATOR_NAMES,
   get_kangaroo_robot_cfg,
+  get_kangaroo_grippers_robot_cfg,
 )
 
 def pal_kangaroo_flat_wbc_env_cfg(
@@ -236,5 +239,61 @@ def pal_kangaroo_flat_wbc_env_cfg(
 
     motion_cmd.sampling_mode = "start"
     motion_cmd.rel_fixed_command = 0.5
+
+  return cfg
+
+def pal_kangaroo_grippers_flat_wbc_env_cfg(
+  play: bool = False
+) -> ManagerBasedRlEnvCfg :
+  """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) flat terrain velocity configuration."""
+  cfg = pal_kangaroo_flat_wbc_env_cfg(play=play)
+
+  cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
+
+  joint_pos_action = cfg.actions["joint_pos"]
+  assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action.scale = KANGAROO_GRIPPERS_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
+
+  end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
+
+  assert cfg.commands is not None
+  motion_cmd = cfg.commands["motion"]
+  assert isinstance(motion_cmd, MotionCommandCfg)
+  motion_cmd.anchor_body_name = "base_link"
+  motion_cmd.body_names = (
+    "base_link",
+    "pelvis_2_link",
+    "leg_left_3_link",
+    "leg_left_4_link",
+    "leg_left_5_link",
+    "leg_right_3_link",
+    "leg_right_4_link",
+    "leg_right_5_link",
+    "arm_left_2_link",
+    "arm_left_4_link",
+    "arm_left_tip_link",
+    "arm_right_2_link",
+    "arm_right_4_link",
+    "arm_right_tip_link",
+  )
+  motion_cmd.tracked_body_names = end_effector_body_names
+
+  cfg.observations["actor"].terms["ref_body_pos"] = ObservationTermCfg(
+    func=mdp.ref_body_pos_b, 
+    params={
+      "command_name": "motion", 
+      "body_names": end_effector_body_names,
+    },
+    noise=Unoise(n_min=-0.02, n_max=0.02),
+  )
+  cfg.observations["actor"].terms["ref_body_ori"] = ObservationTermCfg(
+    func=mdp.ref_body_ori_b, 
+    params={
+      "command_name": "motion", 
+      "body_names": end_effector_body_names,
+    },
+    noise=Unoise(n_min=-0.01, n_max=0.01),
+  )
 
   return cfg
