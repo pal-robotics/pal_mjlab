@@ -262,8 +262,12 @@ COMMON_STIFF_PELVIS_ACTUATORS = KANGAROO_LEG_ACTUATORS + (
 
 KANGAROO_LOWER_BODY_ACTUATORS = KANGAROO_LEG_ACTUATORS + (KANGAROO_PELVIS_ACTUATOR_CFG,)
 
-KANGAROO_STIFF_PELVIS_ACTUATORS = KANGAROO_STIFF_PELVIS_ACTUATOR_CFG
-
+KANGAROO_GRIPPERS_STIFF_PELVIS_ACTUATORS = KANGAROO_LEG_ACTUATORS + (
+  KANGAROO_ARMS_ACTUATOR_CFG,
+  KANGAROO_STIFF_PELVIS_ACTUATOR_CFG,
+  KANGAROO_S_MINUS_ACTUATOR_CFG,
+  KANGAROO_XS_ACTUATOR_CFG,
+) 
 ##
 # Initial State
 ##
@@ -326,6 +330,9 @@ KANGAROO_ARTICULATION = EntityArticulationInfoCfg(
 KANGAROO_STIFF_PELVIS_ARTICULATION = EntityArticulationInfoCfg(
   actuators=COMMON_STIFF_PELVIS_ACTUATORS, soft_joint_pos_limit_factor=0.9
 )
+KANGAROO_GRIPPERS_STIFF_PELVIS_ARTICULATION = EntityArticulationInfoCfg(
+  actuators=KANGAROO_GRIPPERS_STIFF_PELVIS_ACTUATORS, soft_joint_pos_limit_factor=0.9
+)
 KANGAROO_LOWER_BODY_ARTICULATION = EntityArticulationInfoCfg(
   actuators=KANGAROO_LOWER_BODY_ACTUATORS,
   soft_joint_pos_limit_factor=0.9,
@@ -342,6 +349,7 @@ KANGAROO_GRIPPERS_ARTICULATION = EntityArticulationInfoCfg(
 _ROBOT_CONFIGS = {
   "kangaroo": (get_kangaroo_spec, KANGAROO_ARTICULATION, FULL_COLLISION),
   "kangaroo_stiff_pelvis": (get_kangaroo_spec, KANGAROO_STIFF_PELVIS_ARTICULATION, FULL_COLLISION),
+  "kangaroo_grippers_stiff_pelvis": (get_kangaroo_grippers_spec, KANGAROO_GRIPPERS_STIFF_PELVIS_ARTICULATION, FULL_COLLISION),
   "lower_body": (
     get_kangaroo_lower_body_spec,
     KANGAROO_LOWER_BODY_ARTICULATION,
@@ -375,6 +383,9 @@ def get_kangaroo_robot_cfg() -> EntityCfg:
 
 def get_kangaroo_stiff_pelvis_robot_cfg() -> EntityCfg:
   return _make_robot_cfg("kangaroo_stiff_pelvis")
+
+def get_kangaroo_grippers_stiff_pelvis_robot_cfg() -> EntityCfg:
+  return _make_robot_cfg("kangaroo_grippers_stiff_pelvis")
 
 def get_kangaroo_lower_body_robot_cfg() -> EntityCfg:
   lower_body_cfg = _make_robot_cfg("lower_body")

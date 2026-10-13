@@ -7,6 +7,8 @@ import torch
 from mjlab.entity import Entity
 from mjlab.managers.command_manager import CommandTerm, CommandTermCfg
 
+from .safe_position_sampling import push_xy_outside_radius, validate_base_position
+
 if TYPE_CHECKING:
   from mjlab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
@@ -31,12 +33,18 @@ class UniformHandPositionCommand(CommandTerm):
     pass
 
   def _resample_command(self, env_ids: torch.Tensor) -> None:
-    r = torch.empty(len(env_ids), device=self.device)
-    self.hand_position_command[env_ids, 0] = r.uniform_(*self.cfg.ranges.x)
-    self.hand_position_command[env_ids, 1] = r.uniform_(*self.cfg.ranges.y)
-    self.hand_position_command[env_ids, 2] = r.uniform_(*self.cfg.ranges.z)
+    n = len(env_ids)
+    r = self.cfg.ranges
+    x = torch.empty(n, device=self.device).uniform_(*r.x)
+    y = torch.empty(n, device=self.device).uniform_(*r.y)
+    xy = push_xy_outside_radius(torch.stack((x, y), dim=-1), self.cfg.min_xy_radius)
 
-    self.is_base_position_env[env_ids] = r.uniform_(0.0, 1.0) <= self.cfg.rel_base_position
+    self.hand_position_command[env_ids, :2] = xy
+    self.hand_position_command[env_ids, 2] = torch.empty(n, device=self.device).uniform_(*r.z)
+
+    self.is_base_position_env[env_ids] = (
+      torch.empty(n, device=self.device).uniform_(0.0, 1.0) <= self.cfg.rel_base_position
+    )
 
   def _update_command(self, env_ids: torch.Tensor | None) -> None:
     base_position_ids = self.is_base_position_env.nonzero(as_tuple=False).flatten()
@@ -56,6 +64,7 @@ class UniformHandPositionCommandCfg(CommandTermCfg):
   base_position : tuple[float, float, float]
 
   rel_base_position: float = 0.1
+  min_xy_radius: float = 0.2
   
   @dataclass
   class VizCfg:
@@ -68,4 +77,4 @@ class UniformHandPositionCommandCfg(CommandTermCfg):
     return UniformHandPositionCommand(self, env)
 
   def __post_init__(self):
-    pass
+    validate_base_position(self.base_position, self.min_xy_radius)

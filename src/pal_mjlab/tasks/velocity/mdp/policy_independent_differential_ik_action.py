@@ -39,39 +39,39 @@ class PolicyIndependentDifferentialIKAction(DifferentialIKAction):
    
     @property
     def action_dim(self) -> int:
-        return 0
+      return 0
 
     def process_actions(self, actions: torch.Tensor) -> None:
-        del actions
+      del actions
 
-        command_actions = self._env.command_manager.get_command(self.cfg.command_name)
-        asset: Entity = self._env.scene[self.cfg.asset_cfg.name]
+      cmd = self._env.command_manager.get_command(self.cfg.command_name)
+      asset: Entity = self._env.scene[self.cfg.asset_cfg.name]
+      self._raw_actions[:] = cmd
 
-        self._raw_actions[:] = command_actions
-    
-        frame_pos, frame_quat = self._get_frame_pose()
+      frame_pos, frame_quat = self._get_frame_pose()
+      base_pos_w = asset.data.root_link_pos_w
+      base_quat_w = asset.data.root_link_quat_w
 
-        asset_pos_w = asset.data.root_link_pos_w
-        asset_quat_w = asset.data.root_link_quat_w
-
-        if self._action_dim == 3:
+      if self._action_dim == 3:
           if self.cfg.use_relative_mode:
-            self._desired_pos[:] = frame_pos + command_actions * self.cfg.delta_pos_scale
+              delta_w = quat_apply(base_quat_w, cmd * self.cfg.delta_pos_scale)
+              self._desired_pos[:] = frame_pos + delta_w
           else:
-            self._desired_pos[:] = asset_pos_w + quat_apply(asset_quat_w, command_actions)
+              self._desired_pos[:] = base_pos_w + quat_apply(base_quat_w, cmd)
           self._desired_quat[:] = frame_quat
-        elif self._action_dim == 6:
-          delta = command_actions.clone()
-          delta[:, :3] *= self.cfg.delta_pos_scale
-          delta[:, 3:] *= self.cfg.delta_ori_scale
+
+      elif self._action_dim == 6:
+          delta = torch.empty_like(cmd)
+          delta[:, :3] = quat_apply(base_quat_w, cmd[:, :3] * self.cfg.delta_pos_scale)
+          delta[:, 3:] = quat_apply(base_quat_w, cmd[:, 3:] * self.cfg.delta_ori_scale)
           target_pos, target_quat = apply_delta_pose(frame_pos, frame_quat, delta)
           self._desired_pos[:] = target_pos
           self._desired_quat[:] = target_quat
-        else:
-          assert self._action_dim == 7
+
+      else:  # 7, validated in __init__
+          quat = torch.nn.functional.normalize(cmd[:, 3:7], dim=-1)
           target_pos, target_quat = combine_frame_transforms(
-                asset_pos_w, asset_quat_w,
-                command_actions[:, :3], command_actions[:, 3:7],
-            )
+              base_pos_w, base_quat_w, cmd[:, :3], quat
+          )
           self._desired_pos[:] = target_pos
           self._desired_quat[:] = target_quat

@@ -51,6 +51,7 @@ from pal_mjlab.robots import (
   get_kangaroo_lower_body_robot_cfg,
   get_kangaroo_robot_cfg,
   get_kangaroo_stiff_pelvis_robot_cfg,
+  get_kangaroo_grippers_stiff_pelvis_robot_cfg,
 )
 from pal_mjlab.tasks.velocity import mdp
 
@@ -725,7 +726,6 @@ def pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(
   return cfg
 
 def pal_kangaroo_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-  """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) flat terrain velocity configuration."""
   cfg = pal_kangaroo_leg_and_pelvis_control_only_flat_env_cfg(play=play)
   cfg.scene.entities = {"robot": get_kangaroo_stiff_pelvis_robot_cfg()}
 
@@ -871,5 +871,116 @@ def pal_kangaroo_grippers_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
   assert isinstance(joint_pos_action, JointPositionActionCfg)
   joint_pos_action.scale = KANGAROO_GRIPPERS_ACTION_SCALE
   joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
+
+  return cfg
+
+
+
+def pal_kangaroo_grippers_leg_control_only_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  cfg = pal_kangaroo_leg_control_only_flat_env_cfg(play=play)
+  cfg.scene.entities = {"robot": get_kangaroo_grippers_stiff_pelvis_robot_cfg()}
+
+  # IK control for arms - random positions
+  
+  cfg.actions["arm_left_action"] = mdp.PolicyIndependentDifferentialIKActionCfg(
+    entity_name="robot",
+    actuator_names=(r"arm_left_.*",),
+    frame_type= "site",
+    frame_name= "ee_left",
+    command_name="arm_left_command",
+    asset_cfg= SceneEntityCfg("robot"),
+    use_relative_mode= False,
+  )
+  cfg.actions["arm_right_action"] = mdp.PolicyIndependentDifferentialIKActionCfg(
+    entity_name="robot",
+    actuator_names=(r"arm_right_.*",),
+    frame_type= "site",
+    frame_name= "ee_right",
+    command_name="arm_right_command",
+    asset_cfg= SceneEntityCfg("robot"),
+    use_relative_mode= False,
+  )
+
+  cfg.commands["arm_left_command"] = mdp.UniformHandPoseCommandCfg(
+    resampling_time_range=(1.0, 10.0),
+    ranges= mdp.UniformHandPoseCommandCfg.Ranges(
+      x=(-0.5, 0.8),
+      y=(-0.1, 0.8),
+      z=(-0.1, 0.6),
+    ),
+    base_position= (0.3, 0.3, -0.2)
+  )
+
+  cfg.commands["arm_right_command"] = mdp.UniformHandPoseCommandCfg(
+    resampling_time_range=(1.0, 10.0),
+    ranges= mdp.UniformHandPoseCommandCfg.Ranges(
+      x=(-0.5, 0.8),
+      y=(-0.8, 0.1),
+      z=(-0.1, 0.6),
+    ),
+    base_position= (0.3, -0.3, -0.2)
+  )
+  
+  # Joint control for pelvis - random positions
+  
+  cfg.actions["pelvis_action"] = mdp.PelvisActionCfg(
+    entity_name="robot",
+    actuator_names=(r"pelvis_.*",),
+    scale=1.0,
+    use_default_offset=True,
+    command_name="pelvis_command",
+  )
+  
+  cfg.commands["pelvis_command"] = mdp.PelvisPositionCommandCfg(
+    resampling_time_range=(1.0, 6.0),
+    ranges= mdp.PelvisPositionCommandCfg.Ranges(
+      Pelvis_1=(-0.05, 0.05),
+      Pelvis_2=(-0.7, 0.7),
+    ),
+  )
+
+  if play :
+    cfg.commands["arm_left_command"] = mdp.UniformHandPositionCommandCfg(
+      resampling_time_range=(1.0, 3.0),
+      ranges= mdp.UniformHandPositionCommandCfg.Ranges(
+        x=(-0.1, 0.8),
+        y=(-0.1, 0.8),
+        z=(-0.1, 0.6),
+      ),
+      base_position= (0.3, 0.3, -0.2)
+    )
+  
+    cfg.commands["arm_right_command"] = mdp.UniformHandPositionCommandCfg(
+      resampling_time_range=(1.0, 3.0),
+      ranges= mdp.UniformHandPositionCommandCfg.Ranges(
+        x=(-0.1, 0.8),
+        y=(-0.8, 0.1),
+        z=(-0.1, 0.6),
+      ),
+      base_position= (0.3, -0.3, -0.2)
+    )
+    twist_cmd = cfg.commands["twist"]
+    assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+    twist_cmd.ranges.lin_vel_x = (-0.5, 0.5)
+    twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
+    twist_cmd.ranges.ang_vel_z = (-0.6, 0.6)
+    twist_cmd.resampling_time_range=(2.0,5.0)
+
+    recorder_terms : dict[str, RecorderTermCfg] = {
+      "CsvRecorder":RecorderTermCfg(
+        func=mdp.CsvRecorder,
+        params={
+          "path": Path(PAL_MJLAB_SRC_PATH / "recorded_data").resolve(),
+          "name" : "Recorded_data",
+          "asset_cfg":SceneEntityCfg("robot", joint_names=(".*",)),
+          "joint_names": ROBOT_CONFIGS["kangaroo"]["joint_names"],
+        }
+      ),
+    }
+
+    cfg.recorders = recorder_terms
+
+    # Timeout termination to give impression of episodes
+    cfg.episode_length_s = int(10.0)
 
   return cfg

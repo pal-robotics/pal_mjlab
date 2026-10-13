@@ -23,3 +23,5 @@ from .pelvis_random_action import ( # noqa: F401
 )
 
 from .arm_rel_position_command import UniformHandPositionCommandCfg # noqa: F401
+
+from .arm_rel_pose_command import UniformHandPoseCommandCfg # noqa: F401
