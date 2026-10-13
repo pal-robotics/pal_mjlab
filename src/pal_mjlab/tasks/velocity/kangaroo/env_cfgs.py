@@ -827,6 +827,9 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     del cfg.rewards["pose"].params[pose_type][r"pelvis_1.*"]
     del cfg.rewards["pose"].params[pose_type][r"pelvis_2.*"]
 
+  # Remove upright reward, robot should be free to move upper body
+  del cfg.rewards["upright"]
+
   # Add rewards for tracking base link and end effector commands
   cfg.rewards["track_end_effector_target"] = RewardTermCfg(
     func=mdp.track_ee_target,
