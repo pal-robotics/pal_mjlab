@@ -40,6 +40,13 @@ class TrainConfig:
   resume_actor_only: bool = True
   """When resuming, load only the actor from the checkpoint. The critic, optimizer
   state, and iteration counter are left fresh."""
+  resume_read_onnx_metadata: bool = True
+  """When resuming, also look for the ONNX export next to the checkpoint (or in the
+  W&B run) and read its metadata."""
+  resume_keep_onnx_metadata: list[str] = field(default_factory=list)
+  """ONNX metadata keys to carry over from the resumed checkpoint's ONNX into every
+  ONNX exported by this run (e.g. ['original_run_path']). Requires a runner that
+  supports `inherited_onnx_metadata`."""
   gpu_ids: list[int] | Literal["all"] | None = field(default_factory=lambda: [0])
 
   @staticmethod
@@ -47,6 +54,47 @@ class TrainConfig:
     env_cfg = load_env_cfg(task_id)
     agent_cfg = load_rl_cfg(task_id)
     return TrainConfig(env=env_cfg, agent=agent_cfg)
+
+
+def find_onnx_for_checkpoint(
+  resume_path: Path, wandb_run_path: str | None = None
+) -> Path | None:
+  """Locate the ONNX file that belongs to a checkpoint, if any."""
+  # 1) Same directory: model_4000.onnx, policy.onnx, or any single *.onnx.
+  candidates = [resume_path.with_suffix(".onnx"), resume_path.parent / "policy.onnx"]
+  for c in candidates:
+    if c.exists():
+      return c
+  others = sorted(resume_path.parent.glob("*.onnx"))
+  if others:
+    if len(others) > 1:
+      print(f"[WARN]: Multiple ONNX files found, using {others[0].name}.")
+    return others[0]
+
+  # 2) W&B run: download the matching .onnx next to the checkpoint.
+  if wandb_run_path is not None:
+    try:
+      import wandb
+
+      run = wandb.Api().run(str(wandb_run_path))
+      onnx_files = [f for f in run.files() if f.name.endswith(".onnx")]
+      if not onnx_files:
+        return None
+      preferred = [f for f in onnx_files if Path(f.name).stem == resume_path.stem]
+      chosen = (preferred or onnx_files)[0]
+      chosen.download(root=str(resume_path.parent), replace=True)
+      return resume_path.parent / chosen.name
+    except Exception as e:  # noqa: BLE001
+      print(f"[WARN]: Could not fetch ONNX from W&B: {e}")
+  return None
+
+
+def read_onnx_metadata(onnx_path: Path) -> dict[str, str]:
+  """Read the key/value metadata stored in an ONNX model."""
+  import onnx
+
+  model = onnx.load(str(onnx_path), load_external_data=False)
+  return {p.key: p.value for p in model.metadata_props}
 
 
 def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
@@ -187,6 +235,38 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
       )
     else:
       runner.load(str(resume_path))
+
+    # Read the ONNX metadata that belongs to the resumed checkpoint.
+    onnx_metadata: dict[str, str] | None = None
+    if cfg.resume_read_onnx_metadata or cfg.resume_keep_onnx_metadata:
+      onnx_path = find_onnx_for_checkpoint(resume_path, cfg.wandb_run_path)
+      if onnx_path is None:
+        print("[WARN]: No ONNX file found for this checkpoint; skipping metadata.")
+      else:
+        onnx_metadata = read_onnx_metadata(onnx_path)
+        print(f"[INFO]: Read ONNX metadata from {onnx_path} ({len(onnx_metadata)} keys)")
+        for k, v in onnx_metadata.items():
+          print(f"  {k}: {v if len(v) < 120 else v[:117] + '...'}")
+        if rank == 0:
+          dump_yaml(log_dir / "params" / "resumed_onnx_metadata.yaml", onnx_metadata)
+        # TODO: validate onnx_metadata against cfg.env here
+        # (e.g. joint order, action scale, PD gains) and warn on mismatch.
+
+    # Hand the requested keys to the runner so every exported ONNX keeps them.
+    if onnx_metadata is not None and cfg.resume_keep_onnx_metadata:
+      kept = {
+        k: onnx_metadata[k] for k in cfg.resume_keep_onnx_metadata if k in onnx_metadata
+      }
+      missing = [k for k in cfg.resume_keep_onnx_metadata if k not in onnx_metadata]
+      if missing:
+        print(f"[WARN]: Requested metadata keys not in previous ONNX: {missing}")
+      if not hasattr(runner, "inherited_onnx_metadata"):
+        print(
+          f"[WARN]: {type(runner).__name__} does not support "
+          "'inherited_onnx_metadata'; kept keys will NOT be written."
+        )
+      print(f"[INFO]: Keeping ONNX metadata from previous run: {list(kept)}")
+      runner.inherited_onnx_metadata = kept  # picked up by the runner's save()
 
   runner.learn(
     num_learning_iterations=cfg.agent.max_iterations, init_at_random_ep_len=True
