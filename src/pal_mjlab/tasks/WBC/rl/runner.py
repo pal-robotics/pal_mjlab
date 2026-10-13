@@ -121,3 +121,47 @@ class WBCMotionTrackingOnPolicyRunner(MjlabOnPolicyRunner):
           self.registry_name = None
     except Exception as e:
       print(f"[WARN] ONNX export failed (training continues): {e}")
+
+
+
+def overwrite_onnx_metadata(onnx_path: str, kept: dict[str, str]) -> None:
+  import onnx
+
+  model = onnx.load(onnx_path)
+  stale = [p for p in model.metadata_props if p.key in kept]
+  for p in stale:
+    model.metadata_props.remove(p)
+  for k, v in kept.items():
+    prop = model.metadata_props.add()
+    prop.key, prop.value = k, v
+  onnx.save(model, onnx_path)
+
+
+class InheritMetadataVelocityOnPolicyRunner(MjlabOnPolicyRunner):
+  env: RslRlVecEnvWrapper
+
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.inherited_onnx_metadata: dict[str, str] = {}
+
+  def save(self, path: str, infos=None):
+    super().save(path, infos)
+    policy_dir, filename, onnx_path = self._get_export_paths(path)
+    try:
+      self.export_policy_to_onnx(str(policy_dir), filename)
+      run_name: str = (
+        wandb.run.name
+        if self.logger.logger_type in ("wandb", "WandbLogWriter") and wandb.run
+        else "local"
+      )  # type: ignore[assignment]
+      metadata = get_base_metadata(self.env.unwrapped, run_name)
+      attach_metadata_to_onnx(str(onnx_path), metadata)
+      if self.inherited_onnx_metadata:
+        overwrite_onnx_metadata(str(onnx_path), self.inherited_onnx_metadata)
+      if (
+        self.logger.logger_type in ("wandb", "WandbLogWriter")
+        and self.cfg["upload_model"]
+      ):
+        wandb.save(str(onnx_path), base_path=str(policy_dir))
+    except Exception as e:
+      print(f"[WARN] ONNX export failed (training continues): {e}")
