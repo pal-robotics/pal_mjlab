@@ -966,4 +966,6 @@ def pal_kangaroo_grippers_leg_control_only_flat_env_cfg(play: bool = False) -> M
     twist_cmd.ranges.ang_vel_z = (-0.6, 0.6)
     twist_cmd.resampling_time_range=(2.0,5.0)
 
+    cfg.recorders["CsvRecorder"].params["joint_names"] = ROBOT_CONFIGS["kangaroo_grippers"]["joint_names"]
+
   return cfg
