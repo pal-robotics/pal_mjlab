@@ -398,7 +398,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       azimuth=120.0,
     ),
     sim=SimulationCfg(
-      nconmax=35,
+      nconmax=100,
       njmax=300,
       mujoco=MujocoCfg(
         timestep=0.005,
