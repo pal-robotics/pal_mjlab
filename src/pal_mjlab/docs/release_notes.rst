@@ -27,7 +27,7 @@ New Features & Tasks
   the identified armature and the natural frequency, the same way as the
   arm and torso actuators. The arm/torso armatures use the latest motor
   inertias from the datasheet without any scaling factor, and
-  the leg length joint uses an armature calculated along with armature 
+  the leg length joint uses an armature calculated along with armature
   domain randomization. **As a result, the default shipped gains are different
   compared to the previously trained policies.**
   (`#121 <https://github.com/pal-robotics/pal_mjlab/pull/121>`_)
