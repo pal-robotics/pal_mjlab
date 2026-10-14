@@ -578,3 +578,62 @@ def track_ee_target(
   env.extras["log"]["Metrics/ee_pos_error"] = torch.mean(torch.sqrt(error))
   return torch.exp(-error / std**2)
 
+def track_base_height_pose(
+  env: ManagerBasedRlEnv,
+  std: float,
+  command_name: str,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Track the commanded base height (last command entry) with an exponential kernel."""
+  asset: Entity = env.scene[asset_cfg.name]
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+
+  error = torch.square(asset.data.root_link_pos_w[:, 2] - command[:, -1])
+  env.extras["log"]["Metrics/base_height_error"] = torch.sqrt(error).mean()
+  return torch.exp(-error / std**2)
+
+
+def track_ee_pose_target(
+  env: ManagerBasedRlEnv,
+  pos_std: float,
+  ori_std: float,
+  command_name: str,
+  body_names: tuple[str, ...],
+  ori_weight: float = 0.5,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Track commanded EE pose (position + orientation, base frame).
+
+  Layout: [pos(3) + quat_wxyz(4)] per body in `body_names` order, then base height.
+  Orientation reward is gated by position accuracy: pos * ((1 - w) + w * ori).
+  `ori_std` is in radians.
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+  n = len(body_names)
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+
+  ref = command[:, : 7 * n].view(env.num_envs, n, 7)
+  ref_pos_b, ref_quat_b = ref[..., :3], ref[..., 3:7]
+
+  body_ids, _ = asset.find_bodies(body_names, preserve_order=True)
+  actual_pos_b, actual_quat_b = subtract_frame_transforms(
+    asset.data.root_link_pos_w[:, None, :].expand(-1, n, -1),
+    asset.data.root_link_quat_w[:, None, :].expand(-1, n, -1),
+    asset.data.body_link_pos_w[:, body_ids],
+    asset.data.body_link_quat_w[:, body_ids],
+  )
+
+  pos_sq_err = torch.square(ref_pos_b - actual_pos_b).sum(dim=-1)  # (N, n)
+
+  dot = torch.abs((ref_quat_b * actual_quat_b).sum(dim=-1)).clamp(max=1.0)
+  angle = 2.0 * torch.atan2(torch.sqrt(torch.clamp(1.0 - dot * dot, min=0.0)), dot)
+
+  pos_r = torch.exp(-pos_sq_err / pos_std**2)
+  ori_r = torch.exp(-torch.square(angle) / ori_std**2)
+  reward = pos_r * ((1.0 - ori_weight) + ori_weight * ori_r)
+
+  env.extras["log"]["Metrics/ee_pos_error"] = torch.sqrt(pos_sq_err).mean()
+  env.extras["log"]["Metrics/ee_ori_error_rad"] = angle.mean()
+  return reward.mean(dim=-1)
