@@ -296,4 +296,11 @@ def pal_kangaroo_grippers_flat_wbc_env_cfg(
     noise=Unoise(n_min=-0.01, n_max=0.01),
   )
 
+  cfg.terminations["ee_body_pos"].params["body_names"] = (
+    "leg_left_5_link",
+    "leg_right_5_link",
+    "arm_left_7_link",
+    "arm_right_7_link",
+  )
+
   return cfg
