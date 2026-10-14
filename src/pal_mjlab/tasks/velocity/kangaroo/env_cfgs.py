@@ -215,6 +215,7 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         r"leg_.*_3_joint": (-0.075, 0.075),
         r"leg_.*_4_joint": (-0.05, 0.05),
         r"leg_.*_5_joint": (-0.005, 0.005),
+        r"leg_.*_length_joint": (-0.5, 0.5),
       },
       "shared_random": False,
     },

@@ -21,6 +21,17 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
+- **Kangaroo actuator gains are now derived from the armature for every joint,
+  and the natural frequency is lowered from 5 Hz to 3.5 Hz.** Leg
+  stiffness was previously hand-picked per joint; it is now computed from
+  the identified armature and the natural frequency, the same way as the
+  arm and torso actuators. The arm/torso armatures use the latest motor
+  inertias from the datasheet without any scaling factor, and
+  the leg length joint uses an armature calculated along with armature
+  domain randomization. **As a result, the default shipped gains are different
+  compared to the previously trained policies.**
+  (`#121 <https://github.com/pal-robotics/pal_mjlab/pull/121>`_)
+
 - **Update identified parameters, add domain randomization for joint armature,
   friction loss and viscous damping, and lower natural frequency from 10Hz to 5 Hz**
   Training with identified parameters and lower natural frequency have resulted in
