@@ -940,9 +940,9 @@ def pal_kangaroo_grippers_leg_control_only_flat_env_cfg(play: bool = False) -> M
   )
 
   if play :
-    cfg.commands["arm_left_command"] = mdp.UniformHandPositionCommandCfg(
+    cfg.commands["arm_left_command"] = mdp.UniformHandPoseCommandCfg(
       resampling_time_range=(1.0, 3.0),
-      ranges= mdp.UniformHandPositionCommandCfg.Ranges(
+      ranges= mdp.UniformHandPoseCommandCfg.Ranges(
         x=(-0.1, 0.8),
         y=(-0.1, 0.8),
         z=(-0.1, 0.6),
@@ -950,9 +950,9 @@ def pal_kangaroo_grippers_leg_control_only_flat_env_cfg(play: bool = False) -> M
       base_position= (0.3, 0.3, -0.2)
     )
   
-    cfg.commands["arm_right_command"] = mdp.UniformHandPositionCommandCfg(
+    cfg.commands["arm_right_command"] = mdp.UniformHandPoseCommandCfg(
       resampling_time_range=(1.0, 3.0),
-      ranges= mdp.UniformHandPositionCommandCfg.Ranges(
+      ranges= mdp.UniformHandPoseCommandCfg.Ranges(
         x=(-0.1, 0.8),
         y=(-0.8, 0.1),
         z=(-0.1, 0.6),
@@ -965,22 +965,5 @@ def pal_kangaroo_grippers_leg_control_only_flat_env_cfg(play: bool = False) -> M
     twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
     twist_cmd.ranges.ang_vel_z = (-0.6, 0.6)
     twist_cmd.resampling_time_range=(2.0,5.0)
-
-    recorder_terms : dict[str, RecorderTermCfg] = {
-      "CsvRecorder":RecorderTermCfg(
-        func=mdp.CsvRecorder,
-        params={
-          "path": Path(PAL_MJLAB_SRC_PATH / "recorded_data").resolve(),
-          "name" : "Recorded_data",
-          "asset_cfg":SceneEntityCfg("robot", joint_names=(".*",)),
-          "joint_names": ROBOT_CONFIGS["kangaroo"]["joint_names"],
-        }
-      ),
-    }
-
-    cfg.recorders = recorder_terms
-
-    # Timeout termination to give impression of episodes
-    cfg.episode_length_s = int(10.0)
 
   return cfg
