@@ -409,12 +409,12 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### SENSORS
 
-  # Idealized 1.2x0.6 m elevation map around the robot
+  # Idealized 1.0x1.0 m elevation map around the robot
   terrain_scan = RayCastSensorCfg(
     name="terrain_scan",
     frame=ObjRef(type="body", name="pelvis_2_link", entity="robot"),
     ray_alignment="yaw",
-    pattern=GridPatternCfg(size=(1.2, 0.6), resolution=0.1),
+    pattern=GridPatternCfg(size=(1.0, 1.0), resolution=0.05),
     max_distance=2.0,
     exclude_parent_body=True,
     include_geom_groups=(0,),  # Terrain only.
@@ -441,7 +441,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd = cfg.commands["twist"]
   assert isinstance(twist_cmd, mdp.UniformVelocityCommandCfg)
   twist_cmd.ranges.lin_vel_x = (-0.5, 0.5)
-  twist_cmd.ranges.lin_vel_y = (-0.4, 0.4)
+  twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
   twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
 
   ### REWARDS
@@ -452,8 +452,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["air_time"].params["threshold_max"] = 0.45
   cfg.rewards["air_time"].params["command_threshold"] = 0.1
 
-  # More upright = safer torso stance
-  cfg.rewards["upright"].weight = 2.0
+  # Upright weight already = 2.0, lowering std helps making torso stance more stable
   cfg.rewards["upright"].params["std"] = math.sqrt(0.05)
 
   # Tightened from default so the reward stays discriminative at low command speeds
