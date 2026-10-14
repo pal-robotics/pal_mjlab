@@ -103,7 +103,7 @@ class UniformHandPoseCommandCfg(CommandTermCfg):
   base_orientation: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0)  # wxyz
 
   rel_base_pose: float = 0.1
-  min_xy_radius: float = 0.2
+  min_xy_radius: float = 0.3
 
   @dataclass
   class VizCfg:

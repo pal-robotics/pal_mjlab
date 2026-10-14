@@ -943,8 +943,8 @@ def pal_kangaroo_grippers_leg_control_only_flat_env_cfg(play: bool = False) -> M
     cfg.commands["arm_left_command"] = mdp.UniformHandPoseCommandCfg(
       resampling_time_range=(1.0, 3.0),
       ranges= mdp.UniformHandPoseCommandCfg.Ranges(
-        x=(-0.1, 0.8),
-        y=(-0.1, 0.8),
+        x=(0.05, 0.8),
+        y=(-0.3, 0.6),
         z=(-0.1, 0.6),
       ),
       base_position= (0.3, 0.3, -0.2)
@@ -953,8 +953,8 @@ def pal_kangaroo_grippers_leg_control_only_flat_env_cfg(play: bool = False) -> M
     cfg.commands["arm_right_command"] = mdp.UniformHandPoseCommandCfg(
       resampling_time_range=(1.0, 3.0),
       ranges= mdp.UniformHandPoseCommandCfg.Ranges(
-        x=(-0.1, 0.8),
-        y=(-0.8, 0.1),
+        x=(0.05, 0.8),
+        y=(-0.6, 0.3),
         z=(-0.1, 0.6),
       ),
       base_position= (0.3, -0.3, -0.2)
