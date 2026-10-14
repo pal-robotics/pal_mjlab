@@ -733,7 +733,6 @@ def pal_kangaroo_grippers_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
 
 
 def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-  """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) flat terrain velocity configuration."""
   cfg = pal_kangaroo_rough_env_cfg(play=play)
 
   end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
@@ -852,3 +851,50 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   return cfg
 
+
+def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  cfg = pal_kangaroo_wbc_rough_env_cfg(play=play)
+
+  end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
+
+  cfg.commands["wbc_command"] = mdp.WbcPoseCommandCfg(
+    tracked_body_names = end_effector_body_names + ("base_link",),
+    tracked_body_ranges= {
+      "arm_right_tip_link" : mdp.WbcPoseCommandCfg.Ranges(
+        x=(0.05, 0.8),
+        y=(-0.6, 0.3),
+        z=(-0.1, 0.6),
+      ),
+      "arm_left_tip_link" : mdp.WbcPoseCommandCfg.Ranges(
+        x=(0.05, 0.8),
+        y=(-0.3, 0.6),
+        z=(-0.1, 0.6),
+      ),
+      "base_link" : mdp.WbcPoseCommandCfg.Ranges(
+        z=(0.85, 1.05),
+      ),
+    },
+    resampling_time_range=(1.0, 3.0),
+  )
+
+  # Add rewards for tracking base link and end effector commands
+  cfg.rewards["track_end_effector_target"] = RewardTermCfg(
+    func=mdp.track_ee_pose_target,
+    weight=1.5,
+    params={
+      "command_name" : "wbc_command",
+      "std" : math.sqrt(0.25),
+      "body_names" : end_effector_body_names,
+    }
+  )
+
+  cfg.rewards["track_base_heigth"] = RewardTermCfg(
+    func=mdp.track_base_height_pose,
+    weight=1.0,
+    params={
+      "command_name" : "wbc_command",
+      "std" : math.sqrt(0.25),
+    },
+  )
+
+  return cfg

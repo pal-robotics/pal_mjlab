@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
+import math
 
 import torch
 from mjlab.tasks.velocity.mdp.velocity_command import (
@@ -17,6 +18,30 @@ from mjlab.managers.command_manager import (
 if TYPE_CHECKING:
   from mjlab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
+
+def _quat_from_rpy(roll: torch.Tensor, pitch: torch.Tensor, yaw: torch.Tensor):
+  """Intrinsic ZYX (yaw, pitch, roll) -> quaternion (w, x, y, z)."""
+  cr, sr = torch.cos(roll * 0.5), torch.sin(roll * 0.5)
+  cp, sp = torch.cos(pitch * 0.5), torch.sin(pitch * 0.5)
+  cy, sy = torch.cos(yaw * 0.5), torch.sin(yaw * 0.5)
+  return torch.stack(
+    (
+      cr * cp * cy + sr * sp * sy,
+      sr * cp * cy - cr * sp * sy,
+      cr * sp * cy + sr * cp * sy,
+      cr * cp * sy - sr * sp * cy,
+    ),
+    dim=-1,
+  )
+
+def push_xy_outside_radius(xy: torch.Tensor, min_radius: float) -> torch.Tensor:
+  norm = xy.norm(dim=-1, keepdim=True).clamp_min(1e-6)
+  return xy * (min_radius / norm).clamp_min(1.0)
+
+
+def validate_base_position(base_position, min_radius: float) -> None:
+  if math.hypot(base_position[0], base_position[1]) <= min_radius:
+    raise ValueError(f"base_position={base_position} is inside the robot (xy-norm <= {min_radius}).")
 
 class DualBandVelocityCommand(UniformVelocityCommand):
   """Uniform velocity command with configurable low-velocity sampling bands."""
@@ -272,3 +297,119 @@ class WbcCommandCfg(CommandTermCfg) :
 
   def __post_init__(self):
     pass
+
+
+
+class WbcPoseCommand(CommandTerm):
+  """Two-hand pose command (position + orientation) and base height.
+
+  Hand poses are expressed in the base frame. The hand pointing axis (local +x)
+  never points behind the robot, and the hand xy position is kept at least
+  `min_xy_radius` away from the base origin.
+
+  Command layout (15 dims):
+    [right_pos(3), right_quat(4), left_pos(3), left_quat(4), base_height(1)]
+  with quaternions in (w, x, y, z).
+  """
+
+  cfg: WbcPoseCommandCfg
+
+  def __init__(self, cfg: WbcPoseCommandCfg, env: ManagerBasedRlEnv):
+    super().__init__(cfg, env)
+
+    self.ee_right_pose_command = torch.zeros(self.num_envs, 7, device=self.device)
+    self.ee_left_pose_command = torch.zeros(self.num_envs, 7, device=self.device)
+    self.ee_right_pose_command[:, 3] = 1.0  # identity quaternion
+    self.ee_left_pose_command[:, 3] = 1.0
+    self.base_height_command = torch.zeros(self.num_envs, 1, device=self.device)
+
+  @property
+  def command(self) -> torch.Tensor:
+    return torch.cat(
+      [
+        self.ee_right_pose_command,
+        self.ee_left_pose_command,
+        self.base_height_command,
+      ],
+      dim=-1,
+    )
+
+  def _update_metrics(self) -> None:
+    pass
+
+  def _sample(self, n: int, rng: tuple[float, float]) -> torch.Tensor:
+    return torch.empty(n, device=self.device).uniform_(*rng)
+
+  def _sample_hand_pose(
+    self, n: int, ranges: WbcPoseCommandCfg.Ranges
+  ) -> torch.Tensor:
+    xy = torch.stack((self._sample(n, ranges.x), self._sample(n, ranges.y)), dim=-1)
+    xy = push_xy_outside_radius(xy, self.cfg.min_xy_radius)
+    z = self._sample(n, ranges.z)
+
+    quat = _quat_from_rpy(
+      self._sample(n, ranges.roll),
+      self._sample(n, ranges.pitch),
+      self._sample(n, ranges.yaw),
+    )
+    return torch.cat([xy, z.unsqueeze(-1), quat], dim=-1)
+
+  def _resample_command(self, env_ids: torch.Tensor) -> None:
+    n = len(env_ids)
+    names = self.cfg.tracked_body_names
+    ranges = self.cfg.tracked_body_ranges
+
+    self.ee_right_pose_command[env_ids] = self._sample_hand_pose(n, ranges[names[0]])
+    self.ee_left_pose_command[env_ids] = self._sample_hand_pose(n, ranges[names[1]])
+    self.base_height_command[env_ids, 0] = self._sample(n, ranges[names[2]].z)
+
+  def _update_command(self, env_ids: torch.Tensor | None) -> None:
+    pass
+
+
+@dataclass(kw_only=True)
+class WbcPoseCommandCfg(CommandTermCfg):
+
+  tracked_body_names: tuple[str, ...]
+  """(right_hand, left_hand, base). Only `z` is used for the base entry."""
+
+  @dataclass
+  class Ranges:
+    x: tuple[float, float] = (0.0, 0.0)
+    y: tuple[float, float] = (0.0, 0.0)
+    z: tuple[float, float] = (0.0, 0.0)
+    # Radians, base frame (x forward). Defaults keep the hand facing forward
+    # or sideways, with everything in between.
+    yaw: tuple[float, float] = (-math.pi / 2, math.pi / 2)
+    pitch: tuple[float, float] = (-math.pi / 4, math.pi / 4)
+    roll: tuple[float, float] = (-math.pi / 4, math.pi / 4)
+
+  tracked_body_ranges: dict[str, Ranges]
+
+  min_xy_radius: float = 0.2
+  """Minimum horizontal distance between hand targets and the base origin."""
+
+  viz = None
+
+  def build(self, env: ManagerBasedRlEnv) -> WbcPoseCommand:
+    return WbcPoseCommand(self, env)
+
+  def __post_init__(self):
+    if len(self.tracked_body_names) != 3:
+      raise ValueError(
+        "tracked_body_names must be (right_hand, left_hand, base); "
+        f"got {self.tracked_body_names}."
+      )
+    missing = [n for n in self.tracked_body_names if n not in self.tracked_body_ranges]
+    if missing:
+      raise ValueError(f"tracked_body_ranges is missing entries for {missing}.")
+
+    half_pi = math.pi / 2
+    for body in self.tracked_body_names[:2]:
+      r = self.tracked_body_ranges[body]
+      for name in ("yaw", "pitch"):
+        lo, hi = getattr(r, name)
+        if lo < -half_pi or hi > half_pi:
+          raise ValueError(
+            f"{body}.{name}={(lo, hi)} must lie within [-pi/2, pi/2]."
+          )
