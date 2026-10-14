@@ -134,6 +134,13 @@ Model Updates
 
 Bug Fixes & Reliability
 ^^^^^^^^^^^^^^^^^^^^^^^^
+- **Excluded knee/tibia vs. foot collisions on the other Kangaroo models.**
+  The lower-body, hands and grippers models now exclude contacts between the
+  ankle bar and knee links and the foot collision-avoidance capsule on both
+  legs, matching the full ``kangaroo.xml`` model. Previously these links
+  could collide with each other, producing spurious self-contacts.
+  (`#125 <https://github.com/pal-robotics/pal_mjlab/pull/125>`_)
+
 - **Set the density of the capsule parent geom to zero.**
   The density of the whole capsule class needs to be zero to avoid
   generating the inertial properties due to the ``inertiafromgeom``
