@@ -21,6 +21,15 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
+- **Denser, square height scan and wider lateral commands in the Kangaroo
+  rough velocity task.** The critic-only height scan now covers a
+  1.0x1.0 m area at 5 cm resolution (previously 1.2x0.6 m at 10 cm), giving
+  the critic a finer and more symmetric view of the terrain around the
+  robot. The lateral velocity command range is widened from ±0.4 m/s to
+  ±0.5 m/s, matching the forward range. These changes also apply to the
+  lower-body rough task, which builds on the same config.
+  (`#123 <https://github.com/pal-robotics/pal_mjlab/pull/123>`_)
+
 - **Kangaroo actuator gains are now derived from the armature for every joint,
   and the natural frequency is lowered from 5 Hz to 3.5 Hz.** Leg
   stiffness was previously hand-picked per joint; it is now computed from
