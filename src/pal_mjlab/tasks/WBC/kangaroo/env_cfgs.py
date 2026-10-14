@@ -245,7 +245,7 @@ def pal_kangaroo_flat_wbc_env_cfg(
 def pal_kangaroo_grippers_flat_wbc_env_cfg(
   play: bool = False
 ) -> ManagerBasedRlEnvCfg :
-  """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) flat terrain velocity configuration."""
+  """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) flat terrain WBC configuration."""
   cfg = pal_kangaroo_flat_wbc_env_cfg(play=play)
 
   cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
