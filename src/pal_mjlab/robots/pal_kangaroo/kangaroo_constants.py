@@ -196,6 +196,10 @@ KANGAROO_LEG_ACTUATORS = (
     target_names_expr=("leg_.*_5_joint",),
     **_calc_leg_params(82.0, 0.05, 0.8, 1.0),
   ),
+  # The leg length joint uses an armature calculated as
+  # actuator inertia x velocity ratio. As the velocity ratio
+  # is not constant, its average value was used. To compensate this
+  # +- 0.5 kg randomization is added later to the armature
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_length_joint",),
     **_calc_leg_params(1100.0, 4.1, None, None),
