@@ -4,7 +4,8 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
-from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
+from mjlab.managers.metrics_manager import MetricsTermCfg
+from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
@@ -12,6 +13,8 @@ from pal_mjlab.tasks.WBC.mdp import MotionCommandCfg
 from pal_mjlab.tasks.WBC import mdp
 from pal_mjlab.tasks.WBC.wbc_env_cfg import make_wbc_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
+
+from pal_mjlab.tasks.velocity.mdp import joint_torques_magnitude
 
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
@@ -225,6 +228,26 @@ def pal_kangaroo_flat_wbc_env_cfg(
 
   cfg.viewer.body_name = "base_link"
 
+  ## Metrics
+  cfg.metrics = {
+    "arm_1_joint_torque_mag": MetricsTermCfg(
+      func=joint_torques_magnitude,
+      params={"asset_cfg": SceneEntityCfg("robot", joint_names=(r"arm_left_1_joint",))},
+    ),
+    "arm_2_joint_torque_mag": MetricsTermCfg(
+      func=joint_torques_magnitude,
+      params={"asset_cfg": SceneEntityCfg("robot", joint_names=(r"arm_left_2_joint",))},
+    ),
+    "arm_3_joint_torque_mag": MetricsTermCfg(
+      func=joint_torques_magnitude,
+      params={"asset_cfg": SceneEntityCfg("robot", joint_names=(r"arm_left_3_joint",))},
+    ),
+    "arm_4_joint_torque_mag": MetricsTermCfg(
+      func=joint_torques_magnitude,
+      params={"asset_cfg": SceneEntityCfg("robot", joint_names=(r"arm_left_4_joint",))},
+    ),
+  }
+
   # Apply play mode overrides.
   if play:
     # Effectively infinite episode length.
@@ -301,6 +324,21 @@ def pal_kangaroo_grippers_flat_wbc_env_cfg(
     "leg_right_5_link",
     "arm_left_7_link",
     "arm_right_7_link",
+  )
+
+  cfg.metrics["arm_5_joint_torque_mag"] = MetricsTermCfg(
+    func=joint_torques_magnitude,
+    params={"asset_cfg": SceneEntityCfg("robot", joint_names=(r"arm_left_5_joint",))},
+  )
+
+  cfg.metrics["arm_6_joint_torque_mag"] = MetricsTermCfg(
+    func=joint_torques_magnitude,
+    params={"asset_cfg": SceneEntityCfg("robot", joint_names=(r"arm_left_6_joint",))},
+  )
+
+  cfg.metrics["arm_7_joint_torque_mag"] = MetricsTermCfg(
+    func=joint_torques_magnitude,
+    params={"asset_cfg": SceneEntityCfg("robot", joint_names=(r"arm_left_7_joint",))},
   )
 
   return cfg
