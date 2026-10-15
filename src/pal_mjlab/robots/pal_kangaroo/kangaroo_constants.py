@@ -40,7 +40,8 @@ for p in [
 # Actuator Parameters (BeyondMimic methodology)
 ##
 
-NATURAL_FREQ = 3.5 * 2.0 * 3.1415926535  # 3.5Hz
+NATURAL_FREQ_LEGS = 3.5 * 2.0 * 3.1415926535  # 3.5Hz
+NATURAL_FREQ_ARMS = 10.0 * 2.0 * 3.1415926535  # 10Hz
 DAMPING_RATIO = 2.0
 
 HIP_XY_CONVEX_HULL_POINTS = torch.tensor(
@@ -110,8 +111,8 @@ def _calc_actuator_params(
 ) -> dict:
   """Calculate armature, stiffness, and damping for an actuator."""
   armature = scale * motor_inertia * gear_ratio**2
-  stiffness = round(armature * NATURAL_FREQ**2, 3)
-  damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
+  stiffness = round(armature * NATURAL_FREQ_ARMS**2, 3)
+  damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ_ARMS, 3)
   return {
     "armature": armature,
     "stiffness": stiffness,
@@ -127,8 +128,8 @@ def _calc_leg_params(
   viscous_damping: float,
 ) -> dict:
   """Calculate leg actuator parameters."""
-  stiffness = round(armature * NATURAL_FREQ**2, 3)
-  damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ, 3)
+  stiffness = round(armature * NATURAL_FREQ_LEGS**2, 3)
+  damping = round(2.0 * DAMPING_RATIO * armature * NATURAL_FREQ_LEGS, 3)
   return {
     "armature": armature,
     "stiffness": stiffness,
