@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.10,<3.14"
 dependencies = [
-    "mjlab>=1.6.0",
+    "mjlab",
     "moviepy>=2.0"
 ]
 
@@ -27,16 +27,42 @@ docs = [
 ]
 
 [project.optional-dependencies]
-cu128 = ["torch>=2.7.0"]
-cpu = ["torch>=2.7.0"]
+cu130 = ["torch>=2.14.0"]
+cu126 = ["torch>=2.11.0", "warp-lang"]
+cpu = ["torch>=2.11.0"]
 
 [tool.uv]
 conflicts = [
-  [{extra = "cu128"}, {extra = "cpu"}],
+  [{extra = "cu130"}, {extra = "cu126"}, {extra = "cpu"}],
 ]
 # moviepy 2.x caps pillow at <12 while mjviser (via mjlab) needs >=12.2.
 # The cap is precautionary; moviepy works with pillow 12, so lift it.
 override-dependencies = ["pillow>=12.2.0"]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+mjlab = { git = "https://github.com/mujocolab/mjlab", rev = "45b1e263ec1c3c0d2c3211b458135d80bb7030df" }
+torch = [
+  { index = "pytorch-cu130", extra = "cu130", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cu126", extra = "cu126", marker = "sys_platform != 'darwin'" },
+  { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform != 'darwin'" },
+]
+# Default warp wheels are built against CUDA 13 and need driver >= 580; use the
+# CUDA 12 build so cu126 runs on older drivers (e.g. 12.2 on HPC clusters).
 
 [tool.ruff]
 indent-width = 2
