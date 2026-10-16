@@ -142,8 +142,8 @@ def _calc_leg_params(
 
 # Motor parameters: (gear_ratio, motor_inertia, effort_limit)
 S_PLUS = _calc_actuator_params(121, 3.3e-05, 50)  # joint armature = 0.483
-S_MINUS = _calc_actuator_params(101, 2.99e-05, 25, 0.05)  # joint armature = 0.305
-XS = _calc_actuator_params(101, 1.99e-05, 25, 0.05)  # joint armature = 0.203
+S_MINUS = _calc_actuator_params(101, 2.99e-05, 25)  # joint armature = 0.305
+XS = _calc_actuator_params(101, 1.99e-05, 25)  # joint armature = 0.203
 
 ##
 # MJCF & Assets
