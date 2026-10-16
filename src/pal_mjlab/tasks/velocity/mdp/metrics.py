@@ -6,6 +6,7 @@ from mjlab.envs.manager_based_rl_env import ManagerBasedRlEnv
 from mjlab.managers.metrics_manager import MetricsTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 
+_DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
 def joint_velocity_magnitude(env, asset_cfg):
   """L1 norm of joint velocities."""
@@ -17,9 +18,26 @@ def joint_accelerations_magnitude(env, asset_cfg):
   return env.scene[asset_cfg.name].data.joint_acc.abs().sum(dim=-1)  # (num_envs,)
 
 
-def joint_torques_magnitude(env, asset_cfg):
-  """L1 norm of joint torques."""
-  return env.scene[asset_cfg.name].data.actuator_force.abs().sum(dim=-1)  # (num_envs,)
+class joint_torques_magnitude:
+  """Abs torque of the actuator driving the selected joint(s). Metric term."""
+
+  def __init__(self, cfg: MetricsTermCfg, env: ManagerBasedRlEnv):
+    asset: Entity = env.scene[cfg.params["asset_cfg"].name]
+    _, joint_names = asset.find_joints(cfg.params["asset_cfg"].joint_names)
+    # Actuators are named after their joints in your constants file.
+    ids, names = asset.find_actuators(joint_names)
+    assert len(ids) == len(joint_names), (
+      f"Joints {joint_names} did not all map to actuators (got {names})"
+    )
+    self._actuator_ids = ids
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+  ) -> torch.Tensor:
+    asset: Entity = env.scene[asset_cfg.name]
+    return asset.data.actuator_force[:, self._actuator_ids].abs().sum(dim=-1)  # (num_envs,)
 
 
 def action_rate_l2(env) -> torch.Tensor:
