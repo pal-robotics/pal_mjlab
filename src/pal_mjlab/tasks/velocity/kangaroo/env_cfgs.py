@@ -928,4 +928,7 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     },
   )
 
+  # TERRAIN
+  cfg.scene.terrain.terrain_generator.sub_terrains["perlin_noise"].resolution = 0.3
+
   return cfg
