@@ -220,7 +220,10 @@ Breaking Changes
 
 Documentation & CI
 ^^^^^^^^^^^^^^^^^^
-
+- Updated the documentation for Kangaroo in ``pal_mjlab``. Added
+  notes for rough terrain in the velocity task, and added documentation
+  for Kangaroo grippers model (7-DoF + gripper).
+  (`#127 <https://github.com/pal-robotics/pal_mjlab/pull/127>`_)
 - Added the first version of the ``pal_mjlab`` documentation (the site
   you are reading now).
   (`#82 <https://github.com/pal-robotics/pal_mjlab/pull/82>`_)
