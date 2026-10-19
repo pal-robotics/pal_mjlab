@@ -14,7 +14,7 @@ from pal_mjlab.tasks.WBC import mdp
 from pal_mjlab.tasks.WBC.wbc_env_cfg import make_wbc_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
-from pal_mjlab.tasks.velocity.mdp import joint_torques_magnitude
+from pal_mjlab.tasks.velocity.mdp import joint_torques_magnitude, raw_action_metrics
 
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
@@ -248,6 +248,10 @@ def pal_kangaroo_flat_wbc_env_cfg(
     ),
   }
 
+  cfg.metrics.update(
+    raw_action_metrics([f"arm_left_{i}_joint" for i in range(1, 5)])
+  )
+
   # Apply play mode overrides.
   if play:
     # Effectively infinite episode length.
@@ -339,6 +343,10 @@ def pal_kangaroo_grippers_flat_wbc_env_cfg(
   cfg.metrics["arm_7_joint_torque_mag"] = MetricsTermCfg(
     func=joint_torques_magnitude,
     params={"asset_cfg": SceneEntityCfg("robot", joint_names=(r"arm_left_7_joint",))},
+  )
+
+  cfg.metrics.update(
+    raw_action_metrics([f"arm_left_{i}_joint" for i in range(5, 8)])
   )
 
   return cfg

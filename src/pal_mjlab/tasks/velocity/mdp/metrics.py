@@ -40,6 +40,30 @@ class joint_torques_magnitude:
     return asset.data.actuator_force[:, self._actuator_ids].abs().sum(dim=-1)  # (num_envs,)
 
 
+class joint_raw_action:
+  """Abs raw action of ONE joint, per env. Metric term.
+
+  The action index is looked up from the joint name, so it follows whatever
+  order the action term uses.
+  """
+
+  def __init__(self, cfg: MetricsTermCfg, env: ManagerBasedRlEnv):
+    term = env.action_manager.get_term("joint_pos")  # key used in cfg.actions
+    names = list(getattr(term, "target_names", None) or getattr(term, "_target_names"))
+    self._idx = names.index(cfg.params["joint_name"])
+
+  def __call__(self, env: ManagerBasedRlEnv, joint_name: str) -> torch.Tensor:
+    return env.action_manager.action[:, self._idx].abs()  # (num_envs,)
+
+
+def raw_action_metrics(joint_names) -> dict:
+  """One raw-action metric per joint, keyed raw_action/<joint_name>."""
+  return {
+    f"raw_action/{n}": MetricsTermCfg(func=joint_raw_action, params={"joint_name": n})
+    for n in joint_names
+  }
+
+
 def action_rate_l2(env) -> torch.Tensor:
   """Penalize the rate of change of the actions using L2 squared kernel."""
   return torch.sum(
