@@ -876,7 +876,7 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
       "command_name": "wbc_command", 
     },
     noise=Unoise(n_min=-0.02, n_max=0.02),
-  ),
+  )
 
   cfg.observations["critic"].terms["ref_body_ori"] = ObservationTermCfg(
     func=mdp.ref_body_ori_pose_b, 
@@ -884,23 +884,23 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
       "command_name": "wbc_command", 
     },
     noise=Unoise(n_min=-0.02, n_max=0.02),
-  ),
+  )
 
   cfg.commands["wbc_command"] = mdp.WbcPoseCommandCfg(
     tracked_body_names = end_effector_body_names + ("base_link",),
     tracked_body_ranges= {
       "arm_right_tip_link" : mdp.WbcPoseCommandCfg.Ranges(
         x=(0.05, 0.8),
-        y=(-0.6, 0.3),
-        z=(-0.1, 0.6),
+        y=(-0.7, 0.3),
+        z=(-0.1, 0.7),
       ),
       "arm_left_tip_link" : mdp.WbcPoseCommandCfg.Ranges(
         x=(0.05, 0.8),
-        y=(-0.3, 0.6),
-        z=(-0.1, 0.6),
+        y=(-0.3, 0.7),
+        z=(-0.1, 0.7),
       ),
       "base_link" : mdp.WbcPoseCommandCfg.Ranges(
-        z=(0.85, 1.05),
+        z=(0.80, 1.10),
       ),
     },
     resampling_time_range=(1.0, 3.0),
