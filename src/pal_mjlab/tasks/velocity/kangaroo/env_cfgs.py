@@ -857,6 +857,11 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
 
   cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
 
+  joint_pos_action = cfg.actions["joint_pos"]
+  assert isinstance(joint_pos_action, JointPositionActionCfg)
+  joint_pos_action.scale = KANGAROO_GRIPPERS_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
+
   end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
 
   cfg.commands["wbc_command"] = mdp.WbcPoseCommandCfg(
