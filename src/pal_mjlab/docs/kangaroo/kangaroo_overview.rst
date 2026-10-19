@@ -98,4 +98,6 @@ Models:
 Tasks:
 
 - :ref:`Kangaroo task_velocity`
+==== BASE ====
 - :ref:`Kangaroo task_motion_imitation`
+- :ref:`Kangaroo task_box_lifting`
