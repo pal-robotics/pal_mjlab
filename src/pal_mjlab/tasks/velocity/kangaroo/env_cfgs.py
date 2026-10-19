@@ -882,10 +882,12 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     func=mdp.track_ee_pose_target,
     weight=1.5,
     params={
-      "command_name" : "wbc_command",
-      "std" : math.sqrt(0.25),
-      "body_names" : end_effector_body_names,
-    }
+      "command_name": "wbc_command",
+      "body_names": end_effector_body_names,
+      "pos_std": 0.1,
+      "ori_std": 0.3,
+      "ori_weight": 0.5,
+    },
   )
 
   cfg.rewards["track_base_heigth"] = RewardTermCfg(

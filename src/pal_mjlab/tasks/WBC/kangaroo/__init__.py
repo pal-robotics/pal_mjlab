@@ -25,7 +25,7 @@ register_mjlab_task(
 )
 
 register_mjlab_task(
-  task_id="Mjlab-WBC-Fine-Tune-Rough-Pal-Kangaroo",
+  task_id="Mjlab-WBC-Fine-Tune-Rough-Pal-Kangaroo-Grippers",
   env_cfg=pal_kangaroo_grippers_wbc_rough_env_cfg(),
   play_env_cfg=pal_kangaroo_grippers_wbc_rough_env_cfg(play=True),
   rl_cfg=pal_kangaroo_wbc_ppo_runner_cfg(),
