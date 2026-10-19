@@ -759,7 +759,7 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       params={
         "command_name": "wbc_command", 
       },
-      noise=Unoise(n_min=-0.05, n_max=0.05),
+      noise=Unoise(n_min=-0.03, n_max=0.03),
     ),
     "base_ang_vel": ObservationTermCfg(
       func=mdp.builtin_sensor,
@@ -863,6 +863,28 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
   joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
 
   end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
+
+  cfg.observations["actor"].terms["ref_body_pos"].func = mdp.ref_body_pos_pose_b
+  cfg.observations["critic"].terms["ref_body_pos"].func = mdp.ref_body_pos_pose_b
+
+  cfg.observations["actor"].terms["ref_base_height"].func = mdp.ref_base_height_pose
+  cfg.observations["critic"].terms["ref_base_height"].func = mdp.ref_base_height_pose
+
+  cfg.observations["actor"].terms["ref_body_ori"] = ObservationTermCfg(
+    func=mdp.ref_body_ori_pose_b, 
+    params={
+      "command_name": "wbc_command", 
+    },
+    noise=Unoise(n_min=-0.02, n_max=0.02),
+  ),
+
+  cfg.observations["critic"].terms["ref_body_ori"] = ObservationTermCfg(
+    func=mdp.ref_body_ori_pose_b, 
+    params={
+      "command_name": "wbc_command", 
+    },
+    noise=Unoise(n_min=-0.02, n_max=0.02),
+  ),
 
   cfg.commands["wbc_command"] = mdp.WbcPoseCommandCfg(
     tracked_body_names = end_effector_body_names + ("base_link",),

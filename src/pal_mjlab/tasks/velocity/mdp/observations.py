@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import torch
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import BuiltinSensor
-from mjlab.utils.lab_api.math import quat_apply_inverse
+from mjlab.utils.lab_api.math import quat_apply_inverse, matrix_from_quat
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -82,3 +82,33 @@ def ref_body_pos_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
   assert command is not None, f"Command '{command_name}' not found."
   
   return command[:, :6].clone()
+
+def ref_body_pos_pose_b(
+  env: ManagerBasedRlEnv, command_name: str, num_bodies: int = 2
+) -> torch.Tensor:
+  """Position-only part of the pose command. (N, 3 * n)"""
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+
+  ref = command[:, : 7 * num_bodies].view(env.num_envs, num_bodies, 7)
+  return ref[..., :3].reshape(env.num_envs, -1)
+
+
+def ref_body_ori_pose_b(
+  env: ManagerBasedRlEnv, command_name: str, num_bodies: int = 2
+) -> torch.Tensor:
+  """Hand target orientations as 6D rotation (first two columns of R), base frame. (N, 6 * n)"""
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+
+  ref = command[:, : 7 * num_bodies].view(env.num_envs, num_bodies, 7)
+  mat = matrix_from_quat(ref[..., 3:7])  # (N, n, 3, 3)
+  return mat[..., :2].reshape(env.num_envs, -1)
+
+
+def ref_base_height_pose(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+  """Commanded base height (last command entry). (N, 1)"""
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+
+  return command[:, -1:].clone()
