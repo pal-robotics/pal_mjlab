@@ -855,6 +855,8 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg = pal_kangaroo_wbc_rough_env_cfg(play=play)
 
+  cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
+
   end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
 
   cfg.commands["wbc_command"] = mdp.WbcPoseCommandCfg(
