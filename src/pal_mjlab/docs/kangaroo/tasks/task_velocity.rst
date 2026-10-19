@@ -184,10 +184,10 @@ The velocity tracking task also supports training on rough environment (flat, pe
 The objective remains the same (to track velocity), but reward parameters and curriculum are reworked
 in order to achieve behaviors more suitable for rough terrain.
 
-Therefore, rewards, curriculums, events, terminations and critic observations may differ from the 
+Therefore, rewards, curriculums, events, terminations and critic observations may differ from the
 baseline velocity task, but nothing changes control wise.
 
-Note that actor observations are limited to proprioceptive information. Any kind of world perception 
+Note that actor observations are limited to proprioceptive information. Any kind of world perception
 will need the according sensors/estimators to be added added/adjusted on the real hardware.
 
 
