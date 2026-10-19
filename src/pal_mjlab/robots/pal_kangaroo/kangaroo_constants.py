@@ -1,5 +1,7 @@
 """Pal Robotics KANGAROO constants."""
 
+import dataclasses
+import math
 from pathlib import Path
 
 import mujoco
@@ -16,7 +18,10 @@ from pal_mjlab import PAL_MJLAB_SRC_PATH
 # - kangaroo_full: full model with 4 DoF per arm and a fake forearm
 
 REGEX_LEG_LENGTH_JOINTS_ONLY = r"leg_.*_length_joint"
-REGEX_ALL_ACTUATED_JOINTS = r"^(?!leg_.*_femur_joint$|leg_.*_knee_joint$).*$"
+REGEX_ALL_ACTUATED_JOINTS = (
+  r"^(?!leg_.*_femur_joint$|leg_.*_knee_joint$|.*_backlash_joint$).*$"
+)
+REGEX_NON_BACKLASH_JOINTS = r"^(?!.*_backlash_joint$).*"
 REGEX_FEMUR_AND_KNEE_LINKS = (
   r"^(leg_left_femur_link|leg_right_femur_link|leg_left_knee_link|leg_right_knee_link)$"
 )
@@ -168,6 +173,37 @@ def get_kangaroo_hands_spec() -> mujoco.MjSpec:
 
 def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
   return _load_spec(KANGAROO_GRIPPERS_XML)
+
+
+# Hip roll gear play, inspired by pollen-robotics/microduck_rl add_backlash.py:
+# an unactuated hinge in series with leg_*_3_joint, free within +/-1 deg (2 deg
+# total). The encoder is on the motor side, so the policy never observes it.
+HIP_ROLL_BACKLASH_RAD = math.radians(1.0)
+
+
+def _add_hip_roll_backlash(spec: mujoco.MjSpec) -> mujoco.MjSpec:
+  for side in ("left", "right"):
+    # Same body/anchor/axis as leg_*_3_joint, so its order within the body
+    # (appended after it) does not change the kinematics.
+    spec.body(f"leg_{side}_3_link").add_joint(
+      name=f"leg_{side}_3_backlash_joint",
+      type=mujoco.mjtJoint.mjJNT_HINGE,
+      axis=[1, 0, 0],
+      limited=mujoco.mjtLimited.mjLIMITED_TRUE,
+      range=[-HIP_ROLL_BACKLASH_RAD, HIP_ROLL_BACKLASH_RAD],
+      damping=0.01,
+      armature=0.001,
+      # Stiff limit (solref = 2 x 0.002 s timestep) so the gear-teeth contact
+      # doesn't overshoot the tiny range under load.
+      solref_limit=[0.004, 1.0],
+      solimp_limit=[0.95, 0.999, 0.0001, 0.5, 2.0],
+    )
+  return spec
+
+
+def with_hip_roll_backlash(cfg: EntityCfg) -> EntityCfg:
+  spec_fn = cfg.spec_fn
+  return dataclasses.replace(cfg, spec_fn=lambda: _add_hip_roll_backlash(spec_fn()))
 
 
 ##

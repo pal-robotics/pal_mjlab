@@ -12,10 +12,12 @@ from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (  # noqa: F401
   REGEX_ALL_ACTUATED_JOINTS,
   REGEX_FEMUR_AND_KNEE_LINKS,
   REGEX_LEG_LENGTH_JOINTS_ONLY,
+  REGEX_NON_BACKLASH_JOINTS,
   get_kangaroo_grippers_robot_cfg,
   get_kangaroo_hands_robot_cfg,
   get_kangaroo_lower_body_robot_cfg,
   get_kangaroo_robot_cfg,
+  with_hip_roll_backlash,
 )
 from pal_mjlab.robots.pal_talos.talos_constants import (  # noqa: F401
   TALOS_ACTION_SCALE,
