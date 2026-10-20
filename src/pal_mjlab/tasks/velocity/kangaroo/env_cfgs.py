@@ -865,6 +865,7 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
   end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
 
   cfg.observations["actor"].terms["ref_body_pos"].func = mdp.ref_body_pos_pose_b
+  cfg.observations["actor"].terms["ref_body_pos"].noise = Unoise(n_min=-0.02, n_max=0.02),
   cfg.observations["critic"].terms["ref_body_pos"].func = mdp.ref_body_pos_pose_b
 
   cfg.observations["actor"].terms["ref_base_height"].func = mdp.ref_base_height_pose
@@ -875,6 +876,7 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     params={
       "command_name": "wbc_command", 
     },
+    noise = Unoise(n_min=-0.01, n_max=0.01),
   )
 
   cfg.observations["critic"].terms["ref_body_ori"] = ObservationTermCfg(
@@ -888,17 +890,23 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     tracked_body_names = end_effector_body_names + ("base_link",),
     tracked_body_ranges= {
       "arm_right_tip_link" : mdp.WbcPoseCommandCfg.Ranges(
-        x=(0.2, 0.6),
+        x=(0.2, 0.5),
         y=(-0.5, 0.1),
-        z=(-0.1, 0.6),
+        z=(-0.1, 0.5),
+        yaw= (-math.pi / 6, math.pi / 6),
+        pitch= (math.pi / 2 - math.pi / 6, math.pi / 2 + math.pi / 6),#- 
+        roll= (-math.pi / 6, math.pi / 6),
       ),
       "arm_left_tip_link" : mdp.WbcPoseCommandCfg.Ranges(
-        x=(0.2, 0.6),
+        x=(0.2, 0.5),
         y=(-0.1, 0.5),
-        z=(-0.1, 0.6),
+        z=(-0.1, 0.5),
+        yaw= (-math.pi / 6, math.pi / 6),
+        pitch= (-math.pi / 2 - math.pi / 6, -math.pi / 2 + math.pi / 6),
+        roll= (math.pi - math.pi / 6, math.pi + math.pi / 6),
       ),
       "base_link" : mdp.WbcPoseCommandCfg.Ranges(
-        z=(0.80, 1.10),
+        z=(0.95, 0.95),
       ),
     },
     resampling_time_range=(2.5, 4.0),

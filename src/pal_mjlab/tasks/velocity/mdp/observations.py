@@ -86,6 +86,7 @@ def ref_body_pos_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
 def ref_body_pos_pose_b(
   env: ManagerBasedRlEnv, command_name: str, num_bodies: int = 2
 ) -> torch.Tensor:
+  #return torch.tensor([[ 0.2573, -0.5842, -0.1350,  0.2442,  0.5224, -0.2373]], device=env.device)
   """Position-only part of the pose command. (N, 3 * n)"""
   command = env.command_manager.get_command(command_name)
   assert command is not None, f"Command '{command_name}' not found."
@@ -97,6 +98,7 @@ def ref_body_pos_pose_b(
 def ref_body_ori_pose_b(
   env: ManagerBasedRlEnv, command_name: str, num_bodies: int = 2
 ) -> torch.Tensor:
+  #return torch.tensor([[-0.4289,  0.6891,  0.5673,  0.7086, -0.7030,  0.1514,  0.4920,  0.7081, 0.7329, -0.6509,  0.4699,  0.2739]], device=env.device)
   """Hand target orientations as 6D rotation (first two columns of R), base frame. (N, 6 * n)"""
   command = env.command_manager.get_command(command_name)
   assert command is not None, f"Command '{command_name}' not found."
@@ -107,6 +109,7 @@ def ref_body_ori_pose_b(
 
 
 def ref_base_height_pose(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+  #return torch.tensor([[0.95]], device=env.device)
   """Commanded base height (last command entry). (N, 1)"""
   command = env.command_manager.get_command(command_name)
   assert command is not None, f"Command '{command_name}' not found."
