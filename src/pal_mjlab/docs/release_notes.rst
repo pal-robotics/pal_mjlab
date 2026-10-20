@@ -33,6 +33,15 @@ New Features & Tasks
   forward-only commands and the heading command is disabled.
   (`#124 <https://github.com/pal-robotics/pal_mjlab/pull/124>`_)
 
+- **Opt-in hip roll backlash for the Kangaroo velocity tasks.** New
+  ``-Backlash`` variants of every registered Kangaroo velocity task (e.g.
+  ``Mjlab-Velocity-Flat-Pal-Kangaroo-Lower-Body-Backlash``) add an
+  unactuated ``leg_*_3_backlash_joint`` hinge in series with the hip roll,
+  with ±1° of play, inspired by `microduck_rl
+  <https://github.com/pollen-robotics/microduck_rl>`_. The encoder is
+  modelled on the motor side, so the policy observations and actions keep
+  the same size as the base tasks.
+
 - **Denser, square height scan and wider lateral commands in the Kangaroo
   rough velocity task.** The critic-only height scan now covers a
   1.0x1.0 m area at 5 cm resolution (previously 1.2x0.6 m at 10 cm), giving
