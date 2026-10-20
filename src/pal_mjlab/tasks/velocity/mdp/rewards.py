@@ -600,46 +600,92 @@ def track_base_height_pose(
   return torch.exp(-error / std**2)
 
 
-def track_ee_pose_target(
+def track_ee_position(
   env: ManagerBasedRlEnv,
-  pos_std: float,
-  ori_std: float,
+  std: float,
   command_name: str,
   body_names: tuple[str, ...],
-  ori_weight: float = 0.5,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
-  """Track commanded EE pose (position + orientation, base frame).
+  """Track commanded EE positions in the base frame."""
 
-  Layout: [pos(3) + quat_wxyz(4)] per body in `body_names` order, then base height.
-  Orientation reward is gated by position accuracy: pos * ((1 - w) + w * ori).
-  `ori_std` is in radians.
-  """
+  if std <= 0.0:
+    raise ValueError(f"std must be positive, got {std}.")
+
   asset: Entity = env.scene[asset_cfg.name]
   n = len(body_names)
+
   command = env.command_manager.get_command(command_name)
   assert command is not None, f"Command '{command_name}' not found."
 
-  ref = command[:, : 7 * n].view(env.num_envs, n, 7)
-  ref_pos_b, ref_quat_b = ref[..., :3], ref[..., 3:7]
+  ref = command[:, : 7 * n].reshape(env.num_envs, n, 7)
+  ref_pos_b = ref[..., :3]
 
   body_ids, _ = asset.find_bodies(body_names, preserve_order=True)
-  actual_pos_b, actual_quat_b = subtract_frame_transforms(
+
+  actual_pos_b, _ = subtract_frame_transforms(
     asset.data.root_link_pos_w[:, None, :].expand(-1, n, -1),
     asset.data.root_link_quat_w[:, None, :].expand(-1, n, -1),
     asset.data.body_link_pos_w[:, body_ids],
     asset.data.body_link_quat_w[:, body_ids],
   )
 
-  pos_sq_err = torch.square(ref_pos_b - actual_pos_b).sum(dim=-1)  # (N, n)
+  pos_sq_err = torch.square(ref_pos_b - actual_pos_b).sum(dim=-1)
+  pos_error = torch.sqrt(pos_sq_err)
 
-  dot = torch.abs((ref_quat_b * actual_quat_b).sum(dim=-1)).clamp(max=1.0)
-  angle = 2.0 * torch.atan2(torch.sqrt(torch.clamp(1.0 - dot * dot, min=0.0)), dot)
+  reward = torch.exp(-pos_sq_err / (std ** 2))
 
-  pos_r = torch.exp(-pos_sq_err / pos_std**2)
-  ori_r = torch.exp(-torch.square(angle) / ori_std**2)
-  reward = pos_r * ((1.0 - ori_weight) + ori_weight * ori_r)
+  env.extras["log"]["Metrics/ee_pos_error"] = pos_error.mean()
+  env.extras["log"]["Metrics/ee_pos_reward"] = reward.mean()
 
-  env.extras["log"]["Metrics/ee_pos_error"] = torch.sqrt(pos_sq_err).mean()
+  return reward.mean(dim=-1)
+
+
+def track_ee_orientation(
+  env: ManagerBasedRlEnv,
+  std: float,
+  command_name: str,
+  body_names: tuple[str, ...],
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Track commanded EE orientations in the base frame.
+
+  Orientation error is the shortest angular distance between quaternions.
+  """
+
+  if std <= 0.0:
+    raise ValueError(f"std must be positive, got {std}.")
+
+  asset: Entity = env.scene[asset_cfg.name]
+  n = len(body_names)
+
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+
+  ref = command[:, : 7 * n].reshape(env.num_envs, n, 7)
+  ref_quat_b = ref[..., 3:7]
+
+  body_ids, _ = asset.find_bodies(body_names, preserve_order=True)
+
+  _, actual_quat_b = subtract_frame_transforms(
+    asset.data.root_link_pos_w[:, None, :].expand(-1, n, -1),
+    asset.data.root_link_quat_w[:, None, :].expand(-1, n, -1),
+    asset.data.body_link_pos_w[:, body_ids],
+    asset.data.body_link_quat_w[:, body_ids],
+  )
+
+  dot = torch.abs(
+    (ref_quat_b * actual_quat_b).sum(dim=-1)
+  ).clamp(0.0, 1.0)
+
+  angle = 2.0 * torch.atan2(
+    torch.sqrt(torch.clamp(1.0 - dot.square(), min=0.0)),
+    dot,
+  )
+
+  reward = torch.exp(-angle.square() / (std ** 2))
+
   env.extras["log"]["Metrics/ee_ori_error_rad"] = angle.mean()
+  env.extras["log"]["Metrics/ee_ori_reward"] = reward.mean()
+
   return reward.mean(dim=-1)

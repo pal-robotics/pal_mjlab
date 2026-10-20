@@ -906,15 +906,22 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
   )
 
   # Add rewards for tracking base link and end effector commands
-  cfg.rewards["track_end_effector_target"] = RewardTermCfg(
-    func=mdp.track_ee_pose_target,
+  cfg.rewards["ee_position"] = RewardTermCfg(
+    func=mdp.track_ee_position,
     weight=1.5,
     params={
       "command_name": "wbc_command",
       "body_names": end_effector_body_names,
-      "pos_std": 0.20,
-      "ori_std": 0.3,
-      "ori_weight": 0.5,
+      "std": 0.20,
+    },
+  )
+  cfg.rewards["ee_orientation"] = RewardTermCfg(
+    func=mdp.track_ee_orientation,
+    weight=1.0,
+    params={
+      "command_name": "wbc_command",
+      "body_names": end_effector_body_names,
+      "std": 0.30,
     },
   )
   site_names = ("left_foot", "right_foot")
