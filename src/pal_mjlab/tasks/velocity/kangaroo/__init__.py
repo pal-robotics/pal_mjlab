@@ -2,6 +2,7 @@ from mjlab.tasks.registry import register_mjlab_task
 from mjlab.tasks.velocity.rl import VelocityOnPolicyRunner
 
 from .env_cfgs import (
+  make_hip_roll_backlash_variant,
   pal_kangaroo_flat_env_cfg,
   pal_kangaroo_grippers_flat_env_cfg,
   pal_kangaroo_hands_flat_env_cfg,
@@ -89,3 +90,25 @@ register_mjlab_task(
 #   rl_cfg=pal_kangaroo_ppo_runner_cfg(),
 #   runner_cls=VelocityOnPolicyRunner,
 # )
+
+### HIP ROLL BACKLASH VARIANTS
+
+for _task_id, _cfg_fn in (
+  ("Mjlab-Velocity-Flat-Pal-Kangaroo", pal_kangaroo_flat_env_cfg),
+  ("Mjlab-Velocity-Flat-Pal-Kangaroo-Lower-Body", pal_kangaroo_lower_body_flat_env_cfg),
+  ("Mjlab-Velocity-Flat-Pal-Kangaroo-Hands", pal_kangaroo_hands_flat_env_cfg),
+  ("Mjlab-Velocity-Flat-Pal-Kangaroo-Grippers", pal_kangaroo_grippers_flat_env_cfg),
+  ("Mjlab-Velocity-Rough-Pal-Kangaroo", pal_kangaroo_rough_env_cfg),
+  (
+    "Mjlab-Velocity-Rough-Pal-Kangaroo-Lower-Body",
+    pal_kangaroo_lower_body_rough_env_cfg,
+  ),
+  ("Mjlab-Velocity-Stairs-Pal-Kangaroo", pal_kangaroo_stairs_rough_env_cfg),
+):
+  register_mjlab_task(
+    task_id=f"{_task_id}-Backlash",
+    env_cfg=make_hip_roll_backlash_variant(_cfg_fn()),
+    play_env_cfg=make_hip_roll_backlash_variant(_cfg_fn(play=True)),
+    rl_cfg=pal_kangaroo_ppo_runner_cfg(),
+    runner_cls=VelocityOnPolicyRunner,
+  )

@@ -17,6 +17,7 @@ KANGAROO_VELOCITY_TASKS = (
   "Mjlab-Velocity-Rough-Pal-Kangaroo-Lower-Body",
   "Mjlab-Velocity-Stairs-Pal-Kangaroo",
 )
+KANGAROO_VELOCITY_TASKS += tuple(f"{t}-Backlash" for t in KANGAROO_VELOCITY_TASKS)
 
 NUM_ENVS = 2
 NUM_STEPS = 4
