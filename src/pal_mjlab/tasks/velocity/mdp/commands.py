@@ -699,7 +699,7 @@ class WbcPoseCommandCfg(CommandTermCfg):
     z: tuple[float, float] = (0.0, 0.0)
     # Radians, base frame (x forward). Defaults keep the hand facing forward
     # or sideways, with everything in between.
-    yaw: tuple[float, float] = (0.0, 0.0)#(-math.pi / 2 - math.pi / 6, -math.pi / 2 + math.pi / 6)
+    yaw: tuple[float, float] = (0.0, 0.0)
     pitch: tuple[float, float] = (0.0, 0.0)
     roll: tuple[float, float] = (0.0, 0.0)
 
