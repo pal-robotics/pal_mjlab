@@ -888,20 +888,20 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     tracked_body_names = end_effector_body_names + ("base_link",),
     tracked_body_ranges= {
       "arm_right_tip_link" : mdp.WbcPoseCommandCfg.Ranges(
-        x=(0.05, 0.8),
-        y=(-0.7, 0.3),
-        z=(-0.1, 0.7),
+        x=(0.05, 0.7),
+        y=(-0.5, 0.3),
+        z=(-0.1, 0.6),
       ),
       "arm_left_tip_link" : mdp.WbcPoseCommandCfg.Ranges(
-        x=(0.05, 0.8),
-        y=(-0.3, 0.7),
-        z=(-0.1, 0.7),
+        x=(0.05, 0.7),
+        y=(-0.3, 0.5),
+        z=(-0.1, 0.6),
       ),
       "base_link" : mdp.WbcPoseCommandCfg.Ranges(
         z=(0.80, 1.10),
       ),
     },
-    resampling_time_range=(1.0, 3.0),
+    resampling_time_range=(2.5, 4.0),
   )
 
   # Add rewards for tracking base link and end effector commands
@@ -911,7 +911,7 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     params={
       "command_name": "wbc_command",
       "body_names": end_effector_body_names,
-      "pos_std": 0.25,
+      "pos_std": 0.20,
       "ori_std": 0.3,
       "ori_weight": 0.3,
     },
@@ -928,6 +928,8 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
   )
 
   # TERRAIN
-  cfg.scene.terrain.terrain_generator.sub_terrains["perlin_noise"].resolution = 0.3
+  cfg.scene.terrain.terrain_generator.sub_terrains["perlin_noise"].proportion = 0.0
+  cfg.scene.terrain.terrain_generator.sub_terrains["hf_discrete_obstacles"].proportion = 0.0
+  
 
   return cfg
