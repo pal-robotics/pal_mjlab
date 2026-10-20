@@ -754,12 +754,6 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     "ref_gravity_b": ObservationTermCfg(
       func=mdp.ref_gravity_b,
     ),
-    "ref_body_pos": ObservationTermCfg(
-      func=mdp.ref_body_pos_b, 
-      params={
-        "command_name": "wbc_command", 
-      },
-    ),
     "base_ang_vel": ObservationTermCfg(
       func=mdp.builtin_sensor,
       params={"sensor_name": "robot/imu_ang_vel"},
@@ -779,6 +773,12 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.3, n_max=0.3)
     ),
     "actions": ObservationTermCfg(func=mdp.last_action),
+    "ref_body_pos": ObservationTermCfg(
+      func=mdp.ref_body_pos_b, 
+      params={
+        "command_name": "wbc_command", 
+      },
+    ),
   }
 
   cfg.observations["actor"] = ObservationGroupCfg(
@@ -913,7 +913,7 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
       "body_names": end_effector_body_names,
       "pos_std": 0.20,
       "ori_std": 0.3,
-      "ori_weight": 0.3,
+      "ori_weight": 0.5,
     },
   )
   site_names = ("left_foot", "right_foot")
