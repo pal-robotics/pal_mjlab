@@ -699,9 +699,9 @@ class WbcPoseCommandCfg(CommandTermCfg):
     z: tuple[float, float] = (0.0, 0.0)
     # Radians, base frame (x forward). Defaults keep the hand facing forward
     # or sideways, with everything in between.
-    yaw: tuple[float, float] = (-math.pi / 2, -math.pi / 2)
-    pitch: tuple[float, float] = (0.0, 0.0)
-    roll: tuple[float, float] = (-math.pi / 2, -math.pi / 2)
+    yaw: tuple[float, float] = (-math.pi / 2 - math.pi / 6, -math.pi / 2 + math.pi / 6)
+    pitch: tuple[float, float] = (- math.pi / 6, math.pi / 6)
+    roll: tuple[float, float] = (-math.pi / 2 - math.pi / 6, -math.pi / 2 + math.pi / 6)
 
   tracked_body_ranges: dict[str, Ranges]
 
