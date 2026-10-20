@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 import math
-
+import numpy as np
 import torch
 from mjlab.tasks.velocity.mdp.velocity_command import (
   UniformVelocityCommand,
@@ -15,8 +15,11 @@ from mjlab.managers.command_manager import (
   CommandTermCfg
 )
 
+from mjlab.utils.lab_api.math import matrix_from_quat, quat_mul, quat_from_matrix
+
 if TYPE_CHECKING:
   from mjlab.envs.manager_based_rl_env import ManagerBasedRlEnv
+  from mjlab.viewer.debug_visualizer import DebugVisualizer
 
 
 def _quat_from_rpy(roll: torch.Tensor, pitch: torch.Tensor, yaw: torch.Tensor):
@@ -300,28 +303,52 @@ class WbcCommandCfg(CommandTermCfg) :
 
 
 
-class WbcPoseCommand(CommandTerm):
-  """Two-hand pose command (position + orientation) and base height.
 
-  Hand poses are expressed in the base frame. The hand pointing axis (local +x)
-  never points behind the robot, and the hand xy position is kept at least
-  `min_xy_radius` away from the base origin.
+class WbcPoseCommand(CommandTerm):
+  """Smooth two-hand pose commands and base-height targets.
 
   Command layout (15 dims):
-    [right_pos(3), right_quat(4), left_pos(3), left_quat(4), base_height(1)]
-  with quaternions in (w, x, y, z).
+    [right_pos(3), right_quat(4),
+     left_pos(3), left_quat(4), base_height(1)]
+
+  Positions and orientations are expressed in the base frame.
+  Quaternions use (w, x, y, z).
   """
 
   cfg: WbcPoseCommandCfg
 
   def __init__(self, cfg: WbcPoseCommandCfg, env: ManagerBasedRlEnv):
     super().__init__(cfg, env)
+    self.robot = env.scene[cfg.entity_name]
 
-    self.ee_right_pose_command = torch.zeros(self.num_envs, 7, device=self.device)
-    self.ee_left_pose_command = torch.zeros(self.num_envs, 7, device=self.device)
-    self.ee_right_pose_command[:, 3] = 1.0  # identity quaternion
+    # Current commanded poses.
+    self.ee_right_pose_command = torch.zeros(
+      self.num_envs, 7, device=self.device
+    )
+    self.ee_left_pose_command = torch.zeros(
+      self.num_envs, 7, device=self.device
+    )
+    self.ee_right_pose_command[:, 3] = 1.0
     self.ee_left_pose_command[:, 3] = 1.0
-    self.base_height_command = torch.zeros(self.num_envs, 1, device=self.device)
+
+    self.base_height_command = torch.zeros(
+      self.num_envs, 1, device=self.device
+    )
+
+    # Destination poses.
+    self._target_right = self.ee_right_pose_command.clone()
+    self._target_left = self.ee_left_pose_command.clone()
+    self._target_base_height = self.base_height_command.clone()
+
+    # Starting poses for each transition.
+    self._start_right = self.ee_right_pose_command.clone()
+    self._start_left = self.ee_left_pose_command.clone()
+    self._start_base_height = self.base_height_command.clone()
+
+    # Independent transition timer for each environment.
+    self._transition_elapsed = torch.zeros(
+      self.num_envs, device=self.device
+    )
 
   @property
   def command(self) -> torch.Tensor:
@@ -337,13 +364,18 @@ class WbcPoseCommand(CommandTerm):
   def _update_metrics(self) -> None:
     pass
 
-  def _sample(self, n: int, rng: tuple[float, float]) -> torch.Tensor:
+  def _sample(
+    self, n: int, rng: tuple[float, float]
+  ) -> torch.Tensor:
     return torch.empty(n, device=self.device).uniform_(*rng)
 
   def _sample_hand_pose(
     self, n: int, ranges: WbcPoseCommandCfg.Ranges
   ) -> torch.Tensor:
-    xy = torch.stack((self._sample(n, ranges.x), self._sample(n, ranges.y)), dim=-1)
+    xy = torch.stack(
+      (self._sample(n, ranges.x), self._sample(n, ranges.y)),
+      dim=-1,
+    )
     xy = push_xy_outside_radius(xy, self.cfg.min_xy_radius)
     z = self._sample(n, ranges.z)
 
@@ -352,19 +384,306 @@ class WbcPoseCommand(CommandTerm):
       self._sample(n, ranges.pitch),
       self._sample(n, ranges.yaw),
     )
+    quat = quat / quat.norm(dim=-1, keepdim=True)
+
     return torch.cat([xy, z.unsqueeze(-1), quat], dim=-1)
 
+  @staticmethod
+  def _quat_slerp(
+    q0: torch.Tensor,
+    q1: torch.Tensor,
+    alpha: torch.Tensor,
+  ) -> torch.Tensor:
+    """Shortest-path SLERP for normalized (w, x, y, z) quaternions."""
+
+    dot = (q0 * q1).sum(dim=-1, keepdim=True)
+
+    # q and -q represent the same rotation. Choose the shorter path.
+    q1 = torch.where(dot < 0.0, -q1, q1)
+    dot = dot.abs().clamp(max=1.0)
+
+    # alpha has shape (N,); expand to (N, 1).
+    t = alpha.unsqueeze(-1)
+
+    # Use normalized linear interpolation for nearly identical rotations.
+    near = dot > 0.9995
+
+    theta = torch.acos(dot.clamp(max=1.0 - 1e-7))
+    sin_theta = torch.sin(theta).clamp_min(1e-7)
+
+    w0 = torch.sin((1.0 - t) * theta) / sin_theta
+    w1 = torch.sin(t * theta) / sin_theta
+
+    slerp = w0 * q0 + w1 * q1
+    lerp = (1.0 - t) * q0 + t * q1
+
+    result = torch.where(near, lerp, slerp)
+    return result / result.norm(dim=-1, keepdim=True).clamp_min(1e-8)
+
   def _resample_command(self, env_ids: torch.Tensor) -> None:
+    """Choose new destinations without jumping the current commands."""
+
     n = len(env_ids)
     names = self.cfg.tracked_body_names
     ranges = self.cfg.tracked_body_ranges
 
-    self.ee_right_pose_command[env_ids] = self._sample_hand_pose(n, ranges[names[0]])
-    self.ee_left_pose_command[env_ids] = self._sample_hand_pose(n, ranges[names[1]])
-    self.base_height_command[env_ids, 0] = self._sample(n, ranges[names[2]].z)
+    # Save the current command as the starting point of the transition.
+    self._start_right[env_ids] = self.ee_right_pose_command[env_ids]
+    self._start_left[env_ids] = self.ee_left_pose_command[env_ids]
+    self._start_base_height[env_ids] = self.base_height_command[env_ids]
 
-  def _update_command(self, env_ids: torch.Tensor | None) -> None:
-    pass
+    # Sample destination poses.
+    self._target_right[env_ids] = self._sample_hand_pose(
+      n, ranges[names[0]]
+    )
+    self._target_left[env_ids] = self._sample_hand_pose(
+      n, ranges[names[1]]
+    )
+    self._target_base_height[env_ids, 0] = self._sample(
+      n, ranges[names[2]].z
+    )
+
+    # Restart the transition only for the resampled environments.
+    self._transition_elapsed[env_ids] = 0.0
+
+    # If duration is zero, apply the targets immediately.
+    if self.cfg.transition_duration_s <= 0.0:
+      self.ee_right_pose_command[env_ids] = self._target_right[env_ids]
+      self.ee_left_pose_command[env_ids] = self._target_left[env_ids]
+      self.base_height_command[env_ids] = (
+        self._target_base_height[env_ids]
+      )
+
+  def _update_command(
+    self, env_ids: torch.Tensor | None
+  ) -> None:
+    """Advance commands smoothly toward their targets."""
+
+    if self.cfg.transition_duration_s <= 0.0:
+      return
+
+    if env_ids is None:
+      ids = torch.arange(self.num_envs, device=self.device)
+    else:
+      ids = env_ids
+
+    if len(ids) == 0:
+      return
+
+    # ManagerBasedRlEnv's simulation/control timestep.
+    dt = self._env.step_dt
+    self._transition_elapsed[ids] += dt
+
+    # Linear progress from 0 to 1 over the configured duration.
+    alpha = (
+      self._transition_elapsed[ids] / self.cfg.transition_duration_s
+    ).clamp(0.0, 1.0)
+
+    t = alpha.unsqueeze(-1)
+
+    # Hand positions: linear interpolation.
+    self.ee_right_pose_command[ids, :3] = (
+      (1.0 - t) * self._start_right[ids, :3]
+      + t * self._target_right[ids, :3]
+    )
+    self.ee_left_pose_command[ids, :3] = (
+      (1.0 - t) * self._start_left[ids, :3]
+      + t * self._target_left[ids, :3]
+    )
+
+    # Hand orientations: spherical quaternion interpolation.
+    self.ee_right_pose_command[ids, 3:7] = self._quat_slerp(
+      self._start_right[ids, 3:7],
+      self._target_right[ids, 3:7],
+      alpha,
+    )
+    self.ee_left_pose_command[ids, 3:7] = self._quat_slerp(
+      self._start_left[ids, 3:7],
+      self._target_left[ids, 3:7],
+      alpha,
+    )
+
+    # Base height: linear interpolation.
+    self.base_height_command[ids] = (
+      (1.0 - t) * self._start_base_height[ids]
+      + t * self._target_base_height[ids]
+    )
+
+    # Guarantee exact targets at the end of the transition.
+    finished = alpha >= 1.0
+    if finished.any():
+      done_ids = ids[finished]
+      self.ee_right_pose_command[done_ids] = self._target_right[done_ids]
+      self.ee_left_pose_command[done_ids] = self._target_left[done_ids]
+      self.base_height_command[done_ids] = (
+        self._target_base_height[done_ids]
+      )
+
+  def _debug_vis_impl(self, visualizer: "DebugVisualizer") -> None:
+    env_indices = visualizer.get_env_indices(self.num_envs)
+    if not env_indices:
+      return
+
+    viz = self.cfg.viz
+
+    # Robot base pose in world coordinates.
+    base_pos_ws = self.robot.data.root_link_pos_w.cpu().numpy()
+    base_mat_ws = matrix_from_quat(
+      self.robot.data.root_link_quat_w
+    ).cpu().numpy()
+
+    # Commanded hand poses in the base frame.
+    right = self.ee_right_pose_command.cpu().numpy()
+    left = self.ee_left_pose_command.cpu().numpy()
+
+    right_mat_bs = matrix_from_quat(
+      self.ee_right_pose_command[:, 3:7]
+    ).cpu().numpy()
+    left_mat_bs = matrix_from_quat(
+      self.ee_left_pose_command[:, 3:7]
+    ).cpu().numpy()
+
+    base_heights = self.base_height_command.cpu().numpy()
+
+    # Actual body poses in world coordinates.
+    body_pos_ws = self.robot.data.body_link_pos_w.cpu().numpy()
+    body_mat_ws = matrix_from_quat(
+      self.robot.data.body_link_quat_w
+    ).cpu().numpy()
+
+    names = self.cfg.tracked_body_names
+    right_body_ids = self.robot.find_bodies(names[0])[0]
+    left_body_ids = self.robot.find_bodies(names[1])[0]
+
+    if len(right_body_ids) == 0 or len(left_body_ids) == 0:
+      raise ValueError(
+        f"Could not find tip links: right={names[0]!r}, "
+        f"left={names[1]!r}"
+      )
+
+    right_body_id = right_body_ids[0]
+    left_body_id = left_body_ids[0]
+
+    # Position cross marker, defined in the frame being drawn.
+    s = viz.cross_size
+    cross = [
+      np.array(v, dtype=float) * s
+      for v in (
+        (1, 0, 0),
+        (-1, 0, 0),
+        (0, 1, 0),
+        (0, -1, 0),
+        (0, 0, 1),
+        (0, 0, -1),
+      )
+    ]
+
+    # RGB coordinate axes: X red, Y green, Z blue.
+    axis_colors = (
+      (1.0, 0.1, 0.1, 1.0),
+      (0.1, 1.0, 0.1, 1.0),
+      (0.1, 0.3, 1.0, 1.0),
+    )
+
+    def draw_frame(
+      position_w: np.ndarray,
+      rotation_w: np.ndarray,
+      color: tuple[float, float, float, float],
+    ) -> None:
+      # Cross centered on the frame origin.
+      for d in cross:
+        visualizer.add_arrow(
+          position_w,
+          position_w + d,
+          color=color,
+          width=viz.arrow_width,
+        )
+
+      # Orientation axes in world coordinates.
+      for axis, axis_color in enumerate(axis_colors):
+        visualizer.add_arrow(
+          position_w,
+          position_w + viz.arrow_length * rotation_w[:, axis],
+          color=axis_color,
+          width=viz.arrow_width * 2,
+        )
+
+    for i in env_indices:
+      base_pos_w = base_pos_ws[i]
+      base_rot_wb = base_mat_ws[i]
+
+      # Skip uninitialized robots.
+      if np.linalg.norm(base_pos_w) < 1e-6:
+        continue
+
+      # Inverse rotation: world coordinates -> base coordinates.
+      base_rot_bw = base_rot_wb.T
+
+      # -------------------------------------------------------
+      # 1. Commanded hand frames.
+      #
+      # Commands are stored in the base frame.
+      # Transform them into world coordinates for drawing.
+      # -------------------------------------------------------
+      for pose_b, rot_bh, color in (
+        (right[i], right_mat_bs[i], viz.right_color),
+        (left[i], left_mat_bs[i], viz.left_color),
+      ):
+        pos_b = pose_b[:3]
+        rot_bh = rot_bh
+
+        pos_w = base_pos_w + base_rot_wb @ pos_b
+        rot_wh = base_rot_wb @ rot_bh
+
+        draw_frame(pos_w, rot_wh, color)
+
+      # -------------------------------------------------------
+      # 2. Actual hand frames.
+      #
+      # Convert actual world poses into the base frame first.
+      # Then transform back to world coordinates for rendering.
+      # This keeps the relative-pose calculation explicit.
+      # -------------------------------------------------------
+      for body_id, color in (
+        (right_body_id, viz.right_color),
+        (left_body_id, viz.left_color),
+      ):
+        actual_pos_w = body_pos_ws[i, body_id]
+        actual_rot_w = body_mat_ws[i, body_id]
+
+        # Actual pose expressed in the base frame.
+        actual_pos_b = base_rot_bw @ (
+          actual_pos_w - base_pos_w
+        )
+        actual_rot_b = base_rot_bw @ actual_rot_w
+
+        # Convert to world coordinates for the viewer.
+        actual_pos_w_draw = (
+          base_pos_w + base_rot_wb @ actual_pos_b
+        )
+        actual_rot_w_draw = base_rot_wb @ actual_rot_b
+
+        draw_frame(
+          actual_pos_w_draw,
+          actual_rot_w_draw,
+          color,
+        )
+
+      # -------------------------------------------------------
+      # 3. Base-height target arrow.
+      # -------------------------------------------------------
+      start_w = base_pos_w.copy()
+      end_w = base_pos_w + base_rot_wb @ np.array(
+        [0.0, 0.0, float(base_heights[i, 0])],
+        dtype=float,
+      )
+
+      visualizer.add_arrow(
+        start_w,
+        end_w,
+        color=viz.base_color,
+        width=viz.arrow_width * 2,
+      )
 
 
 @dataclass(kw_only=True)
@@ -380,16 +699,30 @@ class WbcPoseCommandCfg(CommandTermCfg):
     z: tuple[float, float] = (0.0, 0.0)
     # Radians, base frame (x forward). Defaults keep the hand facing forward
     # or sideways, with everything in between.
-    yaw: tuple[float, float] = (-math.pi / 2, math.pi / 2)
-    pitch: tuple[float, float] = (-math.pi / 4, math.pi / 4)
-    roll: tuple[float, float] = (-math.pi / 4, math.pi / 4)
+    yaw: tuple[float, float] = (-math.pi / 2, -math.pi / 2)
+    pitch: tuple[float, float] = (0.0, 0.0)
+    roll: tuple[float, float] = (-math.pi / 2, -math.pi / 2)
 
   tracked_body_ranges: dict[str, Ranges]
 
   min_xy_radius: float = 0.2
   """Minimum horizontal distance between hand targets and the base origin."""
 
-  viz = None
+  transition_duration_s: float = 2.0
+  """Time in seconds to move from the current command to its target."""
+
+  entity_name: str = "robot"
+
+  @dataclass
+  class VizCfg:
+    cross_size: float = 0.03
+    arrow_length: float = 0.15
+    arrow_width: float = 0.008
+    right_color: tuple[float, float, float, float] = (1.0, 0.2, 0.2, 0.8)
+    left_color: tuple[float, float, float, float] = (0.2, 0.4, 1.0, 0.8)
+    base_color: tuple[float, float, float, float] = (0.2, 0.9, 0.3, 0.8)
+
+  viz: VizCfg = field(default_factory=VizCfg)
 
   def build(self, env: ManagerBasedRlEnv) -> WbcPoseCommand:
     return WbcPoseCommand(self, env)
@@ -403,13 +736,3 @@ class WbcPoseCommandCfg(CommandTermCfg):
     missing = [n for n in self.tracked_body_names if n not in self.tracked_body_ranges]
     if missing:
       raise ValueError(f"tracked_body_ranges is missing entries for {missing}.")
-
-    half_pi = math.pi / 2
-    for body in self.tracked_body_names[:2]:
-      r = self.tracked_body_ranges[body]
-      for name in ("yaw", "pitch"):
-        lo, hi = getattr(r, name)
-        if lo < -half_pi or hi > half_pi:
-          raise ValueError(
-            f"{body}.{name}={(lo, hi)} must lie within [-pi/2, pi/2]."
-          )

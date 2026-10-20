@@ -888,13 +888,13 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     tracked_body_names = end_effector_body_names + ("base_link",),
     tracked_body_ranges= {
       "arm_right_tip_link" : mdp.WbcPoseCommandCfg.Ranges(
-        x=(0.05, 0.7),
-        y=(-0.5, 0.3),
+        x=(0.2, 0.6),
+        y=(-0.5, 0.1),
         z=(-0.1, 0.6),
       ),
       "arm_left_tip_link" : mdp.WbcPoseCommandCfg.Ranges(
-        x=(0.05, 0.7),
-        y=(-0.3, 0.5),
+        x=(0.2, 0.6),
+        y=(-0.1, 0.5),
         z=(-0.1, 0.6),
       ),
       "base_link" : mdp.WbcPoseCommandCfg.Ranges(
@@ -902,6 +902,7 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
       ),
     },
     resampling_time_range=(2.5, 4.0),
+    debug_vis= True
   )
 
   # Add rewards for tracking base link and end effector commands
@@ -930,6 +931,14 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
   # TERRAIN
   cfg.scene.terrain.terrain_generator.sub_terrains["perlin_noise"].proportion = 0.0
   cfg.scene.terrain.terrain_generator.sub_terrains["hf_discrete_obstacles"].proportion = 0.0
-  
+
+  if play:
+    twist_cmd = cfg.commands["twist"]
+    assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+    twist_cmd.ranges.lin_vel_x = (0.0, 0.0)
+    twist_cmd.ranges.lin_vel_y = (0.0, 0.0)
+    twist_cmd.ranges.ang_vel_z = (0.0, 0.0)
+    twist_cmd.rel_forward_envs = 0.0
+    twist_cmd.rel_heading_envs = 0.0
 
   return cfg
