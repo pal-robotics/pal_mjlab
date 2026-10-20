@@ -531,21 +531,27 @@ def body_ang_vel_xy_l2_penalty(
 # WBC control fine tuning rewards
 ##
 
+def _base_height_above_feet(
+  env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg
+) -> torch.Tensor:
+  """Base z relative to the lowest foot site (N,). Invariant to terrain elevation."""
+  asset: Entity = env.scene[asset_cfg.name]
+  foot_z = asset.data.site_pos_w[:, asset_cfg.site_ids, 2]  # (N, n_sites)
+  return asset.data.root_link_pos_w[:, 2] - foot_z.min(dim=1).values
+
 
 def track_base_height(
   env: ManagerBasedRlEnv,
   std: float,
   command_name: str,
-  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,  # must carry site_names
 ) -> torch.Tensor:
-  """Track the reference base height with an exponential kernel."""
-  asset: Entity = env.scene[asset_cfg.name]
-
-  z = asset.data.root_link_pos_w[:, 2]
+  """Track the reference base height (above the feet) with an exponential kernel."""
+  z = _base_height_above_feet(env, asset_cfg)
   z_ref = ref_base_height(env, command_name).reshape(env.num_envs)
 
   error = torch.square(z - z_ref)
-  env.extras["log"]["Metrics/base_height_error"] = torch.mean(torch.sqrt(error))
+  env.extras["log"]["Metrics/base_height_error"] = torch.sqrt(error).mean()
   return torch.exp(-error / std**2)
 
 
@@ -582,14 +588,14 @@ def track_base_height_pose(
   env: ManagerBasedRlEnv,
   std: float,
   command_name: str,
-  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,  # must carry site_names
 ) -> torch.Tensor:
-  """Track the commanded base height (last command entry) with an exponential kernel."""
-  asset: Entity = env.scene[asset_cfg.name]
+  """Track the commanded base height (last command entry, above the feet)."""
   command = env.command_manager.get_command(command_name)
   assert command is not None, f"Command '{command_name}' not found."
 
-  error = torch.square(asset.data.root_link_pos_w[:, 2] - command[:, -1])
+  z = _base_height_above_feet(env, asset_cfg)
+  error = torch.square(z - command[:, -1])
   env.extras["log"]["Metrics/base_height_error"] = torch.sqrt(error).mean()
   return torch.exp(-error / std**2)
 

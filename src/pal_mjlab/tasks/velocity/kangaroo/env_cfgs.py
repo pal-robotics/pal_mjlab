@@ -1,6 +1,7 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
 import math
+from copy import deepcopy
 
 import mjlab.terrains as terrain_gen
 from mjlab.envs import ManagerBasedRlEnvCfg
@@ -741,7 +742,6 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     "ref_base_height": ObservationTermCfg(
       func=mdp.ref_base_height,
       params={"command_name": "wbc_command"},
-      noise=Unoise(n_min=-0.01, n_max=0.01),
     ),
     "ref_base_lin_vel_b": ObservationTermCfg(
       func=mdp.ref_base_lin_vel_b,
@@ -759,7 +759,6 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       params={
         "command_name": "wbc_command", 
       },
-      noise=Unoise(n_min=-0.03, n_max=0.03),
     ),
     "base_ang_vel": ObservationTermCfg(
       func=mdp.builtin_sensor,
@@ -792,9 +791,9 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   for term_name, term in actor_terms.items() :
     if term_name not in cfg.observations["critic"].terms.keys() :
-      obs_cfg = term
+      obs_cfg = deepcopy(term)
       obs_cfg.noise = None
-      cfg.observations["critic"].terms[term_name] = term
+      cfg.observations["critic"].terms[term_name] = obs_cfg
 
   cfg.commands["wbc_command"] = mdp.WbcCommandCfg(
     tracked_body_names = end_effector_body_names + ("base_link",),
@@ -835,17 +834,18 @@ def pal_kangaroo_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     weight=1.5,
     params={
       "command_name" : "wbc_command",
-      "std" : math.sqrt(0.25),
+      "std" : 0.25,
       "body_names" : end_effector_body_names,
     }
   )
-
+  site_names = ("left_foot", "right_foot")
   cfg.rewards["track_base_heigth"] = RewardTermCfg(
     func=mdp.track_base_height,
     weight=1.0,
     params={
       "command_name" : "wbc_command",
-      "std" : math.sqrt(0.25),
+      "std" : 0.1,
+      "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
     },
   )
 
@@ -875,7 +875,6 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     params={
       "command_name": "wbc_command", 
     },
-    noise=Unoise(n_min=-0.02, n_max=0.02),
   )
 
   cfg.observations["critic"].terms["ref_body_ori"] = ObservationTermCfg(
@@ -883,7 +882,6 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     params={
       "command_name": "wbc_command", 
     },
-    noise=Unoise(n_min=-0.02, n_max=0.02),
   )
 
   cfg.commands["wbc_command"] = mdp.WbcPoseCommandCfg(
@@ -913,18 +911,19 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     params={
       "command_name": "wbc_command",
       "body_names": end_effector_body_names,
-      "pos_std": 0.1,
+      "pos_std": 0.25,
       "ori_std": 0.3,
-      "ori_weight": 0.5,
+      "ori_weight": 0.3,
     },
   )
-
+  site_names = ("left_foot", "right_foot")
   cfg.rewards["track_base_heigth"] = RewardTermCfg(
     func=mdp.track_base_height_pose,
     weight=1.0,
     params={
       "command_name" : "wbc_command",
-      "std" : math.sqrt(0.25),
+      "std" : 0.1,
+      "asset_cfg": SceneEntityCfg("robot", site_names=site_names),
     },
   )
 
