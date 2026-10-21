@@ -865,7 +865,7 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
   end_effector_body_names = ("arm_right_tip_link","arm_left_tip_link")
 
   cfg.observations["actor"].terms["ref_body_pos"].func = mdp.ref_body_pos_pose_b
-  cfg.observations["actor"].terms["ref_body_pos"].noise = Unoise(n_min=-0.02, n_max=0.02),
+  cfg.observations["actor"].terms["ref_body_pos"].noise = Unoise(n_min=-0.02, n_max=0.02)
   cfg.observations["critic"].terms["ref_body_pos"].func = mdp.ref_body_pos_pose_b
 
   cfg.observations["actor"].terms["ref_base_height"].func = mdp.ref_base_height_pose
@@ -920,7 +920,7 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     params={
       "command_name": "wbc_command",
       "body_names": end_effector_body_names,
-      "std": 0.20,
+      "std": 0.60,
     },
   )
   cfg.rewards["ee_orientation"] = RewardTermCfg(
@@ -929,7 +929,7 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     params={
       "command_name": "wbc_command",
       "body_names": end_effector_body_names,
-      "std": 0.30,
+      "std": 0.90,
     },
   )
   site_names = ("left_foot", "right_foot")
