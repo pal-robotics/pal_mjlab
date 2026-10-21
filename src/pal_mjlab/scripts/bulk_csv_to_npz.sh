@@ -47,7 +47,7 @@ for path in "$src_dir"/*; do
 
         uv run -m pal_mjlab.scripts.csv_to_npz \
             --input-file "$path" \
-            --input-fps 30 \
+            --input-fps 50 \
             --output-fps 50 \
             --render False \
             --robot_name "$robot" \

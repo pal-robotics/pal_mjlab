@@ -59,7 +59,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "ref_base_ang_vel_b": ObservationTermCfg(
       func=mdp.ref_base_ang_vel_b,
       params={"command_name": "motion"},
-      noise=Unoise(n_min=(-0.02, -0.02, -0.04), n_max=(0.02, 0.02, 0.04)),
+      noise=Unoise(n_min=(-0.02, -0.02, -0.02), n_max=(0.02, 0.02, 0.02)),
     ),
     "ref_gravity_b": ObservationTermCfg(
       func=mdp.ref_gravity_b,
