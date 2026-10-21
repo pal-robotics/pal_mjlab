@@ -161,10 +161,13 @@ def ref_base_ang_acc_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tenso
   return env.command_manager.get_term(command_name).ref_base_ang_acc_b
 
 
-def body_indexes_from_names(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[str, ...]) :
-  assert body_names is not None, "'body_indexes_from_names' method does not support 'None' body_names"
-
+def body_indexes_from_names(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[str, ...] | None = None) :
   command = cast(MotionCommand, env.command_manager.get_term(command_name))
+
+  # None -> all bodies
+  if body_names is None:
+    return list(range(len(command.cfg.body_names)))
+
   name_to_idx = {name: i for i, name in enumerate(command.cfg.body_names)}
   missing = [name for name in body_names if name not in name_to_idx]
   if missing:
@@ -173,7 +176,7 @@ def body_indexes_from_names(env: ManagerBasedRlEnv, command_name: str, body_name
     )
   return [name_to_idx[name] for name in body_names]
 
-def ref_body_pos_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[str, ...]) -> torch.Tensor:
+def ref_body_pos_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[str, ...] | None = None) -> torch.Tensor:
   command = cast(MotionCommand, env.command_manager.get_term(command_name))
 
   indexes = body_indexes_from_names(env, command_name, body_names)
@@ -188,7 +191,7 @@ def ref_body_pos_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[
   return pos_b.view(env.num_envs, -1)
 
 
-def ref_body_ori_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[str, ...]) -> torch.Tensor:
+def ref_body_ori_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[str, ...] | None = None) -> torch.Tensor:
   command = cast(MotionCommand, env.command_manager.get_term(command_name))
 
   indexes = body_indexes_from_names(env, command_name, body_names)

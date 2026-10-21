@@ -105,6 +105,12 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "motion_anchor_ori_b": ObservationTermCfg(
       func=mdp.motion_anchor_ori_b, params={"command_name": "motion"}
     ),
+    "motion_body_pos_b": ObservationTermCfg(
+      func=mdp.ref_body_pos_b, params={"command_name": "motion"},
+    ),
+    "motion_body_ori_b": ObservationTermCfg(
+      func=mdp.ref_body_ori_b, params={"command_name": "motion"},
+    ),
     "body_pos": ObservationTermCfg(
       func=mdp.robot_body_pos_b, params={"command_name": "motion"}
     ),
