@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Literal, cast
+import torch
 
 import tyro
 
@@ -47,6 +48,11 @@ class TrainConfig:
   """ONNX metadata keys to carry over from the resumed checkpoint's ONNX into every
   ONNX exported by this run (e.g. ['original_run_path']). Requires a runner that
   supports `inherited_onnx_metadata`."""
+  freeze_actor_iterations: int = 0
+  """Critic warm-up: keep the actor frozen for this many iterations after resuming.
+  Counts toward agent.max_iterations. 0 disables."""
+  freeze_actor_critic_lr: float = 1e-4
+  """Fixed LR used during the warm-up phase (the adaptive schedule is disabled)."""
   gpu_ids: list[int] | Literal["all"] | None = field(default_factory=lambda: [0])
 
   @staticmethod
@@ -96,6 +102,30 @@ def read_onnx_metadata(onnx_path: Path) -> dict[str, str]:
   model = onnx.load(str(onnx_path), load_external_data=False)
   return {p.key: p.value for p in model.metadata_props}
 
+def _count_trainable(module) -> int:
+  return sum(p.numel() for p in module.parameters() if p.requires_grad)
+
+
+def set_actor_frozen(runner, frozen: bool) -> None:
+  """Freeze/unfreeze every actor parameter (MLP weights and action-noise std)."""
+  alg = runner.alg
+  actor = alg.actor if hasattr(alg, "actor") else alg.policy.actor
+  for p in actor.parameters():
+    p.requires_grad_(not frozen)
+  # Older rsl_rl keeps the action std on the policy object instead of the actor.
+  if hasattr(alg, "policy"):
+    for name in ("std", "log_std"):
+      p = getattr(alg.policy, name, None)
+      if isinstance(p, torch.nn.Parameter):
+        p.requires_grad_(not frozen)
+  print(
+    f"[INFO]: actor {'FROZEN' if frozen else 'UNFROZEN'} "
+    f"(trainable actor params: {_count_trainable(actor)})"
+  )
+  if frozen:
+    assert _count_trainable(actor) == 0, "Actor still has trainable params."
+    critic = alg.critic if hasattr(alg, "critic") else alg.policy.critic
+    assert _count_trainable(critic) > 0, "Critic has no trainable params."
 
 def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
   cuda_visible = os.environ.get("CUDA_VISIBLE_DEVICES", "")
@@ -268,8 +298,36 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
       print(f"[INFO]: Keeping ONNX metadata from previous run: {list(kept)}")
       runner.inherited_onnx_metadata = kept  # picked up by the runner's save()
 
+  n_freeze = cfg.freeze_actor_iterations if resume_path is not None else 0
+  if n_freeze > 0:
+    alg = runner.alg
+    saved = (alg.schedule, alg.learning_rate)
+
+    # With the adaptive schedule, a frozen actor gives KL ~ 0, so rsl_rl would
+    # ramp the LR up every step and blow up the critic. Pin it during warm-up.
+    alg.schedule = "fixed"
+    alg.learning_rate = cfg.freeze_actor_critic_lr
+    for g in alg.optimizer.param_groups:
+      g["lr"] = cfg.freeze_actor_critic_lr
+
+    set_actor_frozen(runner, True)
+    actor_before = [p.detach().clone() for p in (alg.actor if hasattr(alg, "actor") else alg.policy.actor).parameters()]
+
+    runner.learn(num_learning_iterations=n_freeze, init_at_random_ep_len=True)
+
+    actor_now = list((alg.actor if hasattr(alg, "actor") else alg.policy.actor).parameters())
+    assert all(torch.equal(b, a) for b, a in zip(actor_before, actor_now)), (
+      "Actor changed during the frozen phase!"
+    )
+
+    set_actor_frozen(runner, False)
+    alg.schedule, alg.learning_rate = saved
+    for g in alg.optimizer.param_groups:
+      g["lr"] = alg.learning_rate
+
   runner.learn(
-    num_learning_iterations=cfg.agent.max_iterations, init_at_random_ep_len=True
+    num_learning_iterations=max(cfg.agent.max_iterations - n_freeze, 0),
+    init_at_random_ep_len=(n_freeze == 0),
   )
 
   env.close()
