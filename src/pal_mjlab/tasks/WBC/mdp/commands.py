@@ -207,8 +207,13 @@ class MotionLoader:
 
         anchor_lin_vel = self.body_lin_vel_w[:, anchor_body_index]
         anchor_ang_vel = self.body_ang_vel_w[:, anchor_body_index]
-        self.anchor_lin_acc_w = torch.gradient(anchor_lin_vel, spacing=step_dt, dim=0)[0]
-        self.anchor_ang_acc_w = torch.gradient(anchor_ang_vel, spacing=step_dt, dim=0)[0]
+        lin_acc = torch.zeros_like(anchor_lin_vel)
+        ang_acc = torch.zeros_like(anchor_ang_vel)
+        for s, e in zip(self.segment_start_idx.tolist(), self.segment_end_idx.tolist()):
+          if e - s >= 2:
+            lin_acc[s:e] = torch.gradient(anchor_lin_vel[s:e], spacing=step_dt, dim=0)[0]
+            ang_acc[s:e] = torch.gradient(anchor_ang_vel[s:e], spacing=step_dt, dim=0)[0]
+        self.anchor_lin_acc_w, self.anchor_ang_acc_w = lin_acc, ang_acc
 
 class MotionCommand(CommandTerm):
   cfg: MotionCommandCfg
@@ -245,12 +250,12 @@ class MotionCommand(CommandTerm):
     )
     self.body_quat_relative_w[:, :, 0] = 1.0
 
-    self.bin_count = int(self.motion.time_step_total // (1 / env.step_dt)) + 1
+    self._build_adaptive_bins()
     self.bin_failed_count = torch.zeros(
-        self.bin_count, dtype=torch.float, device=self.device
+      self.bin_count, dtype=torch.float, device=self.device
     )
     self._current_bin_failed = torch.zeros(
-        self.bin_count, dtype=torch.float, device=self.device
+      self.bin_count, dtype=torch.float, device=self.device
     )
     self.kernel = torch.tensor(
         [self.cfg.adaptive_lambda**i for i in range(self.cfg.adaptive_kernel_size)],
@@ -284,6 +289,42 @@ class MotionCommand(CommandTerm):
 
     self.moving_envs = torch.ones(self.num_envs, dtype=torch.bool ,device=self.device)
 
+  def _build_adaptive_bins(self) -> None:
+    """One bin per (clip, ~adaptive_bin_seconds chunk), indexed globally."""
+    dev = self.device
+    m = self.motion
+    num_clips = m.num_trajectories
+    fpb = max(int(round(self.cfg.adaptive_bin_seconds / self._env.step_dt)), 1)
+
+    bins_per_clip = (m.segment_length + fpb - 1) // fpb             # (C,)
+    clip_bin_offset = torch.cumsum(bins_per_clip, 0) - bins_per_clip  # (C,)
+    total = int(bins_per_clip.sum())
+
+    bin_clip = torch.repeat_interleave(
+      torch.arange(num_clips, device=dev), bins_per_clip
+    )                                                                 # (total,)
+    local_bin = torch.arange(total, device=dev) - clip_bin_offset[bin_clip]
+    bin_start = m.segment_start_idx[bin_clip] + local_bin * fpb
+    bin_end = torch.minimum(bin_start + fpb, m.segment_end_idx[bin_clip])
+
+    # Neighbour table for smoothing: replicate-padding applied per clip, so the
+    # kernel never reaches into a different clip.
+    k = self.cfg.adaptive_kernel_size
+    pad = (k - 1) // 2
+    first = clip_bin_offset[bin_clip]
+    last = first + bins_per_clip[bin_clip] - 1
+    idx = torch.arange(total, device=dev)[:, None] + (
+      torch.arange(k, device=dev) - pad
+    )[None, :]
+    self._bin_neighbors = torch.clamp(idx, min=first[:, None], max=last[:, None])
+
+    self._frames_per_bin = fpb
+    self._bins_per_clip = bins_per_clip
+    self._clip_bin_offset = clip_bin_offset
+    self._bin_clip = bin_clip
+    self._bin_start = bin_start
+    self._bin_end = bin_end
+    self.bin_count = total  # `_uniform_sampling` metrics still use this name
 
   @property
   def ref_base_height(self) -> torch.Tensor:
@@ -451,105 +492,46 @@ class MotionCommand(CommandTerm):
     num_envs = len(env_ids)
 
     episode_failed = self._env.termination_manager.terminated[env_ids]
-
     if torch.any(episode_failed):
-        failed_env_ids = env_ids[episode_failed]
+      failed_env_ids = env_ids[episode_failed]
+      motion_ids = self.rand_motion[failed_env_ids]
 
-        motion_ids = self.rand_motion[failed_env_ids]
-        start = self.motion.segment_start_idx[motion_ids]
-        end = self.motion.segment_end_idx[motion_ids]
+      local_frame = (
+        self.time_steps[failed_env_ids] - self.motion.segment_start_idx[motion_ids]
+      ).clamp_min(0)
+      local_bin = torch.minimum(
+        local_frame // self._frames_per_bin, self._bins_per_clip[motion_ids] - 1
+      )
+      fail_bins = self._clip_bin_offset[motion_ids] + local_bin
 
-        duration = torch.clamp(end - start, min=1)
-        progress = (
-            (self.time_steps[failed_env_ids] - start).float()
-            / duration.float()
-        ).clamp(0.0, 1.0)
+      self._current_bin_failed += torch.bincount(
+        fail_bins, minlength=self.bin_count
+      ).to(dtype=self._current_bin_failed.dtype)
 
-        fail_bins = torch.clamp(
-            (progress * self.bin_count).long(),
-            0,
-            self.bin_count - 1,
-        )
-
-        self._current_bin_failed += torch.bincount(
-            fail_bins,
-            minlength=self.bin_count,
-        ).to(dtype=self._current_bin_failed.dtype)
-
-    sampling_probabilities = (
-        self.bin_failed_count
-        + self.cfg.adaptive_uniform_ratio / float(self.bin_count)
+    probs = self.bin_failed_count + self.cfg.adaptive_uniform_ratio / float(
+      self.bin_count
     )
+    if self.cfg.adaptive_kernel_size > 1:
+      probs = (probs[self._bin_neighbors] * self.kernel).sum(dim=-1)
+    probs = probs / probs.sum().clamp_min(1e-12)
 
-    pad_size = (self.cfg.adaptive_kernel_size - 1) // 2
-    sampling_probabilities = torch.nn.functional.pad(
-        sampling_probabilities.unsqueeze(0).unsqueeze(0),
-        (pad_size, pad_size),
-        mode="replicate",
+    # Sample a global (clip, chunk) bin; the clip follows from the bin.
+    sampled_bins = torch.multinomial(probs, num_envs, replacement=True)
+    self.rand_motion[env_ids] = self._bin_clip[sampled_bins]
+
+    start = self._bin_start[sampled_bins]
+    length = (self._bin_end[sampled_bins] - start).clamp_min(1)
+    offset = torch.minimum(
+      (torch.rand(num_envs, device=self.device) * length).long(), length - 1
     )
+    self.time_steps[env_ids] = start + offset
 
-    sampling_probabilities = torch.nn.functional.conv1d(
-        sampling_probabilities,
-        self.kernel.view(1, 1, -1),
-    ).view(-1)
-
-    sampling_probabilities = (
-        sampling_probabilities
-        / sampling_probabilities.sum().clamp_min(1e-12)
-    )
-
-    self.rand_motion[env_ids] = torch.multinomial(
-        self.motion.trajectory_probs,
-        num_envs,
-        replacement=True,
-    )
-
-    motion_ids = self.rand_motion[env_ids]
-
-    start = self.motion.segment_start_idx[motion_ids]
-    end = self.motion.segment_end_idx[motion_ids]
-
-    sampled_bins = torch.multinomial(
-        sampling_probabilities,
-        num_envs,
-        replacement=True,
-    )
-
-    phase = (
-        sampled_bins.float()
-        + torch.rand(num_envs, device=self.device)
-    ) / self.bin_count
-
-    phase = phase.clamp(0.0, 1.0 - 1e-6)
-
-    segment_length = (end - start).clamp_min(1)
-    frame_offset = (phase * segment_length.float()).long()
-    frame_offset = torch.clamp(
-        frame_offset, 
-        min=torch.zeros_like(segment_length), 
-        max=segment_length - 1
-    )
-    
-    self.time_steps[env_ids] = start + frame_offset
-
-    H = -(
-        sampling_probabilities
-        * (sampling_probabilities + 1e-12).log()
-    ).sum()
-
-    H_norm = (
-        H / math.log(self.bin_count)
-        if self.bin_count > 1
-        else 1.0
-    )
-
-    pmax, imax = sampling_probabilities.max(dim=0)
-
+    H = -(probs * (probs + 1e-12).log()).sum()
+    H_norm = H / math.log(self.bin_count) if self.bin_count > 1 else 1.0
+    pmax, imax = probs.max(dim=0)
     self.metrics["sampling_entropy"][env_ids] = H_norm
     self.metrics["sampling_top1_prob"][env_ids] = pmax
-    self.metrics["sampling_top1_bin"][env_ids] = (
-        imax.float() / self.bin_count
-    )
+    self.metrics["sampling_top1_bin"][env_ids] = imax.float() / self.bin_count
 
   def _random_start_sampling(self, env_ids: torch.Tensor):
     self.rand_motion[env_ids] = torch.randint(0, self.motion.num_trajectories, (len(env_ids),), device=self.device)
@@ -907,6 +889,7 @@ class MotionCommandCfg(CommandTermCfg):
   sampling_mode: Literal["adaptive", "uniform", "start"] = "adaptive"
   rel_fixed_command: float = 0.0
   max_timesteps_fixed: int = 250
+  adaptive_bin_seconds: float = 1.0
 
   @dataclass
   class VizCfg:
