@@ -491,7 +491,9 @@ class MotionCommand(CommandTerm):
   def _adaptive_sampling(self, env_ids: torch.Tensor):
     num_envs = len(env_ids)
 
-    episode_failed = self._env.termination_manager.terminated[env_ids]
+    episode_failed = (
+      self._env.termination_manager.terminated[env_ids] & self.moving_envs[env_ids]
+    )
     if torch.any(episode_failed):
       failed_env_ids = env_ids[episode_failed]
       motion_ids = self.rand_motion[failed_env_ids]
@@ -536,8 +538,6 @@ class MotionCommand(CommandTerm):
   def _random_start_sampling(self, env_ids: torch.Tensor):
     self.rand_motion[env_ids] = torch.randint(0, self.motion.num_trajectories, (len(env_ids),), device=self.device)
     self.time_steps[env_ids] = self.motion.segment_start_idx[self.rand_motion[env_ids]]
-    self.moving_envs[env_ids] = ~(torch.rand((len(env_ids),), device=self.device) < self.cfg.rel_fixed_command)
-    self.fixed_time_steps[env_ids] = 0
 
   def _uniform_sampling(self, env_ids: torch.Tensor):
     num_envs = len(env_ids)
@@ -560,6 +560,14 @@ class MotionCommand(CommandTerm):
     self.metrics["sampling_entropy"][env_ids] = 1.0  # Maximum entropy for uniform.
     self.metrics["sampling_top1_prob"][env_ids] = 1.0 / self.bin_count
     self.metrics["sampling_top1_bin"][env_ids] = 0.5  # No specific bin preference.
+
+  def _sample_moving(self, env_ids: torch.Tensor) -> None:
+    fixed = torch.rand(len(env_ids), device=self.device) < self.cfg.rel_fixed_command
+    self.moving_envs[env_ids] = ~fixed
+    self.fixed_time_steps[env_ids] = 0
+    # Fixed envs hold the first frame of their clip.
+    start = self.motion.segment_start_idx[self.rand_motion[env_ids]]
+    self.time_steps[env_ids] = torch.where(fixed, start, self.time_steps[env_ids])
 
   def _write_reference_state_to_sim(
     self,
@@ -588,6 +596,7 @@ class MotionCommand(CommandTerm):
     else:
       assert self.cfg.sampling_mode == "adaptive"
       self._adaptive_sampling(env_ids)
+    self._sample_moving(env_ids)
 
     root_pos = self.body_pos_w[env_ids, 0].clone()
     root_ori = self.body_quat_w[env_ids, 0].clone()
@@ -686,7 +695,7 @@ class MotionCommand(CommandTerm):
     motion_done = self.time_steps >= self.motion.segment_end_idx[self.rand_motion]
     fixed_done = (
       (self.fixed_time_steps >= self.cfg.max_timesteps_fixed)
-      & ~self.moving_envs.bool()
+      & ~self.moving_envs
     )
     wrap_ids = torch.nonzero(motion_done | fixed_done, as_tuple=False).squeeze(-1)
 
@@ -819,7 +828,10 @@ class MotionCommand(CommandTerm):
       @scrubber.on_update
       def _(_) -> None:
         idx = get_env_idx()
-        self.time_steps[idx] = int(scrubber.value)
+        motion_id = self.rand_motion[idx]
+        start = self.motion.segment_start_idx[motion_id]
+        end = self.motion.segment_end_idx[motion_id]
+        self.time_steps[idx] = torch.minimum(start + int(scrubber.value), end - 1)
         if on_change is not None:
           on_change()
 
@@ -858,6 +870,8 @@ class MotionCommand(CommandTerm):
     return True
 
   def reset_to_frame(self, env_ids: torch.Tensor, frame: int) -> None:
+    self.moving_envs[env_ids] = True
+    self.fixed_time_steps[env_ids] = 0
     start = self.motion.segment_start_idx[self.rand_motion[env_ids]]
     end = self.motion.segment_end_idx[self.rand_motion[env_ids]]
     self.time_steps[env_ids] = torch.clamp(start + frame, min=start, max=end - 1)
