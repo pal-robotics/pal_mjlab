@@ -230,3 +230,16 @@ these links. That list had two problems:
     `supermimic_ppo_sim_1hz`, GPU task 67.
   - Started fresh from iteration 0 on commit 21d5962, for a clean baseline curve.
   - Hardware gains stay a separate question for PAL.
+
+**D28. Passive joints: never in the actor's inputs; allowed in privileged inputs (flagged 2026-10-23).**
+- **Actor.** It sees only the 28 actuated joints (`REGEX_ALL_ACTUATED_JOINTS` excludes `leg_*_femur_joint`
+  and `leg_*_knee_joint`): proprio q, q̇ and actions, and the goal's reference q and q̇. Verified on the
+  running job's observation table: proprio 10 × (28 + 28 + 3 + 3 + 28), goal 10 × (28 + 28 + 6).
+- **Privileged inputs.** The critic's heading state (D4) has all 32 joints, including the passive q and
+  q̇. The tracking reward uses the passive knee body (D25). Both are training-only.
+- **Revisit if:**
+  - the world model's observation head (M2/M3) starts feeding anything derived from passive joints back
+    to the policy;
+  - a distilled or student policy (Appendix B encoders) copies the critic's inputs;
+  - the real robot turns out not to measure `leg_*_length_joint`, which counts as actuated here.
+- **Guard:** `tests/supermimic/test_env.py::test_observation_layout` pins the actor groups' sizes.
