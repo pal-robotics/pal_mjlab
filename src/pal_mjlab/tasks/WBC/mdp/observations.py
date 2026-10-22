@@ -132,24 +132,40 @@ def _body_ang_vel_in_anchor_frame(
   return vel_b.view(num_envs, num_bodies * 3)
 
 def motion_body_lin_vel(
-  env: ManagerBasedRlEnv, command_name: str
+    env: ManagerBasedRlEnv,
+    command_name: str,
+    body_names: tuple[str, ...] | None = None,
 ) -> torch.Tensor:
-  """Actual keybody linear velocities in the robot anchor frame."""
-  command = env.command_manager.get_term(command_name)
-  return _body_lin_vel_in_anchor_frame(
-    command.robot_anchor_quat_w, command.robot_body_lin_vel_w
-  )
+    """Actual keybody linear velocities in the robot anchor frame."""
+    command = env.command_manager.get_term(command_name)
 
+    velocities = command.robot_body_lin_vel_w
+
+    if body_names is not None:
+        indices = [command.robot_body_names.index(name) for name in body_names]
+        velocities = velocities[:, indices, :]
+
+    return _body_lin_vel_in_anchor_frame(
+        command.robot_anchor_quat_w, velocities
+    )
 
 def motion_body_ang_vel(
-  env: ManagerBasedRlEnv, command_name: str
+    env: ManagerBasedRlEnv,
+    command_name: str,
+    body_names: tuple[str, ...] | None = None,
 ) -> torch.Tensor:
-  """Actual keybody angular velocities in the robot anchor frame."""
-  command = env.command_manager.get_term(command_name)
-  return _body_ang_vel_in_anchor_frame(
-    command.robot_anchor_quat_w, command.robot_body_ang_vel_w
-  )
+    """Actual keybody angular velocities in the robot anchor frame."""
+    command = env.command_manager.get_term(command_name)
 
+    velocities = command.robot_body_ang_vel_w
+
+    if body_names is not None:
+        indices = [command.robot_body_names.index(name) for name in body_names]
+        velocities = velocities[:, indices, :]
+
+    return _body_ang_vel_in_anchor_frame(
+        command.robot_anchor_quat_w, velocities
+    )
 
 def ref_base_lin_acc_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
   """Reference anchor linear acceleration in anchor frame (critic privileged)."""

@@ -110,30 +110,6 @@ def pal_kangaroo_flat_wbc_env_cfg(
     },
     noise=Unoise(n_min=-0.01, n_max=0.01),
   )
-  cfg.observations["actor"].terms["ref_body_ori"] = ObservationTermCfg(
-    func=mdp.ref_body_ori_b, 
-    params={
-      "command_name": "motion", 
-      "body_names": end_effector_body_names,
-    },
-    noise=Unoise(n_min=-0.02, n_max=0.02),
-  )
-  cfg.observations["actor"].terms["motion_body_lin_vel"] = ObservationTermCfg(
-    func=mdp.motion_body_lin_vel, 
-    params={
-      "command_name": "motion", 
-      "body_names": end_effector_body_names,
-    },
-    noise=Unoise(n_min=(-0.01, -0.01, -0.01), n_max=(0.01, 0.01, 0.01)),
-  )
-  cfg.observations["actor"].terms["motion_body_ang_vel"] = ObservationTermCfg(
-    func=mdp.motion_body_ang_vel, 
-    params={
-     "command_name": "motion", 
-     "body_names": end_effector_body_names,
-    },
-    noise=Unoise(n_min=(-0.01, -0.01, -0.01), n_max=(0.01, 0.01, 0.01)),
-  )
 
   # The hull points should correspond to the respective joints defined in the joint_names_group order
   # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
@@ -329,13 +305,30 @@ def pal_kangaroo_grippers_flat_wbc_env_cfg(
     },
     noise=Unoise(n_min=-0.02, n_max=0.02),
   )
+
   cfg.observations["actor"].terms["ref_body_ori"] = ObservationTermCfg(
     func=mdp.ref_body_ori_b, 
     params={
       "command_name": "motion", 
       "body_names": end_effector_body_names,
     },
-    noise=Unoise(n_min=-0.01, n_max=0.01),
+    noise=Unoise(n_min=-0.02, n_max=0.02),
+  )
+  cfg.observations["actor"].terms["motion_body_lin_vel"] = ObservationTermCfg(
+    func=mdp.motion_body_lin_vel, 
+    params={
+      "command_name": "motion", 
+      "body_names": end_effector_body_names,
+    },
+    noise=Unoise(n_min=(-0.01, -0.01, -0.01), n_max=(0.01, 0.01, 0.01)),
+  )
+  cfg.observations["actor"].terms["motion_body_ang_vel"] = ObservationTermCfg(
+    func=mdp.motion_body_ang_vel, 
+    params={
+     "command_name": "motion", 
+     "body_names": end_effector_body_names,
+    },
+    noise=Unoise(n_min=(-0.01, -0.01, -0.01), n_max=(0.01, 0.01, 0.01)),
   )
 
   cfg.terminations["ee_body_pos"].params["body_names"] = (
