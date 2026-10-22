@@ -8,6 +8,10 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import torch
+import csv
+import mujoco
+import mujoco_warp as mjw
+from scipy.spatial.transform import Rotation as R, Slerp
 
 from mjlab.managers import CommandTerm, CommandTermCfg
 from mjlab.utils.lab_api.math import (
@@ -23,6 +27,14 @@ from mjlab.utils.lab_api.math import (
 )
 from mjlab.viewer.debug_visualizer import DebugVisualizer
 
+from pal_mjlab.scripts.csv_to_npz import ROBOT_CONFIGS
+from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
+  KANGAROO_XML,
+  KANGAROO_LOWER_BODY_XML,
+  KANGAROO_HANDS_XML, 
+  KANGAROO_GRIPPERS_XML
+)
+
 if TYPE_CHECKING:
   from collections.abc import Callable
   from typing import Any
@@ -33,6 +45,13 @@ if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
 
 _DESIRED_FRAME_COLORS = ((1.0, 0.5, 0.5), (0.5, 1.0, 0.5), (0.5, 0.5, 1.0))
+
+ROBOT_XML_DICT = {
+  "Kangaroo" : KANGAROO_XML,
+  "Kangaroo_lower_body" : KANGAROO_LOWER_BODY_XML,
+  "Kangaroo_hands" : KANGAROO_HANDS_XML,
+  "Kangaroo_grippers" : KANGAROO_GRIPPERS_XML,
+}
 
 class MotionLoader:
     """
@@ -214,6 +233,256 @@ class MotionLoader:
             lin_acc[s:e] = torch.gradient(anchor_lin_vel[s:e], spacing=step_dt, dim=0)[0]
             ang_acc[s:e] = torch.gradient(anchor_ang_vel[s:e], spacing=step_dt, dim=0)[0]
         self.anchor_lin_acc_w, self.anchor_ang_acc_w = lin_acc, ang_acc
+
+class MotionLoaderCsv:
+  """
+  Load multiple motion CSV files as one contiguous motion library.
+
+  Each CSV is treated as one trajectory/clip. The individual clips are
+  concatenated along the time dimension, while segment_start_idx and
+  segment_length keep track of where each trajectory lives.
+  """
+
+  def __init__(
+    self,
+    motion_dir: str,
+    input_fps: float = 30.0,
+    output_fps: float = 50.0, 
+    device: str = "cpu",
+) -> None:
+
+    in_dt, out_dt = 1.0 / input_fps, 1.0 / output_fps
+
+    source = Path(motion_dir).expanduser().resolve()
+
+    if not source.is_dir():
+      raise FileNotFoundError(f"Motion directory not found: {source}")
+
+    motion_paths = sorted(source.glob("*.csv"))
+
+    if not motion_paths:
+      raise FileNotFoundError(
+          f"No .csv motion files found in {source}"
+      )
+
+    # Store each clip temporarily as numpy arrays.
+    root_pos_list = []
+    root_lin_vel_list = []
+    root_lin_acc_list = []
+    root_quat_list = []
+    root_ang_vel_list = []
+    root_ang_acc_list = []
+    joint_pos_list = []
+    joint_vel_list = []
+
+    segment_start = []
+    segment_length = []
+    segment_names = []
+
+    current_start = 0
+
+    time_step = []
+
+    for path in motion_paths:
+      with open(path, newline="", encoding="utf-8") as f:
+        columns = list(zip(*csv.reader(f)))
+
+      root_pos   = np.asarray(columns[0:3],  dtype=np.float32)   # (3, N)
+      root_quat  = np.asarray(columns[3:7],  dtype=np.float32)   # (4, N), xyzw
+      joint_pos  = np.asarray(columns[7:],   dtype=np.float32)   # (J, N)
+
+      n_in = root_pos.shape[1]
+      t_in = np.arange(n_in) * in_dt
+      duration = t_in[-1]
+      t_out = np.arange(0, duration, out_dt)                      # same grid as the script
+
+      # Linear interpolation for positions and joints
+      def lerp(x):
+        return np.stack([np.interp(t_out, t_in, row) for row in x])
+
+      root_pos_o  = lerp(root_pos)                                # (3, M)
+      joint_pos_o = lerp(joint_pos)                               # (J, M)
+
+      # Slerp for the quaternion (scipy uses xyzw, matching the CSV)
+      slerp = Slerp(t_in, R.from_quat(root_quat.T))
+      r = slerp(t_out)                                            # Rotation of length M
+      root_quat_o = r.as_quat().T                                 # (4, M), xyzw
+
+      # Velocities at the output rate
+      root_lin_vel = np.gradient(root_pos_o,  out_dt, axis=1)
+      joint_vel    = np.gradient(joint_pos_o, out_dt, axis=1)
+
+      # World-frame angular velocity (central difference, padded at the ends)
+      w = (r[2:] * r[:-2].inv()).as_rotvec() / (2 * out_dt)       # (M-2, 3)
+      root_ang_vel = np.concatenate([w[:1], w, w[-1:]]).T         # (3, M)
+
+      # Linear acceleration
+      root_lin_acc = np.gradient(root_lin_vel, out_dt, axis=1)
+
+      # Angular acceleration (world frame)
+      root_ang_acc = np.gradient(root_ang_vel, out_dt, axis=1)
+
+
+      # Sanity check to exclude explosive values in first/last frames
+      _data = (root_pos_o, root_lin_vel, root_lin_acc, root_quat_o, root_ang_vel, root_ang_acc, joint_pos_o, joint_vel)
+
+      _data_checked = self.sanity_check(_data)
+
+      root_pos_o = _data_checked[0]
+      root_lin_vel = _data_checked[0]
+      root_lin_acc = _data_checked[0]
+
+      root_quat_o = _data_checked[0]
+      root_ang_vel = _data_checked[0]
+      root_ang_acc = _data_checked[0]
+
+      joint_pos_o = _data_checked[0]
+      joint_vel = _data_checked[0]
+
+      num_frames = joint_pos_o.shape[0]
+
+      if num_frames == 0:
+        continue
+
+      # Save trajectory metadata.
+      segment_start.append(current_start)
+      segment_length.append(num_frames)
+      segment_names.append(path.stem)
+
+      # Add this clip to the library.
+
+      root_pos_list.append(root_pos_o)
+      root_lin_vel_list.append(root_lin_vel)
+      root_lin_acc_list.append(root_lin_acc)
+      root_quat_list.append(root_quat_o)
+      root_ang_vel_list.append(root_ang_vel)
+      root_ang_acc_list.append(root_ang_acc)
+      joint_pos_list.append(joint_pos_o)
+      joint_vel_list.append(joint_vel)
+
+      current_start += num_frames
+
+      time_step.append(int(joint_pos.shape[0]))
+
+    if not joint_pos_list:
+      raise ValueError(f"No valid motion frames found in {source}")
+
+    # ------------------------------------------------------------
+    # Concatenate all trajectories into one motion library.
+    # ------------------------------------------------------------
+
+    self.root_pos = torch.as_tensor(
+      np.concatenate(root_pos_list, axis=0),
+      dtype=torch.float32,
+      device=device,
+    )
+    self.root_lin_vel = torch.as_tensor(
+      np.concatenate(root_lin_vel_list, axis=0),
+      dtype=torch.float32,
+      device=device,
+    )
+    self.root_lin_acc = torch.as_tensor(
+      np.concatenate(root_lin_acc_list, axis=0),
+      dtype=torch.float32,
+      device=device,
+    )
+
+    self.root_quat = torch.as_tensor(
+      np.concatenate(root_quat_list, axis=0),
+      dtype=torch.float32,
+      device=device,
+    )
+    self.root_ang_vel = torch.as_tensor(
+      np.concatenate(root_ang_vel_list, axis=0),
+      dtype=torch.float32,
+      device=device,
+    )
+    self.root_ang_acc = torch.as_tensor(
+      np.concatenate(root_ang_acc_list, axis=0),
+      dtype=torch.float32,
+      device=device,
+    )
+
+    self.joint_pos = torch.as_tensor(
+      np.concatenate(joint_pos_list, axis=0),
+      dtype=torch.float32,
+      device=device,
+    )
+    self.joint_vel = torch.as_tensor(
+      np.concatenate(joint_vel_list, axis=0),
+      dtype=torch.float32,
+      device=device,
+    )
+
+    # ------------------------------------------------------------
+    # Trajectory / segment information.
+    # ------------------------------------------------------------
+
+    self.segment_start_idx = torch.tensor(
+        segment_start,
+        dtype=torch.long,
+        device=device,
+    )
+
+    self.segment_length = torch.tensor(
+        segment_length,
+        dtype=torch.long,
+        device=device,
+    )
+
+    self.segment_end_idx = (
+        self.segment_start_idx + self.segment_length
+    )
+
+    self.num_trajectories = len(segment_start)
+
+    self.segment_names = tuple(segment_names)
+
+    self.time_step_total = max(tsl for tsl in time_step)
+
+    self.trajectory_probs = (
+      self.segment_length.float() / self.segment_length.sum().float()
+    ).to(device=device)
+
+  def sanity_check(data):
+    pass
+
+class OnlineCsvToNpz :
+  def __init__(
+    self, robot_type: str,
+    motion_dir: str,
+    input_fps: float = 30.0,
+    output_fps: float = 50.0, 
+    device: str = "cpu",
+  ):
+
+    xml_path = ROBOT_XML_DICT[robot_type]
+
+    self.mjm = mujoco.MjModel.from_xml_path(xml_path)
+    self.mjd = mujoco.MjData(self.mjm)
+    self.m = mjw.put_model(self.mjm)
+    self.d = mjw.put_data(self.mjm, self.mjd, nworld=1)
+
+    self.motion_csv = MotionLoaderCsv(
+      motion_dir=motion_dir,
+      input_fps=input_fps,
+      output_fps=output_fps,
+      device=device
+    )
+
+  def retarget(self, t : torch.Tensor, ):    
+    qpos = np.concatenate([self.motion_csv.root_pos[:, t], self.motion_csv.root_quat[:, t], self.motion_csv.joint_pos[:, t]])
+
+    rot = R.from_quat(self.motion_csv.root_quat[:, t])
+    
+    w_local = rot.inv().apply(self.motion_csv.root_ang_vel[:, t])
+    qvel = np.concatenate([self.motion_csv.root_lin_vel[:, t], w_local, self.motion_csv.joint_vel[:, t]])
+
+    self.d.qpos.assign(qpos[None])
+    self.d.qvel.assign(qvel[None])
+    mjw.forward(self.m, self.d)
+
+    return self.d
 
 class MotionCommand(CommandTerm):
   cfg: MotionCommandCfg
@@ -975,3 +1244,81 @@ class MotionCommandCfg(CommandTermCfg):
 
   def build(self, env: ManagerBasedRlEnv) -> MotionCommand:
     return MotionCommand(self, env)
+
+
+class OnlineMotionCommand(MotionCommand) :
+  
+  def __init__(self, cfg: OnlineMotionCommandCfg, env: ManagerBasedRlEnv):
+    super(MotionCommand, self).__init__(cfg, env)
+
+    self.robot: Entity = env.scene[cfg.entity_name]
+    self.robot_anchor_body_index = self.robot.body_names.index(
+      self.cfg.anchor_body_name
+    )
+    self.motion_anchor_body_index = self.cfg.body_names.index(self.cfg.anchor_body_name)
+    self.body_indexes = torch.tensor(
+      self.robot.find_bodies(self.cfg.body_names, preserve_order=True)[0],
+      dtype=torch.long,
+      device=self.device,
+    )
+
+    # if no body name passed, track all
+    if self.cfg.tracked_body_names is None :
+      self.cfg.tracked_body_names = self.cfg.body_names
+
+    self.motion = MotionLoader(
+      self.cfg.motion_dir, self.body_indexes, self.motion_anchor_body_index, env.step_dt, device=self.device
+    )
+    self.time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
+    self.fixed_time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
+    self.body_pos_relative_w = torch.zeros(
+      self.num_envs, len(cfg.body_names), 3, device=self.device
+    )
+    self.body_quat_relative_w = torch.zeros(
+      self.num_envs, len(cfg.body_names), 4, device=self.device
+    )
+    self.body_quat_relative_w[:, :, 0] = 1.0
+
+    self._build_adaptive_bins()
+    self.bin_failed_count = torch.zeros(
+      self.bin_count, dtype=torch.float, device=self.device
+    )
+    self._current_bin_failed = torch.zeros(
+      self.bin_count, dtype=torch.float, device=self.device
+    )
+    self.kernel = torch.tensor(
+        [self.cfg.adaptive_lambda**i for i in range(self.cfg.adaptive_kernel_size)],
+        device=self.device,
+    )
+    self.kernel = self.kernel / self.kernel.sum()
+
+    self.metrics["error_anchor_pos"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_anchor_rot"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_anchor_lin_vel"] = torch.zeros(
+      self.num_envs, device=self.device
+    )
+    self.metrics["error_anchor_ang_vel"] = torch.zeros(
+      self.num_envs, device=self.device
+    )
+    self.metrics["error_body_pos"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_body_rot"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_joint_pos"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_joint_vel"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["sampling_entropy"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["sampling_top1_prob"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["sampling_top1_bin"] = torch.zeros(self.num_envs, device=self.device)
+
+    self._ghost_model = None
+    self._ghost_color = np.array(cfg.viz.ghost_color, dtype=np.float32)
+    self._pending_forward = False
+
+    self.rand_motion = torch.multinomial(
+      self.motion.trajectory_probs, self.num_envs, replacement=True
+    )
+
+    self.moving_envs = torch.ones(self.num_envs, dtype=torch.bool ,device=self.device)
+
+
+@dataclass
+class OnlineMotionCommandCfg(MotionCommandCfg) :
+  a : 1
