@@ -26,7 +26,7 @@ the actuator list for kinematic accuracy in simulation.
 
 44 joints :
 
-    40 actuators :
+    28 actuators :
 
     - pelvis_1_joint *(revolute)*
 
@@ -84,6 +84,18 @@ the actuator list for kinematic accuracy in simulation.
 
     - leg_right_5_joint *(revolute)*
 
+    4 passive joints :
+
+    - leg_left_knee_joint *(revolute)*
+
+    - leg_left_femur_joint *(revolute)*
+
+    - leg_right_knee_joint *(revolute)*
+
+    - leg_right_femur_joint *(revolute)*
+
+    12 inactive joints (commented out in the model):
+
     - gripper_left_inner_finger_left_joint *(revolute)*
 
     - gripper_left_fingertip_left_joint *(revolute)*
@@ -107,17 +119,6 @@ the actuator list for kinematic accuracy in simulation.
     - gripper_right_fingertip_right_joint *(revolute)*
 
     - gripper_right_outer_finger_right_joint *(revolute)*
-
-
-    4 passive joints :
-
-    - leg_left_knee_joint *(revolute)*
-
-    - leg_left_femur_joint *(revolute)*
-
-    - leg_right_knee_joint *(revolute)*
-
-    - leg_right_femur_joint *(revolute)*
 
 The passive joints are not directly actuated by the policy — they follow the
 motion of the closed-chain leg mechanism and are excluded from the action
