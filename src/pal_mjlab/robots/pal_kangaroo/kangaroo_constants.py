@@ -443,7 +443,7 @@ def _build_action_scales(
 
 
 KANGAROO_GRIPPERS_FACTOR_OVERRIDES = {
-  r"arm_.*_[567]_joint": 4.0,
+  r"arm_.*_[567]_joint": 8.0,
 }
 
 KANGAROO_ACTION_SCALE, KANGAROO_ACTUATOR_NAMES = _build_action_scales(
