@@ -1,6 +1,7 @@
 """Pal Robotics KANGAROO constants."""
 
 from pathlib import Path
+import re
 
 import mujoco
 import torch
@@ -41,8 +42,10 @@ for p in [
 ##
 
 NATURAL_FREQ_LEGS = 3.5 * 2.0 * 3.1415926535  # 3.5Hz
-NATURAL_FREQ_ARMS = 1.0 * 2.0 * 3.1415926535  # 1Hz
+NATURAL_FREQ_ARMS = 3.5 * 2.0 * 3.1415926535  # 1Hz
 DAMPING_RATIO = 2.0
+
+DEFAULT_ACTION_SCALE_FACTOR = 0.25
 
 HIP_XY_CONVEX_HULL_POINTS = torch.tensor(
   [
@@ -369,10 +372,44 @@ _EXCLUDED_JOINTS = {
 }
 
 
+def _joint_names(spec_fn) -> list[str]:
+  return [j.name for j in spec_fn().joints if j.name]
+
+
 def _build_action_scales(
-  articulation: EntityArticulationInfoCfg, exclude: set = frozenset()
+  articulation: EntityArticulationInfoCfg,
+  exclude: set = frozenset(),
+  *,
+  default_factor: float = 0.25,
+  factor_overrides: dict[str, float] | None = None,
+  joint_names: list[str] | None = None,
+  strict: bool = True,
 ) -> tuple[dict, tuple]:
-  """Build action scale dict and actuator names from articulation config."""
+  """Same signature and output as the original, plus optional overrides.
+
+  Without `factor_overrides`, behaves exactly like the original (keys are
+  target_names_expr strings, no joint names needed). With overrides,
+  `joint_names` is required: overrides are matched against resolved joint
+  names (exact name first, then first regex fullmatch). An expression is
+  emitted as-is if all its joints share one factor; otherwise it is split
+  into concrete joint names.
+  """
+  overrides = factor_overrides or {}
+  if overrides and joint_names is None:
+    raise ValueError("factor_overrides requires joint_names")
+  joint_names = joint_names or []
+  used = set()
+
+  def _factor_for(joint: str) -> float:
+    if joint in overrides:
+      used.add(joint)
+      return overrides[joint]
+    for pattern, value in overrides.items():
+      if re.fullmatch(pattern, joint):
+        used.add(pattern)
+        return value
+    return default_factor
+
   scales, names = {}, []
   for a in articulation.actuators:
     e = (
@@ -385,21 +422,29 @@ def _build_action_scales(
       if isinstance(a.stiffness, dict)
       else {n: a.stiffness for n in a.target_names_expr}
     )
-    # Torque-normalized action scale: at rest, a unit action shifts the PD
-    # target by 0.25 * effort / Kp, producing ~25% of the joint's effort limit
-    # (saturation at |a| ~ 4). This gives every joint the same torque authority
-    # per unit action regardless of its stiffness. The 0.25 is a heuristic
-    # (not derived), inherited from the legged_gym default action_scale
-    # (Rudin et al., CoRL 2021, arXiv:2109.11978) and made torque-relative in
-    # BeyondMimic (Liao et al., 2025, arXiv:2508.08241;
-    # github.com/HybridRobotics/whole_body_tracking), which mjlab's G1 config
-    # follows.
     for n in a.target_names_expr:
-      if n in e and n in s and s[n] and n not in exclude:
-        scales[n] = 0.25 * e[n] / s[n]
+      if not (n in e and n in s and s[n]) or n in exclude:
+        continue
+      joints = [j for j in joint_names if re.fullmatch(n, j) and j not in exclude]
+      factors = {j: _factor_for(j) for j in joints}
+      if len(set(factors.values())) <= 1:
+        f = next(iter(factors.values()), default_factor)
+        scales[n] = f * e[n] / s[n]
         names.append(n)
+      else:
+        for j, f in factors.items():
+          scales[j] = f * e[n] / s[n]
+          names.append(j)
+
+  unused = set(overrides) - used
+  if strict and unused:
+    raise ValueError(f"Action-scale overrides matched no joint: {sorted(unused)}")
   return scales, tuple(names)
 
+
+KANGAROO_GRIPPERS_FACTOR_OVERRIDES = {
+  r"arm_.*_[567]_joint": 4.0,
+}
 
 KANGAROO_ACTION_SCALE, KANGAROO_ACTUATOR_NAMES = _build_action_scales(
   KANGAROO_ARTICULATION, _EXCLUDED_JOINTS
@@ -411,7 +456,9 @@ KANGAROO_HANDS_ACTION_SCALE, KANGAROO_HANDS_ACTUATOR_NAMES = _build_action_scale
   KANGAROO_HANDS_ARTICULATION
 )
 KANGAROO_GRIPPERS_ACTION_SCALE, KANGAROO_GRIPPERS_ACTUATOR_NAMES = _build_action_scales(
-  KANGAROO_GRIPPERS_ARTICULATION
+  KANGAROO_GRIPPERS_ARTICULATION,
+  joint_names=_joint_names(get_kangaroo_grippers_spec),
+  factor_overrides=KANGAROO_GRIPPERS_FACTOR_OVERRIDES,
 )
 
 if __name__ == "__main__":
