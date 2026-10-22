@@ -200,9 +200,12 @@ these links. That list had two problems:
 - **The wrist was an end-effector frame.** It used `arm_*_tip_link`, which sits at `arm_*_7_link` in
   pal_mjlab but is rotated 45° in GMR.
 
-**D26. Actuator gains: BeyondMimic's rule at one natural frequency, 3.5 Hz for every joint.** (user)
-- The rule: Kp = armature·ω², Kd = 2ζ·armature·ω with ζ = 2. Action scale is 0.25·effort/Kp.
-- PAL's identified armatures, friction and effort limits are kept as they are.
-- The 1 Hz arm/waist frequency on MAC/WBC was an experiment for that task. With 3.5 Hz the arm and
-  waist Kp rise 12× (e.g. 19 to 234 for the shoulder) and the legs are unchanged.
-- Built in `kangaroo/env_cfgs.py` (`kangaroo_robot_cfg`), so the WBC tasks stay as they are.
+**D26. Actuator gains: as in pal_mjlab PR #126 (`feat/7dof_rough`, = main).** (user)
+- `kangaroo_constants.py` on this branch is that branch's file.
+- The rule is BeyondMimic's: Kp = armature·ω², Kd = 2ζ·armature·ω with ζ = 2, at 3.5 Hz for every joint.
+  Action scale is 0.25·effort/Kp. PAL's identified armatures, friction and effort limits are kept.
+- The 1 Hz arm/waist split on MAC/WBC was an experiment for that task and is reverted here; it also
+  affects the WBC tasks on this branch. With 3.5 Hz, arm and waist Kp rise 12× (e.g. 19 to 234 for the
+  shoulder) and the legs are unchanged.
+- The task uses the stock `get_kangaroo_grippers_robot_cfg()` and `KANGAROO_GRIPPERS_ACTION_SCALE`, so
+  there is no gain logic of its own.

@@ -8,15 +8,16 @@ Kangaroo facts that shape the mapping:
     actuated joints.
 """
 
-import math
-from dataclasses import replace
-
-from mjlab.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 
-from pal_mjlab.robots import REGEX_ALL_ACTUATED_JOINTS, get_kangaroo_grippers_robot_cfg
+from pal_mjlab.robots import (
+  KANGAROO_GRIPPERS_ACTION_SCALE,
+  KANGAROO_GRIPPERS_ACTUATOR_NAMES,
+  REGEX_ALL_ACTUATED_JOINTS,
+  get_kangaroo_grippers_robot_cfg,
+)
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommandCfg
 from pal_mjlab.tasks.supermimic.supermimic_env_cfg import make_supermimic_env_cfg
 
@@ -57,38 +58,6 @@ FOOT_GEOMS = tuple(
 )
 TORSO_BODY = "pelvis_2_link"
 
-# BeyondMimic's actuator rule (paper Appendix A, "low PD gains"): one natural frequency
-# for every joint, Kp = armature * w^2, Kd = 2 * zeta * armature * w, and an action scale
-# of 0.25 * effort / Kp. The frequency is PAL's identified value for Kangaroo (3.5 Hz on
-# main, #121); the armatures, friction and effort limits are PAL's identified ones (D26).
-NATURAL_FREQ_HZ = 3.5
-DAMPING_RATIO = 2.0
-
-
-def kangaroo_robot_cfg() -> EntityCfg:
-  """Kangaroo with grippers, gains from the BeyondMimic rule at one natural frequency."""
-  cfg = get_kangaroo_grippers_robot_cfg()
-  w = 2.0 * math.pi * NATURAL_FREQ_HZ
-  assert cfg.articulation is not None
-  actuators = tuple(
-    replace(
-      a, stiffness=a.armature * w**2, damping=2.0 * DAMPING_RATIO * a.armature * w
-    )
-    for a in cfg.articulation.actuators
-  )
-  cfg.articulation = replace(cfg.articulation, actuators=actuators)
-  return cfg
-
-
-def action_scales(robot: EntityCfg) -> dict[str, float]:
-  """0.25 * effort / Kp per actuator group (BeyondMimic's torque-relative scale)."""
-  assert robot.articulation is not None
-  return {
-    name: 0.25 * a.effort_limit / a.stiffness
-    for a in robot.articulation.actuators
-    for name in a.target_names_expr
-  }
-
 
 def pal_kangaroo_grippers_supermimic_env_cfg(
   play: bool = False,
@@ -96,15 +65,15 @@ def pal_kangaroo_grippers_supermimic_env_cfg(
   """Kangaroo SuperMimic tracking env; ``play`` is the paper's evaluation setting."""
   cfg = make_supermimic_env_cfg()
 
-  robot = kangaroo_robot_cfg()
-  cfg.scene.entities = {"robot": robot}
+  # Gains from kangaroo_constants (BeyondMimic's rule, 3.5 Hz for every joint, D26);
+  # action scale 0.25 * effort / Kp.
+  cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
   cfg.viewer.body_name = "base_link"
 
-  scales = action_scales(robot)
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
-  joint_pos_action.scale = scales
-  joint_pos_action.actuator_names = tuple(scales)
+  joint_pos_action.scale = KANGAROO_GRIPPERS_ACTION_SCALE
+  joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
 
   assert cfg.commands is not None
   motion_cmd = cfg.commands["motion"]
