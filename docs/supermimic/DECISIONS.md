@@ -209,3 +209,20 @@ these links. That list had two problems:
   shoulder) and the legs are unchanged.
 - The task uses the stock `get_kangaroo_grippers_robot_cfg()` and `KANGAROO_GRIPPERS_ACTION_SCALE`, so
   there is no gain logic of its own.
+
+**D27. Arm/waist gains: measure, don't assume. 3.5 Hz vs 1 Hz A/B (2026-10-22).** (user)
+- **Question.** MAC/WBC lowered the arm and waist frequency to 1 Hz "to improve tracking". With
+  BeyondMimic's rule, Kangaroo's arms at 3.5 Hz have Kp/τ_max ≈ 4–6 per rad (G1: ≈ 0.6), so their action
+  scale is 0.04–0.06 rad per unit. That makes reference arm poses need |a| ≈ 8 (median) to 41 (p95), and
+  makes the action-rate penalty expensive.
+- **Runs.** PPO-Sim on `dev`, 1,000 iterations, 8192 envs, seed 42:
+  - `Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers` (3.5 Hz);
+  - `...-ArmWaist1Hz` (arms and waist at 1 Hz, same rule).
+  Both use `run_gain_ab.sh`.
+- **Decision metric:** root-relative per-body position error on the `dev` benchmark (`eval.py`), arms
+  first, paired per clip.
+- **Guardrails:** failures, tracking-only normalized return, torque rate and saturation.
+- **Result** (`m1/gain_ab.md`): 1 Hz is better on every metric. Arm error 21.2 → 15.3 cm (better on 90% of
+  clips), legs 11.3 → 8.6 cm (95%), tracking return 0.53 → 0.62 (95%), failures 162 → 144, arm
+  saturation 0.8% → 0.04%. It's a single seed, sim only, at 1,000 iterations.
+- **Decision for the 12 h run:** pending the user.

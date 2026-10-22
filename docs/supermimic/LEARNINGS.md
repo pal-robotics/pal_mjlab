@@ -202,6 +202,22 @@ the root joint, about one body out of ~40, so the timings stand.
 
 **Check after the changes** (8192 envs): 76 ms per step, 6.4 GB, finite observations.
 
+## Gains vs action parameterization (D27, `m1/gain_ab.md`)
+
+- **The setpoint parameterization makes PD stiffness a property of the action space.** With
+  q_sp = q₀ + α·a and α = 0.25·τ_max/Kp, one unit is 25% effort. But holding a joint away from q₀ costs
+  4·(Kp/τ_max) units per rad, and moving it costs 4·(Kd/τ_max) per rad/s. BeyondMimic's "low gains"
+  mean Kp/τ_max ≈ 0.5–0.7 per rad, where the setpoint really is a torque proxy.
+- **Kangaroo's arms and waist are not in that regime at 3.5 Hz.** Their Kp/τ_max is 4–6 per rad (about
+  100× G1's reflected inertia for 1–2× its effort). At 1 Hz they're back near 0.4.
+- **Measured** (PPO-Sim, `dev`, 1,000 iterations): 1 Hz arms and waist beat 3.5 Hz on 90% of clips for
+  arm error (21 → 15 cm) and 95% for leg error (11 → 9 cm) and tracking return (0.53 → 0.62). It also
+  had fewer failures and less torque saturation.
+- **What 3.5 Hz does instead.** Its policy lets arm tracking degrade during training while its arm
+  torque rate falls: the action-rate penalty, which is in action units, makes arm motion expensive.
+- **Takeaway.** When transferring BeyondMimic or SuperMimic to a new robot, check Kp/τ_max per joint,
+  not the natural frequency. Or anchor the setpoint on the reference, which is untested.
+
 ## Repo state found on MAC/WBC (not caused by us)
 
 - `tests/test_kangaroo_velocity_task_launch.py`: all 12 velocity tasks fail at env construction on GPU.
