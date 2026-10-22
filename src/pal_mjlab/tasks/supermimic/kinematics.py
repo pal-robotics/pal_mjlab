@@ -58,6 +58,47 @@ def quat_from_axis_angle(axis: torch.Tensor, angle: torch.Tensor) -> torch.Tenso
   return torch.cat((torch.cos(half), torch.sin(half) * axis), dim=-1)
 
 
+def quat_conj(q: torch.Tensor) -> torch.Tensor:
+  return torch.cat([q[..., :1], -q[..., 1:]], dim=-1)
+
+
+def quat_rotate_inv(q: torch.Tensor, v: torch.Tensor) -> torch.Tensor:
+  """Express world vectors ``v`` in the frame of ``q``."""
+  return quat_rotate(quat_conj(q), v)
+
+
+def yaw_quat(q: torch.Tensor) -> torch.Tensor:
+  """Heading (yaw-only) part of a quaternion."""
+  w, x, y, z = q.unbind(-1)
+  yaw = torch.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+  zero = torch.zeros_like(yaw)
+  return torch.stack([torch.cos(0.5 * yaw), zero, zero, torch.sin(0.5 * yaw)], dim=-1)
+
+
+def quat_error_magnitude(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+  """Rotation angle between two orientations, in [0, pi]."""
+  d = quat_mul(a, quat_conj(b))
+  # eps keeps the gradient finite when the orientations coincide (BPTT goes through it).
+  sin_half = torch.sqrt(d[..., 1:].square().sum(-1) + 1e-12)
+  return 2.0 * torch.atan2(sin_half, d[..., 0].abs())
+
+
+def rot6d(q: torch.Tensor) -> torch.Tensor:
+  """First two columns of the rotation matrix (continuous 6D representation)."""
+  w, x, y, z = q.unbind(-1)
+  return torch.stack(
+    (
+      1 - 2 * (y * y + z * z),
+      2 * (x * y + w * z),
+      2 * (x * z - w * y),
+      2 * (x * y - w * z),
+      1 - 2 * (x * x + z * z),
+      2 * (y * z + w * x),
+    ),
+    dim=-1,
+  )
+
+
 class Kinematics(NamedTuple):
   """World-frame poses and velocities, shapes (B, n, 3) / (B, n, 4) (quat wxyz)."""
 
@@ -71,28 +112,37 @@ class Kinematics(NamedTuple):
   site_ang_vel: torch.Tensor
 
 
+# Joint types as plain ints: comparing an int with a pybind11 mujoco enum is not traced
+# correctly by torch.compile (the free-joint branch was silently skipped).
+_FREE = int(mujoco.mjtJoint.mjJNT_FREE)
+_SLIDE = int(mujoco.mjtJoint.mjJNT_SLIDE)
+_HINGE = int(mujoco.mjtJoint.mjJNT_HINGE)
+
+
 @dataclass(frozen=True)
 class _Joint:
-  kind: int  # mjtJoint
+  kind: int
   qadr: int
   dadr: int
-  axis: tuple[float, float, float]
-  pos: tuple[float, float, float]
+  axis: torch.Tensor  # (3,) in the body frame
+  pos: torch.Tensor  # (3,) anchor in the body frame
   qpos0: float
 
 
 @dataclass(frozen=True)
 class _Body:
   parent: int  # index into the evaluated body list, -1 for the world
-  pos: tuple[float, float, float]
-  quat: tuple[float, float, float, float]
+  pos: torch.Tensor  # (3,) offset in the parent frame
+  quat: torch.Tensor  # (4,) orientation in the parent frame
   joints: tuple[_Joint, ...]
 
 
 class TorchKinematics:
   """FK for a fixed set of bodies and sites of one MuJoCo model.
 
-  Only the requested bodies, the sites' bodies and their ancestors are evaluated.
+  Only the requested bodies, the sites' bodies and their ancestors are evaluated. All
+  model constants are tensors built once here, so ``forward`` is plain tensor code
+  (eager or ``torch.compile``).
   """
 
   def __init__(
@@ -119,9 +169,9 @@ class TorchKinematics:
       joints = []
       for j in range(model.body_jntadr[b], model.body_jntadr[b] + model.body_jntnum[b]):
         kind = int(model.jnt_type[j])
-        if kind == mujoco.mjtJoint.mjJNT_BALL:
-          raise NotImplementedError("ball joints are not supported")
-        if kind == mujoco.mjtJoint.mjJNT_FREE and model.body_parentid[b] != 0:
+        if kind not in (_FREE, _SLIDE, _HINGE):
+          raise NotImplementedError("only free, slide and hinge joints are supported")
+        if kind == _FREE and model.body_parentid[b] != 0:
           raise NotImplementedError("free joints only on children of the world")
         qadr = int(model.jnt_qposadr[j])
         joints.append(
@@ -129,8 +179,8 @@ class TorchKinematics:
             kind=kind,
             qadr=qadr,
             dadr=int(model.jnt_dofadr[j]),
-            axis=tuple(model.jnt_axis[j].tolist()),
-            pos=tuple(model.jnt_pos[j].tolist()),
+            axis=self._t(model.jnt_axis[j]),
+            pos=self._t(model.jnt_pos[j]),
             qpos0=float(model.qpos0[qadr]),
           )
         )
@@ -138,8 +188,8 @@ class TorchKinematics:
       bodies.append(
         _Body(
           parent=index.get(parent, -1),
-          pos=tuple(model.body_pos[b].tolist()),
-          quat=tuple(model.body_quat[b].tolist()),
+          pos=self._t(model.body_pos[b]),
+          quat=self._t(model.body_quat[b]),
           joints=tuple(joints),
         )
       )
@@ -162,8 +212,7 @@ class TorchKinematics:
     lin: list[torch.Tensor] = []
     ang: list[torch.Tensor] = []
     zero3 = qpos.new_zeros(batch, 3)
-    ident = qpos.new_zeros(batch, 4)
-    ident[:, 0] = 1.0
+    ident = torch.cat([qpos.new_ones(batch, 1), qpos.new_zeros(batch, 3)], dim=-1)
     for body in self._bodies:
       if body.parent < 0:
         p_par, q_par, v_par, w_par = zero3, ident, zero3, zero3
@@ -171,33 +220,33 @@ class TorchKinematics:
         p_par, q_par = pos[body.parent], quat[body.parent]
         v_par, w_par = lin[body.parent], ang[body.parent]
 
-      if body.joints and body.joints[0].kind == mujoco.mjtJoint.mjJNT_FREE:
+      if body.joints and body.joints[0].kind == _FREE:
         jnt = body.joints[0]
-        p = qpos[:, jnt.qadr : jnt.qadr + 3]
         q = qpos[:, jnt.qadr + 3 : jnt.qadr + 7]
         q = q / q.norm(dim=-1, keepdim=True)
-        v = qvel[:, jnt.dadr : jnt.dadr + 3]
-        w = quat_rotate(q, qvel[:, jnt.dadr + 3 : jnt.dadr + 6])
-        pos.append(p), quat.append(q), lin.append(v), ang.append(w)
+        pos.append(qpos[:, jnt.qadr : jnt.qadr + 3])
+        quat.append(q)
+        lin.append(qvel[:, jnt.dadr : jnt.dadr + 3])
+        ang.append(quat_rotate(q, qvel[:, jnt.dadr + 3 : jnt.dadr + 6]))
         continue
 
-      q = quat_mul(q_par, self._t(body.quat).expand(batch, 4))
-      p = p_par + quat_rotate(q_par, self._t(body.pos).expand(batch, 3))
+      q = quat_mul(q_par, body.quat.expand(batch, 4))
+      p = p_par + quat_rotate(q_par, body.pos.expand(batch, 3))
       # Joint contributions, applied in order; velocities are accumulated as
       # (axis, anchor, rate) and turned into the origin velocity at the end.
       w = w_par
       screws = []
       for jnt in body.joints:
-        axis_w = quat_rotate(q, self._t(jnt.axis).expand(batch, 3))
-        anchor = p + quat_rotate(q, self._t(jnt.pos).expand(batch, 3))
+        axis_w = quat_rotate(q, jnt.axis.expand(batch, 3))
+        anchor = p + quat_rotate(q, jnt.pos.expand(batch, 3))
         val = qpos[:, jnt.qadr] - jnt.qpos0
         rate = qvel[:, jnt.dadr : jnt.dadr + 1]
-        if jnt.kind == mujoco.mjtJoint.mjJNT_SLIDE:
+        if jnt.kind == _SLIDE:
           p = p + axis_w * val.unsqueeze(-1)
           screws.append((axis_w, None, rate))
         else:  # hinge
-          q = quat_mul(q, quat_from_axis_angle(self._t(jnt.axis).expand(batch, 3), val))
-          p = anchor - quat_rotate(q, self._t(jnt.pos).expand(batch, 3))
+          q = quat_mul(q, quat_from_axis_angle(jnt.axis.expand(batch, 3), val))
+          p = anchor - quat_rotate(q, jnt.pos.expand(batch, 3))
           screws.append((axis_w, anchor, rate))
           w = w + axis_w * rate
       v = v_par + torch.linalg.cross(w_par, p - p_par, dim=-1)
@@ -206,7 +255,10 @@ class TorchKinematics:
           v = v + axis_w * rate
         else:
           v = v + torch.linalg.cross(axis_w * rate, p - anchor, dim=-1)
-      pos.append(p), quat.append(q), lin.append(v), ang.append(w)
+      pos.append(p)
+      quat.append(q)
+      lin.append(v)
+      ang.append(w)
 
     ob = self._out_bodies
     body_pos = torch.stack([pos[k] for k in ob], dim=1)

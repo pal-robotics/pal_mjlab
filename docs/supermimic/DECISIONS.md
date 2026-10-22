@@ -10,9 +10,15 @@ sampling change whenever that makes the implementation easier. Every change gets
 
 **D1. Branch and layout.**
 - Branch `omm/supermimic`, created from `MAC/WBC`.
-- Separate task in `src/pal_mjlab/tasks/supermimic/`; the WBC task is left alone (user).
-- Docs live here; the library converter is `scripts/bones_to_library.py`; benchmarks are in
-  `scripts/supermimic/`.
+- Separate task in `src/pal_mjlab/tasks/supermimic/`, laid out like mjlab's tracking task; the WBC task
+  is left alone (user):
+  - `supermimic_env_cfg.py`: robot-agnostic base config with the paper's numbers.
+  - `mdp/`: the command, sampler, observations, rewards, terminations, and the pure `tracking.py` terms.
+  - `kangaroo/`: robot config, PPO config, task registration.
+  - `rl/`: networks.
+  - `kinematics.py`, `library.py`, `state.py`: core pieces shared with the future world-model code.
+- Docs live here. The library converter is `scripts/bones_to_library.py`; benchmarks and the resumable
+  launcher are in `scripts/supermimic/`.
 
 **D2. Interface: the basic joint-following tracker.** (user)
 - The goal is the reference trajectory over K=10 future frames: reference q and q̇ plus root terms (D6).
@@ -88,15 +94,23 @@ heading-invariant ŝ can't see drift, and the reward has a global root-position 
 - Paper Table A.2 weights and stds, over WBC's 14 tracked bodies.
 - The joint-limit penalty (−2) uses the hard limits: references exceed the 0.9× soft limits on up to 27%
   of frames.
-- Kangaroo addition: hip/ankle convex-hull penalties (half-spaces, ReLU, differentiable). They are a
-  hardware safety constraint, and a deviation from the paper.
+- Kangaroo addition: hip/ankle convex-hull penalties.
+  - They are a hardware safety constraint, and a deviation from the paper.
+  - They reuse `velocity/mdp` `joint_limits_convex_hull` with WBC's weight −10 and margin 0.02.
+  - The penalty is a squared distance from half-spaces, so it is differentiable.
 
 **D13. Termination.** The paper's rule only: |e_z| > 0.25 m or tilt > 0.8. No end-effector termination,
 no self-collision term.
 
 **D14. Domain randomization.** (user)
 - v1 uses the paper's set as ξ: foot friction, joint calibration offsets, pelvis_2 CoM. That is 1 + 32 + 3
-  dims, sampled per episode (`mode="reset"`).
+  dims.
+- Friction and calibration are resampled every episode. The CoM offset is sampled once per env at
+  startup.
+  - Why: resampling it at reset triggers mujoco_warp `set_const` over all worlds, which took the step
+    from 72 to 235 ms at 8192 envs (M1).
+  - Coverage: with thousands of envs the CoM distribution is still covered, and the world model gets ξ
+    either way.
 - Kangaroo sys-ID DR (frictionloss, damping, armature) joins ξ before any hardware work.
 
 **D15. Sim settings: 5 ms × 4 substeps, as in the paper.** (user)
@@ -113,8 +127,40 @@ no self-collision term.
   - Smaller nets only if memory forces it.
 - Every deviation is logged in the run config.
 
-**D17. Baseline: PPO-Sim.** The same env through mjlab's rsl_rl PPO, with BeyondMimic hyperparameters (the
-paper's Fig. 4a control).
+**D17. Baseline: PPO-Sim (paper §4.1).** (user: paper numbers, local GPU)
+- Task `Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers`: the same env, rsl_rl PPO with BeyondMimic's
+  hyperparameters (mjlab G1 tracking), and 8192 envs (twice SuperMimic's).
+- Actor: the paper's encoder-decoder (`rl/models.py`, 2048-1024-512-256 each, z = 32 with tanh), with a
+  Gaussian head.
+- Critic: 256-128, with the privileged inputs of D7.
+- Budget: about 12 h of local GPU on `dev`. `scripts/supermimic/train.py` resumes from the latest
+  checkpoint when the queue reruns a preempted job.
+
+**D21. Return-based sampler details** (paper D.1 leaves them open).
+- G_b is normalized per bin by the best return attainable from that start (the clip may end inside the
+  discount horizon). With one global maximum, every clip's last second would look like a failure and
+  take the 40% branch.
+- G_b starts at 0, so unvisited bins count as hard. Each visit updates it as an EMA with rate 0.2.
+- The "past weight" is an EMA (rate 0.01) of the softmax distribution.
+- Returns are Monte-Carlo over the sim episode. Truncation at 10 s barely matters, since γ^500 ≈ 0.007.
+
+**D22. Episode structure.**
+- An episode starts at a sampled frame, with BeyondMimic's reset noise on root pose, velocity and joints.
+- It runs to the clip's last frame (`motion_end`, terminal, no bootstrap, D8), a failure, or a 10 s cap
+  (truncation).
+- The critic also gets the normalized time left in the clip (capped at 3 s). Otherwise it can't predict
+  the return ending at the clip end.
+
+**D23. Simulation buffers.**
+- `nconmax` is 50. It is a contact pool shared by all worlds, and about 15 contacts per world are in use.
+- `njmax` is 300. It is a hard per-world cap, and fallen robots reach about 280 rows; 160 overflowed.
+- Measured: `nconmax` 100 cost 10.7 GB at 8192 envs, `nconmax` 40 cost 5.2 GB.
+
+**D24. Kinematics in the env.**
+- Robot and reference bodies come from the torch FK on (qpos, qvel), compiled, and are cached per env step.
+- The reward, termination and (later) imagination share them.
+- The FK model is the robot's spec as attached to the scene (names prefixed `robot/`). That makes it the
+  exact simulated tree, and tests check it against mjlab's body data.
 
 **D18. G1 control.** The algorithm core is robot-agnostic. If Kangaroo misses a gate, run the same code
 on mjlab's G1 with the BONES G1 clips (`kangaroo_bones_seed/data/g1_npz`). That separates implementation

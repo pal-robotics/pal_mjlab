@@ -144,6 +144,38 @@ planned shapes:
   320k iterations would take ~70 h here versus ~10 h on an H100 (~8×).
 - **Conclusion:** dev-subset studies (M1–M4) run locally; full-scale runs (M5) go to Lambda.
 
+The compiled-FK rows above were measured before the `torch.compile` fix below. The buggy graph skipped
+the root joint, about one body out of ~40, so the timings stand.
+
+## M1: SuperMimic env + PPO-Sim (RTX 5060 Ti, `dev` library, 8192 envs)
+
+| setting | ms / env step | device memory |
+|---|---|---|
+| paper DR every episode (CoM at reset), `nconmax` 100 | 235 | 10.8 GB |
+| CoM offset at startup, `nconmax` 100 | 72 | 10.8 GB |
+| CoM offset at startup, `nconmax` 40 | 72 | 5.2 GB |
+| FK not compiled (CoM at reset) | 283 | 10.8 GB |
+
+- **CoM DR at reset was the bottleneck.** `dr.body_com_offset` triggers `set_const` over all worlds
+  whenever any env resets, which with 8192 envs is every step. Hence CoM at startup (D14).
+- **Memory scales with `nconmax`, not `njmax`.** mujoco_warp's contact and CCD scratch buffers scale with
+  the contact pool (nconmax × worlds). About 15 contacts per world are in use. `njmax` is a hard
+  per-world cap that fallen robots push to about 280, so it stays at 300 (D23).
+- **PPO-Sim at paper size:** 4.98 s per iteration (2.0 s collection of 196k steps, 2.9 s learning), about
+  720 iterations per hour. Peak device memory is 14.4 GB of 16.3, which fits only while nav-infer is
+  stopped.
+- **Bug found and fixed: `torch.compile` with mujoco enums.** Inside a compiled function, `int_kind ==
+  mujoco.mjtJoint.mjJNT_FREE` (a pybind11 enum) evaluated False. The compiled FK silently skipped the free
+  joint and put every robot at the default root pose, so falls were never detected and the reward
+  compared the reference with itself. Fixed by comparing plain ints and building constants once in
+  `__init__`, plus a compiled-vs-eager test. It's the same family as GMR's int-vs-`mjtEq` set lookup bug.
+- **Tests must step the robot off the reference.** The first FK-parity test ran at reset, where robot and
+  reference coincide, so it couldn't catch that bug. The env tests now step random actions and check
+  that falls terminate.
+- **Name clash:** `CommandTerm.time_left` is mjlab's resampling timer; don't shadow it.
+- **Robot specs are prefixed in the scene.** Entity specs attached to the scene have names prefixed
+  `<entity>/`, so the FK model built from `robot.spec.copy()` uses prefixed body names.
+
 ## Repo state found on MAC/WBC (not caused by us)
 
 - `tests/test_kangaroo_velocity_task_launch.py`: all 12 velocity tasks fail at env construction on GPU.

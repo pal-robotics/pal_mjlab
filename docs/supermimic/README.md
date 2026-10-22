@@ -21,8 +21,13 @@ uv sync --extra cu128 --group supermimic  # plain `uv sync` drops torch-cu128 an
 # Writes to kangaroo_bones_seed/data/library/<subset>.
 .venv/bin/python -m pal_mjlab.scripts.bones_to_library --subset dev
 
-# Tests (CPU)
+# Tests (CPU, ~35 s)
 .venv/bin/python -m pytest tests/supermimic -q
+
+# PPO-Sim baseline (D17): resumes from the latest checkpoint if the job is preempted and rerun
+gpu-run --detach --label sm-ppo --max 12h -- .venv/bin/python -m pal_mjlab.scripts.supermimic.train \
+  Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers
+# other library: --env.commands.motion.library-path <folder>; logs: logs/rsl_rl/kangaroo_supermimic_ppo
 
 # Benchmarks (GPU, through the queue)
 gpu-run --label sm-sim --max 30m -- .venv/bin/python -m pal_mjlab.scripts.supermimic.bench_sim \

@@ -27,6 +27,10 @@ with a gate: if it fails, we stop and rethink before building on top.
 
 ## M1: Paper-faithful env + PPO-Sim baseline
 
+**Status (2026-10-22).** Env, PPO config and tests done: 35 tests, including FK parity with the
+simulator and fall detection. A 3-iteration check at 8192 envs ran (4.98 s per iteration). The 12 h run
+waits for review. Still to do: `eval.py`, and logging rollouts for M2.
+
 - Task `Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers` (D2, D6, D12–D15):
   - library-backed motion command: goal builder, clip-end termination (D8), paper return-based reset
     sampling;

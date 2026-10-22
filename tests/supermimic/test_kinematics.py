@@ -114,3 +114,17 @@ def test_bones_clips_match_gmr_model(model):
   ]
   q = fx["dof_pos"][:, actuated]
   assert np.all((q >= lo[actuated] - 1e-6) & (q <= hi[actuated] + 1e-6))
+
+
+def test_compiled_fk_matches_eager(model):
+  """Regression: torch.compile once skipped the free joint (int vs mujoco enum compare)."""
+  fk = TorchKinematics(
+    model, ("base_link", "arm_left_tip_link", "leg_right_5_link"), ("imu",)
+  )
+  compiled = torch.compile(fk.forward)
+  for seed in range(3):
+    qpos, qvel = _random_states(model, 8, seed)
+    qpos_t, qvel_t = torch.from_numpy(qpos).float(), torch.from_numpy(qvel).float()
+    eager, comp = fk(qpos_t, qvel_t), compiled(qpos_t, qvel_t)
+    for a, b in zip(eager, comp, strict=True):
+      torch.testing.assert_close(a, b, atol=1e-5, rtol=0)
