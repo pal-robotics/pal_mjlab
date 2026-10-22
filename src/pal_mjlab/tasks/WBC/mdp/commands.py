@@ -326,6 +326,10 @@ class MotionCommand(CommandTerm):
     self._bin_end = bin_end
     self.bin_count = total  # `_uniform_sampling` metrics still use this name
 
+    # Length-proportional distribution over bins (matches the old clip lottery).
+    uniform_p = (bin_end - bin_start).float()
+    self._bin_uniform_p = uniform_p / uniform_p.sum()
+
   @property
   def ref_base_height(self) -> torch.Tensor:
     """Anchor height relative to env origin (z_I r̂_IB)."""
@@ -510,11 +514,17 @@ class MotionCommand(CommandTerm):
         fail_bins, minlength=self.bin_count
       ).to(dtype=self._current_bin_failed.dtype)
 
-    probs = self.bin_failed_count + self.cfg.adaptive_uniform_ratio / float(
-      self.bin_count
-    )
+    fail_p = self.bin_failed_count / self.bin_failed_count.sum().clamp_min(1e-12)
     if self.cfg.adaptive_kernel_size > 1:
-      probs = (probs[self._bin_neighbors] * self.kernel).sum(dim=-1)
+      fail_p = (fail_p[self._bin_neighbors] * self.kernel).sum(dim=-1)
+      fail_p = fail_p / fail_p.sum().clamp_min(1e-12)
+
+    r = self.cfg.adaptive_uniform_ratio
+    probs = (1 - r) * fail_p + r * self._bin_uniform_p
+
+    # Optional: cap any bin at N times its uniform share, then renormalize.
+    cap = self.cfg.adaptive_max_prob_ratio * self._bin_uniform_p
+    probs = torch.minimum(probs, cap)
     probs = probs / probs.sum().clamp_min(1e-12)
 
     # Sample a global (clip, chunk) bin; the clip follows from the bin.
@@ -889,28 +899,79 @@ class MotionCommand(CommandTerm):
 @dataclass(kw_only=True)
 class MotionCommandCfg(CommandTermCfg):
   motion_dir: str
+  """Directory with one .npz per clip; all clips are loaded as one library."""
+
   anchor_body_name: str
+  """Body used as the reference frame (e.g. base_link)."""
+
   body_names: tuple[str, ...]
+  """Bodies loaded from the motion files; must include the anchor."""
+
   tracked_body_names: tuple[str, ...] | None = None
+  """Bodies used for tracking terms. None = all body_names."""
+
   entity_name: str
+  """Name of the robot entity in the scene."""
+
   pose_range: dict[str, tuple[float, float]] = field(default_factory=dict)
+  """Root pose noise added at reset (keys: x, y, z, roll, pitch, yaw)."""
+
   velocity_range: dict[str, tuple[float, float]] = field(default_factory=dict)
+  """Root velocity noise added at reset (keys: x, y, z, roll, pitch, yaw)."""
+
   joint_position_range: tuple[float, float] = (-0.52, 0.52)
-  adaptive_kernel_size: int = 1
+  """Uniform noise (rad) added to the reference joint positions at reset."""
+
+  # --- Adaptive sampling (only used when sampling_mode == "adaptive") ---
+
+  adaptive_kernel_size: int = 3
+  """Smoothing window (in bins, within a clip) applied to the failure mass.
+  1 = no smoothing."""
+
   adaptive_lambda: float = 0.8
-  adaptive_uniform_ratio: float = 0.1
+  """Kernel weights are [1, lambda, lambda^2, ...], normalized. With the current
+  neighbor-table indexing, the bin right after a failed bin gets the largest share."""
+
   adaptive_alpha: float = 0.001
-  sampling_mode: Literal["adaptive", "uniform", "start"] = "adaptive"
-  rel_fixed_command: float = 0.0
-  max_timesteps_fixed: int = 250
+  """EMA rate for the failure statistics. Smaller = slower, smoother adaptation."""
+
+  adaptive_uniform_ratio: float = 0.6
+  """Fraction of resets drawn uniformly (length-proportional over all bins),
+  ignoring failures. Failure-driven sampling gets the remaining (1 - ratio).
+  0 = pure failure-driven, 1 = uniform."""
+
+  adaptive_max_prob_ratio: float = 20.0
+  """Cap on any bin's probability, as a multiple of its uniform share. Prevents a
+  single (clip, chunk) from taking over. Set very large (e.g. 1e9) to disable."""
+
   adaptive_bin_seconds: float = 1.0
+  """Bin (chunk) duration in seconds. Smaller = finer targeting but noisier
+  failure statistics."""
+
+  sampling_mode: Literal["adaptive", "uniform", "start"] = "adaptive"
+  """'adaptive': failure-weighted bins mixed with uniform. 'uniform': random clip
+  and frame. 'start': first frame of a random clip (used for play/eval)."""
+
+  # --- Fixed (stand-still) commands ---
+
+  rel_fixed_command: float = 0.0
+  """Fraction of envs that hold the first frame of their clip with zeroed velocity
+  references. 0 = disabled (the moving_envs path becomes a no-op)."""
+
+  max_timesteps_fixed: int = 250
+  """Steps a fixed env holds its pose before being resampled
+  (250 steps = 5 s at dt 0.02)."""
 
   @dataclass
   class VizCfg:
     mode: Literal["ghost", "frames"] = "ghost"
+    """'ghost': translucent reference robot. 'frames': coordinate frames on bodies."""
+
     ghost_color: tuple[float, float, float, float] = (0.5, 0.7, 0.5, 0.5)
+    """RGBA color of the ghost robot."""
 
   viz: VizCfg = field(default_factory=VizCfg)
+  """Debug visualization settings."""
 
   def build(self, env: ManagerBasedRlEnv) -> MotionCommand:
     return MotionCommand(self, env)
