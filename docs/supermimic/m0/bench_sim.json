@@ -1,0 +1,74 @@
+[
+ {
+  "setting": "paper_5ms_x4",
+  "num_envs": 1024,
+  "control_steps_per_s": 136999.73954232605,
+  "ms_per_vector_step": 7.474466764833778,
+  "gpu_mem_gb": 1.392508928,
+  "loop_residual_mean_mm": 0.1674872887087986,
+  "loop_residual_max_mm": 3.1513250432908535,
+  "joint_track_err_mean_rad": 0.12761649385094642,
+  "nan_envs": 0,
+  "cuda_graph": true
+ },
+ {
+  "setting": "paper_5ms_x4",
+  "num_envs": 2048,
+  "control_steps_per_s": 177803.04541091484,
+  "ms_per_vector_step": 11.518362890055869,
+  "gpu_mem_gb": 1.449132032,
+  "loop_residual_mean_mm": 0.16983864617941435,
+  "loop_residual_max_mm": 3.1510931439697742,
+  "joint_track_err_mean_rad": 0.12894420750439167,
+  "nan_envs": 0,
+  "cuda_graph": true
+ },
+ {
+  "setting": "paper_5ms_x4",
+  "num_envs": 4096,
+  "control_steps_per_s": 201358.98392725794,
+  "ms_per_vector_step": 20.341779244772624,
+  "gpu_mem_gb": 2.8290580480000003,
+  "loop_residual_mean_mm": 0.17053587194823194,
+  "loop_residual_max_mm": 3.1613248866051435,
+  "joint_track_err_mean_rad": 0.129072829708457,
+  "nan_envs": 0,
+  "cuda_graph": true
+ },
+ {
+  "setting": "wbc_2ms_x10",
+  "num_envs": 1024,
+  "control_steps_per_s": 57546.97758224709,
+  "ms_per_vector_step": 17.794157799798995,
+  "gpu_mem_gb": 0.13631488000000047,
+  "loop_residual_mean_mm": 0.014115335802671325,
+  "loop_residual_max_mm": 0.34290403709746897,
+  "joint_track_err_mean_rad": 0.12732726827263832,
+  "nan_envs": 0,
+  "cuda_graph": true
+ },
+ {
+  "setting": "wbc_2ms_x10",
+  "num_envs": 2048,
+  "control_steps_per_s": 74476.44909076908,
+  "ms_per_vector_step": 27.49862574011786,
+  "gpu_mem_gb": 0.30828134400000007,
+  "loop_residual_mean_mm": 0.014401442626876815,
+  "loop_residual_max_mm": 0.3854392562061548,
+  "joint_track_err_mean_rad": 0.12868846356868743,
+  "nan_envs": 0,
+  "cuda_graph": true
+ },
+ {
+  "setting": "wbc_2ms_x10",
+  "num_envs": 4096,
+  "control_steps_per_s": 84336.84593640266,
+  "ms_per_vector_step": 48.567147069843486,
+  "gpu_mem_gb": -0.6354370559999998,
+  "loop_residual_mean_mm": 0.014507286018670129,
+  "loop_residual_max_mm": 0.3867566410917789,
+  "joint_track_err_mean_rad": 0.12882208064198494,
+  "nan_envs": 0,
+  "cuda_graph": true
+ }
+]

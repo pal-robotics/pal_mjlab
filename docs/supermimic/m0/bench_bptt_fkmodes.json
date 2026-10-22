@@ -1,0 +1,98 @@
+[
+ {
+  "sizes": "paper",
+  "batch": 2048,
+  "horizon": 32,
+  "precision": "bf16",
+  "fk": "none",
+  "policy_update_s": 0.18726550966190794,
+  "wm_fit_s": 0.2733018230064772,
+  "critic_fit_s": 0.027878695487743244,
+  "peak_mem_gb": 4.160969728,
+  "learn_s_per_iter": 0.48844602815612836
+ },
+ {
+  "sizes": "paper",
+  "batch": 4096,
+  "horizon": 32,
+  "precision": "bf16",
+  "fk": "none",
+  "policy_update_s": 0.34254428833567846,
+  "wm_fit_s": 0.27428522799164057,
+  "critic_fit_s": 0.052739386999746785,
+  "peak_mem_gb": 7.347948544,
+  "learn_s_per_iter": 0.6695689033270658
+ },
+ {
+  "sizes": "paper",
+  "batch": 2048,
+  "horizon": 32,
+  "precision": "tf32",
+  "fk": "none",
+  "policy_update_s": 0.3255017950044324,
+  "wm_fit_s": 0.48703471550834365,
+  "critic_fit_s": 0.034585335495648906,
+  "peak_mem_gb": 6.39172608,
+  "learn_s_per_iter": 0.8471218460084249
+ },
+ {
+  "sizes": "paper",
+  "batch": 4096,
+  "horizon": 32,
+  "precision": "tf32",
+  "fk": "none",
+  "policy_update_s": 0.6299644616665319,
+  "wm_fit_s": 0.48713307350408286,
+  "critic_fit_s": 0.06933168400428258,
+  "peak_mem_gb": 12.423888896,
+  "learn_s_per_iter": 1.1864292191748973
+ },
+ {
+  "sizes": "paper",
+  "batch": 2048,
+  "horizon": 32,
+  "precision": "bf16",
+  "fk": "compiled",
+  "policy_update_s": 0.3672722633345984,
+  "wm_fit_s": 0.2735393275215756,
+  "critic_fit_s": 0.02794664350221865,
+  "peak_mem_gb": 4.302205952,
+  "learn_s_per_iter": 0.6687582343583927
+ },
+ {
+  "sizes": "paper",
+  "batch": 4096,
+  "horizon": 32,
+  "precision": "bf16",
+  "fk": "compiled",
+  "policy_update_s": 0.41403456798677024,
+  "wm_fit_s": 0.2732157185091637,
+  "critic_fit_s": 0.0525627555034589,
+  "peak_mem_gb": 7.669265408,
+  "learn_s_per_iter": 0.7398130419993929
+ },
+ {
+  "sizes": "paper",
+  "batch": 2048,
+  "horizon": 32,
+  "precision": "tf32",
+  "fk": "compiled",
+  "policy_update_s": 0.39513625466497615,
+  "wm_fit_s": 0.4857027975085657,
+  "critic_fit_s": 0.03453905851347372,
+  "peak_mem_gb": 6.54923264,
+  "learn_s_per_iter": 0.9153781106870156
+ },
+ {
+  "sizes": "paper",
+  "batch": 4096,
+  "horizon": 32,
+  "precision": "tf32",
+  "fk": "compiled",
+  "policy_update_s": 0.6679042173200287,
+  "wm_fit_s": 0.48688724951352924,
+  "critic_fit_s": 0.06927648949204013,
+  "peak_mem_gb": 12.740656128,
+  "learn_s_per_iter": 1.224067956325598
+ }
+]
