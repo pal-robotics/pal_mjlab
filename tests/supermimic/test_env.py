@@ -39,13 +39,11 @@ def env():
 def test_observation_layout(env):
   obs = env.observation_manager.compute()
   k, nj, na = 10, 32, 28
-  frame = na + na + 6 + 3 + 3 + 1
+  frame = na + na + 6  # reference q, q̇ and root orientation (6D)
   assert obs["goal"].shape == (NUM_ENVS, k * frame)
   assert obs["proprio"].shape == (NUM_ENVS, 10 * (na + na + 3 + 3 + na))
-  assert obs["critic"].shape == (
-    NUM_ENVS,
-    (13 + 2 * nj) + k * frame + (1 + nj + 3) + 4 + 1,
-  )
+  state, xi = 13 + 2 * nj, 1 + na + 3
+  assert obs["critic"].shape == (NUM_ENVS, state + k * frame + xi + 4 + 1)
 
 
 def test_torch_kinematics_match_the_simulator(env):
@@ -84,13 +82,20 @@ def test_torch_kinematics_match_the_simulator(env):
 
 
 def test_sim_context_ranges(env):
-  xi = env.observation_manager.compute_group("critic")[:, 77 + 690 : 77 + 690 + 36]
-  assert ((xi[:, 0] >= 0.3) & (xi[:, 0] <= 1.2)).all()
-  assert (xi[:, 1:33].abs() <= 0.01 + 1e-6).all()
-  com = xi[:, 33:]
+  start = (13 + 2 * 32) + 10 * (28 + 28 + 6)
+  xi = env.observation_manager.compute_group("critic")[:, start : start + 1 + 28 + 3]
+  assert ((xi[:, 0] >= 0.3) & (xi[:, 0] <= 1.2)).all()  # foot friction
+  assert (
+    xi[:, 1:29].abs() <= 0.01 + 1e-6
+  ).all()  # calibration offsets, actuated joints
+  com = xi[:, 29:]
   assert (com[:, 0].abs() <= 0.025 + 1e-6).all() and (
     com[:, 1:].abs() <= 0.05 + 1e-6
   ).all()
+  # Passive four-bar joints are not measured: no calibration offset.
+  robot = env.scene["robot"]
+  passive = robot.find_joints((".*_femur_joint", ".*_knee_joint"))[0]
+  assert (robot.data.encoder_bias[:, passive] == 0).all()
 
 
 def test_episode_ends_at_the_clip_end():

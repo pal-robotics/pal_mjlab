@@ -5,8 +5,16 @@ records the decision, why we took it, and what would make us revisit it. **(user
 user made; the rest are proposals, open to change. Entries are numbered so commits and issues can cite
 them, e.g. "D7".
 
-**D0. The WBC branch is a starting point, not a constraint.** (user) Robot config, XML, gains, loader and
-sampling change whenever that makes the implementation easier. Every change gets an entry here.
+**D0. Follow the paper's methodology; the WBC branch is a starting point, not a constraint.** (user)
+- Robot config, XML, gains, loader and sampling change whenever that makes the implementation easier.
+  Every change gets an entry here.
+- Anything inherited from WBC or PAL tasks must either follow the paper or have a written reason.
+- Audited 2026-10-22, which led to D25 and D26 and the changes to D6, D12 and D14.
+- Kept on purpose, each with its reason:
+  - the IMU frame for angular velocity and gravity (the real sensor sits on the torso);
+  - the critic's privileged root-pose error and time left (D7, D22);
+  - the CoM offset sampled at startup (D14);
+  - BeyondMimic's reset noise (the paper keeps BeyondMimic's setup except for pushes).
 
 **D1. Branch and layout.**
 - Branch `omm/supermimic`, created from `MAC/WBC`.
@@ -21,7 +29,8 @@ sampling change whenever that makes the implementation easier. Every change gets
   launcher are in `scripts/supermimic/`.
 
 **D2. Interface: the basic joint-following tracker.** (user)
-- The goal is the reference trajectory over K=10 future frames: reference q and q̇ plus root terms (D6).
+- The goal is the reference trajectory over K=10 future frames, each frame being BeyondMimic's command
+  (D6).
 - The reward is the paper's body-space Table A.2.
 - The WBC sparse end-effector interface becomes a later downstream encoder (paper Appendix B).
 
@@ -54,13 +63,13 @@ sampling change whenever that makes the implementation easier. Every change gets
 - Revisit, with a learned reward head as the fallback, if FK gradients become a problem.
 
 **D6. Goal frame, for each of t+1..t+10.**
-- Contents:
-  - reference q and q̇;
-  - reference root orientation relative to the current robot root (6D);
-  - reference root linear and angular velocity in the reference frame;
-  - reference root height.
-- No world position, consistent with no state estimation (the paper's proprio has no base linear
-  velocity).
+- Contents: BeyondMimic's command without state estimation, which is the variant matching the paper's
+  proprioception (no base linear velocity):
+  - reference q and q̇ of the 28 actuated joints;
+  - reference root orientation relative to the current robot root (6D).
+  - That is 62 values per frame, 620 for the goal.
+- An earlier version also had reference root velocity and height. Those came from WBC's sparse
+  interface, so they were removed.
 
 **D7. Critic input** is (ŝ, g, ξ) plus the privileged root-pose error (planar position, yaw). The
 heading-invariant ŝ can't see drift, and the reward has a global root-position term.
@@ -91,20 +100,19 @@ heading-invariant ŝ can't see drift, and the reward has a global root-position 
 - Local runs use subsets on the GPU; the full set goes on the H100.
 
 **D12. Reward.**
-- Paper Table A.2 weights and stds, over WBC's 14 tracked bodies.
-- The joint-limit penalty (−2) uses the hard limits: references exceed the 0.9× soft limits on up to 27%
-  of frames.
-- Kangaroo addition: hip/ankle convex-hull penalties.
-  - They are a hardware safety constraint, and a deviation from the paper.
-  - They reuse `velocity/mdp` `joint_limits_convex_hull` with WBC's weight −10 and margin 0.02.
-  - The penalty is a squared distance from half-spaces, so it is differentiable.
+- Paper Table A.2 only: weights and stds over the 14 bodies of D25, action rate −0.1, joint limits −2.
+- The joint-limit term uses the hard limits of the actuated joints: references exceed the 0.9× soft
+  limits on up to 27% of frames.
+- The hip/ankle convex-hull penalties (PAL's coupled actuator limits) were removed: they aren't in the
+  paper. They come back with sys-ID DR before hardware work.
 
 **D13. Termination.** The paper's rule only: |e_z| > 0.25 m or tilt > 0.8. No end-effector termination,
 no self-collision term.
 
 **D14. Domain randomization.** (user)
-- v1 uses the paper's set as ξ: foot friction, joint calibration offsets, pelvis_2 CoM. That is 1 + 32 + 3
-  dims.
+- v1 uses the paper's set as ξ: foot friction, joint calibration offsets, pelvis_2 CoM.
+- Calibration offsets apply only to the 28 measured (actuated) joints, since the passive four-bar joints
+  have no encoders. So ξ is 1 + 28 + 3 = 32 dims.
 - Friction and calibration are resampled every episode. The CoM offset is sampled once per env at
   startup.
   - Why: resampling it at reset triggers mujoco_warp `set_const` over all worlds, which took the step
@@ -117,7 +125,7 @@ no self-collision term.
 - Solver iterations 10, ls_iterations 20.
 - The four-bar's solref 0.004 gets clamped at 5 ms. M0 measured that as fine: loop residual 0.17 mm mean,
   3.2 mm max, no NaNs.
-- Gains: start from PAL's armature-derived values; changeable.
+- Gains: see D26.
 
 **D16. Two configs.**
 - "paper": the exact hyperparameters and TF32, for a Lambda H100.
@@ -171,3 +179,30 @@ weights.
 
 **D20. No extra data filtering.** (user) `final_kept` already applies the paper's name and feasibility
 filters on G1, and again on Kangaroo after retargeting.
+
+**D25. Tracked bodies: the paper's 14 (BeyondMimic's G1 set), mapped by function.**
+
+| G1 body | Kangaroo body | why |
+|---|---|---|
+| pelvis | `base_link` | the root, as in the paper |
+| torso_link | `pelvis_2_link` | after the two waist joints |
+| hip_roll_link | `leg_*_3_link` | hip roll |
+| knee_link | `leg_*_knee_link` | Kangaroo's serial leg is a hip-ankle slide; the knee exists only as the passive four-bar body |
+| ankle_roll_link | `leg_*_5_link` | foot |
+| shoulder_roll_link | `arm_*_2_link` | shoulder |
+| elbow_link | `arm_*_4_link` | elbow |
+| wrist_yaw_link | `arm_*_7_link` | last arm link |
+
+The first version copied WBC's list. It came from the retarget's IK table, which uses rotations only for
+these links. That list had two problems:
+- **The ankle was tracked twice and the knee not at all.** It used `leg_*_4_link` as the "knee", but
+  `leg_*_4_link`, `leg_*_5_link` and `leg_*_length_link` all sit at the ankle (measured 0.0 m apart).
+- **The wrist was an end-effector frame.** It used `arm_*_tip_link`, which sits at `arm_*_7_link` in
+  pal_mjlab but is rotated 45° in GMR.
+
+**D26. Actuator gains: BeyondMimic's rule at one natural frequency, 3.5 Hz for every joint.** (user)
+- The rule: Kp = armature·ω², Kd = 2ζ·armature·ω with ζ = 2. Action scale is 0.25·effort/Kp.
+- PAL's identified armatures, friction and effort limits are kept as they are.
+- The 1 Hz arm/waist frequency on MAC/WBC was an experiment for that task. With 3.5 Hz the arm and
+  waist Kp rise 12× (e.g. 19 to 234 for the shoulder) and the legs are unchanged.
+- Built in `kangaroo/env_cfgs.py` (`kangaroo_robot_cfg`), so the WBC tasks stay as they are.

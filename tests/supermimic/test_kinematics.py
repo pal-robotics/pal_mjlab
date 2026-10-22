@@ -75,7 +75,7 @@ def test_fk_matches_mujoco(model):
 
 def test_fk_is_differentiable(model):
   fk = TorchKinematics(
-    model, ("arm_left_tip_link", "leg_right_5_link"), ("imu",), dtype=torch.float64
+    model, ("arm_left_7_link", "leg_right_5_link"), ("imu",), dtype=torch.float64
   )
   qpos, qvel = _random_states(model, 2, seed=1)
   qpos_t = torch.from_numpy(qpos).requires_grad_()
@@ -119,7 +119,7 @@ def test_bones_clips_match_gmr_model(model):
 def test_compiled_fk_matches_eager(model):
   """Regression: torch.compile once skipped the free joint (int vs mujoco enum compare)."""
   fk = TorchKinematics(
-    model, ("base_link", "arm_left_tip_link", "leg_right_5_link"), ("imu",)
+    model, ("base_link", "arm_left_7_link", "leg_right_5_link"), ("imu",)
   )
   compiled = torch.compile(fk.forward)
   for seed in range(3):

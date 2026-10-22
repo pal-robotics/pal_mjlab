@@ -70,7 +70,7 @@ UTD 0.4 = 2.5 vector steps per iteration, it implies ~93k sim steps/s per GPU.
 - **Reuse:**
   - the multi-clip `MotionLoader` segment logic and the per-clip 1 s bins (`_build_adaptive_bins`);
   - the Kangaroo actuator config and action scales;
-  - the convex-hull half-spaces (`velocity/mdp/rewards.py:71`, differentiable as ReLU(Ax + b)).
+  - later, for hardware: the convex-hull half-spaces (`velocity/mdp/rewards.py:71`, differentiable).
 - **Don't reuse:**
   - the per-body library layout (~1 KB/frame, so 44 GB for the full set; D11);
   - the ONNX export that embeds the library;
@@ -175,6 +175,32 @@ the root joint, about one body out of ~40, so the timings stand.
 - **Name clash:** `CommandTerm.time_left` is mjlab's resampling timer; don't shadow it.
 - **Robot specs are prefixed in the scene.** Entity specs attached to the scene have names prefixed
   `<entity>/`, so the FK model built from `robot.spec.copy()` uses prefixed body names.
+
+## Audit of inherited assumptions (2026-10-22)
+
+**Kangaroo geometry.**
+- The serial leg is hip, then a slide, then the ankle: `leg_*_length_link`, `leg_*_4_link` and
+  `leg_*_5_link` share one point, the ankle.
+- The physical knee exists only in the passive four-bar (`leg_*_knee_link`).
+- `arm_*_tip_link` coincides with `arm_*_7_link` in pal_mjlab, but GMR's model rotates it 45° in yaw.
+
+**The retarget's IK table** (`smplx/g1_to_kangaroo_7dof.json`).
+- It maps G1's knee to `leg_*_4_link` and the wrist to `arm_*_tip_link`, with rotation weights only.
+  Position weights are 0, except for the feet.
+- WBC's tracked bodies were copied from this table, which is how the ankle ended up tracked twice. See
+  D25.
+
+**Gains.**
+- MAC/WBC lowered the arm and waist natural frequency to 1 Hz in experimental commits for its own task.
+- PAL main and the paper's method (BeyondMimic) use one frequency for all joints. See D26.
+
+**Goal and DR.**
+- Reference root velocity and height in the goal came from WBC's sparse interface. BeyondMimic's
+  command, which the paper uses, has only reference q and q̇ plus root orientation. See D6.
+- The calibration-offset DR defaulted to all 32 joints, including the four passive ones, which have no
+  encoder. It is now restricted to the 28 actuated joints. See D14.
+
+**Check after the changes** (8192 envs): 76 ms per step, 6.4 GB, finite observations.
 
 ## Repo state found on MAC/WBC (not caused by us)
 

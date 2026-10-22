@@ -29,7 +29,6 @@ from ..kinematics import (
   quat_conj,
   quat_mul,
   quat_rotate,
-  quat_rotate_inv,
   rot6d,
 )
 from ..library import MotionLibrary
@@ -121,12 +120,11 @@ class MotionLibraryCommand(CommandTerm):
 
   @property
   def goal(self) -> torch.Tensor:
-    """(E, K * F) reference trajectory from the target frame on (D6).
+    """(E, K * F) the next K reference frames from the target frame on (D6).
 
-    Per frame: reference joint positions and velocities, reference root orientation in
-    the robot root frame (6D), reference root linear and angular velocity in the
-    reference root frame, reference root height. Frames past the clip end repeat the
-    last frame.
+    Each frame is BeyondMimic's command without state estimation: reference joint
+    positions and velocities, and the reference root orientation in the robot root frame
+    (6D). Frames past the clip end repeat the last frame.
     """
     return self._cached("goal", self._compute_goal)
 
@@ -141,9 +139,6 @@ class MotionLibraryCommand(CommandTerm):
       qp[..., 7:][..., self._goal_joint_ids],
       qv[..., 6:][..., self._goal_joint_ids],
       rot6d(quat_mul(quat_conj(robot_quat), ref_quat)),
-      quat_rotate_inv(ref_quat, qv[..., :3]),
-      qv[..., 3:6],
-      qp[..., 2:3],
     )
     return torch.cat(feats, dim=-1).flatten(1)
 

@@ -21,6 +21,7 @@ import mjlab  # noqa: F401
 import torch
 import tyro
 from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import get_kangaroo_grippers_spec
+from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import TRACKED_BODIES
 from pal_mjlab.tasks.supermimic.kinematics import (
   TorchKinematics,
   compile_kinematic_model,
@@ -28,13 +29,7 @@ from pal_mjlab.tasks.supermimic.kinematics import (
 )
 from torch import nn
 
-TRACKED = (
-  "base_link", "pelvis_2_link",
-  "leg_left_3_link", "leg_left_4_link", "leg_left_5_link",
-  "leg_right_3_link", "leg_right_4_link", "leg_right_5_link",
-  "arm_left_2_link", "arm_left_4_link", "arm_left_tip_link",
-  "arm_right_2_link", "arm_right_4_link", "arm_right_tip_link",
-)  # fmt: skip
+TRACKED = TRACKED_BODIES
 NJ, NA = 32, 28  # joints in the state (incl. passive femur/knee), actuated joints
 STATE = 1 + 6 + 3 + 3 + NJ + NJ  # height, tilt 6D, root lin/ang vel (root frame), q, qd
 POSE = 3  # integrated planar position + yaw

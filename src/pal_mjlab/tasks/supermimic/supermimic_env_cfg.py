@@ -6,7 +6,8 @@ the robot, tracked bodies, joint selections, sensors and DR targets.
 Paper settings reproduced here:
   - observations (Table A.1): q - q0, q̇, IMU angular velocity, projected gravity and the
     previous action, with sensor noise and a 10-frame history; no base linear velocity;
-  - goal: K=10 future reference frames (content per D6);
+  - goal: K=10 future reference frames, each BeyondMimic's command without state
+    estimation: reference joint positions and velocities and root orientation (D6);
   - reward (Table A.2): BeyondMimic's tracking terms without self-collision, action rate
     -0.1, joint limits -2;
   - termination: root height error > 0.25 m or tilt error > 0.8, plus the clip end (D8);
@@ -101,6 +102,7 @@ def make_supermimic_env_cfg() -> ManagerBasedRlEnvCfg:
       func=mdp.sim_context,
       params={
         "friction_asset_cfg": SceneEntityCfg("robot", geom_names=()),  # Set per robot.
+        "bias_asset_cfg": SceneEntityCfg("robot"),  # Measured joints, set per robot.
         "com_asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per robot.
       },
     ),

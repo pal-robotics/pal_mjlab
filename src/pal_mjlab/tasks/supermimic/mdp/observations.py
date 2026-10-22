@@ -50,9 +50,11 @@ def motion_time_left(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
 def sim_context(
   env: ManagerBasedRlEnv,
   friction_asset_cfg: SceneEntityCfg,
+  bias_asset_cfg: SceneEntityCfg,
   com_asset_cfg: SceneEntityCfg,
 ) -> torch.Tensor:
-  """Domain-randomization parameters ξ: foot friction, joint calibration offsets, CoM offset.
+  """Domain-randomization parameters ξ: foot friction, joint calibration offsets of the
+  measured joints, torso CoM offset.
 
   Friction is shared by all foot geoms, so the first one is read.
   """
@@ -64,7 +66,8 @@ def sim_context(
   ipos = env.sim.model.body_ipos
   ipos = ipos.expand(env.num_envs, *ipos.shape[-2:])
   com = ipos[:, body] - env.sim.get_default_field("body_ipos")[body]
-  return torch.cat([friction, asset.data.encoder_bias, com.flatten(1)], dim=-1)
+  bias = asset.data.encoder_bias[:, bias_asset_cfg.joint_ids]
+  return torch.cat([friction, bias, com.flatten(1)], dim=-1)
 
 
 def imu_projected_gravity(env: ManagerBasedRlEnv, sensor_name: str) -> torch.Tensor:
