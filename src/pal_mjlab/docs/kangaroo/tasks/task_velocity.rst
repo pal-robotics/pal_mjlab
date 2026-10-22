@@ -56,8 +56,6 @@ lower-body variant, the joint and action dimensions shrink accordingly.
 +------------------------------------+-----------+
 | imu_projected_gravity              |    (3,)   |
 +------------------------------------+-----------+
-| base_lin_acc                       |    (3,)   |
-+------------------------------------+-----------+
 
 **Critic :**
 
@@ -171,3 +169,48 @@ An episode ends when one of the following conditions is met :
 - **fell over** — the base exceeds an unrecoverable roll/pitch tilt
 
 - **illegal contacts** — a femur or knee link touches the terrain
+
+
+
+Environment terrain
+-------------------
+
+The velocity tracking task support two types of environments.
+
+The closest to baseline definition is the flat terrain environment. No obstacles are seen, only
+a plane to support the robot model.
+
+The velocity tracking task also supports training on rough environment (flat, pebbles, stairs, ...).
+The objective remains the same (to track velocity), but reward parameters and curriculum are reworked
+in order to achieve behaviors more suitable for rough terrain.
+
+Therefore, rewards, curriculums, events, terminations and critic observations may differ from the
+baseline velocity task, but nothing changes control wise.
+
+Note that actor observations are limited to proprioceptive information. Any kind of world perception
+will need the according sensors/estimators to be added/adjusted on the real hardware. As of now, no
+camera information is provided to the current tasks.
+
+
+**Terrain configuration**
+
+The rough terrain configuration allows for a modular design of the training environment. It is up to the
+user to define how much of each type of obstacles the robot is trained on, and to tune difficulty and progression.
+
+Different obstacles are available at the moment :
+
+- pebbles
+
+- random boxes
+
+- random grid fine
+
+- random grid coarse
+
+- discrete obstacles
+
+- perlin noise
+
+- stairs
+
+The terrain generator configuration allows for an easy setup of the environment and easy tuning of this obstacles.
