@@ -225,4 +225,8 @@ these links. That list had two problems:
 - **Result** (`m1/gain_ab.md`): 1 Hz is better on every metric. Arm error 21.2 → 15.3 cm (better on 90% of
   clips), legs 11.3 → 8.6 cm (95%), tracking return 0.53 → 0.62 (95%), failures 162 → 144, arm
   saturation 0.8% → 0.04%. It's a single seed, sim only, at 1,000 iterations.
-- **Decision for the 12 h run:** pending the user.
+- **Decision (user, 2026-10-22):** 1 Hz arms and waist for the 12 h PPO-Sim run.
+  - Task `Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers-ArmWaist1Hz`, experiment
+    `supermimic_ppo_sim_1hz`, GPU task 67.
+  - Started fresh from iteration 0 on commit 21d5962, for a clean baseline curve.
+  - Hardware gains stay a separate question for PAL.
