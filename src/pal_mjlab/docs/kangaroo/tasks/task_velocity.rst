@@ -188,7 +188,7 @@ Therefore, rewards, curriculums, events, terminations and critic observations ma
 baseline velocity task, but nothing changes control wise.
 
 Note that actor observations are limited to proprioceptive information. Any kind of world perception
-will need the according sensors/estimators to be added/adjusted on the real hardware. As of now, no 
+will need the according sensors/estimators to be added/adjusted on the real hardware. As of now, no
 camera information is provided to the current tasks.
 
 
