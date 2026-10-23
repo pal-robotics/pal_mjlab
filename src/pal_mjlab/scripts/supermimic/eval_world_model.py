@@ -210,9 +210,12 @@ def main(
 
   # Termination head: held-out windows of up to 8 steps (failures are short-window events).
   term = {}
+  # Every held-out window ending in a failure, plus 4x as many random ones.
   starts = rollouts.valid_starts(8, clips=held_out, sources=sources)
-  pick = torch.randperm(len(starts), generator=gen, device=device)[: 4 * windows]
-  w = rollouts.windows(starts[pick], 8)
+  ends_in_failure = rollouts.failure[starts // rollouts.E + 7, starts % rollouts.E]
+  positives = starts[ends_in_failure]
+  pick = torch.randperm(len(starts), generator=gen, device=device)[: 4 * len(positives)]
+  w = rollouts.windows(torch.cat([positives, starts[pick]]), 8)
   for name, model in predictors.items():
     if model is None:
       continue
