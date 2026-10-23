@@ -327,14 +327,14 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     "time_out": TerminationTermCfg(func=mdp.time_out, time_out=True),
     "anchor_pos": TerminationTermCfg(
       func=mdp.bad_anchor_pos_z_only,
-      params={"command_name": "motion", "threshold": 0.25},
+      params={"command_name": "motion", "threshold": 0.4},
     ),
     "anchor_ori": TerminationTermCfg(
       func=mdp.bad_anchor_ori,
       params={
         "asset_cfg": SceneEntityCfg("robot"),
         "command_name": "motion",
-        "threshold": 0.8,
+        "threshold": 1.0,
       },
     ),
     "ee_body_pos": TerminationTermCfg(
@@ -352,24 +352,35 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
 
   curriculum = {
-    "survival_curr": CurriculumTermCfg(
-      func=mdp.reward_curriculum,
-      params={
-        "reward_name": "survival",
-        "stages": [
-          {"step": 0, "weight": 1.0},
-          {"step": 5_000 * 24, "weight": 0.0},
-        ],
-      },
-    ),
+    # "survival_curr": CurriculumTermCfg(
+    #   func=mdp.reward_curriculum,
+    #   params={
+    #     "reward_name": "survival",
+    #     "stages": [
+    #       {"step": 0, "weight": 1.0},
+    #       {"step": 5_000 * 24, "weight": 0.0},
+    #     ],
+    #   },
+    # ),
     "motion_body_pos_curr": CurriculumTermCfg(
       func=mdp.reward_curriculum,
       params={
         "reward_name": "motion_body_pos",
         "stages": [
+          {"step": 0, "weight": 1.5},
+          {"step": 5_000 * 24, "weight": 2.0},
+          {"step": 15_000 * 24, "weight": 2.5},
+        ],
+      },
+    ),
+    "motion_body_ori_curr": CurriculumTermCfg(
+      func=mdp.reward_curriculum,
+      params={
+        "reward_name": "motion_body_ori",
+        "stages": [
           {"step": 0, "weight": 1.0},
-          {"step": 5_000 * 24, "weight": 1.5},
-          {"step": 15_000 * 24, "weight": 2.0},
+          {"step": 5_000 * 24, "weight": 1.25},
+          {"step": 15_000 * 24, "weight": 1.5},
         ],
       },
     ),

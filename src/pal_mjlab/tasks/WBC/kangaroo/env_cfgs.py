@@ -320,7 +320,7 @@ def pal_kangaroo_grippers_flat_wbc_env_cfg(
       "command_name": "motion", 
       "body_names": end_effector_body_names,
     },
-    noise=Unoise(n_min=(-0.01, -0.01, -0.01), n_max=(0.01, 0.01, 0.01)),
+    noise=Unoise(n_min=-0.01, n_max=0.01),
   )
   cfg.observations["actor"].terms["motion_body_ang_vel"] = ObservationTermCfg(
     func=mdp.motion_body_ang_vel, 
@@ -328,7 +328,7 @@ def pal_kangaroo_grippers_flat_wbc_env_cfg(
      "command_name": "motion", 
      "body_names": end_effector_body_names,
     },
-    noise=Unoise(n_min=(-0.01, -0.01, -0.01), n_max=(0.01, 0.01, 0.01)),
+    noise=Unoise(n_min=-0.01, n_max=0.01),
   )
 
   cfg.terminations["ee_body_pos"].params["body_names"] = (

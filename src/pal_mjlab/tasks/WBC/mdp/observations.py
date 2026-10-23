@@ -142,8 +142,8 @@ def motion_body_lin_vel(
     velocities = command.robot_body_lin_vel_w
 
     if body_names is not None:
-        indices = [command.robot_body_names.index(name) for name in body_names]
-        velocities = velocities[:, indices, :]
+        indexes = body_indexes_from_names(env, command_name, body_names)
+        velocities = velocities[:, indexes, :]
 
     return _body_lin_vel_in_anchor_frame(
         command.robot_anchor_quat_w, velocities
@@ -160,8 +160,8 @@ def motion_body_ang_vel(
     velocities = command.robot_body_ang_vel_w
 
     if body_names is not None:
-        indices = [command.robot_body_names.index(name) for name in body_names]
-        velocities = velocities[:, indices, :]
+        indexes = body_indexes_from_names(env, command_name, body_names)
+        velocities = velocities[:, indexes, :]
 
     return _body_ang_vel_in_anchor_frame(
         command.robot_anchor_quat_w, velocities
