@@ -22,21 +22,25 @@ K_p = I_a\,\omega^2,\quad K_d = 2\zeta I_a\,\omega,\quad \omega = 2\pi f,\ \zeta
 q_{sp} = q_0 + \alpha\,a,\quad \alpha = c\,\frac{\tau_{\max}}{K_p},\ c = 0.25 .
 \]
 $I_a$ is the armature (reflected motor inertia), $\tau_{\max}$ the effort limit, $q_0$ the default
-pose, $a$ the network output and $\alpha$ the setpoint offset per action unit (rad/unit). The PD gives
-$\tau = K_p(q_{sp}-q) - K_d\dot q$.
+pose, $a$ the network output and $\alpha$ the setpoint offset per action unit (rad/unit). mjlab sends
+$q_{sp}$, minus the calibration offset, to a MuJoCo position actuator:
+$\tau = \mathrm{clip}\big(K_p(q_{sp}-q) - K_d\dot q,\ \pm\tau_{\max}\big)$. The policy only moves the
+setpoint; the one spring pulls the joint toward it.
 
 \section{What an action unit means}
 
-Substituting the setpoint:\quad
-$\tau = \underbrace{c\,\tau_{\max}\,a}_{\text{action}} - \underbrace{K_p(q-q_0)}_{\text{spring to }q_0}
+The same law in action units, using $q_{sp} = q_0 + \alpha a$:\quad
+$\tau = \underbrace{c\,\tau_{\max}\,a}_{\text{action}} - \underbrace{K_p(q-q_0)}_{\text{where }q\text{ sits vs }q_0}
 - \underbrace{K_d\,\dot q}_{\text{damping}}$.
+This is bookkeeping, not a second spring: actions are measured from $q_0$, so a joint resting at $q$
+(setpoint on the joint, $\tau \approx 0$) needs $a = (q-q_0)/\alpha$.
 \begin{itemize}
   \setlength{\itemsep}{1pt}
   \item \textbf{Torque per unit:} $\partial\tau/\partial a = c\,\tau_{\max}$, i.e.\ 25\% of the effort
   limit, at a fixed state only.
-  \item \textbf{Holding} a joint at $q$ with no load ($\tau \approx 0$) needs $a = (q-q_0)/\alpha$. That
-  is a large action with almost no torque, so $|a|>4$ is not saturation. WBC example, arm joint 1 at
-  $a=4.5$: $+56$\,Nm action $-\,49$\,Nm spring $=7$\,Nm net.
+  \item \textbf{Holding} away from $q_0$ is a large action with almost no torque, so $|a|>4$ is not
+  saturation. WBC example, arm joint 1 at
+  $a=4.5$: $+56$\,Nm action term $-\,49$\,Nm $(q-q_0)$ term $=7$\,Nm net.
   \item \textbf{Moving} takes $\Delta a \approx \dot q\,\Delta t/\alpha$ per step. \textbf{Exploring}
   with noise $\sigma$ moves the setpoint by $\sigma\alpha$.
 \end{itemize}
@@ -131,8 +135,10 @@ report's recommended $c = 3$--$4$ for the wrist.
   $(K_d/K_p)\dot q = (2\zeta/\omega)\dot q$ goes from 0.18 to 0.64\,s$\cdot\dot q$. Hardware transfer is open.
   \item \textbf{Keep the gains, set $\alpha$ per joint} ($c \approx 3$--$4$ on the arms). The plant is
   untouched and $\alpha$ matches the 1\,Hz run. Tested on the wrist only.
-  \item \textbf{Anchor the setpoint on the reference}, $q_{sp} = q_{\text{ref}} + \alpha a$, which removes
-  the spring term. Untested; it changes the paper's action definition.
+  \item \textbf{Measure actions from another anchor}, which removes the $(q-q_0)$ term. Either the reference,
+  $q_{sp} = q_{\text{ref}} + \alpha a$, or the current position, $q_{sp} = q + \alpha a$ (mjlab's
+  \texttt{RelativeJointPositionAction}; that one loses the position anchor). Untested; both change the
+  paper's action definition.
 \end{enumerate}
 \textbf{Rule of thumb:} when moving BeyondMimic or SuperMimic to a new robot, check $K_p/\tau_{\max}$
 per joint and aim for G1's $\approx 0.5$--$0.7$ per rad ($\alpha \approx 0.35$--$0.55$\,rad). The
