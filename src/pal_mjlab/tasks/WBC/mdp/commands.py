@@ -51,6 +51,12 @@ if TYPE_CHECKING:
   from mjlab.entity import Entity
   from mjlab.envs import ManagerBasedRlEnv
 
+_PRECISIONS: dict[str, torch.dtype] = {
+  "float32": torch.float32, "fp32": torch.float32, "32": torch.float32,
+  "float16": torch.float16, "fp16": torch.float16, "half": torch.float16, "16": torch.float16,
+  "bfloat16": torch.bfloat16, "bf16": torch.bfloat16,
+}
+
 _DESIRED_FRAME_COLORS = ((1.0, 0.5, 0.5), (0.5, 1.0, 0.5), (0.5, 0.5, 1.0))
 
 ROBOT_XML_DICT = {
@@ -59,6 +65,15 @@ ROBOT_XML_DICT = {
   "Kangaroo_hands" : KANGAROO_HANDS_XML,
   "Kangaroo_grippers" : KANGAROO_GRIPPERS_XML,
 }
+
+
+def _parse_precision(precision: str) -> torch.dtype:
+  key = precision.strip().lower().removeprefix("torch.")
+  if key not in _PRECISIONS:
+    raise ValueError(
+      f"Unknown precision '{precision}'. Choose one of: {sorted(set(_PRECISIONS))}"
+    )
+  return _PRECISIONS[key]
 
 def _sanity_trim(data, cfg: SanityCheckCfg, name: str = ""):
   """Trim explosive frames at the start/end of a clip. data: tuple of (D, M)."""
@@ -552,7 +567,9 @@ class OnlineCsvToNpz:
     device: str = "cuda:0",
     sanity: SanityCheckCfg = SanityCheckCfg(),
     max_frames: int = 3_000_000,
+    precision: str = "float32",
   ):
+    store_dtype = _parse_precision(precision)   # fail fast, before building anything
     self.device = device
     self.batch_size = batch_size
 
@@ -596,6 +613,7 @@ class OnlineCsvToNpz:
       device=device,
       sanity=sanity,
       max_frames=max_frames,
+      precision=precision,
     )
 
     expected_nq = 7 + self.motion_csv.joint_pos.shape[1]
@@ -626,12 +644,14 @@ class OnlineCsvToNpz:
   def _retarget_batch(self, idx: torch.Tensor) -> dict[str, torch.Tensor]:
     mo = self.motion_csv
 
-    root_pos = mo.root_pos[idx]                              # (B, 3)
-    root_quat = mo.root_quat[idx][:, [3, 0, 1, 2]]           # xyzw -> wxyz
-    root_lin_vel = mo.root_lin_vel[idx]                      # world frame
-    root_ang_vel_w = mo.root_ang_vel[idx]                    # world frame
-    joint_pos = mo.joint_pos[idx]
-    joint_vel = mo.joint_vel[idx]
+    root_pos = mo.root_pos[idx].float()                             # (B, 3)
+    root_quat = mo.root_quat[idx].float()
+    root_quat = root_quat / root_quat.norm(dim=-1, keepdim=True)    # undo quantization
+    root_quat = root_quat[:, [3, 0, 1, 2]]                          # xyzw -> wxyz      
+    root_lin_vel = mo.root_lin_vel[idx].float()                     # world frame
+    root_ang_vel_w = mo.root_ang_vel[idx].float()                   # world frame
+    joint_pos = mo.joint_pos[idx].float()
+    joint_vel = mo.joint_vel[idx].float()
 
     # MuJoCo free joint: linear vel in world frame, angular vel in body frame.
     root_ang_vel_b = quat_apply_inverse(root_quat, root_ang_vel_w)
@@ -821,11 +841,11 @@ class MotionCommand(CommandTerm):
 
   @property
   def joint_pos(self) -> torch.Tensor:
-    return self.motion.joint_pos[self.time_steps]
+    return self.motion.joint_pos[self.time_steps].float()
 
   @property
   def joint_vel(self) -> torch.Tensor:
-    return self.motion.joint_vel[self.time_steps]*self.moving_envs.unsqueeze(-1)
+    return self.motion.joint_vel[self.time_steps].float()*self.moving_envs.unsqueeze(-1)
 
   @property
   def body_pos_w(self) -> torch.Tensor:
@@ -1453,8 +1473,8 @@ class OnlineMotion:
     self.trajectory_probs = csv_lib.trajectory_probs
 
     if anchor_is_root:
-        lin_v = csv_lib.root_lin_vel
-        ang_v = csv_lib.root_ang_vel
+        lin_v = csv_lib.root_lin_vel.float()
+        ang_v = csv_lib.root_ang_vel.float()
     else:
       # One-time pass to get anchor-body accelerations (same as MotionLoader).
       # Only the anchor is kept, so memory stays small.
@@ -1503,6 +1523,7 @@ class OnlineMotionCommand(MotionCommand):
       device=self.device,
       sanity=cfg.sanity,
       max_frames=cfg.max_frames,
+      precision=cfg.precision,
     )
     return OnlineMotion(source, self.motion_anchor_body_index, self._env.step_dt)
 
@@ -1572,6 +1593,11 @@ class OnlineMotionCommandCfg(MotionCommandCfg):
   max_frames: int = 3_000_000
   """Capacity of the preallocated motion library (frames). Loading stops once
   the next clip would not fit."""
+
+  precision: Literal["float32", "float16", "bfloat16"] = "float32"
+  """Storage dtype of the motion library on the GPU. float16 halves memory but
+  quantizes values; data is cast back to float32 on every read. Prefer float32
+  unless memory forces otherwise."""
 
   sanity: SanityCheckCfg = SanityCheckCfg()
   # motion_dir now points at a directory of .csv files.
