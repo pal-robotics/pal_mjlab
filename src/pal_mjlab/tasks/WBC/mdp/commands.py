@@ -13,6 +13,7 @@ import itertools
 import multiprocessing as mp
 from collections import deque
 from concurrent.futures import ProcessPoolExecutor
+from threadpoolctl import threadpool_limits
 from tqdm import tqdm
 import mujoco
 import mujoco_warp as mjw
@@ -116,7 +117,6 @@ def _worker_init(nice: int):
   os.environ["OPENBLAS_NUM_THREADS"] = "1"
   os.environ["MKL_NUM_THREADS"] = "1"
   try:
-    from threadpoolctl import threadpool_limits
     threadpool_limits(1)
   except Exception:
     pass

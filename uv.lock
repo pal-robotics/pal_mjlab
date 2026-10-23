@@ -2009,6 +2009,7 @@ source = { editable = "." }
 dependencies = [
     { name = "mjlab" },
     { name = "moviepy" },
+    { name = "threadpoolctl" },
 ]
 
 [package.optional-dependencies]
@@ -2036,6 +2037,7 @@ docs = [
 requires-dist = [
     { name = "mjlab", specifier = ">=1.6.0" },
     { name = "moviepy", specifier = ">=2.0" },
+    { name = "threadpoolctl" },
     { name = "torch", marker = "extra == 'cpu'", specifier = ">=2.7.0" },
     { name = "torch", marker = "extra == 'cu128'", specifier = ">=2.7.0" },
 ]
@@ -3093,6 +3095,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/60/85/4e54d398a53520f624d291f8a498d389fbbdf740d3a6b018d67c50feef55/tensordict-0.11.0-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:c6b3d465f72ddc8fac2b1f031f873f38d073dcca897d1c8751fa4e95142d848f", size = 462403, upload-time = "2026-01-26T11:36:19.506Z" },
     { url = "https://files.pythonhosted.org/packages/8a/ec/bfc5384cea17fecca6980ee9e6fe5b75e55bab09bfe1975795107d8491ff/tensordict-0.11.0-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:06a0df47c227c81ce6a3d7a7960a0ca2a9ab832a3460e9a4a88a3c5b929903e4", size = 465141, upload-time = "2026-01-26T11:36:20.658Z" },
     { url = "https://files.pythonhosted.org/packages/a7/d8/b84caf450e1cce55f9b3cd64c3f9d56b3d0cd9265ea728500605fd71a971/tensordict-0.11.0-cp313-cp313t-win_amd64.whl", hash = "sha256:e963e114e8c03d9b2a93b41899af6598a27db1c5fa17c78aeb0cc16ab9e143c5", size = 520028, upload-time = "2026-01-26T11:36:21.904Z" },
+]
+
+[[package]]
+name = "threadpoolctl"
+version = "3.7.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/00/dc/6c58154c1c65f758ea979e7139cb76993a9cfc662d14e9be3c4a667cfb77/threadpoolctl-3.7.0.tar.gz", hash = "sha256:61348cfb77d53b9242e0017029244b559b810c142ced65b4e21eeca1843959a7", size = 31961, upload-time = "2026-09-15T15:46:20.263Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/3f/f88a53f60a472b46f4023f56d204dd7de33d34c5d2acbfa0d70a674e639e/threadpoolctl-3.7.0-py3-none-any.whl", hash = "sha256:cd8b60b5641b45c67bbf73c64c843235fc2d8a480c87389f52f5dbee893b86be", size = 26362, upload-time = "2026-09-15T15:46:19.168Z" },
 ]
 
 [[package]]
