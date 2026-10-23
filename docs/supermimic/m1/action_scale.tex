@@ -1,0 +1,143 @@
+\documentclass[10pt]{article}
+\usepackage[margin=1.8cm]{geometry}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage[hidelinks]{hyperref}
+\setlength{\parskip}{3pt}
+\setlength{\parindent}{0pt}
+
+\begin{document}
+
+\begin{center}
+{\Large Kangaroo arms and the BeyondMimic action scale}\\[3pt]
+Unitree G1 vs PAL Kangaroo. Summary of the SuperMimic gain A/B and the 7-DoF WBC wrist report
+(M.~Actis). pal\_mjlab, October 2026.
+\end{center}
+
+\section{The rule}
+
+BeyondMimic, and SuperMimic after it, derive gains and action scale per joint from the motor alone:
+\[
+K_p = I_a\,\omega^2,\quad K_d = 2\zeta I_a\,\omega,\quad \omega = 2\pi f,\ \zeta = 2,\qquad
+q_{sp} = q_0 + \alpha\,a,\quad \alpha = c\,\frac{\tau_{\max}}{K_p},\ c = 0.25 .
+\]
+$I_a$ is the armature (reflected motor inertia), $\tau_{\max}$ the effort limit, $q_0$ the default
+pose, $a$ the network output and $\alpha$ the setpoint offset per action unit (rad/unit). The PD gives
+$\tau = K_p(q_{sp}-q) - K_d\dot q$.
+
+\section{What an action unit means}
+
+Substituting the setpoint:\quad
+$\tau = \underbrace{c\,\tau_{\max}\,a}_{\text{action}} - \underbrace{K_p(q-q_0)}_{\text{spring to }q_0}
+- \underbrace{K_d\,\dot q}_{\text{damping}}$.
+\begin{itemize}
+  \setlength{\itemsep}{1pt}
+  \item \textbf{Torque per unit:} $\partial\tau/\partial a = c\,\tau_{\max}$, i.e.\ 25\% of the effort
+  limit, at a fixed state only.
+  \item \textbf{Holding} a joint at $q$ with no load ($\tau \approx 0$) needs $a = (q-q_0)/\alpha$. That
+  is a large action with almost no torque, so $|a|>4$ is not saturation. WBC example, arm joint 1 at
+  $a=4.5$: $+56$\,Nm action $-\,49$\,Nm spring $=7$\,Nm net.
+  \item \textbf{Moving} takes $\Delta a \approx \dot q\,\Delta t/\alpha$ per step. \textbf{Exploring}
+  with noise $\sigma$ moves the setpoint by $\sigma\alpha$.
+\end{itemize}
+So $K_p/\tau_{\max} = c/\alpha$ is the \textbf{exchange rate between joint motion and action units}.
+Torques don't depend on it, but the action-rate penalty, the exploration noise and the output range
+do. It follows from the hardware and the frequency:
+\[
+\frac{K_p}{\tau_{\max}} = \frac{I_a}{\tau_{\max}}\,\omega^2
+\quad\Rightarrow\quad
+\frac{(K_p/\tau_{\max})_{\text{Kangaroo}}}{(K_p/\tau_{\max})_{\text{G1}}}
+= \frac{(I_a/\tau_{\max})_{\text{Kangaroo}}}{(I_a/\tau_{\max})_{\text{G1}}}\cdot
+\Big(\frac{f_{\text{Kangaroo}}}{f_{\text{G1}}}\Big)^{2}.
+\]
+
+\section{Unitree G1 vs Kangaroo}
+
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llrrrrrrr}
+\toprule
+Joints & Motor & $I_a$ & $\tau_{\max}$ & $f$ & $K_p$ & $I_a/\tau_{\max}$ & $K_p/\tau_{\max}$ & $\alpha$ \\
+ & & (kg\,m$^2$) & (Nm) & (Hz) & (Nm/rad) & ($10^{-3}$\,s$^2$) & (1/rad) & (rad/unit) \\
+\midrule
+\multicolumn{9}{l}{\textit{Unitree G1, BeyondMimic (mjlab)}} \\
+Shoulders, elbow, wrist roll & 5020 & 0.0036 & 25 & 10 & 14.3 & 0.14 & 0.57 & 0.44 \\
+Hip pitch/yaw, waist yaw & 7520-14 & 0.0102 & 88 & 10 & 40.2 & 0.12 & 0.46 & 0.55 \\
+Hip roll, knee & 7520-22 & 0.0251 & 139 & 10 & 99.1 & 0.18 & 0.71 & 0.35 \\
+Waist pitch/roll, ankles & 2$\times$5020 & 0.0072 & 50 & 10 & 28.5 & 0.14 & 0.57 & 0.44 \\
+Wrist pitch/yaw & 4010 & 0.0043 & 5 & 10 & 16.8 & 0.85 & 3.36 & 0.075 \\
+\midrule
+\multicolumn{9}{l}{\textit{PAL Kangaroo (PR \#126 constants)}} \\
+Leg 1--3 (hip) & & 0.20--0.50 & 80--230 & 3.5 & 97--242 & 1.4--3.1 & 0.70--1.51 & 0.17--0.36 \\
+Leg 4, 5 (ankle) & & 0.05--0.10 & 82--140 & 3.5 & 24--48 & 0.6--0.7 & 0.29--0.35 & 0.72--0.85 \\
+Arm 1, 2 + waist & S+, gear 121 & 0.483 & 50 & 3.5 & 233.7 & 9.7 & \textbf{4.67} & \textbf{0.053} \\
+Arm 3--5 & S$-$, gear 101 & 0.305 & 25 & 3.5 & 147.5 & 12.2 & \textbf{5.90} & \textbf{0.042} \\
+Arm 6, 7 & XS, gear 101 & 0.203 & 25 & 3.5 & 98.2 & 8.1 & \textbf{3.93} & \textbf{0.064} \\
+Arms + waist at 1\,Hz & as above & as above & as above & 1 & 8.0--19.1 & as above & 0.32--0.48 & 0.52--0.78 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Arm vs arm.} Kangaroo's geared arm motors have 56--134$\times$ G1's armature for only
+1--2$\times$ its effort, so $I_a/\tau_{\max}$ is \textbf{56--85$\times$} larger. At 3.5\,Hz instead of
+10\,Hz, $\omega^2$ shrinks by $8.2\times$, so $K_p/\tau_{\max}$ ends up \textbf{7--10$\times$} G1's:
+0.57 on G1 against 3.9--5.9 on Kangaroo. Matching G1 needs $f \approx 10/\sqrt{56\text{--}85} \approx 1.1$--$1.3$\,Hz.
+Kangaroo's legs are already close to G1 (0.29--1.51). The only G1 joints in Kangaroo's arm regime are the two
+5\,Nm wrist motors (3.36), whose motion barely changes the tracked bodies. On Kangaroo the regime covers
+14 arm joints plus the waist.
+
+\section{What it does to learning}
+
+\begin{itemize}
+  \setlength{\itemsep}{1pt}
+  \item \textbf{Wrist exploration (WBC report).} At $\alpha \approx 0.04$--$0.06$, exploration barely moves
+  joints 5--7. Their effect, end-effector orientation, has a reward flat near 0, so PPO gets no signal and
+  leaves the wrist at $q_0$.
+  \item \textbf{Action size and action-rate penalty (SuperMimic).} The arm references need $|a|$ = 7.8
+  (median) to 40.8 (p95). The penalty $-0.1\lVert\Delta a\rVert^2$ scales with $(K_p/\tau_{\max})^2$ for the
+  same motion: 28\% of the maximum per-step reward at p95 at 3.5\,Hz, against 0.2\% at 1\,Hz.
+  \item \textbf{Not the plant.} Torque saturation is near zero in both studies.
+\end{itemize}
+
+\section{Evidence}
+
+\begin{center}
+\small
+\begin{tabular}{p{3.4cm}p{4.6cm}p{8.6cm}}
+\toprule
+Study & Change & Result \\
+\midrule
+WBC, 7-DoF (M.~Actis) & 3.5\,Hz gains kept; $\alpha$ on joints 5--7 only, $\times4$ ($c{=}1$) and
+$\times16$ ($c{=}4$) &
+Orientation reward rises close to the 1\,Hz run; position and root unchanged. The scale alone is the
+main factor for the wrist. \\
+SuperMimic PPO-Sim, 1296 clips & Arms + waist at 1\,Hz vs 3.5\,Hz (gains and $\alpha$ together),
+1000 iterations &
+Arm error 21.2$\to$15.3\,cm (better on 90\% of clips), legs 11.3$\to$8.6\,cm (95\%), tracking return
+0.53$\to$0.62, saturation 0.8\%$\to$0.04\%. At 3.5\,Hz the arm error grew during training. \\
+\bottomrule
+\end{tabular}
+\end{center}
+1\,Hz multiplies $\alpha$ by $12.25$, the same as $c \approx 3.06$ at 3.5\,Hz, which lies within the WBC
+report's recommended $c = 3$--$4$ for the wrist.
+
+\section{Options and rule of thumb}
+
+\begin{enumerate}
+  \setlength{\itemsep}{1pt}
+  \item \textbf{Arms and waist at $\sim$1\,Hz} (current SuperMimic baseline). Fixes $\alpha$, but the servos
+  get $12\times$ less stiff. Gravity sag $\tau_g/K_p$ grows $12\times$, and the lag
+  $(K_d/K_p)\dot q = (2\zeta/\omega)\dot q$ goes from 0.18 to 0.64\,s$\cdot\dot q$. Hardware transfer is open.
+  \item \textbf{Keep the gains, set $\alpha$ per joint} ($c \approx 3$--$4$ on the arms). The plant is
+  untouched and $\alpha$ matches the 1\,Hz run. Tested on the wrist only.
+  \item \textbf{Anchor the setpoint on the reference}, $q_{sp} = q_{\text{ref}} + \alpha a$, which removes
+  the spring term. Untested; it changes the paper's action definition.
+\end{enumerate}
+\textbf{Rule of thumb:} when moving BeyondMimic or SuperMimic to a new robot, check $K_p/\tau_{\max}$
+per joint and aim for G1's $\approx 0.5$--$0.7$ per rad ($\alpha \approx 0.35$--$0.55$\,rad). The
+frequency alone doesn't tell you this.
+\textbf{Limits:} single seed per run; the 1\,Hz runs change plant and scale together; the reward
+gradient was not measured directly; simulation only.
+
+\end{document}
