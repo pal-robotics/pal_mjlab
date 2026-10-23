@@ -4,13 +4,26 @@ The state is what the world model will predict and what the critic sees: root he
 root tilt (6D rotation of the root in its heading frame), root linear and angular velocity
 in the root frame, and all joint positions and velocities (including passive joints, so
 the state is Markov). World x, y and yaw are left out: the dynamics do not depend on them.
+
+The root's world pose (x, y, yaw) is carried separately and integrated from per-step
+displacements expressed in the heading frame, which is how the world model predicts it.
 """
 
 from __future__ import annotations
 
 import torch
 
-from .kinematics import quat_conj, quat_mul, quat_rotate_inv, rot6d, yaw_quat
+from .kinematics import (
+  matrix_from_rot6d,
+  quat_conj,
+  quat_from_matrix,
+  quat_mul,
+  quat_rotate,
+  quat_rotate_inv,
+  rot6d,
+  yaw_angle,
+  yaw_quat,
+)
 
 
 def heading_state(qpos: torch.Tensor, qvel: torch.Tensor) -> torch.Tensor:
@@ -22,6 +35,49 @@ def heading_state(qpos: torch.Tensor, qvel: torch.Tensor) -> torch.Tensor:
     [qpos[:, 2:3], rot6d(tilt), lin_vel_b, qvel[:, 3:6], qpos[:, 7:], qvel[:, 6:]],
     dim=-1,
   )
+
+
+def heading_pose(qpos: torch.Tensor) -> torch.Tensor:
+  """(B, 3) world x, y and yaw of the root."""
+  return torch.cat([qpos[:, :2], yaw_angle(qpos[:, 3:7])[:, None]], dim=-1)
+
+
+def state_to_qpos_qvel(
+  state: torch.Tensor, pose: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
+  """Inverse of (heading_state, heading_pose): MuJoCo-layout qpos/qvel, differentiable."""
+  nj = (state.shape[-1] - 13) // 2
+  tilt = quat_from_matrix(matrix_from_rot6d(state[:, 1:7]))
+  half = 0.5 * pose[:, 2:3]
+  zero = torch.zeros_like(half)
+  heading = torch.cat([torch.cos(half), zero, zero, torch.sin(half)], dim=-1)
+  quat = quat_mul(heading, tilt)
+  qpos = torch.cat([pose[:, :2], state[:, :1], quat, state[:, 13 : 13 + nj]], dim=-1)
+  qvel = torch.cat(
+    [quat_rotate(quat, state[:, 7:10]), state[:, 10:13], state[:, 13 + nj :]], dim=-1
+  )
+  return qpos, qvel
+
+
+def wrap_angle(a: torch.Tensor) -> torch.Tensor:
+  return torch.atan2(torch.sin(a), torch.cos(a))
+
+
+def pose_delta(pose: torch.Tensor, next_pose: torch.Tensor) -> torch.Tensor:
+  """(B, 3) planar displacement in the heading frame of ``pose``, and the yaw change."""
+  c, s = torch.cos(pose[:, 2]), torch.sin(pose[:, 2])
+  d = next_pose[:, :2] - pose[:, :2]
+  dx = c * d[:, 0] + s * d[:, 1]
+  dy = -s * d[:, 0] + c * d[:, 1]
+  return torch.stack([dx, dy, wrap_angle(next_pose[:, 2] - pose[:, 2])], dim=-1)
+
+
+def integrate_pose(pose: torch.Tensor, delta: torch.Tensor) -> torch.Tensor:
+  """Inverse of ``pose_delta``."""
+  c, s = torch.cos(pose[:, 2]), torch.sin(pose[:, 2])
+  x = pose[:, 0] + c * delta[:, 0] - s * delta[:, 1]
+  y = pose[:, 1] + s * delta[:, 0] + c * delta[:, 1]
+  return torch.stack([x, y, wrap_angle(pose[:, 2] + delta[:, 2])], dim=-1)
 
 
 def root_pose_error(

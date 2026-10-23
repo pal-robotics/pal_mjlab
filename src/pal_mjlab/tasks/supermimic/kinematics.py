@@ -83,6 +83,55 @@ def quat_error_magnitude(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
   return 2.0 * torch.atan2(sin_half, d[..., 0].abs())
 
 
+def matrix_from_rot6d(r6: torch.Tensor) -> torch.Tensor:
+  """Rotation matrix (..., 3, 3) from the first two columns, Gram-Schmidt orthonormalized."""
+  a, b = r6[..., :3], r6[..., 3:]
+  x = torch.nn.functional.normalize(a, dim=-1)
+  y = torch.nn.functional.normalize(b - (x * b).sum(-1, keepdim=True) * x, dim=-1)
+  z = torch.linalg.cross(x, y, dim=-1)
+  return torch.stack([x, y, z], dim=-1)
+
+
+def quat_from_matrix(m: torch.Tensor) -> torch.Tensor:
+  """Unit quaternion (wxyz) of a rotation matrix, robust for any angle.
+
+  Computes the four candidate solutions and keeps the best-conditioned one (largest
+  denominator), which stays accurate and differentiable near 180 degrees.
+  """
+  m00, m01, m02 = m[..., 0, 0], m[..., 0, 1], m[..., 0, 2]
+  m10, m11, m12 = m[..., 1, 0], m[..., 1, 1], m[..., 1, 2]
+  m20, m21, m22 = m[..., 2, 0], m[..., 2, 1], m[..., 2, 2]
+  four = torch.stack(
+    [
+      1 + m00 + m11 + m22,
+      1 + m00 - m11 - m22,
+      1 - m00 + m11 - m22,
+      1 - m00 - m11 + m22,
+    ],
+    dim=-1,
+  )
+  r = torch.sqrt(four.clamp_min(1e-12))  # 2|w|, 2|x|, 2|y|, 2|z|
+  candidates = torch.stack(
+    [
+      torch.stack([r[..., 0] ** 2, m21 - m12, m02 - m20, m10 - m01], dim=-1),
+      torch.stack([m21 - m12, r[..., 1] ** 2, m10 + m01, m02 + m20], dim=-1),
+      torch.stack([m02 - m20, m10 + m01, r[..., 2] ** 2, m12 + m21], dim=-1),
+      torch.stack([m10 - m01, m20 + m02, m21 + m12, r[..., 3] ** 2], dim=-1),
+    ],
+    dim=-2,
+  ) / (2.0 * r[..., :, None])
+  best = four.argmax(dim=-1)
+  q = torch.gather(
+    candidates, -2, best[..., None, None].expand(*best.shape, 1, 4)
+  ).squeeze(-2)
+  return torch.nn.functional.normalize(q, dim=-1)
+
+
+def yaw_angle(q: torch.Tensor) -> torch.Tensor:
+  w, x, y, z = q.unbind(-1)
+  return torch.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+
+
 def rot6d(q: torch.Tensor) -> torch.Tensor:
   """First two columns of the rotation matrix (continuous 6D representation)."""
   w, x, y, z = q.unbind(-1)
