@@ -551,6 +551,7 @@ class OnlineCsvToNpz:
     output_fps: float = 50.0,
     device: str = "cuda:0",
     sanity: SanityCheckCfg = SanityCheckCfg(),
+    max_frames: int = 3_000_000,
   ):
     self.device = device
     self.batch_size = batch_size
@@ -593,7 +594,8 @@ class OnlineCsvToNpz:
       input_fps=input_fps,
       output_fps=output_fps,
       device=device,
-      sanity=sanity
+      sanity=sanity,
+      max_frames=max_frames,
     )
 
     expected_nq = 7 + self.motion_csv.joint_pos.shape[1]
@@ -1499,7 +1501,8 @@ class OnlineMotionCommand(MotionCommand):
       input_fps=cfg.input_fps,
       output_fps=output_fps,
       device=self.device,
-      sanity=cfg.sanity
+      sanity=cfg.sanity,
+      max_frames=cfg.max_frames,
     )
     return OnlineMotion(source, self.motion_anchor_body_index, self._env.step_dt)
 
@@ -1565,6 +1568,10 @@ class OnlineMotionCommandCfg(MotionCommandCfg):
 
   output_fps: float | None = None
   """Resampling rate. None = 1 / env.step_dt (required for 1 frame per step)."""
+
+  max_frames: int = 3_000_000
+  """Capacity of the preallocated motion library (frames). Loading stops once
+  the next clip would not fit."""
 
   sanity: SanityCheckCfg = SanityCheckCfg()
   # motion_dir now points at a directory of .csv files.

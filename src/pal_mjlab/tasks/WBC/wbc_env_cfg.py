@@ -203,7 +203,8 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       body_names=(),
       robot_type="",
       input_fps=30.0,     
-      output_fps=None, 
+      output_fps=None,
+      max_frames=3_000_000,
     )
   }
 
