@@ -78,11 +78,34 @@ J(\theta) = \sum_{t=0}^{H-1} \gamma^t\, c_t\, r(\hat s_{t+1}, g_{t+1}) + \gamma^
 where $\xi$ is the episode's domain-randomization context (friction, calibration, centre of mass) and
 $\hat d$ the predicted failure probability.
 
-\textbf{Why this is the risk.} The gradient $\partial J/\partial\theta$ flows through every model step.
-PPO only needs returns that are sampled correctly. SuperMimic needs more: the model's predictions must
-be right, \emph{and} its derivatives with respect to the actions must point the way the real dynamics
-would. If either fails, the policy improves in imagination and not in reality. Kangaroo makes this
-harder than the paper's G1:
+\textbf{The model is not a cheaper simulator.} Its job is to be \emph{differentiable}. The two
+methods get the update direction $\nabla_\theta J$ in different ways:
+\begin{itemize}
+  \item \textbf{PPO tries and sees.} A stochastic policy samples actions, the simulator returns
+  rewards, and the gradient is estimated as $\mathbb E[\nabla_\theta \log\pi_\theta(a\,|\,o)\,\hat A]$.
+  It never differentiates the dynamics. Each rollout only says whether the sampled actions were better
+  or worse than average, so many rollouts are averaged to beat the noise.
+  \item \textbf{SuperMimic differentiates.} The policy is deterministic, and $J$ is an explicit chain of
+  differentiable functions: policy, model, forward kinematics, reward, and the critic at the end.
+  Autograd returns the exact $\nabla_\theta J$ in one backward pass over the 32 steps. Through the
+  chain rule this contains the model's Jacobians, for example
+  \[
+  \frac{\partial r_t}{\partial a_0} = \frac{\partial r_t}{\partial \hat s_t}\,
+  \frac{\partial \hat s_t}{\partial \hat s_{t-1}} \cdots \frac{\partial \hat s_2}{\partial \hat s_1}\,
+  \frac{\partial \hat s_1}{\partial a_0}.
+  \]
+  \item \textbf{Why not the simulator.} MuJoCo gives no such derivatives here (we run it without a
+  backward pass), and derivatives through contacts are poorly behaved even in differentiable
+  simulators. The learned model is a smooth network, so its Jacobians exist and are smooth across
+  contacts.
+\end{itemize}
+Each imagined rollout therefore carries an exact gradient for every action, not one noisy return. That
+is where the paper's efficiency comes from.
+
+\textbf{Why this is the risk.} That gradient is only as good as the model's \emph{slopes}. The model's
+predictions must be right, \emph{and} its derivatives with respect to the actions must point the way
+the real dynamics would. If either fails, the policy improves in imagination and not in reality.
+Kangaroo makes this harder than the paper's G1:
 \begin{itemize}
   \item its legs are closed kinematic chains (a passive four-bar knee);
   \item its arms are heavier and use soft 1\,Hz gains (see the M1 gain study);
@@ -398,8 +421,8 @@ mean error exceeds 10\,m because a fraction of the rollouts blow up.}
   \end{itemize}
   \item \textbf{An unseen policy costs about 15\% (\tab{tab:shift}).} We trained a model without the
   iteration-4000 data and tested it on that policy's held-out clips. Error rises from 0.82 to 0.93\,cm at
-  8 steps and from 3.6 to 4.2\,cm at 32. The model carries over between neighbouring policies. This is
-  the situation in M3, where the policy drifts away from the data; M4's online refits close the gap.
+  8 steps and from 3.6 to 4.2\,cm at 32. The model carries over even to a policy thousands of PPO
+  iterations away. In the online loop the policy moves one small step between model refits.
 \end{itemize}
 
 \begin{table}[H]
@@ -463,8 +486,9 @@ $\delta = 0.05$.}
     \item At 32 steps the model predicts 1.98 where the simulator gives 1.50 ($\delta = 0.05$, +32\%),
     and 2.70 vs 1.72 ($\delta = 0.1$, +57\%). The correlation drops to 0.62--0.72.
     \item The larger the step, the larger the optimism. This is the classic failure mode of model-based
-    RL: an optimizer finds the actions where the model errs in its own favour. The policy update in M3
-    is exactly such an optimizer.
+    RL: an optimizer finds the actions where the model errs in its own favour. SuperMimic's policy
+    update is exactly such an optimizer; the paper's online refits correct the model wherever the
+    policy goes.
   \end{itemize}
   \item \textbf{Gradient flow: no explosion, no vanishing} (\fig{fig:gradients}c).
   \begin{itemize}
@@ -526,27 +550,28 @@ Q4 & $k{=}8$ beats $k{=}1$ & 3.8\,cm vs diverged at 32 steps & pass \\\bottomrul
 \end{tabular}
 \end{table}
 
-\section{Decisions for M3}
+\section{Decisions for M3 and M4}
 
 \begin{enumerate}
   \item \textbf{World model:} the main configuration: $k = 8$, $2048{\times}3$ ELU, delta targets,
-  frozen normalization, trained on all three data sets
-  (\texttt{logs/supermimic\_m2/wm/main/wm\_best.pt}).
+  frozen normalization. M3 uses the checkpoint trained on all three data sets
+  (\texttt{logs/supermimic\_m2/wm/main/wm\_best.pt}); M4 trains the same configuration online from
+  scratch.
   \item \textbf{Failure probability in imagination: a smooth analytic rule}, in place of the learned
   head:
   $\hat d = \sigma\big((m(\hat s, g) - 1)/\tau\big)$ with $\tau \approx 0.05$.
   \begin{itemize}
     \item It is differentiable, so the survival weight still pushes the policy away from falls.
     \item It has no parameters to fit, and it does not degrade under policy shift.
-    \item It deviates from the paper, which learns $d_\omega$. The learned head stays in the model and
-    in the logs, so M3 can compare the two.
+    \item It deviates from the paper, which learns $d_\omega$. The learned head keeps training next to
+    it and its AUC is logged online, so no separate run is needed to compare them.
   \end{itemize}
   \item \textbf{Guard against model optimism} at $H = 32$:
   \begin{itemize}
     \item Log the imagined vs simulated return of the same policy from the first iteration.
     \item Keep the paper's small policy steps: learning rate $2\cdot10^{-4}$, gradient clipping at a
     global norm of 1.0 and then 0.1 per element.
-    \item If the gap grows, ablate $H = 16$, where the gradients were accurate.
+    \item If the gap grows in M4, ablate $H = 16$, where the gradients were accurate.
   \end{itemize}
   \item \textbf{Watch the arms.} They carry the largest model error, and they were already the weakest
   part of the PPO baseline.
@@ -554,7 +579,14 @@ Q4 & $k{=}8$ beats $k{=}1$ & 3.8\,cm vs diverged at 32 steps & pass \\\bottomrul
 
 \section{Next steps}
 
-\textbf{M3: a policy on the frozen world model.} Build:
+\textbf{No policy is trained to convergence on a frozen model.} The paper never does it. In Alg.~A.1
+the model is refit every iteration on data from the current policy. It is frozen only within a policy
+step, in the sense that the policy loss sends no gradient into $\omega$. Those refits are what stop the
+policy from exploiting model errors. A policy trained for long on the M2 model would leave its data and
+exploit it, and that run would fail for a reason the paper never meets. So M3 is a short check of the
+new code, and every comparison between methods moves to the online loop (M4).
+
+\textbf{M3: check the imagination code} (about an hour of GPU). Build:
 \begin{itemize}
   \item \textbf{Imagination:} roll out from replay start states, with the previous 9 logged steps to
   fill the 10-frame observation history.
@@ -567,26 +599,41 @@ Q4 & $k{=}8$ beats $k{=}1$ & 3.8\,cm vs diverged at 32 steps & pass \\\bottomrul
   \item \textbf{Objective:} Eq.~2 with the survival weight, plus the critic trained on $\lambda$-returns
   (Eq.~3: $\lambda = 0.95$, $\gamma = 0.99$, 5 epochs of 4 minibatches).
   \item \textbf{Optimizers:} the paper's, Adam with $\beta = (0.9, 0.95)$ for the policy.
-  \item \textbf{Evaluation:} the policy in the simulator every few hundred iterations, with
-  \texttt{eval.py} on \texttt{dev}, next to its imagined return.
 \end{itemize}
-
-\textbf{Runs, in this order:}
+All of this is needed by M4 anyway. M3 adds two checks, both with the PPO-Sim actor (same
+encoder--decoder network, D17) on the M2 model, because it is a good policy that stays on the model's
+data:
 \begin{enumerate}
-  \item \textbf{Warm start from the PPO-Sim actor} (same encoder--decoder network, D17), $H = 32$ with
-  the critic. This is the policy-level version of the gradient check: do world-model updates improve a
-  good policy in the simulator? It stays close to the data the model was trained on.
-  \item \textbf{The same without the critic}, which is the roadmap's comparison.
-  \item \textbf{From scratch on the frozen model.} This is a stress test: a fresh policy leaves the data
-  distribution quickly, and the paper only ever trains online.
+  \item \textbf{Policy evaluation, no training.} Run the actor closed loop in imagination and in the
+  simulator from the same held-out starts (same $\xi$, same observation history, no noise), and compare
+  the returns over 32 steps.
+  \begin{itemize}
+    \item M2 replayed logged actions. Here the actor reacts to observations computed from predicted
+    states, so this checks the observation head, history, goals and termination together.
+    \item Pass: a return error close to M2's 1.1\%.
+  \end{itemize}
+  \item \textbf{A short update run.} A few hundred BPTT iterations with the critic, with the policy
+  evaluated in the simulator every 100.
+  \begin{itemize}
+    \item It checks the update machinery: gradients reach every part of the policy, clipping and the
+    critic fit behave, and the simulated return holds or improves while the policy is still near the
+    data.
+    \item It is a test of our code, not a result about the method.
+  \end{itemize}
 \end{enumerate}
+\textbf{M3 gate:} both checks pass. A bug is far easier to find here than inside the online loop.
 
-\textbf{M3 gate:} the simulated return follows the imagined one, and the critic run beats the
-no-critic run.
-
-\textbf{M4} then closes the loop as in the paper: about 2.5 simulator steps per iteration, model
-refits, one policy step and one critic fit. It is compared with PPO-Sim on wall-clock time to a target
-return.
+\textbf{M4: the online loop, as in the paper,} from scratch on \texttt{dev}.
+\begin{itemize}
+  \item \textbf{Each iteration:} about 2.5 simulator steps, 10 model batches (D10), one policy step and
+  one critic fit.
+  \item \textbf{Comparison:} PPO-Sim, on wall-clock time to a target return.
+  \item \textbf{Ablations,} in order of value:
+  \begin{enumerate}
+    \item without the critic: the paper's ablation, and the proof that our critic helps;
+    \item $H = 16$, only if the imagined-vs-simulated gap grows.
+  \end{enumerate}
+\end{itemize}
 
 \appendix
 \section{Settings and compute}
@@ -619,7 +666,7 @@ evaluation & 1\,min open loop (all models), 33\,s gradient check \\\bottomrule
 
 From the worktree root; GPU jobs go through the queue (\texttt{gpu-run}). Write the data paths out
 in full: the queue's shell does not split a variable into several arguments.
-\begin{small}
+\begin{footnotesize}
 \begin{verbatim}
 D="logs/supermimic_m2/data"; P="logs/rsl_rl/supermimic_ppo_sim_1hz/2026-10-22_21-11-56"
 # 1. data (2 min)
@@ -640,7 +687,7 @@ python -m pal_mjlab.scripts.supermimic.grad_check --model logs/supermimic_m2/wm/
 # 5. figures, tables, this report
 python docs/supermimic/m2/make_figures.py && (cd docs/supermimic/m2 && latexmk -pdf report.tex)
 \end{verbatim}
-\end{small}
+\end{footnotesize}
 
 \textbf{Code.}
 {\raggedright

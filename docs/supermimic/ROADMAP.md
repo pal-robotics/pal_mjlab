@@ -73,7 +73,11 @@ with a gate: if it fails, we stop and rethink before building on top.
   states reaches 0.995, which led to D31 (proposed).
 - **Gate met**, except the learned head, which is replaced.
 
-## M3: Policy on a frozen world model (next)
+## M3: Check the imagination code (next, about 1 GPU-hour)
+
+The paper never trains a policy to convergence on a frozen model. It refits the model every
+iteration, and that is what stops the policy from exploiting model errors. So M3 is a short check of
+the code M4 needs, and every comparison between methods moves to M4.
 
 - `imagine.py`, built in this order:
   - rollouts from replay starts, with a 10-step obs history;
@@ -82,27 +86,34 @@ with a gate: if it fails, we stop and rethink before building on top.
   - Eq. 2 with the survival weight, using the soft analytic termination (D31);
   - the critic on λ-returns (Eq. 3);
   - the paper's optimizer and clipping.
-- Train on the frozen M2 world model (D30) and evaluate in the sim with `eval.py`. Log the
-  imagined-vs-sim return gap every evaluation.
-- Runs:
-  1. Warm start from the PPO-Sim actor, H = 32, with the critic.
-  2. The same without the critic.
-  3. From scratch (a stress test: the frozen model only knows the PPO policies' data).
-  If the gap grows, also run H = 16.
-- **Gate:** sim return tracks imagined return, and the critic run beats the no-critic run.
+- Two checks with the PPO-Sim actor (D17) on the M2 world model (D30). It is a good policy that stays
+  on the model's data.
+  1. **Policy evaluation, no training.** Run the actor closed loop in imagination and in the sim from
+     the same held-out starts (same ξ, same obs history, no noise), and compare 32-step returns. This
+     checks the obs head, history, goals and termination together.
+  2. **A short update run.** A few hundred BPTT iterations with the critic, evaluated in the sim every
+     100. It checks gradient flow, clipping and the critic fit; it says nothing yet about the method.
+- **Gate:**
+  - the imagined return is within a few percent of the sim's (M2 open loop: 1.1%);
+  - the sim return holds or improves during the short run.
 
 ## M4: Online SuperMimic loop on `dev` (local GPU)
 
-- `runner.py`, Alg. A.1:
+- `runner.py`, Alg. A.1, from scratch:
   - collect ≈2.5 steps per iteration;
-  - 10 WM steps;
+  - 10 WM batches (D10);
   - 1 BPTT step;
   - critic fit;
   - cosine LR schedule;
   - checkpoint and resume (rebuild the replay on resume; games preempt the GPU).
-- Compare with PPO-Sim on wall-clock to a target return. Light H ablation (16 vs 32).
-- **Gate:** ≥ PPO-Sim on `dev`. If it misses, run the G1 control (D18) before tuning anything
-  Kangaroo-specific.
+- Log the imagined-vs-sim return gap, and the learned termination head's AUC next to the soft rule
+  (D31).
+- Compare with PPO-Sim on wall-clock to a target return.
+- Ablations, in order of value:
+  1. without the critic: the paper's ablation, and the proof that our critic helps;
+  2. H = 16, only if the imagined-vs-sim gap grows (the model is optimistic at H = 32, M2).
+- **Gate:** ≥ PPO-Sim on `dev`, and the critic run beats the no-critic run. If it misses, run the G1
+  control (D18) before tuning anything Kangaroo-specific.
 
 ## M5: Scale
 

@@ -254,7 +254,7 @@ these links. That list had two problems:
 - **Held-out set:** 10% of clips by crc32 of the clip name, the same in every data set and every script.
 - **Revisit if:** M4's online replay replaces this offline data.
 
-**D30. World-model configuration for M3 (2026-10-23, `m2/world_model.md`).**
+**D30. World-model configuration for M3/M4 (2026-10-23, `m2/world_model.md`).**
 - **Training:** k = 8 windows (paper Eq. 1).
 - **Network:** MLP 2048×3 ELU on standardized (state, action, ξ), with statistics frozen after
   computing them from 200k transitions.
@@ -268,12 +268,12 @@ these links. That list had two problems:
 - **Revisit if:** the online loop (M4) shows the arm error limiting tracking. The arms carry the largest
   model error, and loss weighting by body error after FK is the first thing to try.
 
-**D31. Failure probability in imagination: a soft analytic rule (proposed for M3, 2026-10-23).**
+**D31. Failure probability in imagination: a soft analytic rule (proposed for M3/M4, 2026-10-23).**
 - **Rule:** d̂ = σ((m − 1)/τ), with τ ≈ 0.05 and m = max(|z − z_ref| / 0.25, |g_z − g_z,ref| / 0.8),
   the env's own failure rule evaluated on the predicted state.
 - **Why:** on held-out predicted states, the rule ranks failures with AUC 0.995. The learned head
   (paper) reaches 0.937, and drops to 0.872 for an unseen policy. Even on true states the head reaches
   only 0.954: failures are 0.05% of transitions, and BCE settles on a confident "no".
-- **Deviation from the paper**, which learns d_ω. The head stays trained and logged, so M3 can compare
-  the two.
-- **Revisit if:** M3 shows the soft rule's gradient is too local to steer the policy away from falls.
+- **Deviation from the paper**, which learns d_ω. The head keeps training next to the rule, and its AUC
+  is logged online in M4.
+- **Revisit if:** M4 shows the soft rule's gradient is too local to steer the policy away from falls.
