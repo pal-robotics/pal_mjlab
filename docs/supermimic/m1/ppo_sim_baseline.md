@@ -33,8 +33,8 @@ or noise, deterministic policy. Body errors are root-relative, in cm. The return
 **Where it fails** (final checkpoint, 25 clips):
 - **Jumps:** 16, mostly vertical (`high_jump`, `reach_jump`).
 - **Squat transitions:** 3, crouch-to-stand and stand-to-crouch.
-- **The rest:** 6 locomotion and dance clips with fast turns or stops, a folk dance (krakowiak), one
-  crate lift with a 360° turn.
+- **The rest:** 6 clips: three jog/walk clips with fast turns or stops, a dance turn, a folk dance
+  (krakowiak), and a crate lift with a 360° turn.
 - **Lowest tracking by category:** Advanced Locomotion 0.57, Unusual Locomotion 0.58, Dancing 0.59.
 - **Highest:** Communication 0.86, Gestures 0.84, Object Interaction 0.83.
 - **Arms are still the largest error** (10.8 cm on average, 15–17 cm on dancing, sports and stunts).
