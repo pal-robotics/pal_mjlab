@@ -205,6 +205,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       input_fps=30.0,     
       output_fps=None,
       max_frames=3_000_000,
+      precision="float16"
     )
   }
 

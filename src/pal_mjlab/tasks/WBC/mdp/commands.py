@@ -613,7 +613,7 @@ class OnlineCsvToNpz:
       device=device,
       sanity=sanity,
       max_frames=max_frames,
-      precision=precision,
+      store_dtype=store_dtype,
     )
 
     expected_nq = 7 + self.motion_csv.joint_pos.shape[1]
