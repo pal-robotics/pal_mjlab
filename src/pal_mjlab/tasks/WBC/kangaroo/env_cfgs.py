@@ -100,17 +100,17 @@ def pal_kangaroo_flat_wbc_env_cfg(
   motion_cmd.robot_type = "Kangaroo"
 
   # Setup end effector cartesian tracking instead of joint position/velocity tracking
-  cfg.observations["actor"].terms["ref_joint_pos"] = None
-  cfg.observations["actor"].terms["ref_joint_vel"] = None
+  # cfg.observations["actor"].terms["ref_joint_pos"] = None
+  # cfg.observations["actor"].terms["ref_joint_vel"] = None
 
-  cfg.observations["actor"].terms["ref_body_pos"] = ObservationTermCfg(
-    func=mdp.ref_body_pos_b, 
-    params={
-      "command_name": "motion", 
-      "body_names": end_effector_body_names,
-    },
-    noise=Unoise(n_min=-0.05, n_max=0.05),
-  )
+  # cfg.observations["actor"].terms["ref_body_pos"] = ObservationTermCfg(
+  #   func=mdp.ref_body_pos_b, 
+  #   params={
+  #     "command_name": "motion", 
+  #     "body_names": end_effector_body_names,
+  #   },
+  #   noise=Unoise(n_min=-0.05, n_max=0.05),
+  # )
   # cfg.observations["actor"].terms["ref_body_ori"] = ObservationTermCfg(
   #   func=mdp.ref_body_ori_b, 
   #   params={
@@ -308,22 +308,22 @@ def pal_kangaroo_grippers_flat_wbc_env_cfg(
   motion_cmd.tracked_body_names = end_effector_body_names
   motion_cmd.robot_type = "Kangaroo_grippers"
 
-  cfg.observations["actor"].terms["ref_body_pos"] = ObservationTermCfg(
-    func=mdp.ref_body_pos_b, 
-    params={
-      "command_name": "motion", 
-      "body_names": end_effector_body_names,
-    },
-    noise=Unoise(n_min=-0.02, n_max=0.02),
-  )
-  cfg.observations["actor"].terms["ref_body_ori"] = ObservationTermCfg(
-    func=mdp.ref_body_ori_b, 
-    params={
-      "command_name": "motion", 
-      "body_names": end_effector_body_names,
-    },
-    noise=Unoise(n_min=-0.01, n_max=0.01),
-  )
+  # cfg.observations["actor"].terms["ref_body_pos"] = ObservationTermCfg(
+  #   func=mdp.ref_body_pos_b, 
+  #   params={
+  #     "command_name": "motion", 
+  #     "body_names": end_effector_body_names,
+  #   },
+  #   noise=Unoise(n_min=-0.02, n_max=0.02),
+  # )
+  # cfg.observations["actor"].terms["ref_body_ori"] = ObservationTermCfg(
+  #   func=mdp.ref_body_ori_b, 
+  #   params={
+  #     "command_name": "motion", 
+  #     "body_names": end_effector_body_names,
+  #   },
+  #   noise=Unoise(n_min=-0.01, n_max=0.01),
+  # )
 
   cfg.terminations["ee_body_pos"].params["body_names"] = (
     "leg_left_5_link",
