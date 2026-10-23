@@ -34,8 +34,9 @@ import tyro
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import RslRlVecEnvWrapper
 from mjlab.rl.runner import MjlabOnPolicyRunner
-from mjlab.tasks.registry import load_env_cfg, load_rl_cfg
+from mjlab.tasks.registry import load_env_cfg, load_rl_cfg, load_runner_cls
 from mjlab.utils.torch import configure_torch_backends
+from pal_mjlab.tasks.supermimic.library import resolve_library
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommand
 from pal_mjlab.tasks.supermimic.mdp.tracking import relative_reference
 
@@ -66,7 +67,10 @@ class Benchmark:
       motion.library_path = library
     # One env per clip, so every clip plays exactly once.
     clips = json.loads(
-      (Path(motion.library_path).expanduser() / "clips.json").read_text()
+      (
+        resolve_library(motion.library_path, motion.dataset, motion.subset)
+        / "clips.json"
+      ).read_text()
     )
     cfg.scene.num_envs = len(clips["clips"])
     self.env = ManagerBasedRlEnv(cfg=cfg, device=device)
@@ -100,10 +104,9 @@ class Benchmark:
     self.clip_category = lib.clip_category
 
   def load_policy(self, checkpoint: Path):
-    runner = MjlabOnPolicyRunner(
-      self.vec, asdict(load_rl_cfg(self.task)), None, self.device
-    )
-    runner.load(str(checkpoint), map_location=self.device)
+    runner_cls = load_runner_cls(self.task) or MjlabOnPolicyRunner
+    runner = runner_cls(self.vec, asdict(load_rl_cfg(self.task)), None, self.device)
+    runner.load(str(checkpoint), load_cfg={"actor": True}, map_location=self.device)
     return runner.get_inference_policy(self.device)
 
   @torch.no_grad()

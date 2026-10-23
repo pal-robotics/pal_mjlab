@@ -57,6 +57,13 @@ class WorldModel(nn.Module):
     for name, dim in (("in", s + a + c), ("out", s + 3), ("state", s)):
       self.register_buffer(f"{name}_mean", torch.zeros(dim))
       self.register_buffer(f"{name}_std", torch.ones(dim))
+    self.register_buffer("norm_count", torch.zeros((), dtype=torch.long))
+
+  def _norm_data(self, state, action, context, next_state, delta_pose):
+    inputs = torch.cat([state, action, context], dim=-1)
+    target = next_state - state if self.cfg.predict_delta else next_state
+    outputs = torch.cat([target, delta_pose], dim=-1)
+    return (("in", inputs), ("out", outputs), ("state", state))
 
   @torch.no_grad()
   def set_normalization(
@@ -67,13 +74,32 @@ class WorldModel(nn.Module):
     next_state: torch.Tensor,
     delta_pose: torch.Tensor,
   ) -> None:
-    """Fix input/output statistics from a sample of transitions (frozen afterwards)."""
-    inputs = torch.cat([state, action, context], dim=-1)
-    target = next_state - state if self.cfg.predict_delta else next_state
-    outputs = torch.cat([target, delta_pose], dim=-1)
-    for name, x in (("in", inputs), ("out", outputs), ("state", state)):
+    """Fix input/output statistics from a sample of transitions (offline, M2)."""
+    for name, x in self._norm_data(state, action, context, next_state, delta_pose):
       getattr(self, f"{name}_mean").copy_(x.mean(0))
       getattr(self, f"{name}_std").copy_(x.std(0).clamp_min(1e-3))
+    self.norm_count.fill_(state.shape[0])
+
+  @torch.no_grad()
+  def update_normalization(
+    self,
+    state: torch.Tensor,
+    action: torch.Tensor,
+    context: torch.Tensor,
+    next_state: torch.Tensor,
+    delta_pose: torch.Tensor,
+  ) -> None:
+    """Running mean/std over every transition seen so far (online, D4)."""
+    n, seen = state.shape[0], int(self.norm_count)
+    total = seen + n
+    for name, x in self._norm_data(state, action, context, next_state, delta_pose):
+      mean, std = getattr(self, f"{name}_mean"), getattr(self, f"{name}_std")
+      delta = x.mean(0) - mean
+      var = (seen * std.square() + n * x.var(0, unbiased=False)) / total
+      var += delta.square() * seen * n / total**2
+      mean += delta * n / total
+      std.copy_(var.sqrt().clamp_min(1e-3))
+    self.norm_count.fill_(total)
 
   def step(
     self,
@@ -95,6 +121,21 @@ class WorldModel(nn.Module):
     """Failure logit for a (predicted) state; ``ref_root`` = (reference root height, gz)."""
     x = torch.cat([(state - self.state_mean) / self.state_std, ref_root], dim=-1)
     return self.termination(x).squeeze(-1)
+
+
+def load_world_model(path, device: str | torch.device = "cpu") -> WorldModel:
+  """A world model from a ``train_world_model.py`` or runner checkpoint."""
+  ckpt = torch.load(path, map_location=device, weights_only=False)
+  ckpt = ckpt.get("world_model", ckpt)
+  cfg = dict(ckpt["cfg"])
+  for key in ("hidden", "termination_hidden", "pose_scale"):
+    cfg[key] = tuple(cfg[key])
+  model = WorldModel(WorldModelCfg(**cfg)).to(device)
+  state = dict(ckpt["state_dict"])
+  # M2 checkpoints predate the running normalizer: their statistics are final.
+  state.setdefault("norm_count", torch.tensor(1 << 40))
+  model.load_state_dict(state)
+  return model.eval()
 
 
 def tilt_angle(state_a: torch.Tensor, state_b: torch.Tensor) -> torch.Tensor:

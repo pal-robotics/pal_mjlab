@@ -1,4 +1,4 @@
-"""PPO-Sim baseline configuration (SuperMimic Section 4.1).
+"""Runner configurations: SuperMimic (Table A.5) and the PPO-Sim baseline (Section 4.1).
 
 PPO-Sim shares SuperMimic's motions, observations, reward, termination, domain
 randomization, actor and critic network sizes and evaluation protocol; it uses
@@ -10,7 +10,21 @@ from dataclasses import dataclass
 
 from mjlab.rl import RslRlModelCfg, RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg
 
+from pal_mjlab.tasks.supermimic.rl.runner import SuperMimicRunnerCfg
+
 PPO_NUM_ENVS = 8192
+SUPERMIMIC_NUM_ENVS = 4096
+
+
+def pal_kangaroo_supermimic_runner_cfg() -> SuperMimicRunnerCfg:
+  """The paper's hyperparameters (Table A.5); see ``rl/supermimic.py`` for the values."""
+  return SuperMimicRunnerCfg(
+    experiment_name="kangaroo_supermimic",
+    logger="tensorboard",
+    max_iterations=320_000,
+    save_interval=2000,
+    obs_groups={"actor": ("goal", "proprio"), "critic": ("critic",)},
+  )
 
 
 @dataclass

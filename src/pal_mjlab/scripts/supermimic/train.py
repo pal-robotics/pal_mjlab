@@ -1,8 +1,9 @@
 """Resumable training launcher: mjlab's ``train`` that continues from the latest checkpoint.
 
 Local GPU jobs can be preempted and rerun from the same command, so this picks the
-highest-iteration ``model_*.pt`` under ``<log_root>/<experiment_name>/`` (across runs) and
-resumes from it; with no checkpoint it starts fresh. Same CLI as ``mjlab train``:
+highest-iteration ``model_*.pt`` among the runs of ``<log_root>/<experiment_name>/`` that have
+the same ``--agent.run-name`` and resumes from it; with no checkpoint it starts fresh. Same CLI
+as ``mjlab train``:
 
   python -m pal_mjlab.scripts.supermimic.train Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers
 """
@@ -20,9 +21,11 @@ from mjlab.scripts.train import TrainConfig, launch_training
 from mjlab.tasks.registry import list_tasks
 
 
-def latest_checkpoint(experiment_dir: Path) -> Path | None:
+def latest_checkpoint(experiment_dir: Path, run_name: str = "") -> Path | None:
+  runs = f"*_{run_name}" if run_name else "*"
   checkpoints = [
-    (int(p.stem.removeprefix("model_")), p) for p in experiment_dir.glob("*/model_*.pt")
+    (int(p.stem.removeprefix("model_")), p)
+    for p in experiment_dir.glob(f"{runs}/model_*.pt")
   ]
   return max(checkpoints)[1] if checkpoints else None
 
@@ -41,7 +44,9 @@ def main() -> None:
     prog=f"{sys.argv[0]} {task}",
     config=mjlab.TYRO_FLAGS,
   )
-  checkpoint = latest_checkpoint(Path(args.log_root) / args.agent.experiment_name)
+  checkpoint = latest_checkpoint(
+    Path(args.log_root) / args.agent.experiment_name, args.agent.run_name
+  )
   if checkpoint is not None:
     print(f"[INFO] Resuming from {checkpoint}")
     agent = replace(

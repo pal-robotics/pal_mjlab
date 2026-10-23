@@ -11,7 +11,7 @@ and NaN count.
 
 Run via the GPU queue, e.g.
   gpu-run --label supermimic-bench --max 30m -- .venv/bin/python -m \
-    pal_mjlab.scripts.supermimic.bench_sim --library ~/Projects/supermimic/kangaroo_bones_seed/data/library/smoke
+    pal_mjlab.scripts.supermimic.bench_sim --library ~/Projects/supermimic/kangaroo_bones_seed/dataset/libraries/smoke
 """
 
 from __future__ import annotations

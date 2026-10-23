@@ -16,23 +16,27 @@ frame at ~308 bytes (14 GB for the full 45M frames instead of ~44 GB with body d
 Subsets:
   smoke  ~15 min of walk/jog/run clips (Basic Locomotion Neutral)
   dev    ~2.5 h stratified by category (like LAFAN1's 2.45 h in the paper)
+  <h>    ~h hours stratified by category, e.g. "10" or "10h"; nested: a smaller subset is
+         contained in a larger one (same per-category clip order), and dev = "2.5h"
   full   every ``final_kept`` clip
+
+  python -m pal_mjlab.scripts.bones_to_library --subset 10h --data-dir path/to/data
 """
 
 from __future__ import annotations
 
 import json
+import os
 import pickle
 import re
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Literal
 
 import numpy as np
 import pyarrow.parquet as pq
 import tyro
 
-DATA_DIR = Path("~/Projects/supermimic/kangaroo_bones_seed/data").expanduser()
+DATA_DIR = Path("~/Projects/supermimic/kangaroo_bones_seed/dataset").expanduser()
 FPS = 50
 
 SUBSET_HOURS = {"smoke": 0.25, "dev": 2.5}
@@ -106,14 +110,29 @@ def load_manifest(data_dir: Path) -> dict[str, list]:
   return {c: [table[c][i] for i in keep] for c in cols if c != "final_kept"}
 
 
+def subset_name(subset: str) -> str:
+  """Canonical subset name: 'smoke', 'dev', 'full' or hours as '<h>h' ('10' -> '10h')."""
+  if subset in ("smoke", "dev", "full"):
+    return subset
+  try:
+    hours = float(subset.removesuffix("h"))
+  except ValueError:
+    msg = f"subset {subset!r}: use smoke, dev, full or hours (10, 10h)"
+    raise ValueError(msg) from None
+  if hours <= 0:
+    raise ValueError(f"subset {subset!r}: hours must be positive")
+  return f"{hours:g}h"
+
+
 def select_clips(manifest: dict[str, list], subset: str, seed: int = 0) -> list[int]:
   """Row indices of the manifest for a subset (deterministic for a seed)."""
   n = len(manifest["clip"])
+  subset = subset_name(subset)
   if subset == "full":
     return list(range(n))
   rng = np.random.default_rng(seed)
   hours = np.asarray(manifest["g1_n_frames"], dtype=np.float64) / FPS / 3600.0
-  target = SUBSET_HOURS[subset]
+  target = SUBSET_HOURS.get(subset) or float(subset.removesuffix("h"))
 
   def take(candidates: list[int], budget: float) -> list[int]:
     picked, total = [], 0.0
@@ -133,7 +152,8 @@ def select_clips(manifest: dict[str, list], subset: str, seed: int = 0) -> list[
     ]
     return sorted(take(cand, target))
 
-  # dev: proportional to each category's share of the hours, at least one clip each.
+  # dev and hours: proportional to each category's share of the hours, at least one
+  # clip each.
   cats = sorted(set(manifest["category"]))
   total_h = hours.sum()
   picked: list[int] = []
@@ -144,14 +164,21 @@ def select_clips(manifest: dict[str, list], subset: str, seed: int = 0) -> list[
   return sorted(picked)
 
 
-def main(
-  subset: Literal["smoke", "dev", "full"] = "dev",
+def build_library(
+  data_dir: Path,
+  subset: str = "dev",
   out_dir: Path | None = None,
-  data_dir: Path = DATA_DIR,
   seed: int = 0,
   workers: int = 16,
-) -> None:
-  out = out_dir or data_dir / "library" / subset
+) -> Path:
+  """Pack a subset into ``out_dir`` (default ``<data_dir>/libraries/<subset>``).
+
+  Written to a temporary folder and renamed when complete, so a crash never leaves a
+  partial library behind.
+  """
+  subset = subset_name(subset)
+  out = out_dir or data_dir / "libraries" / subset
+  final, out = out, out.with_name(f"{out.name}.tmp-{os.getpid()}")
   manifest = load_manifest(data_dir)
   rows = select_clips(manifest, subset, seed)
   print(f"[{subset}] {len(rows)} clips selected")
@@ -208,8 +235,26 @@ def main(
     ],
   }
   (out / "clips.json").write_text(json.dumps(meta))
+  if final.exists():  # built concurrently by another process: keep that one
+    for f in out.iterdir():
+      f.unlink()
+    out.rmdir()
+  else:
+    out.rename(final)
   hours = total / FPS / 3600
-  print(f"[{subset}] {len(rows)} clips, {total} frames, {hours:.2f} h -> {out}")
+  print(f"[{subset}] {len(rows)} clips, {total} frames, {hours:.2f} h -> {final}")
+  return final
+
+
+def main(
+  subset: str = "dev",
+  out_dir: Path | None = None,
+  data_dir: Path = DATA_DIR,
+  seed: int = 0,
+  workers: int = 16,
+) -> None:
+  """``subset``: smoke, dev, full, or a number of hours (10, 10h)."""
+  build_library(data_dir.expanduser(), subset, out_dir, seed, workers)
 
 
 if __name__ == "__main__":

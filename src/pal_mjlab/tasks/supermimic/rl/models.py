@@ -70,6 +70,17 @@ class EncoderDecoderModel(MLPModel):
     x = torch.cat([obs[g] for g in self.obs_groups], dim=-1)
     return _encode(self.obs_normalizer(x), self.encoder, self.goal_dim)
 
+  def act(self, x: torch.Tensor) -> torch.Tensor:
+    """Deterministic action from the concatenated observation (goal first).
+
+    Differentiable in ``x``: SuperMimic's imagination calls it on predicted
+    observations.
+    """
+    out = self.mlp(_encode(self.obs_normalizer(x), self.encoder, self.goal_dim))
+    if self.distribution is not None:
+      return self.distribution.deterministic_output(out)
+    return out
+
   def as_jit(self) -> nn.Module:
     return _ExportModel(self)
 

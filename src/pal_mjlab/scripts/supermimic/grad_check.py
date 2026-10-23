@@ -58,9 +58,12 @@ def imagined_return(model, ev: Evaluator, w: dict, actions: torch.Tensor, gamma:
 class SimReplay:
   """Replays action sequences open loop from given start states in the training env."""
 
-  def __init__(self, task: str, library: str, num_envs: int, device: str) -> None:
+  def __init__(
+    self, task: str, library: str, num_envs: int, device: str, obs_noise: bool = True
+  ) -> None:
     cfg = load_env_cfg(task)
     cfg.scene.num_envs = num_envs
+    cfg.observations["proprio"].enable_corruption = obs_noise
     cfg.commands["motion"].library_path = library
     self.env = ManagerBasedRlEnv(cfg=cfg, device=device)
     self.env.reset()
@@ -75,13 +78,19 @@ class SimReplay:
       i for i, n in enumerate(rm.active_terms) if n.startswith("motion_")
     ]
 
-  def run(
-    self, w: dict, actions: torch.Tensor, gamma: float
-  ) -> tuple[torch.Tensor, torch.Tensor]:
-    env, robot, n = self.env, self.robot, actions.shape[0]
+  def set_start(
+    self,
+    state: torch.Tensor,
+    pose: torch.Tensor,
+    context: torch.Tensor,
+    clip: torch.Tensor,
+    frame: torch.Tensor,
+  ) -> None:
+    """Put every env at a logged state, with its sim context ξ and reference frame."""
+    env, robot, n = self.env, self.robot, state.shape[0]
     assert n == env.num_envs
-    ids = torch.arange(n, device=actions.device)
-    qpos, qvel = state_to_qpos_qvel(w["states"][:, 0], w["poses"][:, 0])
+    ids = torch.arange(n, device=state.device)
+    qpos, qvel = state_to_qpos_qvel(state, pose)
     root = torch.cat(
       [
         qpos[:, :3] + env.scene.env_origins,
@@ -94,17 +103,25 @@ class SimReplay:
     robot.write_root_state_to_sim(root)
     robot.write_joint_state_to_sim(qpos[:, 7:], qvel[:, 6:])
     robot.reset(env_ids=ids)
-    xi = w["context"]
     model = env.sim.model
-    model.geom_friction[:, self.foot_geoms, 0] = xi[:, :1]
-    robot.data.encoder_bias[:, self.bias_joints] = xi[:, 1 : 1 + len(self.bias_joints)]
+    model.geom_friction[:, self.foot_geoms, 0] = context[:, :1]
+    bias = context[:, 1 : 1 + len(self.bias_joints)]
+    robot.data.encoder_bias[:, self.bias_joints] = bias
     default_ipos = env.sim.get_default_field("body_ipos")[self.torso]
-    model.body_ipos[:, self.torso] = default_ipos + xi[:, None, -3:]
+    model.body_ipos[:, self.torso] = default_ipos + context[:, None, -3:]
     env.sim.recompute_constants(RecomputeLevel.set_const)
-    self.cmd.clip[:] = w["clip"]
-    self.cmd.frame[:] = w["frame"][:, 0]
+    self.cmd.clip[:] = clip
+    self.cmd.frame[:] = frame
     self.cmd._version += 1
     env.sim.forward()
+
+  def run(
+    self, w: dict, actions: torch.Tensor, gamma: float
+  ) -> tuple[torch.Tensor, torch.Tensor]:
+    env, n = self.env, actions.shape[0]
+    self.set_start(
+      w["states"][:, 0], w["poses"][:, 0], w["context"], w["clip"], w["frame"][:, 0]
+    )
 
     total = torch.zeros(n, device=actions.device)
     alive = torch.ones(n, dtype=torch.bool, device=actions.device)

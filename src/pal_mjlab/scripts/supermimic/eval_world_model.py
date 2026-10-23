@@ -42,12 +42,12 @@ from pal_mjlab.tasks.supermimic.mdp.tracking import BodyState
 from pal_mjlab.tasks.supermimic.rl.replay import RolloutData, holdout_clip_mask
 from pal_mjlab.tasks.supermimic.rl.world_model import (
   WorldModel,
-  WorldModelCfg,
+  load_world_model,
   tilt_angle,
 )
 from pal_mjlab.tasks.supermimic.state import pose_delta, state_to_qpos_qvel
 
-DEFAULT_LIBRARY = "~/Projects/supermimic/kangaroo_bones_seed/data/library/dev"
+DEFAULT_LIBRARY = "~/Projects/supermimic/kangaroo_bones_seed/dataset/libraries/dev"
 DEFAULT_TASK = "Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers-ArmWaist1Hz"
 JOINT_GROUPS = {
   "legs": r"leg_.*_(\d|length)_joint",
@@ -63,14 +63,7 @@ BODY_GROUPS = {
 
 
 def load_model(path: Path, device: str) -> WorldModel:
-  ckpt = torch.load(path, map_location=device, weights_only=False)
-  cfg = ckpt["cfg"]
-  cfg["hidden"] = tuple(cfg["hidden"])
-  cfg["termination_hidden"] = tuple(cfg["termination_hidden"])
-  cfg["pose_scale"] = tuple(cfg["pose_scale"])
-  model = WorldModel(WorldModelCfg(**cfg)).to(device)
-  model.load_state_dict(ckpt["state_dict"])
-  return model.eval()
+  return load_world_model(path, device)
 
 
 def auc(scores: torch.Tensor, labels: torch.Tensor) -> float:

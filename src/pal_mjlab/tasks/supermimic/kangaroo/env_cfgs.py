@@ -21,8 +21,11 @@ from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import DAMPING_RATIO
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommandCfg
 from pal_mjlab.tasks.supermimic.supermimic_env_cfg import make_supermimic_env_cfg
 
-# BONES-SEED retarget packed by scripts/bones_to_library.py (``dev`` = 2.5 h subset).
-DEFAULT_LIBRARY = "~/Projects/supermimic/kangaroo_bones_seed/data/library/dev"
+# BONES-SEED retarget (its ``dataset`` folder) and the default motion subset (2.5 h); the CLI
+# overrides both: --env.commands.motion.dataset <path> --env.commands.motion.subset 10h
+DEFAULT_DATASET = "~/Projects/supermimic/kangaroo_bones_seed/dataset"
+DEFAULT_SUBSET = "dev"
+DEFAULT_LIBRARY = f"{DEFAULT_DATASET}/libraries/{DEFAULT_SUBSET}"
 
 # The paper's 14 tracked bodies (BeyondMimic's G1 set), mapped to Kangaroo (D25). The first
 # one is the root/anchor.
@@ -114,7 +117,8 @@ def pal_kangaroo_grippers_supermimic_env_cfg(
   assert cfg.commands is not None
   motion_cmd = cfg.commands["motion"]
   assert isinstance(motion_cmd, MotionLibraryCommandCfg)
-  motion_cmd.library_path = DEFAULT_LIBRARY
+  motion_cmd.dataset = DEFAULT_DATASET
+  motion_cmd.subset = DEFAULT_SUBSET
   motion_cmd.body_names = TRACKED_BODIES
   motion_cmd.goal_joint_names = (REGEX_ALL_ACTUATED_JOINTS,)
 

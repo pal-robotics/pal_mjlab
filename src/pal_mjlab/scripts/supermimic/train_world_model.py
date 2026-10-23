@@ -30,7 +30,7 @@ from pal_mjlab.tasks.supermimic.rl.world_model import (
 from pal_mjlab.tasks.supermimic.state import pose_delta
 from torch.utils.tensorboard import SummaryWriter
 
-DEFAULT_LIBRARY = "~/Projects/supermimic/kangaroo_bones_seed/data/library/dev"
+DEFAULT_LIBRARY = "~/Projects/supermimic/kangaroo_bones_seed/dataset/libraries/dev"
 
 
 def batch_loss(model: WorldModel, w: dict[str, torch.Tensor]):

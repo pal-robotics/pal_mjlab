@@ -1,9 +1,15 @@
-"""Finite-difference velocities of the motion-library converter follow MuJoCo's qvel layout."""
+"""Motion-library converter: MuJoCo qvel layout, subsets, and library path resolution."""
 
 import mujoco
 import numpy as np
 import pytest
-from pal_mjlab.scripts.bones_to_library import clip_qpos_qvel
+from pal_mjlab.scripts.bones_to_library import (
+  FPS,
+  clip_qpos_qvel,
+  select_clips,
+  subset_name,
+)
+from pal_mjlab.tasks.supermimic.library import resolve_library
 
 
 @pytest.mark.parametrize("seed", range(5))
@@ -41,3 +47,49 @@ def test_constant_motion_is_recovered_exactly(seed):
   # Stored quaternions are unit and hemisphere-continuous.
   np.testing.assert_allclose(np.linalg.norm(qpos[:, 3:7], axis=1), 1.0, atol=1e-12)
   assert np.all(np.sum(qpos[1:, 3:7] * qpos[:-1, 3:7], axis=1) > 0)
+
+
+def _manifest(seed: int = 0) -> dict[str, list]:
+  rng = np.random.default_rng(seed)
+  n = 2000  # about 12 h
+  return {
+    "clip": [f"clip_{i}" for i in range(n)],
+    "category": [f"cat_{i % 7}" for i in range(n)],
+    "move_name": ["walk"] * n,
+    "g1_n_frames": rng.integers(100, 2000, n).tolist(),
+  }
+
+
+@pytest.mark.parametrize(
+  "subset, name",
+  [("dev", "dev"), ("full", "full"), ("10", "10h"), ("10h", "10h"), ("0.5h", "0.5h")],
+)
+def test_subset_names(subset, name):
+  assert subset_name(subset) == name
+
+
+@pytest.mark.parametrize("subset", ["", "abc", "-1", "0h"])
+def test_bad_subsets_raise(subset):
+  with pytest.raises(ValueError):
+    subset_name(subset)
+
+
+def test_hour_subsets_are_nested_and_dev_is_2_5_hours():
+  m = _manifest()
+  hours = np.asarray(m["g1_n_frames"]) / FPS / 3600
+  small, large = (set(select_clips(m, s)) for s in ("1h", "3h"))
+  assert small < large
+  assert hours[sorted(small)].sum() >= 1.0 and hours[sorted(large)].sum() >= 3.0
+  assert select_clips(m, "dev") == select_clips(m, "2.5h")
+  assert len({m["category"][i] for i in small}) == 7  # every category represented
+
+
+def test_library_paths_resolve(tmp_path, monkeypatch):
+  packed = tmp_path / "data" / "libraries" / "4h"
+  packed.mkdir(parents=True)
+  (packed / "clips.json").write_text("{}")
+  monkeypatch.chdir(tmp_path)
+  assert resolve_library("", "data", "4") == packed  # relative dataset, hour subset
+  assert resolve_library("data/libraries/4h", "elsewhere", "dev") == packed
+  with pytest.raises(ValueError):
+    resolve_library("", "", "dev")

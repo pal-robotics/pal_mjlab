@@ -149,7 +149,7 @@ def make_supermimic_env_cfg() -> ManagerBasedRlEnvCfg:
   commands: dict[str, CommandTermCfg] = {
     "motion": MotionLibraryCommandCfg(
       entity_name="robot",
-      library_path="",  # Set per robot.
+      dataset="",  # Set per robot (or library_path).
       body_names=(),  # Set per robot; first = anchor.
       pose_range=RESET_POSE_RANGE,
       velocity_range=RESET_VELOCITY_RANGE,

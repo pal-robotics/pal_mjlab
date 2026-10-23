@@ -31,7 +31,7 @@ from ..kinematics import (
   quat_rotate,
   rot6d,
 )
-from ..library import MotionLibrary
+from ..library import MotionLibrary, resolve_library
 from ..state import heading_state, root_pose_error
 from .sampler import ReturnSampler
 from .tracking import BodyState
@@ -53,7 +53,8 @@ class MotionLibraryCommand(CommandTerm):
   def __init__(self, cfg: MotionLibraryCommandCfg, env: ManagerBasedRlEnv):
     super().__init__(cfg, env)
     self.robot: Entity = env.scene[cfg.entity_name]
-    self.library = MotionLibrary(cfg.library_path, device=self.device)
+    path = resolve_library(cfg.library_path, cfg.dataset, cfg.subset)
+    self.library = MotionLibrary(path, device=self.device)
     if self.library.joint_names != tuple(self.robot.joint_names):
       raise ValueError("Motion library joint order differs from the robot's joints.")
     if abs(self.library.fps * env.step_dt - 1.0) > 1e-6:
@@ -360,8 +361,15 @@ class MotionLibraryCommand(CommandTerm):
 
 @dataclass(kw_only=True)
 class MotionLibraryCommandCfg(CommandTermCfg):
-  library_path: str
-  """Folder written by ``scripts/bones_to_library.py`` (qpos.npy, qvel.npy, clips.json)."""
+  dataset: str = ""
+  """BONES-SEED retarget ``dataset`` folder (manifest.parquet, motions/, libraries/); may be
+  relative to the working directory."""
+  subset: str = "dev"
+  """Motions to train on: smoke, dev (2.5 h), full, or a number of hours (10, 10h).
+  Packed into ``<dataset>/libraries/<subset>`` on first use (``bones_to_library.py``)."""
+  library_path: str = ""
+  """An already packed library folder (qpos.npy, qvel.npy, clips.json); overrides
+  ``dataset`` and ``subset`` when set."""
 
   body_names: tuple[str, ...]
   """Tracked bodies; the first one is the anchor (root)."""
