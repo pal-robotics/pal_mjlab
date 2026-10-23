@@ -8,7 +8,12 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import torch
-import csv
+import os
+import itertools
+import multiprocessing as mp
+from collections import deque
+from concurrent.futures import ProcessPoolExecutor
+from tqdm import tqdm
 import mujoco
 import mujoco_warp as mjw
 import warp as wp
@@ -53,6 +58,140 @@ ROBOT_XML_DICT = {
   "Kangaroo_hands" : KANGAROO_HANDS_XML,
   "Kangaroo_grippers" : KANGAROO_GRIPPERS_XML,
 }
+
+def _sanity_trim(data, cfg: SanityCheckCfg, name: str = ""):
+  """Trim explosive frames at the start/end of a clip. data: tuple of (D, M)."""
+  if not cfg.enabled:
+    return data
+
+  (root_pos, root_lin_vel, root_lin_acc, root_quat,
+   root_ang_vel, root_ang_acc, joint_pos, joint_vel) = data
+  M = root_pos.shape[1]
+
+  bad = np.zeros(M, dtype=bool)
+  for arr, thr in (
+    (joint_vel, cfg.joint_vel),
+    (root_lin_vel, cfg.root_lin_vel),
+    (root_ang_vel, cfg.root_ang_vel),
+    (root_lin_acc, cfg.root_lin_acc),
+    (root_ang_acc, cfg.root_ang_acc),
+  ):
+    bad |= np.abs(arr).max(axis=0) > thr
+
+  n_start = n_end = 0
+  head = np.where(bad[: min(cfg.search, M)])[0]
+  if len(head):
+    n_start = int(head[-1]) + 1 + cfg.margin
+
+  tail_from = max(M - cfg.search, 0)
+  tail = np.where(bad[tail_from:])[0]
+  if len(tail):
+    n_end = (M - (tail_from + int(tail[0]))) + cfg.margin
+
+  if n_start == 0 and n_end == 0:
+    return data
+
+  if n_start + n_end >= M:
+    if cfg.verbose:
+      tqdm.write(f"[sanity_check] {name}: would trim {n_start}+{n_end} of {M} frames, keeping clip as is")
+    return data
+
+  if cfg.verbose:
+    tqdm.write(f"[sanity_check] {name}: {M} -> {M - n_start - n_end} frames "
+          f"(start -{n_start}, end -{n_end})")
+  stop = M - n_end
+  return tuple(x[:, n_start:stop] for x in data)
+
+
+
+# Stored layout per frame: [root_pos 3 | root_quat 4 (xyzw) | root_lin_vel 3 |
+#                           root_ang_vel 3 | joint_pos J | joint_vel J]
+_ROOT_COLS = 13
+# Worker output (D, M): same, plus root_lin_acc 3 | root_ang_acc 3 before the joints.
+_RAW_COLS = 19
+
+
+def _worker_init(nice: int):
+  os.environ["OMP_NUM_THREADS"] = "1"
+  os.environ["OPENBLAS_NUM_THREADS"] = "1"
+  os.environ["MKL_NUM_THREADS"] = "1"
+  try:
+    from threadpoolctl import threadpool_limits
+    threadpool_limits(1)
+  except Exception:
+    pass
+  try:
+    os.nice(nice)            # lower priority so the desktop stays responsive
+  except Exception:
+    pass
+
+
+def _load_clip(job):
+  """Parse + resample one CSV. CPU only. Returns (name, (19+2J, M) float32) or None."""
+  path, in_dt, out_dt = job
+
+  raw = np.loadtxt(path, delimiter=",", dtype=np.float32, ndmin=2)   # (N, 7+J)
+  if raw.shape[0] < 2:
+    return None
+  cols = raw.T
+  root_pos, root_quat, joint_pos = cols[0:3], cols[3:7], cols[7:]
+
+  n_in = root_pos.shape[1]
+  t_in = np.arange(n_in) * in_dt
+  t_out = np.arange(0, t_in[-1], out_dt)
+  if len(t_out) < 3:
+    return None
+
+  def lerp(x):
+    return np.stack([np.interp(t_out, t_in, row) for row in x])
+
+  root_pos_o = lerp(root_pos)
+  joint_pos_o = lerp(joint_pos)
+
+  r = Slerp(t_in, R.from_quat(root_quat.T))(t_out)
+  root_quat_o = r.as_quat().T
+
+  root_lin_vel = np.gradient(root_pos_o, out_dt, axis=1)
+  joint_vel = np.gradient(joint_pos_o, out_dt, axis=1)
+
+  w = (r[2:] * r[:-2].inv()).as_rotvec() / (2 * out_dt)
+  root_ang_vel = np.concatenate([w[:1], w, w[-1:]]).T
+
+  root_lin_acc = np.gradient(root_lin_vel, out_dt, axis=1)
+  root_ang_acc = np.gradient(root_ang_vel, out_dt, axis=1)
+
+  out = np.concatenate(
+    [root_pos_o, root_quat_o, root_lin_vel, root_ang_vel,
+     root_lin_acc, root_ang_acc, joint_pos_o, joint_vel], axis=0,
+  ).astype(np.float32, copy=False)                                   # (19+2J, M)
+  return Path(path).stem, out
+
+
+def _finalize_clip(arr: np.ndarray, cfg: SanityCheckCfg, name: str):
+  """Sanity-trim a (19+2J, M) clip and repack to (M, 13+2J)."""
+  J = (arr.shape[0] - _RAW_COLS) // 2
+  rp, rq = arr[0:3], arr[3:7]
+  lv, av = arr[7:10], arr[10:13]
+  la, aa = arr[13:16], arr[16:19]
+  jp, jv = arr[19:19 + J], arr[19 + J:]
+  rp, lv, _, rq, av, _, jp, jv = _sanity_trim(
+    (rp, lv, la, rq, av, aa, jp, jv), cfg, name
+  )
+  packed = np.concatenate([rp, rq, lv, av, jp, jv], axis=0).T
+  packed = np.ascontiguousarray(packed, dtype=np.float32)
+  return packed if packed.shape[0] > 0 else None
+
+
+def _bounded_map(ex, fn, jobs, window: int):
+  """Like ex.map (ordered) but keeps at most `window` jobs/results in flight."""
+  it = iter(jobs)
+  pending = deque(ex.submit(fn, j) for j in itertools.islice(it, window))
+  while pending:
+    res = pending.popleft().result()
+    nxt = next(it, None)
+    if nxt is not None:
+      pending.append(ex.submit(fn, nxt))
+    yield res
 
 @dataclass(frozen=True)
 class SanityCheckCfg:
@@ -267,254 +406,131 @@ class MotionLoader:
         self.anchor_lin_acc_w, self.anchor_ang_acc_w = lin_acc, ang_acc
 
 class MotionLoaderCsv:
-  """
-  Load multiple motion CSV files as one contiguous motion library.
+  """Load CSV clips into one contiguous GPU motion library.
 
-  Each CSV is treated as one trajectory/clip. The individual clips are
-  concatenated along the time dimension, while segment_start_idx and
-  segment_length keep track of where each trajectory lives.
+  CPU use is capped (few, low-priority workers), clips are streamed straight
+  into a preallocated device buffer, and loading stops at `max_frames`.
   """
 
   def __init__(
     self,
     motion_dir: str,
     input_fps: float = 30.0,
-    output_fps: float = 50.0, 
+    output_fps: float = 50.0,
     device: str = "cpu",
-    sanity: SanityCheckCfg = SanityCheckCfg()
-) -> None:
-    
-    self.sanity = sanity
+    sanity: SanityCheckCfg = SanityCheckCfg(),
+    num_workers: int | None = None,
+    max_frames: int = 3_000_000,
+    nice: int = 10,
+    store_dtype: torch.dtype = torch.float32,
+  ) -> None:
+    import random
 
+    self.sanity = sanity
     in_dt, out_dt = 1.0 / input_fps, 1.0 / output_fps
 
     source = Path(motion_dir).expanduser().resolve()
-
     if not source.is_dir():
       raise FileNotFoundError(f"Motion directory not found: {source}")
 
     motion_paths = sorted(source.glob("*.csv"))
-
     if not motion_paths:
-      raise FileNotFoundError(
-          f"No .csv motion files found in {source}"
+      raise FileNotFoundError(f"No .csv motion files found in {source}")
+    # Seeded shuffle so a capped library samples across subjects, reproducibly.
+    random.Random(0).shuffle(motion_paths)
+
+    jobs = [(str(p), in_dt, out_dt) for p in motion_paths]
+    # Default: at most 4 workers and never more than half the cores.
+    n_workers = max(1, min(num_workers or min(4, (os.cpu_count() or 2) // 2), len(jobs)))
+
+    names: list[str] = []
+    lengths: list[int] = []
+    state = {"lib": None, "i": 0, "full": False}
+
+    pbar_read = tqdm(total=len(jobs), desc="Reading CSVs ", position=0, unit="clip")
+    pbar_san = tqdm(total=len(jobs), desc="Sanity check", position=1, unit="clip")
+
+    def handle(res):
+      pbar_read.update(1)
+      if res is None or state["full"]:
+        pbar_san.update(1)
+        return
+      name, arr = res
+      packed = _finalize_clip(arr, sanity, name)       # sanity trim + repack (M, 13+2J)
+      pbar_san.update(1)
+      if packed is None:
+        return
+      n = packed.shape[0]
+      if state["lib"] is None:
+        state["lib"] = torch.empty(
+          (max_frames, packed.shape[1]), dtype=store_dtype, device=device
+        )
+      if state["i"] + n > max_frames:
+        state["full"] = True
+        return
+      i = state["i"]
+      state["lib"][i : i + n] = torch.from_numpy(packed).to(
+        device=device, dtype=store_dtype
       )
+      state["i"] += n
+      names.append(name)
+      lengths.append(n)
 
-    # Store each clip temporarily as numpy arrays.
-    root_pos_list = []
-    root_lin_vel_list = []
-    root_lin_acc_list = []
-    root_quat_list = []
-    root_ang_vel_list = []
-    root_ang_acc_list = []
-    joint_pos_list = []
-    joint_vel_list = []
+    try:
+      if n_workers > 1:
+        with ProcessPoolExecutor(
+          n_workers,
+          mp_context=mp.get_context("fork"),
+          initializer=_worker_init,
+          initargs=(nice,),
+        ) as ex:
+          for res in _bounded_map(ex, _load_clip, jobs, window=n_workers * 2):
+            handle(res)
+            if state["full"]:
+              break
+      else:
+        for j in jobs:
+          handle(_load_clip(j))
+          if state["full"]:
+            break
+    finally:
+      pbar_read.close()
+      pbar_san.close()
 
-    segment_start = []
-    segment_length = []
-    segment_names = []
-
-    current_start = 0
-
-    time_step = []
-
-    for path in motion_paths:
-      with open(path, newline="", encoding="utf-8") as f:
-        columns = list(zip(*csv.reader(f)))
-
-      root_pos   = np.asarray(columns[0:3],  dtype=np.float32)   # (3, N)
-      root_quat  = np.asarray(columns[3:7],  dtype=np.float32)   # (4, N), xyzw
-      joint_pos  = np.asarray(columns[7:],   dtype=np.float32)   # (J, N)
-
-      n_in = root_pos.shape[1]
-      t_in = np.arange(n_in) * in_dt
-      duration = t_in[-1]
-      t_out = np.arange(0, duration, out_dt)                      # same grid as the script
-
-      # Linear interpolation for positions and joints
-      def lerp(x):
-        return np.stack([np.interp(t_out, t_in, row) for row in x])
-
-      root_pos_o  = lerp(root_pos)                                # (3, M)
-      joint_pos_o = lerp(joint_pos)                               # (J, M)
-
-      # Slerp for the quaternion (scipy uses xyzw, matching the CSV)
-      slerp = Slerp(t_in, R.from_quat(root_quat.T))
-      r = slerp(t_out)                                            # Rotation of length M
-      root_quat_o = r.as_quat().T                                 # (4, M), xyzw
-
-      # Velocities at the output rate
-      root_lin_vel = np.gradient(root_pos_o,  out_dt, axis=1)
-      joint_vel    = np.gradient(joint_pos_o, out_dt, axis=1)
-
-      # World-frame angular velocity (central difference, padded at the ends)
-      w = (r[2:] * r[:-2].inv()).as_rotvec() / (2 * out_dt)       # (M-2, 3)
-      root_ang_vel = np.concatenate([w[:1], w, w[-1:]]).T         # (3, M)
-
-      # Linear acceleration
-      root_lin_acc = np.gradient(root_lin_vel, out_dt, axis=1)
-
-      # Angular acceleration (world frame)
-      root_ang_acc = np.gradient(root_ang_vel, out_dt, axis=1)
-
-
-      # Sanity check to exclude explosive values in first/last frames
-      _data = (root_pos_o, root_lin_vel, root_lin_acc, root_quat_o,
-               root_ang_vel, root_ang_acc, joint_pos_o, joint_vel)
-      (root_pos_o, root_lin_vel, root_lin_acc, root_quat_o,
-       root_ang_vel, root_ang_acc, joint_pos_o, joint_vel) = [
-        np.ascontiguousarray(x.T)          # (D, M) -> (M, D)
-        for x in self.sanity_check(_data, name=path.name)
-      ]
-
-      num_frames = joint_pos_o.shape[0]
-      if num_frames == 0:
-        continue
-
-      segment_start.append(current_start)
-      segment_length.append(num_frames)
-      segment_names.append(path.stem)
-
-      root_pos_list.append(root_pos_o)
-      root_lin_vel_list.append(root_lin_vel)
-      root_lin_acc_list.append(root_lin_acc)
-      root_quat_list.append(root_quat_o)
-      root_ang_vel_list.append(root_ang_vel)
-      root_ang_acc_list.append(root_ang_acc)
-      joint_pos_list.append(joint_pos_o)
-      joint_vel_list.append(joint_vel)
-
-      current_start += num_frames
-      time_step.append(num_frames)
-
-    if not joint_pos_list:
+    if state["lib"] is None or not lengths:
       raise ValueError(f"No valid motion frames found in {source}")
 
-    # ------------------------------------------------------------
-    # Concatenate all trajectories into one motion library.
-    # ------------------------------------------------------------
-
-    self.root_pos = torch.as_tensor(
-      np.concatenate(root_pos_list, axis=0),
-      dtype=torch.float32,
-      device=device,
-    )
-    self.root_lin_vel = torch.as_tensor(
-      np.concatenate(root_lin_vel_list, axis=0),
-      dtype=torch.float32,
-      device=device,
-    )
-    self.root_lin_acc = torch.as_tensor(
-      np.concatenate(root_lin_acc_list, axis=0),
-      dtype=torch.float32,
-      device=device,
+    lib = state["lib"][: state["i"]]
+    total, C = lib.shape
+    J = (C - _ROOT_COLS) // 2
+    print(
+      f"[MotionLoaderCsv] {len(lengths)} clips, {total} frames, "
+      f"{lib.numel() * lib.element_size() / 1e6:.0f} MB on {device}"
     )
 
-    self.root_quat = torch.as_tensor(
-      np.concatenate(root_quat_list, axis=0),
-      dtype=torch.float32,
-      device=device,
-    )
-    self.root_ang_vel = torch.as_tensor(
-      np.concatenate(root_ang_vel_list, axis=0),
-      dtype=torch.float32,
-      device=device,
-    )
-    self.root_ang_acc = torch.as_tensor(
-      np.concatenate(root_ang_acc_list, axis=0),
-      dtype=torch.float32,
-      device=device,
-    )
+    # Views into the single library tensor (no extra memory).
+    self.root_pos = lib[:, 0:3]
+    self.root_quat = lib[:, 3:7]                       # xyzw
+    self.root_lin_vel = lib[:, 7:10]
+    self.root_ang_vel = lib[:, 10:13]
+    self.joint_pos = lib[:, _ROOT_COLS : _ROOT_COLS + J]
+    self.joint_vel = lib[:, _ROOT_COLS + J :]
+    self._lib = lib
 
-    self.joint_pos = torch.as_tensor(
-      np.concatenate(joint_pos_list, axis=0),
-      dtype=torch.float32,
-      device=device,
-    )
-    self.joint_vel = torch.as_tensor(
-      np.concatenate(joint_vel_list, axis=0),
-      dtype=torch.float32,
-      device=device,
-    )
-
-    # ------------------------------------------------------------
-    # Trajectory / segment information.
-    # ------------------------------------------------------------
-
-    self.segment_start_idx = torch.tensor(
-        segment_start,
-        dtype=torch.long,
-        device=device,
-    )
-
-    self.segment_length = torch.tensor(
-        segment_length,
-        dtype=torch.long,
-        device=device,
-    )
-
-    self.segment_end_idx = (
-        self.segment_start_idx + self.segment_length
-    )
-
-    self.num_trajectories = len(segment_start)
-
-    self.segment_names = tuple(segment_names)
-
-    self.time_step_total = max(tsl for tsl in time_step)
-
+    # ---- segment info ----
+    segment_start = np.concatenate([[0], np.cumsum(lengths)[:-1]]).tolist()
+    self.segment_start_idx = torch.tensor(segment_start, dtype=torch.long, device=device)
+    self.segment_length = torch.tensor(lengths, dtype=torch.long, device=device)
+    self.segment_end_idx = self.segment_start_idx + self.segment_length
+    self.num_trajectories = len(lengths)
+    self.segment_names = tuple(names)
+    self.time_step_total = max(lengths)
     self.trajectory_probs = (
       self.segment_length.float() / self.segment_length.sum().float()
     ).to(device=device)
 
   def sanity_check(self, data, name: str = ""):
-    """Trim explosive frames at the start/end of a clip.
-
-    data: (root_pos, root_lin_vel, root_lin_acc, root_quat, root_ang_vel,
-           root_ang_acc, joint_pos, joint_vel), each shaped (D, M).
-    Returns the same tuple with the time axis (axis 1) trimmed.
-    """
-    cfg = self.sanity
-    if not cfg.enabled:
-      return data
-
-    (root_pos, root_lin_vel, root_lin_acc, root_quat,
-     root_ang_vel, root_ang_acc, joint_pos, joint_vel) = data
-    M = root_pos.shape[1]
-
-    bad = np.zeros(M, dtype=bool)
-    for arr, thr in (
-      (joint_vel, cfg.joint_vel),
-      (root_lin_vel, cfg.root_lin_vel),
-      (root_ang_vel, cfg.root_ang_vel),
-      (root_lin_acc, cfg.root_lin_acc),
-      (root_ang_acc, cfg.root_ang_acc),
-    ):
-      bad |= np.abs(arr).max(axis=0) > thr
-
-    n_start = n_end = 0
-
-    head = np.where(bad[: min(cfg.search, M)])[0]
-    if len(head):
-      n_start = int(head[-1]) + 1 + cfg.margin
-
-    tail_from = max(M - cfg.search, 0)
-    tail = np.where(bad[tail_from:])[0]
-    if len(tail):
-      n_end = (M - (tail_from + int(tail[0]))) + cfg.margin
-
-    if n_start == 0 and n_end == 0:
-      return data
-
-    if n_start + n_end >= M:
-      print(f"[sanity_check] {name}: would trim {n_start}+{n_end} of {M} frames, keeping clip as is")
-      return data
-
-    if cfg.verbose:
-      print(f"[sanity_check] {name}: {M} -> {M - n_start - n_end} frames "
-            f"(start -{n_start}, end -{n_end})")
-    stop = M - n_end
-    return tuple(x[:, n_start:stop] for x in data)
+    return _sanity_trim(data, self.sanity, name)
 
 class OnlineCsvToNpz:
   """Computes NPZ-equivalent reference data (joint_pos, joint_vel, body_pos_w,
