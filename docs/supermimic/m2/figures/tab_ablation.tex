@@ -1,0 +1,10 @@
+\begin{tabular}{lrrrrr}\toprule
+ & \multicolumn{2}{c}{8 steps} & \multicolumn{2}{c}{32 steps} & 64 steps \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-6}
+model & body [cm] & return [\%] & body [cm] & return [\%] & body [cm] \\\midrule
+main ($k{=}8$, $2048{\times}3$, $\Delta$) & 0.86 & 0.54 & 3.83 & 1.08 & 14.9 \\
+width 1024 & 0.98 & 0.62 & 4.58 & 1.29 & 18.6 \\
+absolute targets & 2.37 & 1.25 & 8.36 & 3.38 & 26.4 \\
+$k{=}1$ training & 1.45 & 0.79 & diverged & 2.95 & diverged \\
+no change & 5.55 & 4.53 & 16.94 & 13.26 & 26.4 \\
+\bottomrule\end{tabular}

@@ -228,6 +228,48 @@ the root joint, about one body out of ~40, so the timings stand.
   while mean errors and return match to ~0.1 cm / 0.001. So judge comparisons on mean or paired errors,
   not small differences in failure counts.
 
+## M2: offline world model (`m2/world_model.md`, `m2/report.pdf`)
+
+**Data and cost.**
+- Collecting 6.1M transitions (3 checkpoints × 4096 envs × 500 steps) takes 2 min.
+- Training the paper-size model (8.9M params, k = 8, 50k × 2048 windows) takes 43 min locally.
+- Failures are rare in PPO data: 0.05% of transitions.
+
+**Accuracy.**
+- **The reward needs no learning.** The analytic reward on logged states matches the env's to 1.6e-5, so
+  imagined-reward error is pure state error.
+- **Error grows smoothly up to 32 steps:** 0.15, 0.86, 1.7 and 3.8 cm body error at 1, 8, 16 and 32
+  steps, against 0.7, 5.5, 10 and 17 cm for no-change.
+- **It accelerates after that:** 15 cm at 64 steps, where the model is only 1.8× better than no-change.
+- **Arms dominate the error.** At 32 steps the root-relative error is 4.4 cm for the arms, 2.1 for the
+  legs and 0.24 for the torso, the same ranking as PPO-Sim's tracking error.
+
+**Training choices.**
+- **Multi-step training is not optional.** k = 1 matches k = 8 after one step (0.19 vs 0.15 cm) but
+  diverges at 32 steps. Its 32-step held-out loss explodes while its 8-step loss keeps improving, so
+  watch the long-horizon validation, not the training horizon's.
+- **Return error hides divergence:** about 3% for the diverged k = 1, because the exp-kernel reward
+  saturates at 0.
+- **Predict deltas:** absolute targets are 3× worse at 1 step and 2× worse at 32.
+
+**Gradients.**
+- **The direction is right:** steps along ∂J/∂a improve the simulated return from 97–100% of starts.
+- **The size is optimistic at H = 32:** +32% at δ = 0.05 and +57% at δ = 0.1, with correlation 0.6–0.7.
+  Up to H = 16 it is within 10%.
+- **Gradient norms fall near-linearly with the number of remaining rewards,** so neither explosion nor
+  vanishing.
+
+**Termination.**
+- **The learned head is weak.** BCE on 0.05% positives learns a confident "no": AUC 0.94, and 0.87 on an
+  unseen policy.
+- **The env's rule works on predicted states:** AUC 0.995, catching 81% of failures at the exact step
+  with 0.02% false alarms.
+
+**Tools.**
+- **gpu-run's shell is zsh, which doesn't word-split `$VAR`.** A variable holding several paths arrives
+  as one argument (job 78), and a variable holding a command fails with exit 127 (jobs 39 and 40). Write
+  the paths out in full.
+
 ## Repo state found on MAC/WBC (not caused by us)
 
 - `tests/test_kangaroo_velocity_task_launch.py`: all 12 velocity tasks fail at env construction on GPU.

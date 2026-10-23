@@ -32,6 +32,7 @@ from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import TRACKED_BODIES
 from pal_mjlab.tasks.supermimic.kinematics import (
   TorchKinematics,
   compile_kinematic_model,
+  matrix_from_rot6d,
   quat_rotate_inv,
   yaw_quat,
 )
@@ -79,6 +80,15 @@ def auc(scores: torch.Tensor, labels: torch.Tensor) -> float:
   ranks = torch.cat([pos, neg]).argsort().argsort().float() + 1
   return float(
     (ranks[: len(pos)].sum() - len(pos) * (len(pos) + 1) / 2) / (len(pos) * len(neg))
+  )
+
+
+def failure_rule_score(state: torch.Tensor, ref_root: torch.Tensor) -> torch.Tensor:
+  """SuperMimic's failure rule as a margin (> 1 = failure): root height error / 0.25 m or
+  gravity-z error / 0.8, whichever is larger."""
+  gz = -matrix_from_rot6d(state[:, 1:7])[:, 2, 2]
+  return torch.maximum(
+    (state[:, 0] - ref_root[:, 0]).abs() / 0.25, (gz - ref_root[:, 1]).abs() / 0.8
   )
 
 
@@ -140,13 +150,16 @@ class Evaluator:
   @torch.no_grad()
   def rollout(self, model: WorldModel | None, w: dict[str, torch.Tensor], h: int):
     s, p = w["states"][:, 0], w["poses"][:, 0]  # model None: "no change" predictor
-    rewards, logits = [], []
+    rewards, logits, rules = [], [], []
     for j in range(h):
       if model is not None:
         s, p = model.step(s, p, w["actions"][:, j], w["context"])
         logits.append(model.termination_logit(s, w["ref_root"][:, j]))
+        rules.append(failure_rule_score(s, w["ref_root"][:, j]))
       ref = self.reference(w["frame"][:, j])
       rewards.append(self.reward(self.bodies(s, p), ref))
+    if logits:
+      self.last_rule_scores = torch.stack(rules, 1)
     return s, p, torch.stack(rewards, 1), (torch.stack(logits, 1) if logits else None)
 
 
@@ -220,9 +233,18 @@ def main(
     if model is None:
       continue
     *_, logits = ev.rollout(model, w, 8)
+    labels = w["failure"].flatten()
+    rule = ev.last_rule_scores.flatten()
     term[name] = {
-      "auc": auc(logits.flatten(), w["failure"].flatten()),
-      "positives": int(w["failure"].sum()),
+      "auc": auc(logits.flatten(), labels),
+      "rule_auc": auc(rule, labels),
+      "positives": int(labels.sum()),
+      # Scores for ROC plots: the learned head (logit) and the analytic rule margin.
+      "scores": {
+        "label": labels.int().tolist(),
+        "head": logits.flatten().tolist(),
+        "rule": rule.tolist(),
+      },
     }
 
   report = {"reward_parity_max_abs": parity, "horizons": results, "termination": term}
@@ -242,7 +264,10 @@ def main(
       print(
         f"| {name} | " + " | ".join(f"{results[name][h][k]:.4g}" for k in keys) + " |"
       )
-  print("\ntermination AUC:", {k: round(v["auc"], 4) for k, v in term.items()})
+  print(
+    "\ntermination AUC (head / analytic rule on predicted states):",
+    {k: (round(v["auc"], 4), round(v["rule_auc"], 4)) for k, v in term.items()},
+  )
 
 
 if __name__ == "__main__":

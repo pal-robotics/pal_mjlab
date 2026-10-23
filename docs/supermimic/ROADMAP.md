@@ -36,7 +36,7 @@ with a gate: if it fails, we stop and rethink before building on top.
 - Gain A/B (D27): 1 Hz arms and waist track better than 3.5 Hz (`m1/gain_ab.md`).
 - PPO-Sim baseline done (`m1/ppo_sim_baseline.md`): 25/1296 failures, tracking return 0.742 after 11.9 h.
   **M1 gate met.**
-- Still to do: logging rollouts for M2, at the start of M2 (user decides when).
+- Rollouts for M2 logged at the start of M2 (D29).
 
 - Task `Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers` (D2, D6, D12–D15):
   - library-backed motion command: goal builder, clip-end termination (D8), paper return-based reset
@@ -50,24 +50,45 @@ with a gate: if it fails, we stop and rethink before building on top.
 - **Gate:** PPO learns `dev` stably. Keep the curve as the baseline, and log rollouts with action noise
   0.1 for M2.
 
-## M2: Offline world model (the main risk)
+## M2: Offline world model (done 2026-10-23, `m2/world_model.md`, `m2/report.pdf`)
 
-- `replay.py` and `networks.py`. Fit the WM on M1 rollouts with k=8 windows (Eq. 1).
-- Report held-out 8- and 32-step open-loop error per component: root, joints, and body positions after FK.
-- Ablations:
-  - "10 batches" read as 10 steps vs one large batch (D10);
-  - delta vs absolute prediction;
-  - normalizer.
-- M2b: per-step ∂J/∂a norms through the WM at H=32, a quick check for exploding or vanishing gradients.
-- **Gate:** 32-step rollouts stay bounded, body-position error at 8 steps is within a few cm, and the
-  gradient norms are sane.
+- **Built:**
+  - `rl/replay.py`: windows within episodes, held-out clips.
+  - `rl/world_model.py`: the paper's MLP, Eq. 1 loss, termination head.
+  - Scripts: collect, train, eval (open loop, by body group after FK), gradient check (model gradient
+    vs random, replayed in the sim).
+- **Data:** 6.1M transitions from three PPO-Sim checkpoints (D29).
+- **Result, main model (D30), held-out clips:**
+  - Body error 0.86 cm at 8 steps and 3.8 cm at 32, 4–6× below no-change. Imagined return within 1.1%
+    at 32 steps.
+  - Gradient steps improve the simulated return from 97–100% of starts, vs 44–47% for random. The model
+    is optimistic at H = 32: predicted gain 1.3–1.6× the real one.
+- **Ablations:**
+  - k = 1 diverges at 32 steps.
+  - Absolute targets are 2× worse.
+  - Width 1024 is 15–20% worse.
+  - An unseen policy costs about 15%.
+  - The "10 batches" reading (D10) moves to M4.
+- **Termination:** the learned head reaches AUC 0.937, against a gate of 0.95. The env's rule on predicted
+  states reaches 0.995, which led to D31 (proposed).
+- **Gate met**, except the learned head, which is replaced.
 
-## M3: Policy on a frozen world model
+## M3: Policy on a frozen world model (next)
 
-- `imagine.py`: Eq. 2 with the survival weight, and the critic with λ-returns (Eq. 3). Paper optimizer and
-  clipping.
-- Train on the frozen M2 WM, evaluate in sim, and log the imagined-vs-sim return gap.
-- Compare H=32 with and without the critic.
+- `imagine.py`, built in this order:
+  - rollouts from replay starts, with a 10-step obs history;
+  - an analytic obs head (actuated joints only, D28) with sensor noise re-added;
+  - goals from the library (D8);
+  - Eq. 2 with the survival weight, using the soft analytic termination (D31);
+  - the critic on λ-returns (Eq. 3);
+  - the paper's optimizer and clipping.
+- Train on the frozen M2 world model (D30) and evaluate in the sim with `eval.py`. Log the
+  imagined-vs-sim return gap every evaluation.
+- Runs:
+  1. Warm start from the PPO-Sim actor, H = 32, with the critic.
+  2. The same without the critic.
+  3. From scratch (a stress test: the frozen model only knows the PPO policies' data).
+  If the gap grows, also run H = 16.
 - **Gate:** sim return tracks imagined return, and the critic run beats the no-critic run.
 
 ## M4: Online SuperMimic loop on `dev` (local GPU)

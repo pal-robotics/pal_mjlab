@@ -191,6 +191,11 @@ def main(
       c = np.corrcoef(wm_gain[d].cpu().numpy(), gain[i].cpu().numpy())[0, 1]
       res[f"grad@{d}"]["wm_vs_sim_gain_corr"] = float(c)
       res[f"grad@{d}"]["wm_predicted_gain"] = float(wm_gain[d].mean())
+    # Per-start values, for plots: model-predicted and simulated gains of every variant.
+    res["per_start"] = {
+      "sim_gain": {name: gain[i].tolist() for i, name in enumerate(variants[1:])},
+      "wm_gain": {f"grad@{d}": wm_gain[d].tolist() for d in step_sizes},
+    }
     results[h] = res
     print(
       f"\nH={h}: replay vs logged |ΔR| {res['replay_vs_logged_abs']:.4f} (return {res['return_mean']:.3f})"
