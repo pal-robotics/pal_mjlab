@@ -82,7 +82,7 @@ class SanityCheckCfg:
   margin: int = 2
   """Extra frames removed past the last detected spike."""
 
-  verbose: bool = True
+  verbose: bool = False
   """Print a line for every clip that gets trimmed."""
 
 class MotionLoader:
