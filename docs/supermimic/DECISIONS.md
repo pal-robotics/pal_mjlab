@@ -268,12 +268,22 @@ these links. That list had two problems:
 - **Revisit if:** the online loop (M4) shows the arm error limiting tracking. The arms carry the largest
   model error, and loss weighting by body error after FK is the first thing to try.
 
-**D31. Failure probability in imagination: a soft analytic rule (proposed for M3/M4, 2026-10-23).**
-- **Rule:** d̂ = σ((m − 1)/τ), with τ ≈ 0.05 and m = max(|z − z_ref| / 0.25, |g_z − g_z,ref| / 0.8),
-  the env's own failure rule evaluated on the predicted state.
-- **Why:** on held-out predicted states, the rule ranks failures with AUC 0.995. The learned head
-  (paper) reaches 0.937, and drops to 0.872 for an unseen policy. Even on true states the head reaches
-  only 0.954: failures are 0.05% of transitions, and BCE settles on a confident "no".
-- **Deviation from the paper**, which learns d_ω. The head keeps training next to the rule, and its AUC
-  is logged online in M4.
-- **Revisit if:** M4 shows the soft rule's gradient is too local to steer the policy away from falls.
+**D31. Failure probability in imagination: the paper's learned head, compared against the env's rule
+at every step (user, 2026-10-23).**
+- **Default (M3 and M4): the learned head d_ω, as in the paper.** It is trained with the model (BCE on
+  the logged failure flags), online in M4.
+- **The rule is one switch away.** The imagination config takes `termination = "learned" | "rule"`.
+  - "rule" is d̂ = σ((m − 1)/τ), τ = 0.05, with m = max(|z − z_ref| / 0.25, |g_z − g_z,ref| / 0.8): the
+    env's own failure condition, evaluated on the predicted state.
+- **Both are always computed and logged,** whichever one drives the gradient (the other without
+  gradient):
+  - the AUC of each on freshly collected sim transitions, scored before the model trains on them;
+  - the mean survival weight c at H under each, and the share of rollouts where they disagree (one
+    below 0.5, the other above);
+  - sim failures vs imagined failures of the same policy.
+- **Why compare.** Offline (M2) the head reached AUC 0.937 (0.872 on an unseen policy, 0.954 even on
+  true states), against 0.995 for the rule. The likely cause is that only 0.05% of transitions are
+  failures. Online it may do better (user's hypothesis): early training has many more failures. But late
+  training makes failures rare again, and the policy can exploit the head's false negatives.
+- **Run the rule variant** (M4 ablation) if the head's online AUC stays below the rule's, or if sim
+  failures clearly exceed imagined ones.

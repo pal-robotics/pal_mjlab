@@ -92,14 +92,17 @@ trained on it?
 
 - **World model:** `logs/supermimic_m2/wm/main/wm_best.pt` for M3 (D30). M4 trains the same
   configuration online from scratch.
-- **Termination:** a soft analytic rule, d̂ = σ((m − 1)/τ) with τ ≈ 0.05, instead of the learned head
-  (D31, proposed). The learned head keeps training and its AUC is logged.
+- **Termination (D31, user decision):** the paper's learned head stays the default. The env's rule,
+  d̂ = σ((m − 1)/τ) with τ ≈ 0.05, is one config switch away and is always computed and logged next to
+  it, with AUC on fresh sim data, survival weights and disagreements. If the head lags, M4 runs the rule
+  variant.
 - **Model optimism at H = 32:** log the imagined vs simulated return from the start, and keep the
   paper's small steps and clipping. Try H = 16 in M4 if the gap grows.
 - **M3 is a ~1 h code check, not a frozen-model training run.** The paper never trains on a frozen
   model; its online refits stop model exploitation. With the PPO-Sim actor on the M2 model, M3 runs:
   1. imagined vs simulated return, closed loop, no training;
-  2. a few hundred update iterations, to check gradients, clipping and the critic.
+  2. a critic fit with the actor fixed, then a few hundred update iterations, to check gradients,
+     clipping and the critic.
   The critic ablation moves to M4. See the report, section 7.
 
 Not ablated: the "10 batches" reading (D10) is an online-loop question and moves to M4. The normalizer

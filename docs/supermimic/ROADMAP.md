@@ -70,8 +70,9 @@ with a gate: if it fails, we stop and rethink before building on top.
   - An unseen policy costs about 15%.
   - The "10 batches" reading (D10) moves to M4.
 - **Termination:** the learned head reaches AUC 0.937, against a gate of 0.95. The env's rule on predicted
-  states reaches 0.995, which led to D31 (proposed).
-- **Gate met**, except the learned head, which is replaced.
+  states reaches 0.995.
+- **Gate met**, except the learned head. Following the paper, M4 keeps the head and compares it with the
+  rule throughout (D31).
 
 ## M3: Check the imagination code (next, about 1 GPU-hour)
 
@@ -83,16 +84,20 @@ the code M4 needs, and every comparison between methods moves to M4.
   - rollouts from replay starts, with a 10-step obs history;
   - an analytic obs head (actuated joints only, D28) with sensor noise re-added;
   - goals from the library (D8);
-  - Eq. 2 with the survival weight, using the soft analytic termination (D31);
+  - Eq. 2 with the survival weight from the learned head (paper), with the env's rule as a switch and
+    always logged (D31);
   - the critic on λ-returns (Eq. 3);
   - the paper's optimizer and clipping.
 - Two checks with the PPO-Sim actor (D17) on the M2 world model (D30). It is a good policy that stays
   on the model's data.
   1. **Policy evaluation, no training.** Run the actor closed loop in imagination and in the sim from
      the same held-out starts (same ξ, same obs history, no noise), and compare 32-step returns. This
-     checks the obs head, history, goals and termination together.
-  2. **A short update run.** A few hundred BPTT iterations with the critic, evaluated in the sim every
-     100. It checks gradient flow, clipping and the critic fit; it says nothing yet about the method.
+     checks the obs head, history, goals and termination together. Run it with both terminations:
+     this gives the first head-vs-rule comparison in closed loop.
+  2. **A short update run.** First fit the critic with the actor held fixed: a fresh critic has random
+     slopes, and ∂V/∂s would push a good actor around. Then run a few hundred BPTT iterations,
+     evaluated in the sim every 100. It checks gradient flow, clipping and the critic fit; it says
+     nothing yet about the method.
 - **Gate:**
   - the imagined return is within a few percent of the sim's (M2 open loop: 1.1%);
   - the sim return holds or improves during the short run.
@@ -106,12 +111,13 @@ the code M4 needs, and every comparison between methods moves to M4.
   - critic fit;
   - cosine LR schedule;
   - checkpoint and resume (rebuild the replay on resume; games preempt the GPU).
-- Log the imagined-vs-sim return gap, and the learned termination head's AUC next to the soft rule
-  (D31).
+- Log the imagined-vs-sim return gap. Also log the learned termination head against the env's rule:
+  AUC on fresh sim data, survival weights, disagreements, and sim vs imagined failures (D31).
 - Compare with PPO-Sim on wall-clock to a target return.
 - Ablations, in order of value:
   1. without the critic: the paper's ablation, and the proof that our critic helps;
-  2. H = 16, only if the imagined-vs-sim gap grows (the model is optimistic at H = 32, M2).
+  2. termination by the env's rule (one switch), if the head lags the rule in the logs (D31);
+  3. H = 16, only if the imagined-vs-sim gap grows (the model is optimistic at H = 32, M2).
 - **Gate:** ≥ PPO-Sim on `dev`, and the critic run beats the no-critic run. If it misses, run the G1
   control (D18) before tuning anything Kangaroo-specific.
 

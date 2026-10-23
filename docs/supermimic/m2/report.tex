@@ -51,9 +51,9 @@ it never saw during training.
 \end{itemize}
 
 \textbf{Recommendation for M3.} Use the main configuration (8-step training, $2048{\times}3$, delta
-targets). In imagination, replace the learned failure head with a smooth version of the simulator's
-failure rule. Log the imagined-vs-simulated return gap from the first iteration, because the model is
-optimistic at 32 steps. Total GPU time for M2 was about 2.6\,h on the local RTX 5060 Ti.
+targets). Keep the paper's learned failure head (decision), but always compute the simulator's failure
+rule next to it and log how the two compare. Log the imagined-vs-simulated return gap from the first
+iteration, because the model is optimistic at 32 steps. Total GPU time for M2 was about 2.6\,h on the local RTX 5060 Ti.
 
 \section{Why the world model is the main risk}
 
@@ -557,14 +557,20 @@ Q4 & $k{=}8$ beats $k{=}1$ & 3.8\,cm vs diverged at 32 steps & pass \\\bottomrul
   frozen normalization. M3 uses the checkpoint trained on all three data sets
   (\texttt{logs/supermimic\_m2/wm/main/wm\_best.pt}); M4 trains the same configuration online from
   scratch.
-  \item \textbf{Failure probability in imagination: a smooth analytic rule}, in place of the learned
-  head:
-  $\hat d = \sigma\big((m(\hat s, g) - 1)/\tau\big)$ with $\tau \approx 0.05$.
+  \item \textbf{Failure probability in imagination: the paper's learned head, always compared with the
+  rule} (decision, D31).
   \begin{itemize}
-    \item It is differentiable, so the survival weight still pushes the policy away from falls.
-    \item It has no parameters to fit, and it does not degrade under policy shift.
-    \item It deviates from the paper, which learns $d_\omega$. The learned head keeps training next to
-    it and its AUC is logged online, so no separate run is needed to compare them.
+    \item \textbf{Default: the learned head.} Offline it lagged the rule, but online it trains on the
+    current policy's failures. Early training has many more of them than our PPO data, so it may well
+    catch up.
+    \item \textbf{The rule is one config switch away:} $\hat d = \sigma\big((m(\hat s, g) - 1)/\tau\big)$
+    with $\tau \approx 0.05$. It is differentiable, has no parameters, and did not degrade under policy
+    shift.
+    \item \textbf{Both are computed on every imagined rollout,} the one not in use without gradient.
+    Logged: the AUC of each on freshly collected simulator data, survival weights, how often they
+    disagree, and simulated vs imagined failures.
+    \item \textbf{When to switch:} if the head stays below the rule, or the simulator shows clearly more
+    failures than imagination predicts, M4 runs the rule variant.
   \end{itemize}
   \item \textbf{Guard against model optimism} at $H = 32$:
   \begin{itemize}
@@ -596,7 +602,8 @@ new code, and every comparison between methods moves to the online loop (M4).
     \item Goals are the next 10 reference frames from the motion library.
     \item Clip ends are handled as in D8.
   \end{itemize}
-  \item \textbf{Objective:} Eq.~2 with the survival weight, plus the critic trained on $\lambda$-returns
+  \item \textbf{Objective:} Eq.~2 with the survival weight from the learned head (the rule computed
+  alongside, D31), plus the critic trained on $\lambda$-returns
   (Eq.~3: $\lambda = 0.95$, $\gamma = 0.99$, 5 epochs of 4 minibatches).
   \item \textbf{Optimizers:} the paper's, Adam with $\beta = (0.9, 0.95)$ for the policy.
 \end{itemize}
@@ -610,10 +617,12 @@ data:
   \begin{itemize}
     \item M2 replayed logged actions. Here the actor reacts to observations computed from predicted
     states, so this checks the observation head, history, goals and termination together.
+    \item Run with both terminations: the first closed-loop comparison of head and rule.
     \item Pass: a return error close to M2's 1.1\%.
   \end{itemize}
-  \item \textbf{A short update run.} A few hundred BPTT iterations with the critic, with the policy
-  evaluated in the simulator every 100.
+  \item \textbf{A short update run.} First fit the critic with the actor held fixed: a fresh critic
+  has random slopes, and $\partial V/\partial s$ would push a good actor around. Then run a few hundred
+  BPTT iterations, with the policy evaluated in the simulator every 100.
   \begin{itemize}
     \item It checks the update machinery: gradients reach every part of the policy, clipping and the
     critic fit behave, and the simulated return holds or improves while the policy is still near the
@@ -628,13 +637,17 @@ data:
   \item \textbf{Each iteration:} about 2.5 simulator steps, 10 model batches (D10), one policy step and
   one critic fit.
   \item \textbf{Comparison:} PPO-Sim, on wall-clock time to a target return.
+  \item \textbf{Logged:} the imagined-vs-simulated return gap, and the learned head against the rule
+  (D31).
   \item \textbf{Ablations,} in order of value:
   \begin{enumerate}
     \item without the critic: the paper's ablation, and the proof that our critic helps;
+    \item termination by the rule (one switch), if the head lags it in the logs;
     \item $H = 16$, only if the imagined-vs-simulated gap grows.
   \end{enumerate}
 \end{itemize}
 
+\clearpage
 \appendix
 \section{Settings and compute}
 
