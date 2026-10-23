@@ -663,7 +663,9 @@ class OnlineCsvToNpz:
     self._qvel[:, 3:6] = root_ang_vel_b
     self._qvel[:, 6:] = joint_vel
 
-    mjw.forward(self.m, self.d)
+    mjw.kinematics(self.m, self.d)
+    mjw.com_pos(self.m, self.d)
+    mjw.com_vel(self.m, self.d)
 
     ids = self.body_ids
     body_pos = self._xpos[:, ids]                            # (B, nb, 3)
