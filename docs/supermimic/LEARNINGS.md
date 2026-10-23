@@ -218,6 +218,16 @@ the root joint, about one body out of ~40, so the timings stand.
 - **Takeaway.** When transferring BeyondMimic or SuperMimic to a new robot, check Kp/τ_max per joint,
   not the natural frequency. Or anchor the setpoint on the reference, which is untested.
 
+## PPO-Sim baseline (`m1/ppo_sim_baseline.md`)
+
+- **12 h local run** (8,800 iterations, 1 Hz arms/waist) on all 1,296 `dev` clips: 25 failures (1.9%),
+  tracking return 0.742, body error legs 6.4 / arms 10.8 / torso 2.4 cm. Still improving slowly at the
+  end.
+- **Failures are mostly jumps** (16 of 25) and squat transitions (3). Arms remain the largest error.
+- **Run-to-run noise.** Same config and seed retrained gives failures 144 vs 169 at ~1,000 iterations,
+  while mean errors and return match to ~0.1 cm / 0.001. So judge comparisons on mean or paired errors,
+  not small differences in failure counts.
+
 ## Repo state found on MAC/WBC (not caused by us)
 
 - `tests/test_kangaroo_velocity_task_launch.py`: all 12 velocity tasks fail at env construction on GPU.

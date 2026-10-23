@@ -34,9 +34,9 @@ with a gate: if it fails, we stop and rethink before building on top.
   - an audit against the paper's methodology: tracked bodies, gains, goal content, convex-hull term,
     calibration offsets (D0, D25, D26).
 - Gain A/B (D27): 1 Hz arms and waist track better than 3.5 Hz (`m1/gain_ab.md`).
-- Running: the 12 h PPO-Sim run with 1 Hz arms and waist (GPU task 67). After it: benchmark its checkpoints
-  with `eval.py`, then log rollouts for M2.
-- Still to do: `eval.py`, and logging rollouts for M2.
+- PPO-Sim baseline done (`m1/ppo_sim_baseline.md`): 25/1296 failures, tracking return 0.742 after 11.9 h.
+  **M1 gate met.**
+- Still to do: logging rollouts for M2, at the start of M2 (user decides when).
 
 - Task `Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers` (D2, D6, D12–D15):
   - library-backed motion command: goal builder, clip-end termination (D8), paper return-based reset
