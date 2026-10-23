@@ -1,0 +1,10 @@
+\begin{tabular}{lrrrrrr}\toprule
+ & \multicolumn{3}{c}{benchmark (1296 clips)} & \multicolumn{3}{c}{closed loop, 32 steps} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+policy & failed & tracking return & arms [cm] & return & failures & worst gap \\\midrule
+PPO-Sim actor (start) & 26 & 0.742 & 10.8 & 1.869 & 0.5\% & \\\midrule
+after 300 updates, paper settings (learned head, critic, lr $2\cdot10^{-4}$) & 415 & 0.465 & 19.4 & 1.778 & 0.4\% & 25.3\% \\
+after 300 updates, without the critic & 829 & 0.534 & 8.9 & 2.003 & 0.7\% & 0.4\% \\
+after 300 updates, policy learning rate $2\cdot10^{-5}$ & 83 & 0.673 & 12.5 & 1.869 & 0.6\% & 0.4\% \\
+after 300 updates, termination by the env's rule & 406 & 0.500 & 16.1 & 1.835 & 0.3\% & 0.8\% \\
+\bottomrule\end{tabular}

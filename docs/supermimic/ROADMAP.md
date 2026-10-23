@@ -74,49 +74,49 @@ with a gate: if it fails, we stop and rethink before building on top.
 - **Gate met**, except the learned head. Following the paper, M4 keeps the head and compares it with the
   rule throughout (D31).
 
-## M3: Check the imagination code (next, about 1 GPU-hour)
+## M3: Imagination and the policy update (done 2026-10-23, `m3/imagination.md`, `m3/report.pdf`)
 
-The paper never trains a policy to convergence on a frozen model. It refits the model every
-iteration, and that is what stops the policy from exploiting model errors. So M3 is a short check of
-the code M4 needs, and every comparison between methods moves to M4.
+- **Built:**
+  - analytic heads (D32);
+  - the online replay buffer (D33);
+  - imagination with Eq. 2 and Eq. 3 and the paper's optimizers;
+  - the Alg. A.1 runner, registered with the mjlab CLI;
+  - dataset and subset options with a transferable dataset folder (D35).
+  108 tests pass.
+- **Check 1 (closed loop, PPO-Sim actor):** imagined vs simulated 32-step return −0.9%, correlation
+  0.995, body error 2.1 cm. **Pass.**
+- **Check 2 (300 updates on the frozen M2 model):**
+  - The machinery works: without the critic the real 32-step return rises 7%, and imagination tracks
+    the sim throughout.
+  - Whole-clip tracking degrades in every frozen-model run:
+    - no critic: 829 of 1296 clips fail (myopic objective);
+    - with the critic at the paper's learning rate: 406–415;
+    - lr 2e-5: 83.
+  - The frozen learned head missed the new policy's falls (0.4% predicted vs 8.3% in the sim).
+  - Read as the reason the paper refits online, not a code defect. M4 watches these signals.
+- **Smoke run of the M4 task:** 1.57 s per iteration, 11.3 GB with bf16 and replay 500. The paper
+  settings don't fit the local 16 GB GPU.
 
-- `imagine.py`, built in this order:
-  - rollouts from replay starts, with a 10-step obs history;
-  - an analytic obs head (actuated joints only, D28) with sensor noise re-added;
-  - goals from the library (D8);
-  - Eq. 2 with the survival weight from the learned head (paper), with the env's rule as a switch and
-    always logged (D31);
-  - the critic on λ-returns (Eq. 3);
-  - the paper's optimizer and clipping.
-- Two checks with the PPO-Sim actor (D17) on the M2 world model (D30). It is a good policy that stays
-  on the model's data.
-  1. **Policy evaluation, no training.** Run the actor closed loop in imagination and in the sim from
-     the same held-out starts (same ξ, same obs history, no noise), and compare 32-step returns. This
-     checks the obs head, history, goals and termination together. Run it with both terminations:
-     this gives the first head-vs-rule comparison in closed loop.
-  2. **A short update run.** First fit the critic with the actor held fixed: a fresh critic has random
-     slopes, and ∂V/∂s would push a good actor around. Then run a few hundred BPTT iterations,
-     evaluated in the sim every 100. It checks gradient flow, clipping and the critic fit; it says
-     nothing yet about the method.
-- **Gate:**
-  - the imagined return is within a few percent of the sim's (M2 open loop: 1.1%);
-  - the sim return holds or improves during the short run.
+## M4: Online SuperMimic loop on `dev` (next; launch on the user's word)
 
-## M4: Online SuperMimic loop on `dev` (local GPU)
-
-- `runner.py`, Alg. A.1, from scratch:
+- `rl/runner.py`, Alg. A.1, from scratch, with the paper's settings:
   - collect ≈2.5 steps per iteration;
   - 10 WM batches (D10);
-  - 1 BPTT step;
+  - 1 BPTT step with the learned termination head (D31);
   - critic fit;
   - cosine LR schedule;
-  - checkpoint and resume (rebuild the replay on resume; games preempt the GPU).
-- Log the imagined-vs-sim return gap. Also log the learned termination head against the env's rule:
-  AUC on fresh sim data, survival weights, disagreements, and sim vs imagined failures (D31).
+  - checkpoints every 2000 iterations; resume with `scripts/supermimic/train.py`.
+- **Configurations** (`README.md`): local `dev` (bf16, replay 500), cluster `dev` and `full` (TF32,
+  replay 1000).
+- **Watch:**
+  - sim episode failures and length;
+  - the imagined-vs-sim return gap;
+  - the learned head vs the rule (AUC, and predicted vs simulated failures);
+  - the whole-clip benchmark of checkpoints (`eval.py`): M3 showed that 32-step checks miss later falls.
 - Compare with PPO-Sim on wall-clock to a target return.
 - Ablations, in order of value:
-  1. without the critic: the paper's ablation, and the proof that our critic helps;
-  2. termination by the env's rule (one switch), if the head lags the rule in the logs (D31);
+  1. without the critic: the paper's ablation (M3 shows it myopic on a frozen model);
+  2. termination by the env's rule (one switch), if the head lags it in the logs (D31);
   3. H = 16, only if the imagined-vs-sim gap grows (the model is optimistic at H = 32, M2).
 - **Gate:** ≥ PPO-Sim on `dev`, and the critic run beats the no-critic run. If it misses, run the G1
   control (D18) before tuning anything Kangaroo-specific.

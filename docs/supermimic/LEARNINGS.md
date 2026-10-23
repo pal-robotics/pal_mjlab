@@ -270,6 +270,44 @@ the root joint, about one body out of ~40, so the timings stand.
   as one argument (job 78), and a variable holding a command fails with exit 127 (jobs 39 and 40). Write
   the paths out in full.
 
+## M3: imagination and the policy update (`m3/imagination.md`, `m3/report.pdf`)
+
+**Imagination fidelity.**
+- **Closed loop reproduces the sim.** From the same starts and observation history, the PPO-Sim actor's
+  imagined 32-step return is within 0.9% of the sim's (correlation 0.995), and its body positions
+  within 2.1 cm. So the analytic heads, the observation history, the goal and the termination match
+  what the sim computes, not just the dynamics.
+- **It also tracks a changing policy.** In all four update runs the imagined and simulated closed-loop
+  returns stayed within 1%, except at one transient trough (−25%).
+
+**Frozen-model updates (the paper never does this).**
+- **The gradient improves what it optimizes.** Without the critic, 300 updates raise the real 32-step
+  return by 7% and lower arm error, but 829 of 1296 whole clips then fail. The H-step objective is
+  myopic, as the paper says.
+- **With the critic** (paper learning rate) 406–415 clips fail; with lr 2e-5 (PPO-Sim's final rate),
+  83. The critic's long-horizon judgement comes from imagination of old-policy states, and nothing
+  from the sim corrects it.
+- **A frozen learned head is blind to the new policy's falls:** 0.4% predicted vs 8.3% in the sim. Falls
+  then cost nothing in imagination, the critic's values inflate (5.1 → 7.9), and the 32-step return
+  dips. The env's rule tracked the real failure rate (8.8%).
+- **32-step checks miss later falls.** Judge policies on the whole-clip benchmark.
+
+**Online (smoke run, 60 iterations from scratch).**
+- The learned head's AUC on fresh failures rose from 0.42 to 0.81; the rule's stayed at 1.0.
+- The imagined vs sim 32-step return was already within −5…+2%.
+
+**Cost (RTX 5060 Ti, `dev`).**
+- An iteration takes 1.57 s (collect 0.15, world model 0.31, policy and critic 1.11), about 2,300 per
+  hour.
+- 11.3 GB in bf16 with replay 500. The paper's TF32 and replay 1000 run out of memory locally.
+
+**Tools.**
+- **mjlab CLI syntax:** tuples are comma-separated (`--x 1024,1024`, one element `256,`), booleans
+  `--flag False`. `eval.py` takes `--task`.
+- **mjlab's action buffers are updated in place** (`action_manager.action`): clone them before keeping
+  them across steps.
+- **PPO-Sim's adaptive schedule ended at lr 2.25e-5**, 10× below SuperMimic's 2e-4.
+
 ## Repo state found on MAC/WBC (not caused by us)
 
 - `tests/test_kangaroo_velocity_task_launch.py`: all 12 velocity tasks fail at env construction on GPU.

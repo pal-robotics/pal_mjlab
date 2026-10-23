@@ -287,3 +287,51 @@ at every step (user, 2026-10-23).**
   training makes failures rare again, and the policy can exploit the head's false negatives.
 - **Run the rule variant** (M4 ablation) if the head's online AUC stays below the rule's, or if sim
   failures clearly exceed imagined ones.
+
+**D32. Analytic heads read the training env (M3, `rl/heads.py`).**
+- **What they compute, from the predicted state:** reward r̂ (all reward terms, with the env's weights,
+  stds and dt), the noise-free observation ō (Table A.1, per-term 10-frame history in the env's layout,
+  calibration offset from ξ), the goal, the critic input (D7), the failure rule, and the clip end.
+- **Unsupported terms raise.** An env term without an analytic head stops the run, so imagination
+  never silently optimizes a different objective than the simulator.
+- **Parity is tested, not assumed** (`test_heads.py`): along random-action rollouts with resets, the
+  heads on the true states match the env's goal, critic input and 10-frame proprioception to 1e-4, its
+  reward to 1e-5, and its failure and clip-end flags exactly.
+
+**D33. Online replay rows (D9 implemented, `rl/replay.py`).**
+- **One row per state.** A transition row holds the state and executed action. When an episode ends,
+  its terminal state is written as an extra row without an action. Windows are k consecutive
+  transition rows plus the next row, so they never span two episodes, and no next-state copy is
+  stored. About 2.3 GB at 4096 envs × 1000 rows.
+- **Imagination starts** are transition rows. Their 10 history rows are rebuilt into observations
+  with fresh sensor noise. Rows before the episode's first row repeat it, like the env's backfill;
+  the env copies one noisy frame there, while imagination draws noise per frame.
+
+**D34. Normalization (paper silent).**
+- **Actor and critic:** running statistics of the sim observations during collection, as in PPO-Sim.
+  Inside imagination they are fixed and differentiable.
+- **World model:** running mean/std over every collected transition (D4). Policy steps never change
+  them.
+
+**D35. Motion data from the CLI, one transferable dataset folder (user, 2026-10-23).**
+- **Dataset folder** `kangaroo_bones_seed/dataset/` (README inside) holds everything:
+  - `manifest.parquet`;
+  - `motions/<date>/<clip>.pkl`, the retargeted GMR pickles;
+  - `libraries/<subset>/`, the packed training libraries (clips.json, qpos.npy, qvel.npy).
+  Copy it with rsync, or download it from the motion browser: the motions zip, or each library file
+  resumably. `data/` stays the dataset pipeline's workspace; its old paths are symlinks into
+  `dataset/`.
+- **CLI options of the motion command:**
+  - `dataset`: that folder; relative paths are resolved against the working directory.
+  - `subset`: `smoke`, `dev` (2.5 h), `full`, or a number of hours (`10`, `10h`).
+  - `library_path`: an already packed folder; overrides both.
+- **Packed on first use** into `<dataset>/libraries/<subset>`. The pack is written to a temporary
+  folder and renamed when complete, so an interrupted pack never looks valid.
+- **Hour subsets** are stratified by category like `dev` (`dev` = `2.5h`) and nested (1 h ⊂ 10 h ⊂
+  40 h), for the M5 data sweep.
+- **Run configurations:**
+  - local `dev`: bf16 and replay 500 (D16);
+  - cluster `dev` and `full`: the paper's settings (TF32, replay 1000). `full` puts the 13.9 GB
+    library on the GPU.
+- **Resuming:** `scripts/supermimic/train.py` resumes the newest checkpoint of runs with the same
+  `--agent.run-name`.
