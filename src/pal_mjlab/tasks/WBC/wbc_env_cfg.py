@@ -23,7 +23,7 @@ from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.scene import SceneCfg
 from mjlab.sim import MujocoCfg, SimulationCfg
 from pal_mjlab.tasks.WBC import mdp
-from pal_mjlab.tasks.WBC.mdp import MotionCommandCfg
+from pal_mjlab.tasks.WBC.mdp import MotionCommandCfg, OnlineMotionCommandCfg
 from mjlab.terrains import TerrainEntityCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
@@ -183,7 +183,7 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   ##
 
   commands: dict[str, CommandTermCfg] = {
-    "motion": MotionCommandCfg(
+    "motion": OnlineMotionCommandCfg(
       entity_name="robot",
       resampling_time_range=(1.0e9, 1.0e9),
       debug_vis=True,
@@ -201,6 +201,9 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       motion_dir="",
       anchor_body_name="",
       body_names=(),
+      robot_type="",
+      input_fps=30.0,     
+      output_fps=None, 
     )
   }
 

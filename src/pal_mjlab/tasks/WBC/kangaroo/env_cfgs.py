@@ -9,7 +9,7 @@ from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
-from pal_mjlab.tasks.WBC.mdp import MotionCommandCfg
+from pal_mjlab.tasks.WBC.mdp import OnlineMotionCommandCfg
 from pal_mjlab.tasks.WBC import mdp
 from pal_mjlab.tasks.WBC.wbc_env_cfg import make_wbc_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
@@ -77,7 +77,7 @@ def pal_kangaroo_flat_wbc_env_cfg(
 
   assert cfg.commands is not None
   motion_cmd = cfg.commands["motion"]
-  assert isinstance(motion_cmd, MotionCommandCfg)
+  assert isinstance(motion_cmd, OnlineMotionCommandCfg)
   motion_cmd.anchor_body_name = "base_link"
   motion_cmd.body_names = (
     "base_link",
@@ -97,6 +97,7 @@ def pal_kangaroo_flat_wbc_env_cfg(
   )
   motion_cmd.joint_position_range = (-0.05, 0.05)
   motion_cmd.tracked_body_names = end_effector_body_names
+  motion_cmd.robot_type = "Kangaroo"
 
   # Setup end effector cartesian tracking instead of joint position/velocity tracking
   cfg.observations["actor"].terms["ref_joint_pos"] = None
@@ -286,7 +287,7 @@ def pal_kangaroo_grippers_flat_wbc_env_cfg(
 
   assert cfg.commands is not None
   motion_cmd = cfg.commands["motion"]
-  assert isinstance(motion_cmd, MotionCommandCfg)
+  assert isinstance(motion_cmd, OnlineMotionCommandCfg)
   motion_cmd.anchor_body_name = "base_link"
   motion_cmd.body_names = (
     "base_link",
@@ -305,6 +306,7 @@ def pal_kangaroo_grippers_flat_wbc_env_cfg(
     "arm_right_tip_link",
   )
   motion_cmd.tracked_body_names = end_effector_body_names
+  motion_cmd.robot_type = "Kangaroo_grippers"
 
   cfg.observations["actor"].terms["ref_body_pos"] = ObservationTermCfg(
     func=mdp.ref_body_pos_b, 

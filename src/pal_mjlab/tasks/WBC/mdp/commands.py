@@ -11,6 +11,7 @@ import torch
 import csv
 import mujoco
 import mujoco_warp as mjw
+import warp as wp
 from scipy.spatial.transform import Rotation as R, Slerp
 
 from mjlab.managers import CommandTerm, CommandTermCfg
@@ -52,6 +53,37 @@ ROBOT_XML_DICT = {
   "Kangaroo_hands" : KANGAROO_HANDS_XML,
   "Kangaroo_grippers" : KANGAROO_GRIPPERS_XML,
 }
+
+@dataclass(frozen=True)
+class SanityCheckCfg:
+  """Thresholds for trimming glitch frames at the ends of CSV clips."""
+
+  enabled: bool = True
+  """False skips trimming entirely."""
+
+  joint_vel: float = 10.0
+  """Max |joint velocity| (rad/s). Same default as trim_npz.py."""
+
+  root_lin_vel: float = 5.0
+  """Max |root linear velocity| (m/s)."""
+
+  root_ang_vel: float = 10.0
+  """Max |root angular velocity| (rad/s)."""
+
+  root_lin_acc: float = 150.0
+  """Max |root linear acceleration| (m/s^2)."""
+
+  root_ang_acc: float = 600.0
+  """Max |root angular acceleration| (rad/s^2)."""
+
+  search: int = 30
+  """Only look for spikes within this many frames of either end."""
+
+  margin: int = 2
+  """Extra frames removed past the last detected spike."""
+
+  verbose: bool = True
+  """Print a line for every clip that gets trimmed."""
 
 class MotionLoader:
     """
@@ -249,7 +281,10 @@ class MotionLoaderCsv:
     input_fps: float = 30.0,
     output_fps: float = 50.0, 
     device: str = "cpu",
+    sanity: SanityCheckCfg = SanityCheckCfg()
 ) -> None:
+    
+    self.sanity = sanity
 
     in_dt, out_dt = 1.0 / input_fps, 1.0 / output_fps
 
@@ -324,32 +359,21 @@ class MotionLoaderCsv:
 
 
       # Sanity check to exclude explosive values in first/last frames
-      _data = (root_pos_o, root_lin_vel, root_lin_acc, root_quat_o, root_ang_vel, root_ang_acc, joint_pos_o, joint_vel)
-
-      _data_checked = self.sanity_check(_data)
-
-      root_pos_o = _data_checked[0]
-      root_lin_vel = _data_checked[0]
-      root_lin_acc = _data_checked[0]
-
-      root_quat_o = _data_checked[0]
-      root_ang_vel = _data_checked[0]
-      root_ang_acc = _data_checked[0]
-
-      joint_pos_o = _data_checked[0]
-      joint_vel = _data_checked[0]
+      _data = (root_pos_o, root_lin_vel, root_lin_acc, root_quat_o,
+               root_ang_vel, root_ang_acc, joint_pos_o, joint_vel)
+      (root_pos_o, root_lin_vel, root_lin_acc, root_quat_o,
+       root_ang_vel, root_ang_acc, joint_pos_o, joint_vel) = [
+        np.ascontiguousarray(x.T)          # (D, M) -> (M, D)
+        for x in self.sanity_check(_data, name=path.name)
+      ]
 
       num_frames = joint_pos_o.shape[0]
-
       if num_frames == 0:
         continue
 
-      # Save trajectory metadata.
       segment_start.append(current_start)
       segment_length.append(num_frames)
       segment_names.append(path.stem)
-
-      # Add this clip to the library.
 
       root_pos_list.append(root_pos_o)
       root_lin_vel_list.append(root_lin_vel)
@@ -361,8 +385,7 @@ class MotionLoaderCsv:
       joint_vel_list.append(joint_vel)
 
       current_start += num_frames
-
-      time_step.append(int(joint_pos.shape[0]))
+      time_step.append(num_frames)
 
     if not joint_pos_list:
       raise ValueError(f"No valid motion frames found in {source}")
@@ -444,45 +467,184 @@ class MotionLoaderCsv:
       self.segment_length.float() / self.segment_length.sum().float()
     ).to(device=device)
 
-  def sanity_check(data):
-    pass
+  def sanity_check(self, data, name: str = ""):
+    """Trim explosive frames at the start/end of a clip.
 
-class OnlineCsvToNpz :
+    data: (root_pos, root_lin_vel, root_lin_acc, root_quat, root_ang_vel,
+           root_ang_acc, joint_pos, joint_vel), each shaped (D, M).
+    Returns the same tuple with the time axis (axis 1) trimmed.
+    """
+    cfg = self.sanity
+    if not cfg.enabled:
+      return data
+
+    (root_pos, root_lin_vel, root_lin_acc, root_quat,
+     root_ang_vel, root_ang_acc, joint_pos, joint_vel) = data
+    M = root_pos.shape[1]
+
+    bad = np.zeros(M, dtype=bool)
+    for arr, thr in (
+      (joint_vel, cfg.joint_vel),
+      (root_lin_vel, cfg.root_lin_vel),
+      (root_ang_vel, cfg.root_ang_vel),
+      (root_lin_acc, cfg.root_lin_acc),
+      (root_ang_acc, cfg.root_ang_acc),
+    ):
+      bad |= np.abs(arr).max(axis=0) > thr
+
+    n_start = n_end = 0
+
+    head = np.where(bad[: min(cfg.search, M)])[0]
+    if len(head):
+      n_start = int(head[-1]) + 1 + cfg.margin
+
+    tail_from = max(M - cfg.search, 0)
+    tail = np.where(bad[tail_from:])[0]
+    if len(tail):
+      n_end = (M - (tail_from + int(tail[0]))) + cfg.margin
+
+    if n_start == 0 and n_end == 0:
+      return data
+
+    if n_start + n_end >= M:
+      print(f"[sanity_check] {name}: would trim {n_start}+{n_end} of {M} frames, keeping clip as is")
+      return data
+
+    if cfg.verbose:
+      print(f"[sanity_check] {name}: {M} -> {M - n_start - n_end} frames "
+            f"(start -{n_start}, end -{n_end})")
+    stop = M - n_end
+    return tuple(x[:, n_start:stop] for x in data)
+
+class OnlineCsvToNpz:
+  """Computes NPZ-equivalent reference data (joint_pos, joint_vel, body_pos_w,
+  body_quat_w, body_lin_vel_w, body_ang_vel_w) on the fly from CSV motions,
+  for a batch of global frame indices at once (one MJWarp world per element).
+
+  Quaternions are returned as wxyz (mjlab convention). Body velocities are
+  link velocities at the body frame origin, expressed in the world frame.
+  """
+
   def __init__(
-    self, robot_type: str,
+    self,
+    robot_type: str,
     motion_dir: str,
+    body_names: tuple[str, ...],
+    batch_size: int,
     input_fps: float = 30.0,
-    output_fps: float = 50.0, 
-    device: str = "cpu",
+    output_fps: float = 50.0,
+    device: str = "cuda:0",
+    sanity: SanityCheckCfg = SanityCheckCfg(),
   ):
+    self.device = device
+    self.batch_size = batch_size
 
-    xml_path = ROBOT_XML_DICT[robot_type]
-
-    self.mjm = mujoco.MjModel.from_xml_path(xml_path)
+    spec = mujoco.MjSpec.from_file(str(ROBOT_XML_DICT[robot_type]))
+    body_names_in_xml = {b.name for b in spec.bodies}
+    for ex in list(spec.excludes):
+      if ex.bodyname1 not in body_names_in_xml or ex.bodyname2 not in body_names_in_xml:
+        spec.delete(ex)
+    self.mjm = spec.compile()
     self.mjd = mujoco.MjData(self.mjm)
-    self.m = mjw.put_model(self.mjm)
-    self.d = mjw.put_data(self.mjm, self.mjd, nworld=1)
+    mujoco.mj_forward(self.mjm, self.mjd)
+
+    with wp.ScopedDevice(device):
+      self.m = mjw.put_model(self.mjm)
+      self.d = mjw.put_data(self.mjm, self.mjd, nworld=batch_size)
+
+    # Zero-copy torch views of the warp buffers (shape: (B, ...)).
+    self._qpos = wp.to_torch(self.d.qpos)
+    self._qvel = wp.to_torch(self.d.qvel)
+    self._xpos = wp.to_torch(self.d.xpos)
+    self._xquat = wp.to_torch(self.d.xquat)
+    self._cvel = wp.to_torch(self.d.cvel)                 # (B, nbody, 6) [ang, lin]
+    self._subtree_com = wp.to_torch(self.d.subtree_com)
+
+    # Resolve requested bodies to MuJoCo body ids.
+    ids = []
+    for name in body_names:
+      bid = mujoco.mj_name2id(self.mjm, mujoco.mjtObj.mjOBJ_BODY, name)
+      if bid < 0:
+        raise ValueError(f"Body '{name}' not found in {robot_type} model")
+      ids.append(bid)
+    self.body_ids = torch.tensor(ids, dtype=torch.long, device=device)
+    self.body_root_ids = torch.as_tensor(
+      self.mjm.body_rootid[ids], dtype=torch.long, device=device
+    )
 
     self.motion_csv = MotionLoaderCsv(
       motion_dir=motion_dir,
       input_fps=input_fps,
       output_fps=output_fps,
-      device=device
+      device=device,
+      sanity=sanity
     )
 
-  def retarget(self, t : torch.Tensor, ):    
-    qpos = np.concatenate([self.motion_csv.root_pos[:, t], self.motion_csv.root_quat[:, t], self.motion_csv.joint_pos[:, t]])
+    expected_nq = 7 + self.motion_csv.joint_pos.shape[1]
+    if self.mjm.nq != expected_nq:
+      raise ValueError(
+        f"CSV has {expected_nq} qpos dims (free root + joints) but model has nq={self.mjm.nq}"
+      )
 
-    rot = R.from_quat(self.motion_csv.root_quat[:, t])
-    
-    w_local = rot.inv().apply(self.motion_csv.root_ang_vel[:, t])
-    qvel = np.concatenate([self.motion_csv.root_lin_vel[:, t], w_local, self.motion_csv.joint_vel[:, t]])
+  @torch.no_grad()
+  def retarget(self, t: torch.Tensor) -> dict[str, torch.Tensor]:
+    """t: (N,) global frame indices into the concatenated motion library.
+    Returns a dict of tensors with leading dim N."""
+    total = self.motion_csv.joint_pos.shape[0]
+    t = torch.as_tensor(t, dtype=torch.long, device=self.device).reshape(-1).clamp(0, total - 1)
+    n, B = t.numel(), self.batch_size
 
-    self.d.qpos.assign(qpos[None])
-    self.d.qvel.assign(qvel[None])
+    chunks = []
+    for s in range(0, n, B):
+      idx = t[s : s + B]
+      k = idx.numel()
+      if k < B:  # pad last chunk so the world count stays fixed
+        idx = torch.cat([idx, idx[-1:].expand(B - k)])
+      out = self._retarget_batch(idx)
+      chunks.append({key: v[:k] for key, v in out.items()})
+
+    return {key: torch.cat([c[key] for c in chunks], dim=0) for key in chunks[0]}
+
+  def _retarget_batch(self, idx: torch.Tensor) -> dict[str, torch.Tensor]:
+    mo = self.motion_csv
+
+    root_pos = mo.root_pos[idx]                              # (B, 3)
+    root_quat = mo.root_quat[idx][:, [3, 0, 1, 2]]           # xyzw -> wxyz
+    root_lin_vel = mo.root_lin_vel[idx]                      # world frame
+    root_ang_vel_w = mo.root_ang_vel[idx]                    # world frame
+    joint_pos = mo.joint_pos[idx]
+    joint_vel = mo.joint_vel[idx]
+
+    # MuJoCo free joint: linear vel in world frame, angular vel in body frame.
+    root_ang_vel_b = quat_apply_inverse(root_quat, root_ang_vel_w)
+
+    self._qpos[:, 0:3] = root_pos
+    self._qpos[:, 3:7] = root_quat
+    self._qpos[:, 7:] = joint_pos
+    self._qvel[:, 0:3] = root_lin_vel
+    self._qvel[:, 3:6] = root_ang_vel_b
+    self._qvel[:, 6:] = joint_vel
+
     mjw.forward(self.m, self.d)
 
-    return self.d
+    ids = self.body_ids
+    body_pos = self._xpos[:, ids]                            # (B, nb, 3)
+    body_quat = self._xquat[:, ids]                          # (B, nb, 4) wxyz
+    cvel = self._cvel[:, ids]                                # (B, nb, 6)
+    com = self._subtree_com[:, self.body_root_ids]           # (B, nb, 3)
+
+    # cvel is referenced at the tree's subtree COM; shift to the body origin.
+    ang = cvel[..., :3]
+    lin = cvel[..., 3:] + torch.cross(ang, body_pos - com, dim=-1)
+
+    return {
+      "joint_pos": joint_pos.clone(),
+      "joint_vel": joint_vel.clone(),
+      "body_pos_w": body_pos.clone(),
+      "body_quat_w": body_quat.clone(),
+      "body_lin_vel_w": lin,
+      "body_ang_vel_w": ang.clone(),
+    }
 
 class MotionCommand(CommandTerm):
   cfg: MotionCommandCfg
@@ -506,9 +668,8 @@ class MotionCommand(CommandTerm):
     if self.cfg.tracked_body_names is None :
       self.cfg.tracked_body_names = self.cfg.body_names
 
-    self.motion = MotionLoader(
-      self.cfg.motion_dir, self.body_indexes, self.motion_anchor_body_index, env.step_dt, device=self.device
-    )
+    self.motion = self._load_motion()
+
     self.time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
     self.fixed_time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
     self.body_pos_relative_w = torch.zeros(
@@ -557,6 +718,15 @@ class MotionCommand(CommandTerm):
     )
 
     self.moving_envs = torch.ones(self.num_envs, dtype=torch.bool ,device=self.device)
+
+  def _load_motion(self):
+    return MotionLoader(
+      self.cfg.motion_dir,
+      self.body_indexes,
+      self.motion_anchor_body_index,
+      self._env.step_dt,
+      device=self.device,
+    )
 
   def _build_adaptive_bins(self) -> None:
     """One bin per (clip, ~adaptive_bin_seconds chunk), indexed globally."""
@@ -1246,79 +1416,142 @@ class MotionCommandCfg(CommandTermCfg):
     return MotionCommand(self, env)
 
 
-class OnlineMotionCommand(MotionCommand) :
-  
-  def __init__(self, cfg: OnlineMotionCommandCfg, env: ManagerBasedRlEnv):
-    super(MotionCommand, self).__init__(cfg, env)
+class OnlineMotion:
+  """Drop-in for MotionLoader: joint data and segment metadata live in memory,
+  while body data is produced on demand by OnlineCsvToNpz."""
 
-    self.robot: Entity = env.scene[cfg.entity_name]
-    self.robot_anchor_body_index = self.robot.body_names.index(
-      self.cfg.anchor_body_name
-    )
-    self.motion_anchor_body_index = self.cfg.body_names.index(self.cfg.anchor_body_name)
-    self.body_indexes = torch.tensor(
-      self.robot.find_bodies(self.cfg.body_names, preserve_order=True)[0],
-      dtype=torch.long,
+  def __init__(self, source: OnlineCsvToNpz, anchor_index: int, step_dt: float, anchor_is_root: float = True):
+    self.source = source
+    csv_lib = source.motion_csv
+
+    self.joint_pos = csv_lib.joint_pos
+    self.joint_vel = csv_lib.joint_vel
+    self.segment_start_idx = csv_lib.segment_start_idx
+    self.segment_length = csv_lib.segment_length
+    self.segment_end_idx = csv_lib.segment_end_idx
+    self.num_trajectories = csv_lib.num_trajectories
+    self.segment_names = csv_lib.segment_names
+    self.time_step_total = csv_lib.time_step_total
+    self.trajectory_probs = csv_lib.trajectory_probs
+
+    if anchor_is_root:
+        lin_v = csv_lib.root_lin_vel
+        ang_v = csv_lib.root_ang_vel
+    else:
+      # One-time pass to get anchor-body accelerations (same as MotionLoader).
+      # Only the anchor is kept, so memory stays small.
+      total = self.joint_pos.shape[0]
+      B = source.batch_size
+      lin_v, ang_v = [], []
+      with torch.no_grad():
+        for s in range(0, total, B):
+          idx = torch.arange(s, min(s + B, total), device=source.device)
+          k = idx.numel()
+          if k < B:
+            idx = torch.cat([idx, idx[-1:].expand(B - k)])
+          out = source._retarget_batch(idx)
+          lin_v.append(out["body_lin_vel_w"][:k, anchor_index])
+          ang_v.append(out["body_ang_vel_w"][:k, anchor_index])
+      lin_v = torch.cat(lin_v)
+      ang_v = torch.cat(ang_v)
+
+    lin_acc = torch.zeros_like(lin_v)
+    ang_acc = torch.zeros_like(ang_v)
+    for s, e in zip(self.segment_start_idx.tolist(), self.segment_end_idx.tolist()):
+      if e - s >= 2:
+        lin_acc[s:e] = torch.gradient(lin_v[s:e], spacing=step_dt, dim=0)[0]
+        ang_acc[s:e] = torch.gradient(ang_v[s:e], spacing=step_dt, dim=0)[0]
+    self.anchor_lin_acc_w, self.anchor_ang_acc_w = lin_acc, ang_acc
+
+
+class OnlineMotionCommand(MotionCommand):
+  cfg: OnlineMotionCommandCfg
+
+  def _load_motion(self):
+    cfg = self.cfg
+    # One library frame per env step, so the output rate must be 1 / step_dt.
+    output_fps = cfg.output_fps or 1.0 / self._env.step_dt
+
+    self._cache: dict[str, torch.Tensor] | None = None
+    self._cache_ts: torch.Tensor | None = None
+
+    source = OnlineCsvToNpz(
+      robot_type=cfg.robot_type,
+      motion_dir=cfg.motion_dir,
+      body_names=cfg.body_names,
+      batch_size=self.num_envs,
+      input_fps=cfg.input_fps,
+      output_fps=output_fps,
       device=self.device,
+      sanity=cfg.sanity
+    )
+    return OnlineMotion(source, self.motion_anchor_body_index, self._env.step_dt)
+
+  def _frame(self) -> dict[str, torch.Tensor]:
+    """Body data for the current time_steps, recomputed only when they change."""
+    ts = self.time_steps
+    if self._cache is None or not torch.equal(ts, self._cache_ts):
+      self._cache = self.motion.source.retarget(ts)   # one batched mjw.forward
+      self._cache_ts = ts.clone()
+    return self._cache
+
+  # --- Body quantities now come from the on-the-fly cache ---------------
+
+  @property
+  def body_pos_w(self) -> torch.Tensor:
+    return self._frame()["body_pos_w"] + self._env.scene.env_origins[:, None, :]
+
+  @property
+  def body_quat_w(self) -> torch.Tensor:
+    return self._frame()["body_quat_w"]
+
+  @property
+  def body_lin_vel_w(self) -> torch.Tensor:
+    return self._frame()["body_lin_vel_w"] * self.moving_envs[:, None, None]
+
+  @property
+  def body_ang_vel_w(self) -> torch.Tensor:
+    return self._frame()["body_ang_vel_w"] * self.moving_envs[:, None, None]
+
+  @property
+  def anchor_pos_w(self) -> torch.Tensor:
+    return (
+      self._frame()["body_pos_w"][:, self.motion_anchor_body_index]
+      + self._env.scene.env_origins
     )
 
-    # if no body name passed, track all
-    if self.cfg.tracked_body_names is None :
-      self.cfg.tracked_body_names = self.cfg.body_names
+  @property
+  def anchor_quat_w(self) -> torch.Tensor:
+    return self._frame()["body_quat_w"][:, self.motion_anchor_body_index]
 
-    self.motion = MotionLoader(
-      self.cfg.motion_dir, self.body_indexes, self.motion_anchor_body_index, env.step_dt, device=self.device
-    )
-    self.time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
-    self.fixed_time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
-    self.body_pos_relative_w = torch.zeros(
-      self.num_envs, len(cfg.body_names), 3, device=self.device
-    )
-    self.body_quat_relative_w = torch.zeros(
-      self.num_envs, len(cfg.body_names), 4, device=self.device
-    )
-    self.body_quat_relative_w[:, :, 0] = 1.0
-
-    self._build_adaptive_bins()
-    self.bin_failed_count = torch.zeros(
-      self.bin_count, dtype=torch.float, device=self.device
-    )
-    self._current_bin_failed = torch.zeros(
-      self.bin_count, dtype=torch.float, device=self.device
-    )
-    self.kernel = torch.tensor(
-        [self.cfg.adaptive_lambda**i for i in range(self.cfg.adaptive_kernel_size)],
-        device=self.device,
-    )
-    self.kernel = self.kernel / self.kernel.sum()
-
-    self.metrics["error_anchor_pos"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["error_anchor_rot"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["error_anchor_lin_vel"] = torch.zeros(
-      self.num_envs, device=self.device
-    )
-    self.metrics["error_anchor_ang_vel"] = torch.zeros(
-      self.num_envs, device=self.device
-    )
-    self.metrics["error_body_pos"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["error_body_rot"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["error_joint_pos"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["error_joint_vel"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["sampling_entropy"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["sampling_top1_prob"] = torch.zeros(self.num_envs, device=self.device)
-    self.metrics["sampling_top1_bin"] = torch.zeros(self.num_envs, device=self.device)
-
-    self._ghost_model = None
-    self._ghost_color = np.array(cfg.viz.ghost_color, dtype=np.float32)
-    self._pending_forward = False
-
-    self.rand_motion = torch.multinomial(
-      self.motion.trajectory_probs, self.num_envs, replacement=True
+  @property
+  def anchor_lin_vel_w(self) -> torch.Tensor:
+    return (
+      self._frame()["body_lin_vel_w"][:, self.motion_anchor_body_index]
+      * self.moving_envs.unsqueeze(-1)
     )
 
-    self.moving_envs = torch.ones(self.num_envs, dtype=torch.bool ,device=self.device)
+  @property
+  def anchor_ang_vel_w(self) -> torch.Tensor:
+    return (
+      self._frame()["body_ang_vel_w"][:, self.motion_anchor_body_index]
+      * self.moving_envs.unsqueeze(-1)
+    )
 
 
-@dataclass
-class OnlineMotionCommandCfg(MotionCommandCfg) :
-  a : 1
+@dataclass(kw_only=True)
+class OnlineMotionCommandCfg(MotionCommandCfg):
+  robot_type: str = "Kangaroo"
+  """Key into ROBOT_XML_DICT, used to build the kinematics model."""
+
+  input_fps: float = 30.0
+  """Frame rate of the CSV files."""
+
+  output_fps: float | None = None
+  """Resampling rate. None = 1 / env.step_dt (required for 1 frame per step)."""
+
+  sanity: SanityCheckCfg = SanityCheckCfg()
+  # motion_dir now points at a directory of .csv files.
+
+  def build(self, env: ManagerBasedRlEnv) -> OnlineMotionCommand:
+    return OnlineMotionCommand(self, env)
