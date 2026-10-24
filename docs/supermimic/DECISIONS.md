@@ -335,3 +335,12 @@ at every step (user, 2026-10-23).**
     library on the GPU.
 - **Resuming:** `scripts/supermimic/train.py` resumes the newest checkpoint of runs with the same
   `--agent.run-name`.
+
+**D36. Judge and keep SuperMimic checkpoints by the benchmark (M4, 2026-10-24).**
+- **Why:** M4's training oscillates, so the last checkpoint is often in a collapse (0.684 vs the best
+  0.832). Training-time signals mix failures and sampled starts.
+- **How:**
+  - Benchmark every checkpoint with `eval.py` (1296 `dev` clips, about 2 min each).
+  - Report the best one together with the share of late checkpoints in a collapse.
+  - Compare runs at equal training hours, never at equal iterations.
+- **Revisit when** training is stable (next: the paper's exact settings on the cluster).

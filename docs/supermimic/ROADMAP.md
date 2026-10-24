@@ -97,29 +97,29 @@ with a gate: if it fails, we stop and rethink before building on top.
 - **Smoke run of the M4 task:** 1.57 s per iteration, 11.3 GB with bf16 and replay 500. The paper
   settings don't fit the local 16 GB GPU.
 
-## M4: Online SuperMimic loop on `dev` (next; launch on the user's word)
+## M4: Online SuperMimic loop on `dev` (local run done 2026-10-24, `m4/online_loop.md`, `m4/report.pdf`)
 
-- `rl/runner.py`, Alg. A.1, from scratch, with the paper's settings:
-  - collect ≈2.5 steps per iteration;
-  - 10 WM batches (D10);
-  - 1 BPTT step with the learned termination head (D31);
-  - critic fit;
-  - cosine LR schedule;
-  - checkpoints every 2000 iterations; resume with `scripts/supermimic/train.py`.
-- **Configurations** (`README.md`): local `dev` (bf16, replay 500), cluster `dev` and `full` (TF32,
-  replay 1000).
-- **Watch:**
-  - sim episode failures and length;
-  - the imagined-vs-sim return gap;
-  - the learned head vs the rule (AUC, and predicted vs simulated failures);
-  - the whole-clip benchmark of checkpoints (`eval.py`): M3 showed that 32-step checks miss later falls.
-- Compare with PPO-Sim on wall-clock to a target return.
-- Ablations, in order of value:
-  1. without the critic: the paper's ablation (M3 shows it myopic on a frozen model);
-  2. termination by the env's rule (one switch), if the head lags it in the logs (D31);
-  3. H = 16, only if the imagined-vs-sim gap grows (the model is optimistic at H = 32, M2).
-- **Gate:** ≥ PPO-Sim on `dev`, and the critic run beats the no-critic run. If it misses, run the G1
-  control (D18) before tuning anything Kangaroo-specific.
+- **Run:** Alg. A.1 from scratch, 12 h local GPU like PPO-Sim. The only deviations are bf16 and replay
+  500 (D16). 27,510 iterations; `logs/rsl_rl/supermimic_wm_1hz/*_dev-local`.
+- **Benchmark of all 27 checkpoints** (1296 `dev` clips):
+  - SuperMimic matched PPO-Sim's 12 h tracking return at 5.7 h.
+  - Best checkpoint (11.3 h): 3 failures and tracking return 0.832, against PPO-Sim's 25 and 0.742.
+    Legs, arms and torso errors are 22–32% lower.
+  - 10 of the 15 late checkpoints beat PPO-Sim.
+- **Training oscillates.** A critic overestimation loop collapses the policy every 1.3–2 h, then it
+  recovers to a higher peak. 4 of the 15 late checkpoints are in a collapse, the last one is on a
+  downswing.
+- **The world model and the learned failure head work online.** Imagination is within a few percent of
+  the sim, and the head reaches AUC 0.999 once refit online.
+- **Gate:** met at the peaks (about 2× faster than PPO-Sim); not met for stability. The critic ablation
+  is still open.
+- **Next:**
+  1. The paper's exact settings on the cluster (`dev`, TF32, replay 1000), to test our two memory-forced
+     deviations.
+  2. If it still oscillates, investigate the critic loop one change at a time: policy learning rate,
+     privileged critic inputs (D7), critic normalization (D34).
+  3. Select checkpoints by benchmark (D36).
+  4. Then the critic ablation, H = 16 if needed, and `full`.
 
 ## M5: Scale
 

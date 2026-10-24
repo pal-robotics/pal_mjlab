@@ -4,12 +4,13 @@ SuperMimic (arXiv 2610.28480) on PAL Kangaroo with 7-DoF arms, trained on the BO
 `~/Projects/supermimic/kangaroo_bones_seed`.
 
 - [ROADMAP.md](ROADMAP.md): milestones and their gates
-- [DECISIONS.md](DECISIONS.md): what we chose, why, and when to revisit (D0–D35)
+- [DECISIONS.md](DECISIONS.md): what we chose, why, and when to revisit (D0–D36)
 - [LEARNINGS.md](LEARNINGS.md): facts and measurements
 - `m0/`: raw benchmark outputs
 - `m1/`: gain A/B (`gain_ab.md`), PPO-Sim baseline (`ppo_sim_baseline.md`), action-scale note
 - `m2/`: offline world model: `world_model.md` (short), `report.pdf` (full write-up), `make_figures.py`
 - `m3/`: imagination and policy-update checks: `imagination.md` (short), `report.pdf`, `make_figures.py`
+- `m4/`: the online loop on `dev` vs PPO-Sim: `online_loop.md` (short), `report.pdf`, `make_figures.py`
 
 ## Environment
 

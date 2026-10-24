@@ -308,6 +308,37 @@ the root joint, about one body out of ~40, so the timings stand.
   them across steps.
 - **PPO-Sim's adaptive schedule ended at lr 2.25e-5**, 10× below SuperMimic's 2e-4.
 
+## M4: online loop on `dev` (`m4/online_loop.md`, `m4/report.pdf`)
+
+**Against PPO-Sim** (same env and 12 h local-GPU budget):
+- SuperMimic's best checkpoint fails 3 of 1296 clips (PPO-Sim: 25), with tracking return 0.832
+  (0.742) and legs/arms/torso errors of 5.0/7.3/1.7 cm (6.4/10.8/2.4).
+- It reached PPO-Sim's 12 h level at 5.7 h, with about 6× fewer simulator steps (0.28 B vs 1.7 B).
+- Iteration counts are not comparable: a PPO iteration is 24 × 8192 sim steps and 20 gradient steps;
+  a SuperMimic iteration is about 2.5 × 4096 sim steps and 1 BPTT step.
+
+**Training stability.**
+- **The training is unstable.** The policy collapses every 1.3–2 h, from 16 failures to all 1296 within
+  1000 iterations, then recovers to a higher peak.
+- **The critic leads each collapse.**
+  1. Its value jumps 3–5× in about 30 iterations while the sim's reward is still normal. The λ-return
+     targets follow, since they bootstrap on it.
+  2. The policy gradient goes from about 1 to 30.
+  3. The imagined reward and then the sim's reward collapse.
+  It is an overestimation loop with no target network, as in the paper, which nevertheless reports
+  stable training.
+- **The last checkpoint is often not the best:** 0.684 vs 0.832 here. Benchmark checkpoints and keep
+  the best.
+
+**What works online.**
+- Imagination matches the sim within a few percent most of the time, even as the policy changes.
+- The world-model loss settles at about 0.01 and spikes when the policy shifts.
+- The learned failure head reaches AUC 0.999–1.0 within about 1.5 h of online refits (0.42 at the
+  start). Online refitting removes M3's frozen-head blindness.
+
+**Training-time signals mislead.** The joint and root errors logged at episode end, and the sampler
+return, mix failures and sampled starts. Judge runs on the whole-clip benchmark.
+
 ## Repo state found on MAC/WBC (not caused by us)
 
 - `tests/test_kangaroo_velocity_task_launch.py`: all 12 velocity tasks fail at env construction on GPU.
