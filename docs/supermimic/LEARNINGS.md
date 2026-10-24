@@ -339,6 +339,21 @@ the root joint, about one body out of ~40, so the timings stand.
 **Training-time signals mislead.** The joint and root errors logged at episode end, and the sampler
 return, mix failures and sampled starts. Judge runs on the whole-clip benchmark.
 
+## Cluster: Leonardo booster (A100 64 GB, 2026-10-24)
+
+- **Old drivers disable CUDA graphs.** The nodes run driver 535 (CUDA 12.2). Below 12.4, mjlab prints
+  `CUDA Graphs disabled` and MuJoCo Warp launches its kernels one by one.
+- **Fix:** put the CUDA ≥ 12.4 forward-compatibility libcuda on the library path. On Leonardo that is
+  `export LD_LIBRARY_PATH=$CUDA_HOME/compat:$LD_LIBRARY_PATH` after `module load cuda/12.6`.
+- **Measured** (same code and node type, per iteration):
+
+  | | no graphs | graphs | local RTX 5060 Ti |
+  |---|---|---|---|
+  | PPO-Sim | 13.5 s (collect 12.8 s) | 2.26 s (collect 1.57 s, 87k steps/s) | 4.9 s (40k steps/s) |
+  | SuperMimic, TF32 | collect 0.41 s | collect 0.16 s | collect 0.15 s (bf16) |
+
+  The SuperMimic policy update is about 1.3 s on TF32, for about 1.8 s per iteration.
+
 ## Repo state found on MAC/WBC (not caused by us)
 
 - `tests/test_kangaroo_velocity_task_launch.py`: all 12 velocity tasks fail at env construction on GPU.

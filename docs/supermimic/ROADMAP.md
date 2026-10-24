@@ -115,7 +115,9 @@ with a gate: if it fails, we stop and rethink before building on top.
   is still open.
 - **Next:**
   1. The paper's exact settings on the cluster (`dev`, TF32, replay 1000), to test our two memory-forced
-     deviations.
+     deviations. Running on Leonardo since 2026-10-24: one A100 for 24 h each, with PPO-Sim on the same
+     setup so both are compared at matched hours (`*_dev-paper`, `*_dev-cluster`). CUDA graphs come from
+     the forward-compatibility driver (LEARNINGS, Cluster).
   2. If it still oscillates, investigate the critic loop one change at a time: policy learning rate,
      privileged critic inputs (D7), critic normalization (D34).
   3. Select checkpoints by benchmark (D36).

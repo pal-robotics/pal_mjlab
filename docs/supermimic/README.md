@@ -44,6 +44,10 @@ uv run python -m pal_mjlab.scripts.supermimic.train $TASK --env.commands.motion.
 #    c) full (250.9 h), cluster: the paper's settings; the library takes 13.9 GB of GPU memory
 uv run python -m pal_mjlab.scripts.supermimic.train $TASK --env.commands.motion.dataset ../dataset \
   --env.commands.motion.subset full --agent.run-name full-paper
+#    Cluster driver older than CUDA 12.4 (Leonardo: 535 = 12.2): mjlab disables CUDA graphs and
+#    the simulator runs about 8x slower. Load the forward-compatibility libcuda first, and check
+#    the log has no "CUDA Graphs disabled" line:
+#      module load cuda/12.6 && export LD_LIBRARY_PATH=$CUDA_HOME/compat:$LD_LIBRARY_PATH
 #    scripts.supermimic.train is mjlab's train that resumes from the newest model_*.pt of the
 #    runs with the same --agent.run-name (preemptions: rerun the same command); plain
 #    `uv run train $TASK ...` always starts fresh.
