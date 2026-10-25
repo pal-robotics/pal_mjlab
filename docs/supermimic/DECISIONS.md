@@ -348,3 +348,29 @@ at every step (user, 2026-10-23).**
   a dip). D36 stays.
 - **Cluster runs:** the checkpoints are copied to helium and benchmarked on the local GPU, with the same
   protocol and no cluster budget (`m4/cluster_runs.md`).
+
+**D37. Compile the imagination step and the world-model loss (user, 2026-10-25).**
+- **Why:** a profile of one local policy update (1.09 s) shows about 70,000 small aten calls and
+  1.1 s of CPU time. The update is bound by launching kernels, not by the GPU. The reproduction compiles
+  the same step and measured 4.5×.
+- **How:**
+  - `make_step` is one imagined step as a function of tensors only; the sensor noise is sampled
+    outside and passed in.
+  - `torch.compile(dynamic=False)` on that step and on `window_loss`. The loop over H stays in Python.
+  - One flag, `--agent.compile` (default on; replaces `compile_kinematics`), covers the kinematics
+    too.
+  - A test checks that the traced step and loss (`aot_eager`) give the eager rollout, objective, loss
+    and gradients.
+- **Also removed** the unused "fp32" precision: only the paper's TF32 and local bf16 remain (user: no
+  fp32 option).
+- **Known limit:** locally, the compiled update's memory cache leaves too little for MuJoCo Warp
+  (simulator out of memory at 16 GB). The stability runs therefore go to Leonardo.
+
+**D38. Stability study (user, 2026-10-25, `m4/stability.md`).**
+- Five 12 h runs on Leonardo in parallel, with the paper's settings: a second-seed baseline and four
+  one-change ablations. The four are no critic, a failure head on the rule's features, a
+  survival-weighted critic loss, and no privileged critic inputs.
+- Their switches default to the paper's behavior and are removed after the study, except the change
+  we adopt.
+- A diagnostic, `scripts/supermimic/reward_extremes.py`, splits imagined rewards and the critic's error
+  at the predicted fall. Every run now logs the imagined reward's extremes.

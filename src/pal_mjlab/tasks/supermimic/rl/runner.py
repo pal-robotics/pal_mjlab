@@ -18,6 +18,7 @@ learned termination head and the env's failure rule rank fresh sim failures (D31
 
 from __future__ import annotations
 
+import math
 import os
 import subprocess
 import time
@@ -42,7 +43,6 @@ from .supermimic import (
   SuperMimicCfg,
   WorldModelUpdateCfg,
   horizon_return,
-  imagine,
 )
 
 
@@ -60,7 +60,8 @@ class SuperMimicRunnerCfg(RslRlBaseRunnerCfg):
   """Env steps collected before the first update."""
   init_actor_checkpoint: str = ""
   """Optional PPO-Sim checkpoint to initialize the actor (not used by the paper)."""
-  compile_kinematics: bool = True
+  compile: bool = True
+  """Compile the kinematics, the imagination step and the world model's window loss."""
   log_interval: int = 10
   eval_interval: int = 500
   """Iterations between imagined-vs-sim checks of the current policy (0: never)."""
@@ -142,7 +143,11 @@ class SuperMimicRunner:
     self.env, self.cfg, self.log_dir, self.device = env, train_cfg, log_dir, device
     raw = env.unwrapped
     self.collector = SimCollector(raw)
-    self.heads = AnalyticHeads(raw, compile_fk=train_cfg["compile_kinematics"])
+    self.heads = AnalyticHeads(
+      raw,
+      compile_fk=train_cfg["compile"],
+      privileged_critic=train_cfg["algorithm"]["critic"]["privileged_inputs"],
+    )
     obs = self.collector.observations()
     self.alg = SuperMimic(
       obs,
@@ -151,6 +156,7 @@ class SuperMimicRunner:
       self.collector.context().shape[-1],
       _from_dict(train_cfg),
       device,
+      compile=train_cfg["compile"],
     )
     self.current_learning_iteration = 0
     self._git_paths: list[str] = []
@@ -223,17 +229,7 @@ class SuperMimicRunner:
     if cfg["init_actor_checkpoint"] and self.current_learning_iteration == 0:
       alg.load_ppo_actor(cfg["init_actor_checkpoint"])
 
-    obs = TensorDict(raw.reset()[0], batch_size=[raw.num_envs])
-    state = self.collector.state()[0]
-    self.replay = ReplayBuffer(
-      raw.num_envs, cfg["replay_steps"], state.shape[-1],
-      raw.action_manager.total_action_dim, self.collector.context().shape[-1],
-      self.device,
-    )  # fmt: skip
-    self._stats: dict[str, list[float]] = {}
-    self._episode_return = torch.zeros(raw.num_envs, device=self.device)
-    self._episode_length = torch.zeros(raw.num_envs, device=self.device)
-    self._term_scores: list[torch.Tensor] = []
+    obs = self.start_collection()
     for _ in range(cfg["warmup_steps"]):
       obs, _ = self._collect(obs)
 
@@ -266,6 +262,22 @@ class SuperMimicRunner:
     self.current_learning_iteration = num_learning_iterations
     if self.log_dir:
       self.save(os.path.join(self.log_dir, f"model_{num_learning_iterations}.pt"))
+
+  def start_collection(self) -> TensorDict:
+    """Reset the envs; create the replay buffer and the episode statistics."""
+    raw = self.env.unwrapped
+    obs = TensorDict(raw.reset()[0], batch_size=[raw.num_envs])
+    state = self.collector.state()[0]
+    self.replay = ReplayBuffer(
+      raw.num_envs, self.cfg["replay_steps"], state.shape[-1],
+      raw.action_manager.total_action_dim, self.collector.context().shape[-1],
+      self.device,
+    )  # fmt: skip
+    self._stats: dict[str, list[float]] = {}
+    self._episode_return = torch.zeros(raw.num_envs, device=self.device)
+    self._episode_length = torch.zeros(raw.num_envs, device=self.device)
+    self._term_scores: list[torch.Tensor] = []
+    return obs
 
   @torch.no_grad()
   def _collect(self, obs: TensorDict, deterministic: torch.Tensor | None = None):
@@ -339,9 +351,7 @@ class SuperMimicRunner:
       "last_action": raw.action_manager.action[:n].clone(),
     }
     with alg._autocast():
-      roll = imagine(
-        heads, alg.world_model, alg.actor, alg.critic, start, pc, self.generator
-      )
+      roll = alg.imagine(start, self.generator)
 
     deterministic = torch.zeros(raw.num_envs, dtype=torch.bool, device=self.device)
     deterministic[:n] = True
@@ -377,7 +387,8 @@ class SuperMimicRunner:
 
   def _record(self, stats: dict[str, float], prefix: str) -> None:
     for k, v in stats.items():
-      self._stats.setdefault(f"{prefix}/{k}", []).append(float(v))
+      if not math.isnan(v):  # e.g. no extreme step in this iteration
+        self._stats.setdefault(f"{prefix}/{k}", []).append(float(v))
 
   def _log(self, it: int) -> None:
     if self._term_scores:

@@ -121,11 +121,20 @@ with a gate: if it fails, we stop and rethink before building on top.
     the cause.
   - A late failure mode: extreme imagined rewards blow up the critic loss.
   - Gate: met at equal hours and at the best checkpoint; stability not met; critic ablation open.
-- **Next:** the M5 options below.
+- **Stability study (running, `m4/stability.md`, D38).** User decision 2026-10-25: fix speed and
+  stability before M5.
+  - Speed: the imagination step and the world-model loss are compiled (D37).
+  - Diagnosis: the main collapses come from the critic going wrong on live states. The late burst is
+    post-fall world-model extrapolation, through the joint-limit penalty, poisoning the critic.
+  - Runs: a second-seed baseline plus four ablations (no critic; failure head on the rule's features;
+    survival-weighted critic loss; no privileged critic inputs), 12 h each on Leonardo.
+- **Next:** adopt what fixes stability, then `full` directly on the cluster (M5).
 
 ## M5: Speed, stability, scale (options, user decides; `m4/cluster_report.pdf` §5)
 
-Nothing is started. Costs are local GPU time (free) or Leonardo A100 hours: 1 A100-h ≈ 8 local budget
+User decisions 2026-10-25: (1) compile, (2) the stability ablations are under way in M4; no G1
+control, multi-GPU or data sweep for now; `full` on the cluster once stability and speed are fixed.
+The options as written in the report: Costs are local GPU time (free) or Leonardo A100 hours: 1 A100-h ≈ 8 local budget
 hours, about 4,560 left (≈ 570 A100-h). In the suggested order:
 1. **Speed.** Profile one iteration, then compile the whole imagination step and the world-model loss
    step (today only the FK). Tests how much of our 8× per-GPU gap to the paper is ours; the reproduction

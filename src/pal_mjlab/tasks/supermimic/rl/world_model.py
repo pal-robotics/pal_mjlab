@@ -17,7 +17,8 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from ..kinematics import matrix_from_rot6d
+from ..kinematics import matrix_from_rot6d, quat_from_matrix
+from ..mdp.tracking import projected_gravity_z
 from ..state import integrate_pose, pose_delta
 
 
@@ -40,6 +41,10 @@ class WorldModelCfg:
   context_dim: int = 32
   hidden: tuple[int, ...] = (2048, 2048, 2048)
   termination_hidden: tuple[int, ...] = (256, 256)
+  termination_inputs: str = "state"
+  """"state": the normalized predicted state plus the reference root height and
+  gravity-z. "rule": only the failure rule's two errors against them, root height and
+  gravity-z (stability ablation A2', as the SuperMimic-Reproduced code)."""
   activation: str = "elu"
   predict_delta: bool = True
   """Predict the state change (True) or the next state itself (False)."""
@@ -53,7 +58,8 @@ class WorldModel(nn.Module):
     self.cfg = cfg
     s, a, c = cfg.state_dim, cfg.action_dim, cfg.context_dim
     self.dynamics = mlp(s + a + c, cfg.hidden, s + 3, cfg.activation)
-    self.termination = mlp(s + 2, cfg.termination_hidden, 1, cfg.activation)
+    term_in = 2 if cfg.termination_inputs == "rule" else s + 2
+    self.termination = mlp(term_in, cfg.termination_hidden, 1, cfg.activation)
     for name, dim in (("in", s + a + c), ("out", s + 3), ("state", s)):
       self.register_buffer(f"{name}_mean", torch.zeros(dim))
       self.register_buffer(f"{name}_std", torch.ones(dim))
@@ -119,7 +125,11 @@ class WorldModel(nn.Module):
     self, state: torch.Tensor, ref_root: torch.Tensor
   ) -> torch.Tensor:
     """Failure logit for a (predicted) state; ``ref_root`` = (reference root height, gz)."""
-    x = torch.cat([(state - self.state_mean) / self.state_std, ref_root], dim=-1)
+    if self.cfg.termination_inputs == "rule":
+      gz = projected_gravity_z(quat_from_matrix(matrix_from_rot6d(state[:, 1:7])))
+      x = torch.stack([ref_root[:, 0] - state[:, 0], ref_root[:, 1] - gz], dim=-1)
+    else:
+      x = torch.cat([(state - self.state_mean) / self.state_std, ref_root], dim=-1)
     return self.termination(x).squeeze(-1)
 
 

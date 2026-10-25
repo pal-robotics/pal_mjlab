@@ -59,7 +59,12 @@ class Kin(NamedTuple):
 
 
 class AnalyticHeads:
-  def __init__(self, env: ManagerBasedRlEnv, compile_fk: bool = True) -> None:
+  def __init__(
+    self,
+    env: ManagerBasedRlEnv,
+    compile_fk: bool = True,
+    privileged_critic: bool = True,
+  ) -> None:
     cfg, self.device = env.cfg, env.device
     cmd = cast(MotionLibraryCommand, env.command_manager.get_term("motion"))
     robot = env.scene[cmd.cfg.entity_name]
@@ -106,6 +111,7 @@ class AnalyticHeads:
     bodies = [f"{cmd.cfg.entity_name}/{b}" for b in cmd.cfg.body_names]
     self.fk = TorchKinematics(model, bodies, sorted(sites), device=self.device)
     self._fk = torch.compile(self.fk.forward) if compile_fk else self.fk.forward
+    self.privileged_critic = privileged_critic
 
     # Reward (Table A.2), with the env's weights, stds and dt scaling.
     self.tracking_terms, self.action_rate_weight = [], 0.0
@@ -186,10 +192,18 @@ class AnalyticHeads:
   def add_noise(
     self, frame: dict[str, torch.Tensor], generator: torch.Generator | None = None
   ) -> dict[str, torch.Tensor]:
-    out = dict(frame)
+    noise = self.sample_noise(len(next(iter(frame.values()))), generator)
+    return {n: x + noise[n] if n in noise else x for n, x in frame.items()}
+
+  def sample_noise(
+    self, batch: int, generator: torch.Generator | None = None
+  ) -> dict[str, torch.Tensor]:
+    """Additive sensor noise η per noisy term, (batch, dim) each."""
+    out = {}
     for name, (lo, hi) in self.noise.items():
-      u = torch.rand(frame[name].shape, device=self.device, generator=generator)
-      out[name] = frame[name] + lo + (hi - lo) * u
+      shape = (batch, self.obs_dims[name])
+      u = torch.rand(shape, device=self.device, generator=generator)
+      out[name] = lo + (hi - lo) * u
     return out
 
   def flatten_history(self, history: dict[str, torch.Tensor]) -> torch.Tensor:
@@ -229,13 +243,15 @@ class AnalyticHeads:
     clip: torch.Tensor,
     frame: torch.Tensor,
   ) -> torch.Tensor:
-    """(ŝ, g, ξ) plus the privileged root-pose error and time left in the clip (D7)."""
+    """(ŝ, g, ξ) plus the privileged root-pose error and time left in the clip (D7);
+    with ``privileged_critic=False`` those two are zero (stability ablation A6)."""
     qpos, _ = state_to_qpos_qvel(state, pose)
     ref = self.library.qpos[frame]
     err = root_pose_error(qpos[:, :3], qpos[:, 3:7], ref[:, :3], ref[:, 3:7])
     left = (self.library.clip_end[clip] - 1 - frame).float()
     time_left = (left.clamp(max=self.time_left_cap) / self.time_left_cap)[:, None]
-    return torch.cat([state, goal, context, err, time_left], dim=-1)
+    privileged = torch.cat([err, time_left], dim=-1) * float(self.privileged_critic)
+    return torch.cat([state, goal, context, privileged], dim=-1)
 
   # Reward r̂ and termination -------------------------------------------------------
 
@@ -248,20 +264,35 @@ class AnalyticHeads:
     prev_action: torch.Tensor,
   ) -> torch.Tensor:
     """The env's per-step reward (all terms, dt-scaled) for the state after ``action``."""
-    r = sum(
+    return sum(self.reward_terms(state, kin, ref, action, prev_action).values())
+
+  def reward_terms(
+    self,
+    state: torch.Tensor,
+    kin: Kin,
+    ref: BodyState,
+    action: torch.Tensor,
+    prev_action: torch.Tensor,
+  ) -> dict[str, torch.Tensor]:
+    """The reward split into its bounded tracking part and its two unbounded penalties."""
+    zero = torch.zeros_like(state[:, 0])
+    terms = {"tracking": zero, "action_rate": zero, "joint_limit": zero}
+    terms["tracking"] = sum(
       w * torch.exp(-err(kin.bodies, ref) / std**2)
       for w, std, err in self.tracking_terms
     )
     if self.action_rate_weight:
-      r = r + self.action_rate_weight * (action - prev_action).square().sum(-1)
+      terms["action_rate"] = self.action_rate_weight * (
+        action - prev_action
+      ).square().sum(-1)
     if self.limit_weight:
       nj = (state.shape[-1] - 13) // 2
       q = state[:, 13 : 13 + nj][:, self.limit_joints]
       violation = tracking.joint_limit_violation(
         q, self.limits[:, 0], self.limits[:, 1]
       )
-      r = r + self.limit_weight * violation
-    return r * self.reward_scale
+      terms["joint_limit"] = self.limit_weight * violation
+    return {k: v * self.reward_scale for k, v in terms.items()}
 
   def failure_margin(self, kin: Kin, ref: BodyState) -> torch.Tensor:
     """The env's failure rule as a margin: > 1 means the episode fails."""

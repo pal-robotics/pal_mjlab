@@ -12,7 +12,7 @@ SuperMimic (arXiv 2610.28480) on PAL Kangaroo with 7-DoF arms, trained on the BO
 - `m3/`: imagination and policy-update checks: `imagination.md` (short), `report.pdf`, `make_figures.py`
 - `m4/`: the online loop on `dev` vs PPO-Sim: `online_loop.md` (short), `report.pdf`, `make_figures.py`;
   the 24 h cluster runs with the paper's settings and the M5 options: `cluster_runs.md`,
-  `cluster_report.pdf`, `make_cluster_figures.py`
+  `cluster_report.pdf`, `make_cluster_figures.py`; the stability study: `stability.md`
 
 ## Environment
 
@@ -107,6 +107,12 @@ gpu-run --label sm-grad --max 30m -- .venv/bin/python -m pal_mjlab.scripts.super
 gpu-run --label sm-m3 --max 45m -- .venv/bin/python -m pal_mjlab.scripts.supermimic.m3_check \
   --out-json logs/supermimic_m3/m3.json
 .venv/bin/python docs/supermimic/m3/make_figures.py && (cd docs/supermimic/m3 && latexmk -pdf report.tex)
+
+# M4 stability study (m4/stability.md): extremes of the imagined reward and the critic's error
+# before/after the predicted fall, from training checkpoints (--precision bf16 for local runs)
+gpu-run --label sm-diag --max 30m -- .venv/bin/python -m pal_mjlab.scripts.supermimic.reward_extremes \
+  --task Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers-ArmWaist1Hz --checkpoints <run>/model_N.pt \
+  --out-dir logs/supermimic_diag/reward_extremes
 
 # Benchmarks (GPU, through the queue)
 gpu-run --label sm-sim --max 30m -- .venv/bin/python -m pal_mjlab.scripts.supermimic.bench_sim \

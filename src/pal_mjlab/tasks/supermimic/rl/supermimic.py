@@ -41,6 +41,9 @@ class WorldModelUpdateCfg:
   max_grad_norm: float = 1.0
   hidden: tuple[int, ...] = (2048, 2048, 2048)
   termination_hidden: tuple[int, ...] = (256, 256)
+  termination_inputs: Literal["state", "rule"] = "state"
+  """The learned failure head's input: the predicted state (D31), or only the failure
+  rule's two errors (stability ablation A2', with ``termination_hidden=(64, 64)``)."""
 
 
 @dataclass
@@ -75,6 +78,13 @@ class CriticUpdateCfg:
   max_grad_norm: float = 1.0
   epochs: int = 5
   minibatches: int = 4
+  survival_weighted: bool = False
+  """Stability ablation A5: weight each step's error by the survival ĉ_t before it, so
+  imagined steps after a predicted fall barely train the critic. The paper's Eq. 3 is
+  unweighted."""
+  privileged_inputs: bool = True
+  """The root-pose error and time left in the critic's input (D7, D22); False is
+  stability ablation A6."""
 
 
 @dataclass
@@ -86,9 +96,14 @@ class SuperMimicCfg:
   """Cosine decay of every learning rate to ``lr_final_ratio`` over this many
   iterations, then constant."""
   lr_final_ratio: float = 0.03
-  precision: Literal["tf32", "fp32", "bf16"] = "tf32"
-  """Matmul precision of the learning updates: the paper's TF32, strict FP32, or bf16
-  autocast for 16 GB GPUs (D16)."""
+  precision: Literal["tf32", "bf16"] = "tf32"
+  """Matmul precision of the learning updates: the paper's TF32, or bf16 autocast for
+  16 GB GPUs (D16)."""
+
+
+EXTREME_REWARD = -1.0
+"""A per-step reward below this is logged as extreme: about 10x the largest positive
+per-step reward (the tracking weights sum to 5, times dt)."""
 
 
 @dataclass
@@ -102,12 +117,50 @@ class Rollout:
   clip_end: torch.Tensor  # (B, H) step t reaches the clip's last frame
   head_prob: torch.Tensor  # (B, H) learned failure probability
   rule_prob: torch.Tensor  # (B, H) smoothed failure rule
+  action_rate: torch.Tensor  # (B, H) the reward's action-rate penalty (unbounded)
+  joint_limit: torch.Tensor  # (B, H) the reward's joint-limit penalty (unbounded)
+  action_max: torch.Tensor  # (B, H) largest |action| component
   critic_input: torch.Tensor  # (B, H + 1, D)
   value: torch.Tensor  # (B, H + 1) critic before this update
 
 
 def critic_value(critic: MLPModel, x: torch.Tensor) -> torch.Tensor:
   return critic.mlp(critic.obs_normalizer(x)).squeeze(-1)
+
+
+def make_step(
+  heads: AnalyticHeads,
+  world_model: WorldModel,
+  actor: EncoderDecoderModel,
+  cfg: PolicyUpdateCfg,
+):
+  """One imagined step from ŝ_t, as a function of tensors only (so it can be compiled).
+
+  The policy acts on the goal and its observation history; the world model predicts
+  ŝ_{t+1}; the analytic heads give the reward terms, both failure probabilities and the
+  next observation, to which the sensor noise η (sampled outside) is added.
+  """
+
+  def step(s, p, prev_action, history, ctx, clip, frame, noise):
+    root_quat = state_to_qpos_qvel(s, p)[0][:, 3:7]
+    goal = heads.goal(root_quat, clip, frame)
+    x = heads.critic_input(s, p, goal, ctx, clip, frame)
+    action = actor.act(torch.cat([goal, heads.flatten_history(history)], dim=-1))
+    action = action.float()  # bf16 autocast: keep the state and reward math in fp32
+    s_next, p_next = world_model.step(s, p, action, ctx)
+    kin = heads.kinematics(s_next, p_next)
+    ref = heads.reference(frame)
+    terms = heads.reward_terms(s_next, kin, ref, action, prev_action)
+    logit = world_model.termination_logit(s_next, heads.ref_root(frame)).float()
+    rule = torch.sigmoid((heads.failure_margin(kin, ref) - 1.0) / cfg.rule_temperature)
+    obs = heads.observation(s_next, kin, ctx, action)
+    obs = {n: o + noise[n] if n in noise else o for n, o in obs.items()}
+    history = {
+      n: torch.cat([history[n][:, 1:], obs[n][:, None]], dim=1) for n in history
+    }
+    return x, action, s_next, p_next, terms, torch.sigmoid(logit), rule, history
+
+  return step
 
 
 def imagine(
@@ -118,18 +171,17 @@ def imagine(
   start: dict[str, torch.Tensor],
   cfg: PolicyUpdateCfg,
   generator: torch.Generator | None = None,
+  step=None,
 ) -> Rollout:
   """Roll the policy out for H steps in the world model from replay states (Eq. 2).
 
   ``start`` comes from ``ReplayBuffer.sample_starts``: the start state, pose, ξ and
   reference, and the previous rows whose observations fill the policy's history.
+  ``step`` is ``make_step``'s function, possibly compiled; by default an eager one.
   """
+  step = step or make_step(heads, world_model, actor, cfg)
   b, gamma = start["state"].shape[0], cfg.gamma
   ctx, clip, frame = start["context"], start["clip"], start["frame"]
-
-  def observe(state, kin, context, last_action):
-    frame_obs = heads.observation(state, kin, context, last_action)
-    return heads.add_noise(frame_obs, generator) if cfg.sensor_noise else frame_obs
 
   if "history" in start:  # the sim's current observation history
     history, prev_action = start["history"], start["last_action"]
@@ -138,12 +190,14 @@ def imagine(
     h = hs.shape[1]
     flat_state = hs.flatten(0, 1)
     kin = heads.kinematics(flat_state, start["history_pose"].flatten(0, 1))
-    history = observe(
+    history = heads.observation(
       flat_state,
       kin,
       ctx[:, None].expand(-1, h, -1).flatten(0, 1),
       start["history_last_action"].flatten(0, 1),
     )
+    if cfg.sensor_noise:
+      history = heads.add_noise(history, generator)
     history = {n: o.unflatten(0, (b, h)) for n, o in history.items()}
     prev_action = start["history_last_action"][:, -1]
 
@@ -151,42 +205,33 @@ def imagine(
   c = torch.ones(b, device=s.device)
   alive = torch.ones(b, device=s.device)
   objective = torch.zeros(b, device=s.device)
-  out = {k: [] for k in ("reward", "cont", "alive", "end", "head", "rule", "input")}
-  for t in range(cfg.horizon + 1):
-    root_quat = state_to_qpos_qvel(s, p)[0][:, 3:7]
-    goal = heads.goal(root_quat, clip, frame)
-    x = heads.critic_input(s, p, goal, ctx, clip, frame)
-    out["input"].append(x)
-    if t == cfg.horizon:
-      break
-    action = actor.act(torch.cat([goal, heads.flatten_history(history)], dim=-1))
-    action = action.float()  # bf16 autocast: keep the state and reward math in fp32
-    s_next, p_next = world_model.step(s, p, action, ctx)
-    kin = heads.kinematics(s_next, p_next)
-    ref = heads.reference(frame)
-    reward = heads.reward(s_next, kin, ref, action, prev_action)
-    logit = world_model.termination_logit(s_next, heads.ref_root(frame)).float()
-    head = torch.sigmoid(logit)
-    rule = torch.sigmoid((heads.failure_margin(kin, ref) - 1.0) / cfg.rule_temperature)
+  keys = ("reward", "cont", "alive", "end", "head", "rule", "input", "action_rate",
+          "joint_limit", "action_max")  # fmt: skip
+  out = {k: [] for k in keys}
+  for t in range(cfg.horizon):
+    noise = heads.sample_noise(b, generator) if cfg.sensor_noise else {}
+    x, action, s_next, p_next, terms, head, rule, history = step(
+      s, p, prev_action, history, ctx, clip, frame, noise
+    )
+    reward = sum(terms.values())
     done_prob = head if cfg.termination == "learned" else rule
     clip_end = heads.clip_end(clip, frame).float()
     objective = objective + gamma**t * c * reward
     cont = (1.0 - done_prob) * (1.0 - clip_end)
     c = c * cont
-    out["reward"].append(reward)
-    out["cont"].append(cont)
-    out["alive"].append(alive)
-    out["end"].append(clip_end)
-    out["head"].append(head)
-    out["rule"].append(rule)
+    for key, value in (
+      ("input", x), ("reward", reward), ("cont", cont), ("alive", alive),
+      ("end", clip_end), ("head", head), ("rule", rule),
+      ("action_rate", terms["action_rate"]), ("joint_limit", terms["joint_limit"]),
+      ("action_max", action.abs().amax(-1)),
+    ):  # fmt: skip
+      out[key].append(value)
     alive = alive * (1.0 - clip_end)
-
-    obs = observe(s_next, kin, ctx, action)
-    history = {
-      n: torch.cat([history[n][:, 1:], obs[n][:, None]], dim=1) for n in history
-    }
     s, p, prev_action = s_next, p_next, action
     frame = heads.next_frame(clip, frame)
+  root_quat = state_to_qpos_qvel(s, p)[0][:, 3:7]
+  goal = heads.goal(root_quat, clip, frame)
+  out["input"].append(heads.critic_input(s, p, goal, ctx, clip, frame))
 
   inputs = torch.stack(out["input"], dim=1)
   if cfg.use_critic:
@@ -206,9 +251,17 @@ def imagine(
     clip_end=stack("end"),
     head_prob=stack("head"),
     rule_prob=stack("rule"),
+    action_rate=stack("action_rate"),
+    joint_limit=stack("joint_limit"),
+    action_max=stack("action_max"),
     critic_input=inputs.detach().float(),
     value=value,
   )
+
+
+def survival_before(cont: torch.Tensor) -> torch.Tensor:
+  """(B, H) ĉ_t: the product of the continuations before step t (1 at t = 0)."""
+  return torch.cat([torch.ones_like(cont[:, :1]), cont.cumprod(1)[:, :-1]], dim=1)
 
 
 def lambda_returns(
@@ -238,6 +291,7 @@ class SuperMimic:
     context_dim: int,
     cfg: SuperMimicCfg,
     device: str,
+    compile: bool = False,
   ) -> None:
     self.cfg, self.heads, self.device = cfg, heads, device
     pc, cc, wc = cfg.policy, cfg.critic, cfg.world_model
@@ -254,6 +308,7 @@ class SuperMimic:
       WorldModelCfg(
         state_dim=state_dim, action_dim=num_actions, context_dim=context_dim,
         hidden=wc.hidden, termination_hidden=wc.termination_hidden,
+        termination_inputs=wc.termination_inputs,
       )
     ).to(device)  # fmt: skip
     self.wm_optimizer = torch.optim.Adam(
@@ -270,12 +325,26 @@ class SuperMimic:
       (self.actor_optimizer, pc.learning_rate),
       (self.critic_optimizer, cc.learning_rate),
     )
+    # The imagination step and the world model's window loss are long chains of small
+    # ops: compiled, each runs as a few fused kernels instead of thousands of launches.
+    self._step = make_step(heads, self.world_model, self.actor, pc)
+    self._window_loss = window_loss
+    if compile:
+      self._step = torch.compile(self._step, dynamic=False)
+      self._window_loss = torch.compile(window_loss, dynamic=False)
+
+  def imagine(
+    self, start: dict[str, torch.Tensor], generator: torch.Generator | None = None
+  ) -> Rollout:
+    return imagine(
+      self.heads, self.world_model, self.actor, self.critic, start, self.cfg.policy,
+      generator, self._step,
+    )  # fmt: skip
 
   def set_matmul_precision(self) -> None:
-    """TF32 matmuls for "tf32" and "bf16" (fp32 leftovers), IEEE FP32 for "fp32"."""
-    tf32 = self.cfg.precision != "fp32"
-    torch.backends.cuda.matmul.allow_tf32 = tf32
-    torch.backends.cudnn.allow_tf32 = tf32
+    """TF32 matmuls (for "bf16", the ops autocast leaves in FP32)."""
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
 
   def _autocast(self):
     enabled = self.cfg.precision == "bf16"
@@ -302,7 +371,7 @@ class SuperMimic:
         0, w["frame"].shape
       )
       with self._autocast():
-        loss, info = window_loss(
+        loss, info = self._window_loss(
           self.world_model, w["states"], w["poses"], w["actions"], w["context"],
           ref_root, w["failure"],
         )  # fmt: skip
@@ -332,9 +401,7 @@ class SuperMimic:
       prm.requires_grad_(False)
     try:
       with self._autocast():
-        roll = imagine(
-          self.heads, self.world_model, self.actor, self.critic, start, pc, generator
-        )
+        roll = self.imagine(start, generator)
       stats = {"objective": float(roll.objective.detach().mean())}
       if update_actor:
         self.actor_optimizer.zero_grad(set_to_none=True)
@@ -359,10 +426,12 @@ class SuperMimic:
     )
     keep = roll.alive > 0  # steps after a clip end have no target (D8)
     x, y = roll.critic_input[:, :-1][keep], target[keep]
+    w = survival_before(roll.cont)[keep] if cc.survival_weighted else torch.ones_like(y)
     n, losses = len(y), []
     for _ in range(cc.epochs):
       for batch in torch.randperm(n, device=y.device).chunk(cc.minibatches):
-        loss = (critic_value(self.critic, x[batch]) - y[batch]).square().mean()
+        err = (critic_value(self.critic, x[batch]) - y[batch]).square()
+        loss = (w[batch] * err).sum() / w[batch].sum()
         self.critic_optimizer.zero_grad(set_to_none=True)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(self.critic.parameters(), cc.max_grad_norm)
@@ -420,11 +489,15 @@ def horizon_return(roll: Rollout, prob: torch.Tensor, gamma: float) -> torch.Ten
 
 @torch.no_grad()
 def _rollout_stats(roll: Rollout, gamma: float) -> dict[str, float]:
-  """Imagined return and how the learned head and the failure rule compare (D31)."""
+  """Imagined return, how the learned head and the failure rule compare (D31), and the
+  extremes of the reward's unbounded penalties."""
   discount = gamma ** torch.arange(roll.reward.shape[1], device=roll.reward.device)
   survival = {}
   for name, prob in (("head", roll.head_prob), ("rule", roll.rule_prob)):
     survival[name] = (1 - prob * roll.alive).prod(1)  # failures only, not clip ends
+  inside = roll.alive > 0
+  extreme = inside & (roll.reward < EXTREME_REWARD)
+  c = survival_before(roll.cont)
   return {
     "imagined_reward": float((roll.reward * roll.alive).sum() / roll.alive.sum()),
     "imagined_return": float((roll.reward * roll.alive * discount).sum(1).mean()),
@@ -433,4 +506,10 @@ def _rollout_stats(roll: Rollout, gamma: float) -> dict[str, float]:
     "survival_disagreement": float(
       ((survival["head"] < 0.5) != (survival["rule"] < 0.5)).float().mean()
     ),
+    "reward_min": float(roll.reward[inside].min()),
+    "action_rate_min": float(roll.action_rate[inside].min()),
+    "joint_limit_min": float(roll.joint_limit[inside].min()),
+    "action_max": float(roll.action_max[inside].max()),
+    "extreme_share": float(extreme.any(1).float().mean()),
+    "extreme_survival": float(c[extreme].mean()) if extreme.any() else float("nan"),
   }

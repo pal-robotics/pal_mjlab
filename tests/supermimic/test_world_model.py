@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 import torch
 from pal_mjlab.tasks.supermimic.library import MotionLibrary
+from pal_mjlab.tasks.supermimic.mdp.tracking import projected_gravity_z
 from pal_mjlab.tasks.supermimic.rl.replay import RolloutData
 from pal_mjlab.tasks.supermimic.rl.world_model import (
   WorldModel,
@@ -223,3 +224,21 @@ def test_collected_reward_matches_the_analytic_reward():
   t, e = np.nonzero(data["done"][:-1])
   jumps = np.abs(data["qpos"][t + 1, e, :3] - data["next_qpos"][t, e, :3]).max(-1)
   assert (jumps > 1e-3).all()
+
+
+def test_rule_feature_head_sees_the_rules_errors():
+  """A2': with the reference at the robot's own root height and gravity-z, both inputs
+  of the rule-feature head are zero (sign and frame agree with the env's rule)."""
+  g = torch.Generator().manual_seed(0)
+  q = torch.randn(32, 4, generator=g)
+  q = q / q.norm(dim=-1, keepdim=True)
+  qpos = torch.cat(
+    [torch.randn(32, 3, generator=g), q, torch.randn(32, 32, generator=g)], -1
+  )
+  state = heading_state(qpos, torch.randn(32, 38, generator=g))
+  ref_root = torch.stack([qpos[:, 2], projected_gravity_z(q)], dim=-1)
+  wm = WorldModel(WorldModelCfg(termination_inputs="rule", termination_hidden=(8,)))
+  seen = []
+  wm.termination.register_forward_hook(lambda m, inp, out: seen.append(inp[0]))
+  wm.termination_logit(state, ref_root)
+  torch.testing.assert_close(seen[0], torch.zeros(32, 2), atol=1e-5, rtol=0)

@@ -22,7 +22,9 @@ from pal_mjlab.tasks.supermimic.rl.supermimic import (
   WorldModelUpdateCfg,
   imagine,
   lambda_returns,
+  make_step,
 )
+from pal_mjlab.tasks.supermimic.rl.world_model import window_loss
 
 LIBRARY = Path(__file__).parent / "fixtures" / "library_tiny"
 NUM_ENVS = 8
@@ -40,7 +42,7 @@ def _tiny_cfg(**runner):
     critic=CriticUpdateCfg(hidden_dims=(16,)),
   )
   settings = dict(
-    compile_kinematics=False, warmup_steps=12, replay_steps=60, log_interval=1,
+    compile=False, warmup_steps=12, replay_steps=60, log_interval=1,
     save_interval=3, eval_interval=3, eval_envs=4,
   )  # fmt: skip
   return replace(cfg, **{**settings, **runner})
@@ -158,3 +160,41 @@ def test_objective_gradient_matches_finite_differences(trained):
       p.add_(eps * g / norm)
   fd = (plus - minus) / (2 * eps)
   torch.testing.assert_close(fd, norm, rtol=0.05, atol=1e-4)
+
+
+def test_compiled_updates_match_eager(trained):
+  """The traced imagination step and window loss give the eager rollout, objective,
+  world-model loss and gradients (``aot_eager``: graph capture without codegen)."""
+  alg = trained.alg
+  pc = alg.cfg.policy
+  start = trained.replay.sample_starts(
+    16, trained.heads.history, torch.Generator(device=trained.device).manual_seed(2)
+  )
+  actor = list(alg.actor.parameters())
+  step = make_step(trained.heads, alg.world_model, alg.actor, pc)
+  out = []
+  for fn in (step, torch.compile(step, backend="aot_eager", dynamic=False)):
+    g = torch.Generator(device=trained.device).manual_seed(3)
+    roll = imagine(
+      trained.heads, alg.world_model, alg.actor, alg.critic, start, pc, g, fn
+    )
+    out.append((roll, torch.autograd.grad(roll.objective.sum(), actor)))
+  (eager, eager_grads), (traced, traced_grads) = out
+  for name in ("objective", "reward", "cont", "head_prob", "critic_input"):
+    torch.testing.assert_close(getattr(traced, name), getattr(eager, name))
+  for a, b in zip(eager_grads, traced_grads, strict=True):
+    torch.testing.assert_close(b, a)
+
+  w = trained.replay.sample_windows(
+    16, 4, torch.Generator(device=trained.device).manual_seed(4)
+  )
+  ref_root = trained.heads.ref_root(w["frame"].flatten()).unflatten(0, w["frame"].shape)
+  args = (w["states"], w["poses"], w["actions"], w["context"], ref_root, w["failure"])
+  wm = list(alg.world_model.parameters())
+  losses = []
+  for fn in (window_loss, torch.compile(window_loss, backend="aot_eager")):
+    loss, _ = fn(alg.world_model, *args)
+    losses.append((loss, torch.autograd.grad(loss, wm)))
+  torch.testing.assert_close(losses[1][0], losses[0][0])
+  for a, b in zip(losses[0][1], losses[1][1], strict=True):
+    torch.testing.assert_close(b, a)
