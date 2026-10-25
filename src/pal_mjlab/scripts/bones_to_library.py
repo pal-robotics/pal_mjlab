@@ -2,7 +2,8 @@
 
 Input: the GMR pickles of ``kangaroo_bones_seed`` (``root_pos`` (T, 3), ``root_rot`` (T, 4)
 xyzw, ``dof_pos`` (T, 32) in the ``kangaroo_grippers`` qpos order, 50 Hz) and its
-``manifest.parquet`` (``final_kept`` selects the clips that passed the paper's filters).
+``manifest.parquet`` (``final_kept`` selects the clips that passed the paper's filters and a
+manual review; ``review_excluded`` marks the clips the review removed).
 
 Output folder (all clips concatenated along time):
   qpos.npy   (N, 39) float32  root pos, root quat (wxyz), 32 joints
@@ -19,6 +20,7 @@ Subsets:
   <h>    ~h hours stratified by category, e.g. "10" or "10h"; nested: a smaller subset is
          contained in a larger one (same per-category clip order), and dev = "2.5h"
   full   every ``final_kept`` clip
+Subsets are drawn before the reviewed clips are removed, so a review only takes those clips out.
 
   python -m pal_mjlab.scripts.bones_to_library --subset 10h --data-dir path/to/data
 """
@@ -104,10 +106,26 @@ def clip_qpos_qvel(
 
 
 def load_manifest(data_dir: Path) -> dict[str, list]:
+  """The clips that passed the automatic filters; ``excluded`` marks those removed later by
+  manual review (``final_kept`` false, ``review_excluded`` true in the manifest).
+
+  Subsets are drawn from all of them and the reviewed clips are dropped afterwards
+  (``build_library``), so a review removes clips without reshuffling the others: ``dev``
+  stays the same clips minus the reviewed ones.
+  """
+  path = data_dir / "manifest.parquet"
   cols = ["clip", "category", "move_name", "g1_n_frames", "kangaroo_path", "final_kept"]
-  table = pq.read_table(data_dir / "manifest.parquet", columns=cols).to_pydict()
-  keep = [i for i, k in enumerate(table["final_kept"]) if k]
-  return {c: [table[c][i] for i in keep] for c in cols if c != "final_kept"}
+  reviewed = "review_excluded" in pq.read_schema(path).names
+  table = pq.read_table(path, columns=cols + ["review_excluded"] * reviewed).to_pydict()
+  excluded = table.get("review_excluded") or [False] * len(table["clip"])
+  keep = [
+    i
+    for i, (k, x) in enumerate(zip(table["final_kept"], excluded, strict=True))
+    if k or x
+  ]
+  out = {c: [table[c][i] for i in keep] for c in cols if c != "final_kept"}
+  out["excluded"] = [bool(excluded[i]) for i in keep]
+  return out
 
 
 def subset_name(subset: str) -> str:
@@ -180,8 +198,9 @@ def build_library(
   out = out_dir or data_dir / "libraries" / subset
   final, out = out, out.with_name(f"{out.name}.tmp-{os.getpid()}")
   manifest = load_manifest(data_dir)
-  rows = select_clips(manifest, subset, seed)
-  print(f"[{subset}] {len(rows)} clips selected")
+  selected = select_clips(manifest, subset, seed)
+  rows = [i for i in selected if not manifest["excluded"][i]]
+  print(f"[{subset}] {len(rows)} clips ({len(selected) - len(rows)} removed by review)")
 
   def load(i: int) -> dict:
     with open(data_dir / manifest["kangaroo_path"][i], "rb") as f:

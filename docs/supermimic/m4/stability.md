@@ -97,6 +97,34 @@ so about 38,000 iterations in 12 h after a one-time compile of about 12 min.
   hour.
 - The G1 control (D18): only once the options above are exhausted.
 
+## At 6 h (2026-10-25, training signals only)
+
+All runs compared at iteration 17,670, against the old cluster baseline at the same iteration:
+
+| run | failure spikes after 5k | critic value | gradient >10 | extreme-reward iterations |
+|---|---|---|---|---|
+| old baseline, seed 42 | 15 | −1.2 to 14 | 53 | not logged |
+| B (seed 43) | 0 | 4.9–5.6 | 0 | 4 |
+| A1 (no critic) | 0 | 3.4–6.3 | 0 | 39 |
+| A2′ (rule-feature head) | 0 | 4.8–5.5 | 0 | 6 |
+| A5 (survival-weighted critic) | 0 | 4.8–5.6 | 0 | 0 |
+| A6 (no privileged inputs) | 8 | −2.7 to 21.3 | 95 | 542 |
+
+- **The early critic blow-up separates the runs.** The old baseline, A6 and A1 had one in their
+  first 3,000 iterations: critic value down to −175…−396, loss 10⁶–10⁸. Those runs took off about
+  3,000 iterations late, and the baseline and A6 spiked afterwards. B, A2′ and A5 had none and took
+  off by about iteration 300.
+- **Likely cause:** early on, the 256×256 learned head misses falls, so post-fall penalties enter the
+  objective and the critic unweighted. A2′ and A5 prevent this by design; B avoided it by chance.
+- **The code is not the cause.** One update computed with the old and the new code on identical
+  inputs agrees to 10⁻⁶ in FP32. In TF32, rounding through the 32-step backward pass alone moves the
+  gradient by 3–12%.
+- **The sampler concentrates.** Once a policy is good, about half the starts go to about 1% of the
+  bins. One clip (`jog_butt_kick_R_loop_002`) gets 17–42%. This is not a collapse trigger.
+- **Two clips are infeasible** (D40), and were removed from the dataset.
+- **Decisions (user):** A6 stopped at 6 h 17 min. A2′ + A5 made the default (D39), pending the
+  benchmark of these runs.
+
 ## Results
 
 | id | iterations | best (fails / return) | last | collapses after take-off | spikes / 10k | critic-loss bursts (>10³, logged) | extreme iterations |

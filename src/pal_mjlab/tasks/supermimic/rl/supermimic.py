@@ -40,10 +40,11 @@ class WorldModelUpdateCfg:
   learning_rate: float = 2.0e-4
   max_grad_norm: float = 1.0
   hidden: tuple[int, ...] = (2048, 2048, 2048)
-  termination_hidden: tuple[int, ...] = (256, 256)
-  termination_inputs: Literal["state", "rule"] = "state"
-  """The learned failure head's input: the predicted state (D31), or only the failure
-  rule's two errors (stability ablation A2', with ``termination_hidden=(64, 64)``)."""
+  termination_hidden: tuple[int, ...] = (64, 64)
+  termination_inputs: Literal["state", "rule"] = "rule"
+  """The learned failure head's input: only the failure rule's two errors, root height
+  and gravity-z against the reference (default since D39, stability ablation A2'), or the
+  whole predicted state (D31, with ``termination_hidden=(256, 256)``)."""
 
 
 @dataclass
@@ -78,10 +79,10 @@ class CriticUpdateCfg:
   max_grad_norm: float = 1.0
   epochs: int = 5
   minibatches: int = 4
-  survival_weighted: bool = False
-  """Stability ablation A5: weight each step's error by the survival ĉ_t before it, so
-  imagined steps after a predicted fall barely train the critic. The paper's Eq. 3 is
-  unweighted."""
+  survival_weighted: bool = True
+  """Weight each step's error by the survival ĉ_t before it, so imagined steps after a
+  predicted fall barely train the critic (default since D39, stability ablation A5).
+  False is the paper's unweighted Eq. 3."""
   privileged_inputs: bool = True
   """The root-pose error and time left in the critic's input (D7, D22); False is
   stability ablation A6."""
@@ -128,20 +129,17 @@ def critic_value(critic: MLPModel, x: torch.Tensor) -> torch.Tensor:
   return critic.mlp(critic.obs_normalizer(x)).squeeze(-1)
 
 
-def make_step(
-  heads: AnalyticHeads,
-  world_model: WorldModel,
-  actor: EncoderDecoderModel,
-  cfg: PolicyUpdateCfg,
-):
+def make_step(heads: AnalyticHeads, cfg: PolicyUpdateCfg):
   """One imagined step from ŝ_t, as a function of tensors only (so it can be compiled).
 
   The policy acts on the goal and its observation history; the world model predicts
   ŝ_{t+1}; the analytic heads give the reward terms, both failure probabilities and the
-  next observation, to which the sensor noise η (sampled outside) is added.
+  next observation, to which the sensor noise η (sampled outside) is added. The world
+  model and the actor are arguments, so swapping either (e.g. a pretrained world model)
+  takes effect.
   """
 
-  def step(s, p, prev_action, history, ctx, clip, frame, noise):
+  def step(world_model, actor, s, p, prev_action, history, ctx, clip, frame, noise):
     root_quat = state_to_qpos_qvel(s, p)[0][:, 3:7]
     goal = heads.goal(root_quat, clip, frame)
     x = heads.critic_input(s, p, goal, ctx, clip, frame)
@@ -179,7 +177,7 @@ def imagine(
   reference, and the previous rows whose observations fill the policy's history.
   ``step`` is ``make_step``'s function, possibly compiled; by default an eager one.
   """
-  step = step or make_step(heads, world_model, actor, cfg)
+  step = step or make_step(heads, cfg)
   b, gamma = start["state"].shape[0], cfg.gamma
   ctx, clip, frame = start["context"], start["clip"], start["frame"]
 
@@ -211,7 +209,7 @@ def imagine(
   for t in range(cfg.horizon):
     noise = heads.sample_noise(b, generator) if cfg.sensor_noise else {}
     x, action, s_next, p_next, terms, head, rule, history = step(
-      s, p, prev_action, history, ctx, clip, frame, noise
+      world_model, actor, s, p, prev_action, history, ctx, clip, frame, noise
     )
     reward = sum(terms.values())
     done_prob = head if cfg.termination == "learned" else rule
@@ -327,7 +325,7 @@ class SuperMimic:
     )
     # The imagination step and the world model's window loss are long chains of small
     # ops: compiled, each runs as a few fused kernels instead of thousands of launches.
-    self._step = make_step(heads, self.world_model, self.actor, pc)
+    self._step = make_step(heads, pc)
     self._window_loss = window_loss
     if compile:
       self._step = torch.compile(self._step, dynamic=False)

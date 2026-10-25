@@ -6,6 +6,7 @@ import pytest
 from pal_mjlab.scripts.bones_to_library import (
   FPS,
   clip_qpos_qvel,
+  load_manifest,
   select_clips,
   subset_name,
 )
@@ -93,3 +94,31 @@ def test_library_paths_resolve(tmp_path, monkeypatch):
   assert resolve_library("data/libraries/4h", "elsewhere", "dev") == packed
   with pytest.raises(ValueError):
     resolve_library("", "", "dev")
+
+
+def test_reviewed_clips_leave_subsets_without_reshuffling(tmp_path):
+  """A clip removed by review stays in the selection pool (flagged), so subsets keep the
+  same other clips; manifests without the review column still load."""
+  import pyarrow as pa
+  import pyarrow.parquet as pq
+
+  n = 6
+  table = {
+    "clip": [f"c{i}" for i in range(n)],
+    "category": ["a"] * n,
+    "move_name": ["walk"] * n,
+    "g1_n_frames": [100] * n,
+    "kangaroo_path": [f"motions/c{i}.pkl" for i in range(n)],
+    "final_kept": [True, True, False, True, False, True],
+  }
+  pq.write_table(pa.table(table), tmp_path / "manifest.parquet")
+  old = load_manifest(tmp_path)
+  assert old["clip"] == ["c0", "c1", "c3", "c5"] and not any(old["excluded"])
+  # c4 failed the automatic filters; c3 passed them and was removed by review.
+  table["final_kept"][3] = False
+  table["review_excluded"] = [False, False, False, True, False, False]
+  pq.write_table(pa.table(table), tmp_path / "manifest.parquet")
+  new = load_manifest(tmp_path)
+  assert new["clip"] == old["clip"]
+  assert new["excluded"] == [False, False, True, False]
+  assert select_clips(new, "full") == select_clips(old, "full")

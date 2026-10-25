@@ -378,3 +378,37 @@ at every step (user, 2026-10-23).**
   we adopt.
 - A diagnostic, `scripts/supermimic/reward_extremes.py`, splits imagined rewards and the critic's error
   at the predicted fall. Every run now logs the imagined reward's extremes.
+
+**D39. Default: the failure head on the rule's features and a survival-weighted critic loss (user,
+2026-10-25; stability ablations A2' and A5).**
+- **Why:**
+  - Early in training the 256×256 head on the full state ranks failures worse than chance, so imagined
+    falls keep their survival weight.
+  - After a fall the world model extrapolates, the joint-limit penalty explodes, and the post-fall steps
+    flood the policy objective and the critic.
+  - The runs where this happened (old baseline, A6, A1) had a critic blow-up in their first 3,000
+    iterations and took off about 3,000 iterations later. They are the runs that spiked afterwards.
+  - The 64×64 head on the rule's two errors learns failure almost at once (A2'). Weighting the critic's
+    loss by ĉ_t keeps post-fall steps out of its fit (A5).
+  - Each prevented the blow-up in its 12 h run, and both stayed stable through 6 h.
+- **How:** `WorldModelUpdateCfg.termination_inputs = "rule"` with `termination_hidden = (64, 64)`, and
+  `CriticUpdateCfg.survival_weighted = True`.
+- **Paper variants:**
+  - `--agent.algorithm.world-model.termination-inputs state --agent.algorithm.world-model.termination-hidden 256,256`
+  - `--agent.algorithm.critic.survival-weighted False`
+- **Deviations:** A5 deviates from the paper's unweighted Eq. 3. A2' keeps a learned head (the paper does
+  not state its input).
+- **Temporary:** confirmed or revisited once the stability runs are benchmarked.
+
+**D40. Dataset review: two infeasible clips removed (user, 2026-10-25).**
+- **Which:**
+  - `230119/crouch_ff_stop_270_002__A125_M`: reference about 23 cm below the ground for the whole clip.
+  - `221115/walk_ff_loop_315_006__A061`: 6.4 cm below the ground in its first second.
+- **Why:** every good SuperMimic and PPO-Sim policy failed them. The other persistently failing clips
+  are hard (jumps, a dance), not infeasible.
+- **How:** `kangaroo_bones_seed/pipeline/review_excluded.json`, applied in `build_manifest.py`
+  (`final_kept` false, `review_excluded` and `review_note` set).
+  - `bones_to_library` draws subsets before removing reviewed clips, so `dev` is the same clips minus
+    these two (1,294), and `full` has 124,077.
+  - The earlier `dev` is kept as `dataset/libraries_archive/dev_1296`. Benchmarks comparable with
+    M1–M4 and the stability runs use it: `eval.py --library .../libraries_archive/dev_1296`.

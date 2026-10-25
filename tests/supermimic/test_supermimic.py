@@ -171,7 +171,7 @@ def test_compiled_updates_match_eager(trained):
     16, trained.heads.history, torch.Generator(device=trained.device).manual_seed(2)
   )
   actor = list(alg.actor.parameters())
-  step = make_step(trained.heads, alg.world_model, alg.actor, pc)
+  step = make_step(trained.heads, pc)
   out = []
   for fn in (step, torch.compile(step, backend="aot_eager", dynamic=False)):
     g = torch.Generator(device=trained.device).manual_seed(3)
@@ -198,3 +198,31 @@ def test_compiled_updates_match_eager(trained):
   torch.testing.assert_close(losses[1][0], losses[0][0])
   for a, b in zip(losses[0][1], losses[1][1], strict=True):
     torch.testing.assert_close(b, a)
+
+
+def test_imagine_uses_the_current_world_model(trained):
+  """Swapping in another world model (as m3_check does with an M2 model) takes effect
+  in ``SuperMimic.imagine``: the step gets the modules at call time."""
+  import copy
+
+  alg = trained.alg
+  start = trained.replay.sample_starts(
+    8, trained.heads.history, torch.Generator(device=trained.device).manual_seed(5)
+  )
+  original = alg.world_model
+  try:
+    alg.world_model = copy.deepcopy(original)
+    with torch.no_grad():
+      for p in alg.world_model.dynamics.parameters():
+        p.add_(0.05 * torch.randn_like(p))
+    g = lambda: torch.Generator(device=trained.device).manual_seed(6)  # noqa: E731
+    pc = alg.cfg.policy
+    via_alg = alg.imagine(start, g())
+    direct = imagine(
+      trained.heads, alg.world_model, alg.actor, alg.critic, start, pc, g()
+    )
+    old = imagine(trained.heads, original, alg.actor, alg.critic, start, pc, g())
+    torch.testing.assert_close(via_alg.reward, direct.reward)
+    assert not torch.allclose(via_alg.reward, old.reward)
+  finally:
+    alg.world_model = original
