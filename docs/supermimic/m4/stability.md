@@ -66,6 +66,20 @@ model's predicted state and the action (D5). The critic fits λ-returns of those
 
 ## The runs
 
+Submitted 2026-10-25 from commit `5eb28ab`. Run folders are `lazyhpc/runs/20261025-153632_<job>_5eb28ab`;
+logs are `logs/rsl_rl/supermimic_stability/<time>_<run name>`. Compiled speed on the A100 (smoke test):
+1.12 s per iteration (policy 0.77, world model 0.19, collect 0.17; 19.6 GB), against 1.78 s uncompiled,
+so about 38,000 iterations in 12 h after a one-time compile of about 12 min.
+
+| id | job | run name |
+|---|---|---|
+| B | SMB 62261527 | `B-seed43` |
+| A1 | SMA1 62261535 | `A1-nocritic` |
+| A2′ | SMA2r 62261536 | `A2r-rulehead` |
+| A5 | SMA5 62261537 | `A5-survival` |
+| A6 | SMA6 62261538 | `A6-noprivileged` |
+
+
 | id | change | flag | what it tests |
 |---|---|---|---|
 | B | none, seed 43 | `--agent.seed 43` | run-to-run noise; the compiled code end to end |

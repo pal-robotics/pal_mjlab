@@ -361,6 +361,10 @@ at every step (user, 2026-10-23).**
     too.
   - A test checks that the traced step and loss (`aot_eager`) give the eager rollout, objective, loss
     and gradients.
+- **Measured on a Leonardo A100 (TF32, smoke test):** 1.12 s per iteration against 1.78 s uncompiled
+  (policy 1.37 → 0.77 s, world model 0.25 → 0.19 s); one-time compile of about 12 min (7 graphs). It is
+  1.6×, short of the reproduction's 4.5×: the backward pass, the critic fit and the eager parts of the
+  loop remain. More speed work is open (CUDA graphs, compiling the critic fit).
 - **Also removed** the unused "fp32" precision: only the paper's TF32 and local bf16 remain (user: no
   fp32 option).
 - **Known limit:** locally, the compiled update's memory cache leaves too little for MuJoCo Warp
