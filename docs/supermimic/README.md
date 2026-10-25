@@ -10,7 +10,9 @@ SuperMimic (arXiv 2610.28480) on PAL Kangaroo with 7-DoF arms, trained on the BO
 - `m1/`: gain A/B (`gain_ab.md`), PPO-Sim baseline (`ppo_sim_baseline.md`), action-scale note
 - `m2/`: offline world model: `world_model.md` (short), `report.pdf` (full write-up), `make_figures.py`
 - `m3/`: imagination and policy-update checks: `imagination.md` (short), `report.pdf`, `make_figures.py`
-- `m4/`: the online loop on `dev` vs PPO-Sim: `online_loop.md` (short), `report.pdf`, `make_figures.py`
+- `m4/`: the online loop on `dev` vs PPO-Sim: `online_loop.md` (short), `report.pdf`, `make_figures.py`;
+  the 24 h cluster runs with the paper's settings and the M5 options: `cluster_runs.md`,
+  `cluster_report.pdf`, `make_cluster_figures.py`
 
 ## Environment
 

@@ -354,6 +354,23 @@ return, mix failures and sampled starts. Judge runs on the whole-clip benchmark.
 
   The SuperMimic policy update is about 1.3 s on TF32, for about 1.8 s per iteration.
 
+**24 h dev runs with the paper's settings** (`m4/cluster_runs.md`, `m4/cluster_report.pdf`):
+- **SuperMimic's iteration is bound by the BPTT update, not the simulator.** 1.78 s on the A100 (policy
+  1.37, WM 0.25, collect 0.16) vs 1.56 s locally with bf16. PPO-Sim gains 2.2× from the A100, SuperMimic
+  nothing. Per GPU we are 8× slower than the paper; about 3× is the H100.
+- **TF32 and replay 1000 don't stop the oscillation.** Over iterations 5,000–27,000 the cluster run has
+  20 failure spikes, the local one 11. The critic's value rose first in 13 of 24 (cluster) and 7 of 11 (local).
+  The spikes thin out later (14, 6, 2, 2 per ~11k iterations), but the benchmark still shows collapses
+  at 18,000 (1287 fails), 25,000, 29,000 and 44,000.
+- **A late failure mode:** after 27,000 a few imagined rollouts get enormous penalties (batch-mean
+  imagined reward down to −18,700 per step) and the critic loss reaches 10^14. Only the action-rate and
+  joint-limit terms are unbounded. The local run never got that far.
+- **The best checkpoints keep improving with time:** 0.83–0.87 tracking return and 2–5 failures from
+  about 13 h on (best 0.872, 2 fails, at 22.3 h).
+- **PPO-Sim plateaus on `dev`:** 0.745 at 6.2 h, 0.770 (15 fails) at 24 h, arms about 10.7 cm. SuperMimic
+  passes its 24 h result at 9.3 h. 25 of its 31 later checkpoints have a higher return, and it uses 15×
+  fewer sim steps.
+
 ## Repo state found on MAC/WBC (not caused by us)
 
 - `tests/test_kangaroo_velocity_task_launch.py`: all 12 velocity tasks fail at env construction on GPU.

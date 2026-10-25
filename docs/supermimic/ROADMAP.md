@@ -97,7 +97,7 @@ with a gate: if it fails, we stop and rethink before building on top.
 - **Smoke run of the M4 task:** 1.57 s per iteration, 11.3 GB with bf16 and replay 500. The paper
   settings don't fit the local 16 GB GPU.
 
-## M4: Online SuperMimic loop on `dev` (local run done 2026-10-24, `m4/online_loop.md`, `m4/report.pdf`)
+## M4: Online SuperMimic loop on `dev` (local 2026-10-24, cluster 2026-10-25; `m4/online_loop.md`, `m4/cluster_runs.md`)
 
 - **Run:** Alg. A.1 from scratch, 12 h local GPU like PPO-Sim. The only deviations are bf16 and replay
   500 (D16). 27,510 iterations; `logs/rsl_rl/supermimic_wm_1hz/*_dev-local`.
@@ -113,23 +113,46 @@ with a gate: if it fails, we stop and rethink before building on top.
   the sim, and the head reaches AUC 0.999 once refit online.
 - **Gate:** met at the peaks (about 2× faster than PPO-Sim); not met for stability. The critic ablation
   is still open.
-- **Next:**
-  1. The paper's exact settings on the cluster (`dev`, TF32, replay 1000), to test our two memory-forced
-     deviations. Running on Leonardo since 2026-10-24: one A100 for 24 h each, with PPO-Sim on the same
-     setup so both are compared at matched hours (`*_dev-paper`, `*_dev-cluster`). CUDA graphs come from
-     the forward-compatibility driver (LEARNINGS, Cluster).
-  2. If it still oscillates, investigate the critic loop one change at a time: policy learning rate,
-     privileged critic inputs (D7), critic normalization (D34).
-  3. Select checkpoints by benchmark (D36).
-  4. Then the critic ablation, H = 16 if needed, and `full`.
+- **Cluster runs, done 2026-10-25** (`m4/cluster_runs.md`, `m4/cluster_report.pdf`). The paper's
+  exact settings (TF32, replay 1000) for 24 h on one Leonardo A100, next to PPO-Sim on the same setup:
+  - PPO-Sim plateaus at 0.770 and 15 failures.
+  - SuperMimic passes it at 9.3 h; best checkpoint at 22.3 h: 2 failures, 0.872, arm error 41% lower.
+  - The oscillation remains (collapses at 8.8, 12.2, 14.1 and 21.4 h), so bf16 and replay 500 were not
+    the cause.
+  - A late failure mode: extreme imagined rewards blow up the critic loss.
+  - Gate: met at equal hours and at the best checkpoint; stability not met; critic ablation open.
+- **Next:** the M5 options below.
 
-## M5: Scale
+## M5: Speed, stability, scale (options, user decides; `m4/cluster_report.pdf` §5)
 
-- Local dataset sweep: 1, 10, 40 h, to see the compute-to-target trend (paper Fig. 3b/c).
-- Paper config on one Lambda H100 80 GB with the full 250.9 h (`--subset full`, 13.9 GB). Budget about
-  10 h, roughly $30.
-- Benchmark all 124,079 clips.
-- **Gate:** failure counts by category, and the compute-to-target curve.
+Nothing is started. Costs are local GPU time (free) or Leonardo A100 hours: 1 A100-h ≈ 8 local budget
+hours, about 4,560 left (≈ 570 A100-h). In the suggested order:
+1. **Speed.** Profile one iteration, then compile the whole imagination step and the world-model loss
+   step (today only the FK). Tests how much of our 8× per-GPU gap to the paper is ours; the reproduction
+   measured 4.5× from compiling. Every later option gets cheaper by that factor. Cost: code plus about
+   2 h of local benchmarks.
+2. **Stability, one change at a time,** one 12 h local run each (bf16 and replay 500 are not the cause),
+   judged on the benchmark (collapse share, failure spikes, best and last):
+   - (a) a calmer sampler: rate 0.05, unvisited bins easy;
+   - (b) a small failure head on the rule's own features;
+   - (c) the clean previous action in obs, noise only when executing (D9);
+   - (d) policy learning rate or −J/H; critic without privileged inputs (D7); frozen critic
+     normalization (D34);
+   - (e) first log which reward term makes the rare extreme imagined rewards of the late cluster run.
+   (a)–(c) are what the reproduction (CuboiLeo/SuperMimic-Reproduced) does differently.
+3. **G1 control (D18):** our code on mjlab's G1 with BONES-SEED G1 clips (`dev`-sized), with the
+   reproduction's curves as reference. Separates Kangaroo from implementation. Cost: G1 task, one local
+   run.
+4. **Critic ablation and push test** (paper Fig. 4b, §4.3), still open from M4. One local run.
+5. **Multi-GPU:** explicit gradient all-reduce, lr × √N (as the reproduction). Needed for the paper's
+   2-GPU result. Cost: code, about 2 A100-h to test.
+6. **`full` (250.9 h) on the cluster,** SuperMimic and PPO-Sim: 24 A100-h per run (≈ 190 local h). Not
+   expected to cure the oscillation; the paper is stable on LAFAN1's 40 clips too.
+7. **The paper's two results** (3 h on 1 H100; 9.8 h on 2 H100, zero failures, on G1): 10–50 and
+   60–160 A100-h at today's 2,060 it/h, a third to a quarter of that after (1). The ranges reflect D10 and
+   the paper's unreported single-GPU speed.
+8. **Data sweep** (1, 10, 40 h; paper Fig. 3b/c): local runs, or 24 A100-h each.
+- **Gate:** failure counts by category on the full benchmark, and the compute-to-target curve.
 
 ## Later
 

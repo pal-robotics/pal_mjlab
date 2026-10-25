@@ -343,4 +343,8 @@ at every step (user, 2026-10-23).**
   - Benchmark every checkpoint with `eval.py` (1296 `dev` clips, about 2 min each).
   - Report the best one together with the share of late checkpoints in a collapse.
   - Compare runs at equal training hours, never at equal iterations.
-- **Revisit when** training is stable (next: the paper's exact settings on the cluster).
+- **Revisit when** training is stable. The paper's exact settings did not stabilize it (cluster run,
+  2026-10-25: collapses up to 1287 failures at 8.8 h; the last checkpoint is good, but it comes 1 h after
+  a dip). D36 stays.
+- **Cluster runs:** the checkpoints are copied to helium and benchmarked on the local GPU, with the same
+  protocol and no cluster budget (`m4/cluster_runs.md`).
