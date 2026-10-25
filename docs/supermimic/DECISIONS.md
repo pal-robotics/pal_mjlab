@@ -412,3 +412,21 @@ at every step (user, 2026-10-23).**
     these two (1,294), and `full` has 124,077.
   - The earlier `dev` is kept as `dataset/libraries_archive/dev_1296`. Benchmarks comparable with
     M1–M4 and the stability runs use it: `eval.py --library .../libraries_archive/dev_1296`.
+
+**D41. CUDA graphs on the compiled imagination step and window loss (2026-10-25).**
+- **Why:** after D37 the update was still launch-bound. A local profile showed CPU time equal to wall
+  time, with each compiled step launching hundreds of small kernels (the kinematics chain).
+- **How:** `torch.compile(mode="reduce-overhead")` on the step and the window loss. Each call replays a
+  recorded CUDA graph. Same flag (`--agent.compile`).
+- **Measured on a Leonardo A100** (TF32, 4096 envs, one debug job per variant;
+  `scripts/supermimic/bench_update.py`):
+
+  | variant | policy update | world-model update | vs eager (objective / gradient) |
+  |---|---|---|---|
+  | compiled (D37) | 0.94 s | 0.21 s | 5e-7 / 7e-5 |
+  | + fused Adam | 1.11 s | 0.19 s | 6e-7 / 7e-5 |
+  | + CUDA graphs | **0.34 s** | **0.15 s** | 5e-7 / 1.4e-4 |
+  | + both | 0.33 s | 0.15 s | 6e-7 / 8e-5 |
+
+  So about 0.65 s per iteration instead of about 1.1 s, with collection unchanged (~0.17 s). Fused Adam
+  adds nothing and is not used.
