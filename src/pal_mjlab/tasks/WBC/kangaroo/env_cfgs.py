@@ -265,7 +265,7 @@ def pal_kangaroo_flat_wbc_env_cfg(
     motion_cmd.velocity_range = {}
 
     motion_cmd.sampling_mode = "start"
-    motion_cmd.rel_fixed_command = 0.5
+    motion_cmd.rel_fixed_command = 0.1
 
   return cfg
 
