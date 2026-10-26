@@ -328,11 +328,10 @@ class SuperMimic:
     self._step = make_step(heads, pc)
     self._window_loss = window_loss
     if compile:
-      # CUDA graphs ("reduce-overhead"): each call replays one recorded graph instead of
-      # launching its kernels one by one (D41).
-      mode = "reduce-overhead"
-      self._step = torch.compile(self._step, mode=mode, dynamic=False)
-      self._window_loss = torch.compile(window_loss, mode=mode, dynamic=False)
+      # Default mode. CUDA graphs ("reduce-overhead") are 2.8x faster in isolation but hung
+      # in the training loop (D41).
+      self._step = torch.compile(self._step, dynamic=False)
+      self._window_loss = torch.compile(window_loss, dynamic=False)
 
   def imagine(
     self, start: dict[str, torch.Tensor], generator: torch.Generator | None = None

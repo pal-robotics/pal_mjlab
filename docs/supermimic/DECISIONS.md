@@ -413,7 +413,8 @@ at every step (user, 2026-10-23).**
   - The earlier `dev` is kept as `dataset/libraries_archive/dev_1296`. Benchmarks comparable with
     M1–M4 and the stability runs use it: `eval.py --library .../libraries_archive/dev_1296`.
 
-**D41. CUDA graphs on the compiled imagination step and window loss (2026-10-25).**
+**D41. CUDA graphs on the compiled imagination step and window loss: measured, not adopted
+(2026-10-25/26).**
 - **Why:** after D37 the update was still launch-bound. A local profile showed CPU time equal to wall
   time, with each compiled step launching hundreds of small kernels (the kinematics chain).
 - **How:** `torch.compile(mode="reduce-overhead")` on the step and the window loss. Each call replays a
@@ -428,5 +429,13 @@ at every step (user, 2026-10-23).**
   | + CUDA graphs | **0.34 s** | **0.15 s** | 5e-7 / 1.4e-4 |
   | + both | 0.33 s | 0.15 s | 6e-7 / 8e-5 |
 
-  So about 0.65 s per iteration instead of about 1.1 s, with collection unchanged (~0.17 s). Fused Adam
-  adds nothing and is not used.
+  So about 0.65 s per iteration instead of about 1.1 s would be possible. Fused Adam adds nothing and is
+  not used.
+- **But in the training loop it hung.** The 24 h full and dev runs with it (commit 8f68e36) logged no
+  iteration in 2 h: the process sat at 100% CPU with the GPU idle and 28 GB allocated. PyTorch warned
+  "Unable to hit fast path of CUDAGraphs because of pending, uninvoked backwards". The benchmark runs
+  only the updates, without the collection, evaluation and logging around them, and did not show this.
+  The runs were cancelled and resubmitted with the default compile mode (D37).
+- **To make it work later:** reproduce in the full `learn` loop on a short debug job. Likely candidates:
+  `torch.compiler.cudagraph_mark_step_begin()` at each iteration, and graphs pending across the
+  world-model and policy updates. Verify with `bench_update.py` and a few hundred training iterations.
