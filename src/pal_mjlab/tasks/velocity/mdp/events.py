@@ -20,7 +20,7 @@ def reset_root_state_terrain_yaw(
   """Like ``reset_root_state_uniform``, but with a terrain-dependent yaw.
 
   Envs on the sub-terrains named in ``terrain_yaw`` (curriculum generator only)
-  spawn facing one of the given base yaws (picked uniformly) +- ``yaw_noise``,
+  spawn facing one of the given base yaws (picked uniformly) +/- ``yaw_noise``,
   e.g. facing a straight staircase. Every other env uses ``pose_range`` as is.
   """
   env_ids = resolve_env_ids(env, env_ids)
