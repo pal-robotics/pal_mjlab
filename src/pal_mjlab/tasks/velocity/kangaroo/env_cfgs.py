@@ -652,7 +652,7 @@ def pal_kangaroo_stairs_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCf
 
   # Higher swing apex so 20 cm risers aren't penalized
   # (foot_clearance intentionally untouched: increasing it goes unstable)
-  cfg.rewards["foot_swing_height"].params["target_height"] = 0.15
+  cfg.rewards["foot_swing_height"].params["target_height"] = 0.25
 
   # Mild penalty for tibia-terrain contact (no longer a termination).
   # With force history the cost is the number of substeps (0..decimation) with a
