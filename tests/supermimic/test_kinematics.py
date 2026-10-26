@@ -1,4 +1,5 @@
-"""Torch FK parity with MuJoCo, and the Kangaroo arm-axis fix on real BONES clips."""
+"""Torch FK parity with MuJoCo, and the Kangaroo arm-axis fix on real BONES clips; for both
+Kangaroo variants (7-DoF arms with grippers, 5-DoF arms with hands)."""
 
 from pathlib import Path
 
@@ -6,18 +7,30 @@ import mujoco
 import numpy as np
 import pytest
 import torch
-from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import get_kangaroo_grippers_spec
+from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
+  get_kangaroo_grippers_spec,
+  get_kangaroo_hands_spec,
+)
 from pal_mjlab.tasks.supermimic.kinematics import (
   TorchKinematics,
   compile_kinematic_model,
 )
 
-FIXTURE = Path(__file__).parent / "fixtures" / "bones_3clips.npz"
+FIXTURES = Path(__file__).parent / "fixtures"
+VARIANTS = {  # model, a hand body, real clips (fixtures/make_fixtures.py)
+  "grippers": (get_kangaroo_grippers_spec, "arm_left_7_link", "bones_3clips.npz"),
+  "hands": (get_kangaroo_hands_spec, "hand_left_center_link", "bones_3clips_hands.npz"),
+}
+
+
+@pytest.fixture(scope="module", params=list(VARIANTS))
+def variant(request) -> str:
+  return request.param
 
 
 @pytest.fixture(scope="module")
-def model() -> mujoco.MjModel:
-  return compile_kinematic_model(get_kangaroo_grippers_spec())
+def model(variant) -> mujoco.MjModel:
+  return compile_kinematic_model(VARIANTS[variant][0]())
 
 
 def _names(model, obj, count):
@@ -73,9 +86,9 @@ def test_fk_matches_mujoco(model):
       )
 
 
-def test_fk_is_differentiable(model):
+def test_fk_is_differentiable(model, variant):
   fk = TorchKinematics(
-    model, ("arm_left_7_link", "leg_right_5_link"), ("imu",), dtype=torch.float64
+    model, (VARIANTS[variant][1], "leg_right_5_link"), ("imu",), dtype=torch.float64
   )
   qpos, qvel = _random_states(model, 2, seed=1)
   qpos_t = torch.from_numpy(qpos).requires_grad_()
@@ -88,14 +101,16 @@ def test_fk_is_differentiable(model):
   assert torch.autograd.gradcheck(f, (qpos_t, qvel_t))
 
 
-def test_bones_clips_match_gmr_model(model):
-  """Real fixture: BONES retargets are defined in GMR's kangaroo_7dof model.
+def test_bones_clips_match_gmr_model(model, variant):
+  """Real fixture: BONES retargets are defined in GMR's model of the variant (kangaroo_7dof,
+  kangaroo_hands of GMR branch bones-seed-kangaroo-5dof).
 
   With arm_*_5/7 at axis +z (as in GMR and the robot URDF) the clips load unchanged:
   every shared body lands where GMR put it and every frame is inside the hard ranges.
   With the old -z axis the arm bodies are off by up to ~0.18 m and arm_5 leaves its range.
+  With hands the shared bodies include the hand and its centre (the tracked hand frame).
   """
-  fx = np.load(FIXTURE)
+  fx = np.load(FIXTURES / VARIANTS[variant][2])
   joint_names = _names(model, mujoco.mjtObj.mjOBJ_JOINT, model.njnt)[1:]
   assert list(fx["joint_names"]) == joint_names
   qpos = np.concatenate(
@@ -116,10 +131,10 @@ def test_bones_clips_match_gmr_model(model):
   assert np.all((q >= lo[actuated] - 1e-6) & (q <= hi[actuated] + 1e-6))
 
 
-def test_compiled_fk_matches_eager(model):
+def test_compiled_fk_matches_eager(model, variant):
   """Regression: torch.compile once skipped the free joint (int vs mujoco enum compare)."""
   fk = TorchKinematics(
-    model, ("base_link", "arm_left_7_link", "leg_right_5_link"), ("imu",)
+    model, ("base_link", VARIANTS[variant][1], "leg_right_5_link"), ("imu",)
   )
   compiled = torch.compile(fk.forward)
   for seed in range(3):
