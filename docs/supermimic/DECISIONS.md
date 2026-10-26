@@ -524,3 +524,21 @@ at every step (user, 2026-10-23).**
 - **Run:** `full` resumed from `model_44000` for 24 h more (`SMfull2`, `../m5/runs.md`); the NaN
   checkpoints are in the run's `nan_quarantine/`.
 - **Revisit:** if overflow warnings or a NaN come back, add the guard and find the non-finite source.
+
+**D45. One interface for motions: the motion library, `--library` to train and to play; no reset on
+failure in play (user, 2026-10-26).**
+- **Why:** the user asked for consistent formats and clear interfaces: whatever the motion browser
+  downloads must work for training and for playing, with an optional clip.
+- **The format** is the motion library already used for training (D11): `clips.json`, `qpos.npy`,
+  `qvel.npy`. The motion browser now offers only libraries (smoke, dev, full, the list's motions, one
+  motion), cut from `libraries/full`.
+- **Train:** `scripts/supermimic/train.py <task> --library <folder>` (sets
+  `env.commands.motion.library_path`). The `dataset`/`subset` fields stay for packing and for the cluster
+  job scripts, but the docs show `--library` only.
+- **Play:** `scripts/supermimic/play.py <task> --checkpoint-file <model> --library <folder> [--clips ...]`,
+  nothing else (D43's version took all of mjlab's play flags). Without `--clips` the library's motions play
+  in random order, one after another; with it, only those.
+- **No reset on failure in play:** `anchor_failure_held` ends an episode only after the failure has
+  lasted 3 s, so a fall plays out in physics instead of the robot reappearing on the reference. Training and
+  the benchmark keep `anchor_failure` (paper F.1).
+- **Branches:** `omm/supermimic-5dof` was merged into `omm/supermimic` (one branch).
