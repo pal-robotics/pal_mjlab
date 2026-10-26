@@ -122,23 +122,27 @@ All runs compared at iteration 17,670, against the old cluster baseline at the s
 - **The sampler concentrates.** Once a policy is good, about half the starts go to about 1% of the
   bins. One clip (`jog_butt_kick_R_loop_002`) gets 17–42%. This is not a collapse trigger.
 - **Two clips are infeasible** (D40), and were removed from the dataset.
-- **Decisions (user):** A6 stopped at 6 h 17 min. A2′ + A5 made the default (D39), pending the
-  benchmark of these runs.
+- **Decisions (user):** A6 stopped at 6 h 17 min. A2′ + A5 made the default (D39); the benchmark of
+  every checkpoint below confirms it.
 
 ## Results (2026-10-26; full write-up: [stability_report.pdf](stability_report.pdf))
 
 The benchmark uses the 1,296-clip `dev` (`libraries_archive/dev_1296`), every clip once from its first
-frame. Checkpoints are every 2000 iterations; the odd thousands are still being added. All runs are cut
-at iteration 35,520 (A6: 20,530). Figures and tables come from `make_stability_figures.py`.
+frame. Every checkpoint is benchmarked (every 1000 iterations, 169 in total). All runs are cut at
+iteration 35,520 (A6: 20,530). Figures and tables come from `make_stability_figures.py`.
 
 | run | early min V | take-off (≥ 0.742) | best (fails / return) | last | collapses after take-off | spikes / 10k | critic-loss bursts |
 |---|---|---|---|---|---|---|---|
 | old baseline, seed 42 | −277 | 17,000 | 2 / 0.861 | 17 / 0.767 | 3 of 19 | 7.2 | 15 |
-| B, seed 43 | 0.3 | 4,000 | 4 / 0.892 | 5 / 0.885 | 0 of 16 | 0 | 0 |
-| A1, no critic | −175 | 4,000 | 16 / 0.878 | 23 / 0.871 | 0 of 16 | 0 | 0 |
-| A2′, rule-feature head | −0.4 | 2,000 | 2 / 0.894 | 2 / 0.894 | 0 of 17 | 0 | 0 |
-| A5, survival-weighted critic | 0.3 | 4,000 | 2 / 0.892 | 3 / 0.891 | 0 of 16 | 0 | 0 |
-| A6, no privileged inputs (stopped at 6 h) | −396 | not reached | 7 / 0.711 | 7 / 0.711 | – | 5.8 | 1 |
+| B, seed 43 | 0.3 | 3,000 | 4 / 0.892 | 2 / 0.891 | 0 of 33 | 0 | 0 |
+| A1, no critic | −175 | 3,000 | 16 / 0.878 | 20 / 0.876 | 0 of 33 | 0 | 0 |
+| A2′, rule-feature head | −0.4 | 2,000 | 2 / 0.894 | 2 / 0.890 | 0 of 34 | 0 | 0 |
+| A5, survival-weighted critic | 0.3 | 3,000 | 3 / 0.893 | 3 / 0.893 | 0 of 33 | 0 | 0 |
+| A6, no privileged inputs (stopped at 6 h) | −396 | not reached | 10 / 0.711 | 7 / 0.711 | – | 5.8 | 1 |
+
+Best is the checkpoint with the highest tracking return. From iteration 10,000 on, no checkpoint of B,
+A2′ or A5 fails more than 6, 4 and 7 clips, and none is below tracking return 0.844. Between consecutive
+checkpoints their return never drops by more than 0.026. A1 reaches 56 failures (at 12,000).
 
 ![benchmark](figures/stability_benchmark.png)
 
@@ -149,17 +153,17 @@ at iteration 35,520 (A6: 20,530). Figures and tables come from `make_stability_f
     spiking afterwards.
   - No run that avoided the blow-up ever spiked.
   - B avoided it by chance (seed). A1 blew up its critic, but its policy does not use it.
-- **Without the blow-up, training is stable and better.** B, A2′ and A5 rise steadily to 0.885–0.894
-  with 2–5 failures. That beats the old baseline's best over its whole 24 h run (0.872), and they get
+- **Without the blow-up, training is stable and better.** B, A2′ and A5 rise steadily to 0.890–0.894
+  with 2–4 failures. That beats the old baseline's best over its whole 24 h run (0.872), and they get
   there in about 20,000 iterations.
-- **A2′ is fastest early:** 4 failures at iteration 2000, against 48–49 for B and A5.
-- **The critic helps tracking:** A1 is stable but fails 16–23 clips, against 2–5.
+- **A2′ is fastest early:** 70 failures at iteration 1000 and 4 at 2000, against 123–135 and 48–49 for
+  B and A5.
+- **The critic helps tracking:** A1 is stable but fails 16–20 clips at its best and last checkpoints,
+  against 2–4.
 - **Removing the privileged critic inputs does not help:** A6 behaved like the baseline, which has the
   same seed. D7 and D22 stay.
 - **Adopted (D39):** A2′ and A5 together. They are now in the 24 h `full` and `dev` runs (`../m5/runs.md`).
-- **Caveats:**
-  - One run per configuration.
-  - Two of the baseline's collapses showed only at odd checkpoints, so "no collapse" is final once the
-    odd thousands are benchmarked. The training signals already cover every iteration.
+- **Caveat:** one run per configuration. (The odd thousands, where two of the baseline's collapses
+  showed, are now benchmarked too: no collapse in B, A1, A2′ or A5.)
 
 ![training signals](figures/stability_training.png)

@@ -126,7 +126,7 @@ with a gate: if it fails, we stop and rethink before building on top.
     privileged critic inputs.
   - The oscillation came from an early critic blow-up: the learned head misses falls early, and
     exploding post-fall penalties enter the objective and the critic.
-  - Runs without the blow-up trained with no collapse and reached tracking return 0.885–0.894 with 2–5
+  - Runs without the blow-up trained with no collapse and reached tracking return 0.890–0.894 with 2–4
     failures, beating the old baseline's 24 h best (0.872) within about 20,000 iterations.
   - Adopted: rule-feature head plus survival-weighted critic loss (D39).
   - Also: the dataset review (D40), compiled imagination (D37), CUDA graphs not used (D41).

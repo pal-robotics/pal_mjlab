@@ -382,9 +382,9 @@ return, mix failures and sampled starts. Judge runs on the whole-clip benchmark.
     for tens of thousands of iterations afterwards; runs that avoid it never spike.
 - **Two fixes, each sufficient on its own:** a failure head on the rule's two errors (A2′), and a critic
   loss weighted by the survival ĉ_t (A5). Both are now the default (D39).
-- **Without the blow-up**, `dev` training is stable and reaches tracking return 0.885–0.894 with 2–5
-  failures (of 1296) by about 30,000 iterations. The old baseline's 24 h best was 0.872.
-- **The critic helps tracking:** with no critic, training is stable but fails 16–23 clips.
+- **Without the blow-up**, `dev` training is stable and reaches tracking return 0.890–0.894 with 2–4
+  failures (of 1296) by about 30,000 iterations, with no collapse at any checkpoint. The old baseline's 24 h best was 0.872.
+- **The critic helps tracking:** with no critic, training is stable but fails 16–20 clips.
 - **The seed matters a lot early.** The same code with seed 43 avoided the blow-up; seed 42 did not.
   Compare configurations on more than one seed, or on mechanisms that remove the failure mode.
 - **TF32 plus the 32-step backward pass** makes actor gradients differ 3–12% between equivalent

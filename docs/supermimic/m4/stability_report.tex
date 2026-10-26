@@ -35,16 +35,16 @@ Why the online loop oscillated, five 12\,h runs on Leonardo to find out, and wha
   spiking afterwards. No run that avoided the blow-up ever spiked. A1 blew up its critic too, but its
   policy does not use it, and it stayed stable.
   \item \textbf{B, A2$'$ and A5 trained without a single collapse} in 12\,h: no failure spike or
-  critic-loss burst at any iteration, and no collapse at any checkpoint benchmarked so far (every 2000
-  iterations; the odd thousands follow). Their benchmark rises
-  steadily to tracking return 0.89 with 2--5 failed clips (of 1296). That beats the old baseline's best
+  critic-loss burst at any iteration, and no collapse at any of their checkpoints (every 1000
+  iterations, all benchmarked). Their benchmark rises
+  steadily to tracking return 0.89 with 2--4 failed clips (of 1296). That beats the old baseline's best
   checkpoint in its full 24\,h run (0.872), and it gets there in about 20,000 iterations. The baseline
   collapsed 3 times over the same iterations.
   \item \textbf{B is the plain algorithm with another seed}: it avoided the blow-up by chance. A2$'$
   (failure head on the rule's two errors) and A5 (critic loss weighted by survival) avoid it by design.
   A2$'$ is also the fastest: 4 failures after 2000 iterations, against 48--49.
-  \item \textbf{A1 (no critic) is stable but worse}: 16--23 failures at its best and last checkpoints,
-  against 2--5. Without the blow-up the critic is not what makes training unstable, and it helps
+  \item \textbf{A1 (no critic) is stable but worse}: 16--20 failures at its best and last checkpoints,
+  against 2--4. Without the blow-up the critic is not what makes training unstable, and it helps
   tracking.
   \item \textbf{A6 (no privileged critic inputs) does not help}: it blew up early and spiked like the
   baseline (same seed), and reached only 0.711 by iteration 20,000. Stopped at 6\,h.
@@ -171,25 +171,26 @@ iteration 5000. Critic bursts: logged critic losses above $10^3$.}
 \end{table}
 
 \begin{itemize}
-  \item \textbf{No collapse in B, A2$'$, A5 or A1.} Between benchmarked checkpoints, the tracking return
-  never drops by more than 0.02. Over the same 35,520 iterations, the baseline collapsed 3 times: 1287 failures at 18,000, and
+  \item \textbf{No collapse in B, A2$'$, A5 or A1}, at any of their 33--34 checkpoints after take-off.
+  Between consecutive checkpoints, the tracking return never drops by more than 0.026. From iteration
+  10,000 on, no checkpoint of B, A2$'$ or A5 fails more than 6, 4 and 7 clips, or scores below 0.844.
+  Over the same 35,520 iterations, the baseline collapsed 3 times: 1287 failures at 18,000, and
   checkpoints below 0.6 at 25,000 and 29,000.
   \item \textbf{Fast take-off.} B, A2$'$ and A5 pass PPO-Sim's local 12\,h level (0.742) by iteration
-  4000, A2$'$ by 2000. The baseline needed 17,000.
-  \item \textbf{Better at the end.} B, A2$'$ and A5 reach 0.885--0.894 with 2--5 failures. The
+  3000, A2$'$ by 2000. The baseline needed 17,000.
+  \item \textbf{Better at the end.} B, A2$'$ and A5 reach 0.890--0.894 with 2--4 failures. The
   baseline's best, over its whole 24\,h run, was 0.872 with 2 failures (iteration 46,000).
   \item \textbf{A2$'$ leads early}: 4 failures at iteration 2000 and 3 by 8000. B and A5 get down to
   about 5 failures only by iteration 10,000.
-  \item \textbf{A1} improves steadily but stays at 16--84 failures after take-off (tracking return up
-  to 0.880). Without the critic's value beyond 32 steps, the policy is more myopic.
+  \item \textbf{A1} improves steadily but stays at 16--159 failures after take-off (16--84 from 4000;
+  tracking return up to 0.878). Without the critic's value beyond 32 steps, the policy is more myopic.
   \item \textbf{A6} never reaches 0.742 before it was stopped: 7 failures, tracking return 0.711 at
   20,000.
 \end{itemize}
 
-\textbf{Caveat: the checkpoints at odd thousands are still being benchmarked.} Two of the baseline's
-collapses (25,000 and 29,000) showed only at odd checkpoints, so ``no collapse'' becomes final only once
-they are in. The training signals, which cover every iteration, already show no failure spike and no
-critic-loss burst in these runs.
+Two of the baseline's collapses (25,000 and 29,000) showed only at odd checkpoints, which is why every
+checkpoint is benchmarked here, not only every second one. The training signals, which cover every
+iteration, agree: no failure spike and no critic-loss burst in these runs.
 
 \section{What this means}
 
@@ -207,7 +208,7 @@ critic-loss burst in these runs.
   left removed) blew up and spiked like the baseline, which has the same seed. Whether D7 and D22 help on
   their own is not settled; they stay.
   \item \textbf{The critic helps tracking.} Without it (A1) training is stable, but the policy fails
-  several times more clips (16--23 against 2--5 at the end).
+  several times more clips (16--20 against 2--4 at the best and last checkpoints).
 \end{enumerate}
 
 \section{Also learned along the way}
@@ -226,8 +227,8 @@ critic-loss burst in these runs.
   \item \textbf{Two infeasible clips} sink 6--23\,cm below the ground and fail in every good policy. They
   were removed from the dataset (D40); this report's benchmarks still use the 1296-clip \texttt{dev}.
   \item \textbf{The local GPU queue preempted itself.} The queue daemon's game check matched the
-  \texttt{pgrep} of concurrent \texttt{gpuq} status calls, so polling the queue killed running jobs
-  (reported, not fixed here).
+  \texttt{pgrep} of concurrent \texttt{gpuq} status calls, so polling the queue killed running jobs.
+  Fixed in gpuq: no automatic game detection, the user takes the GPU with \texttt{gpuq pause}.
 \end{itemize}
 
 \section{Decisions}
