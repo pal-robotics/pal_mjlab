@@ -1,6 +1,7 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
 import math
+from dataclasses import replace
 
 import mjlab.terrains as terrain_gen
 from mjlab.envs import ManagerBasedRlEnvCfg
@@ -46,6 +47,7 @@ from pal_mjlab.robots import (
   get_kangaroo_robot_cfg,
 )
 from pal_mjlab.tasks.velocity import mdp
+from pal_mjlab.terrains import BoxStraightStairsTerrainCfg
 
 
 def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -550,15 +552,16 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         resolution=0.10,
         scale=5.0,
       ),
-      # Basic stairs, one ascending + one descending.
-      "stairs_up": terrain_gen.BoxPyramidStairsTerrainCfg(
+      # Basic stairs, one descending + one ascending.
+      # Pyramid: spawn on top platform, walk down. Inverted: spawn at bottom, walk up.
+      "stairs_down": terrain_gen.BoxPyramidStairsTerrainCfg(
         proportion=0.1,
         step_height_range=(0.02, 0.1),
         step_width=0.35,
         platform_width=0.6,
         border_width=0.1,
       ),
-      "stairs_down": terrain_gen.BoxInvertedPyramidStairsTerrainCfg(
+      "stairs_up": terrain_gen.BoxInvertedPyramidStairsTerrainCfg(
         proportion=0.1,
         step_height_range=(0.02, 0.1),
         step_width=0.35,
@@ -604,6 +607,133 @@ def pal_kangaroo_lower_body_rough_env_cfg(play: bool = False) -> ManagerBasedRlE
   assert isinstance(joint_pos_action, JointPositionActionCfg)
   joint_pos_action.scale = KANGAROO_LOWER_BODY_ACTION_SCALE
   joint_pos_action.actuator_names = KANGAROO_LOWER_BODY_ACTUATOR_NAMES
+
+  return cfg
+
+
+def pal_kangaroo_stairs_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO rough terrain with straight stairs velocity configuration."""
+  cfg = pal_kangaroo_rough_env_cfg(play=play)
+
+  ### SENSORS
+
+  # The tibia brushing stair noses is expected (the actor is blind and feels risers
+  # with the shins): only the femur stays an illegal contact, tibia contacts are
+  # penalized instead (see "shin_contacts" reward).
+  for sensor in cfg.scene.sensors or ():
+    if sensor.name == "body_ground_contact":
+      assert isinstance(sensor, ContactSensorCfg)
+      sensor.primary.pattern = r"^(leg_left_femur_link|leg_right_femur_link)$"
+
+  shin_ground_cfg = ContactSensorCfg(
+    name="shin_ground_contact",
+    primary=ContactMatch(
+      mode="body",
+      pattern=r"^(leg_left_knee_link|leg_right_knee_link)$",
+      entity="robot",
+    ),
+    secondary=ContactMatch(mode="body", pattern="terrain"),
+    fields=("found", "force"),
+    reduce="none",
+    num_slots=1,
+    history_length=cfg.decimation,  # Every physics substep of the policy step
+  )
+
+  cfg.scene.sensors = (cfg.scene.sensors or ()) + (shin_ground_cfg,)
+
+  ### COMMANDS
+
+  # More forward-only commands (x > 0, y = yaw = 0) for pure stair traversal
+  twist_cmd = cfg.commands["twist"]
+  assert isinstance(twist_cmd, mdp.UniformVelocityCommandCfg)
+  twist_cmd.rel_forward_envs = 0.55  # 50 % of envs (after the standing envs override)
+  twist_cmd.heading_command = False
+  twist_cmd.rel_heading_envs = 0.0
+  del twist_cmd.ranges.heading
+
+  ### REWARDS
+
+  # Higher swing apex so 20 cm risers aren't penalized
+  # (foot_clearance intentionally untouched: increasing it goes unstable)
+  cfg.rewards["foot_swing_height"].params["target_height"] = 0.25
+
+  # Mild penalty for tibia-terrain contact (no longer a termination).
+  # With force history the cost is the number of substeps (0..decimation) with a
+  # shin contact above force_threshold, i.e. proportional to contact duration.
+  cfg.rewards["shin_contacts"] = RewardTermCfg(
+    func=mdp.self_collision_cost,  # generic: counts contacts of the given sensor
+    weight=(-1.0 / cfg.decimation),  # -1.0 per fully-in-contact policy step
+    params={"sensor_name": shin_ground_cfg.name, "force_threshold": 10.0},
+  )
+
+  ### EVENTS
+
+  # On straight staircases spawn facing the stairs: at the bottom facing the up
+  # flight (+x), on the landing facing either down flight (+x or -x).
+  cfg.events["reset_base"].func = mdp.reset_root_state_terrain_yaw
+  cfg.events["reset_base"].params["terrain_yaw"] = {
+    "straight_stairs_up": (0.0,),
+    "straight_stairs_down": (0.0, math.pi),
+  }
+  cfg.events["reset_base"].params["yaw_half_range"] = 0.3
+
+  ### CURRICULUM
+
+  # Terrain: the rough sub-terrains are reused with lower proportions, the rest
+  # goes to stairs.
+  assert cfg.scene.terrain is not None
+  terrain_generator = cfg.scene.terrain.terrain_generator
+  assert terrain_generator is not None
+  rough = terrain_generator.sub_terrains
+
+  # Stairs, risers up to 20 cm, three tread widths, both directions.
+  stairs_down = replace(rough["stairs_down"], step_height_range=(0.02, 0.2))
+  stairs_up = replace(rough["stairs_up"], step_height_range=(0.02, 0.2))
+
+  terrain_generator.sub_terrains = {
+    "flat": replace(rough["flat"], proportion=0.03),
+    "pebbles": replace(rough["pebbles"], proportion=0.05),
+    "random_boxes": replace(rough["random_boxes"], proportion=0.08),
+    "random_grid_fine": replace(rough["random_grid_fine"], proportion=0.05),
+    "random_grid_coarse": replace(rough["random_grid_coarse"], proportion=0.05),
+    "hf_discrete_obstacles": replace(rough["hf_discrete_obstacles"], proportion=0.05),
+    "perlin_noise": replace(rough["perlin_noise"], proportion=0.05),
+    "stairs_down_narrow": replace(stairs_down, proportion=0.06, step_width=0.28),
+    "stairs_up_narrow": replace(stairs_up, proportion=0.06, step_width=0.28),
+    "stairs_down": replace(stairs_down, proportion=0.07, step_width=0.35),
+    "stairs_up": replace(stairs_up, proportion=0.07, step_width=0.35),
+    "stairs_down_wide": replace(stairs_down, proportion=0.06, step_width=0.45),
+    "stairs_up_wide": replace(stairs_up, proportion=0.06, step_width=0.45),
+    # Irregular stairs: each riser sampled from the range, scaled by (0.5 + 0.5 * difficulty).
+    "random_stairs": terrain_gen.BoxRandomStairsTerrainCfg(
+      proportion=0.07,
+      step_height_range=(0.04, 0.2),
+      step_width=0.35,
+      platform_width=0.6,
+      border_width=0.1,
+    ),
+    # Open-riser stairs (thin slabs), tread narrows from 0.45 to 0.30 with difficulty.
+    "open_stairs_up": terrain_gen.BoxOpenStairsTerrainCfg(
+      proportion=0.05,
+      step_height_range=(0.02, 0.2),
+      step_width_range=(0.3, 0.45),
+      platform_width=0.6,
+      border_width=0.1,
+      inverted=True,
+    ),
+    # Straight limited-width staircases with open sides (real stairs without
+    # railings): falling off the sides teaches caution and some fall recovery.
+    "straight_stairs_down": BoxStraightStairsTerrainCfg(
+      proportion=0.04,
+      step_height_range=(0.02, 0.2),
+      spawn="top",
+    ),
+    "straight_stairs_up": BoxStraightStairsTerrainCfg(
+      proportion=0.10,
+      step_height_range=(0.02, 0.2),
+      spawn="bottom",
+    ),
+  }
 
   return cfg
 
