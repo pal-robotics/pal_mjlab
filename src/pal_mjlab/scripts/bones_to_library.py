@@ -1,14 +1,15 @@
 """Pack the Kangaroo BONES-SEED retarget into one motion library for SuperMimic.
 
-Input: the GMR pickles of ``kangaroo_bones_seed`` (``root_pos`` (T, 3), ``root_rot`` (T, 4)
-xyzw, ``dof_pos`` (T, 32) in the ``kangaroo_grippers`` qpos order, 50 Hz) and its
+Input: the GMR pickles of a ``kangaroo_bones_seed`` dataset folder (``root_pos`` (T, 3),
+``root_rot`` (T, 4) xyzw, ``dof_pos`` (T, nj) in the robot's qpos order, 50 Hz: 32 joints in
+``dataset`` for ``kangaroo_grippers``, 32 in ``dataset_5dof`` for ``kangaroo_hands``) and its
 ``manifest.parquet`` (``final_kept`` selects the clips that passed the paper's filters and a
 manual review; ``review_excluded`` marks the clips the review removed).
 
 Output folder (all clips concatenated along time):
-  qpos.npy   (N, 39) float32  root pos, root quat (wxyz), 32 joints
-  qvel.npy   (N, 38) float32  MuJoCo free-joint convention: root linear velocity (world),
-                              root angular velocity (body frame), 32 joint velocities
+  qpos.npy   (N, 7 + nj) float32  root pos, root quat (wxyz), joints
+  qvel.npy   (N, 6 + nj) float32  MuJoCo free-joint convention: root linear velocity (world),
+                                  root angular velocity (body frame), joint velocities
   clips.json {"fps", "joint_names", "clips": [{"name", "category", "start", "length"}]}
 
 Body poses are not stored: they come from forward kinematics on the fly, which keeps a
@@ -23,6 +24,8 @@ Subsets:
 Subsets are drawn before the reviewed clips are removed, so a review only takes those clips out.
 
   python -m pal_mjlab.scripts.bones_to_library --subset 10h --data-dir path/to/data
+  python -m pal_mjlab.scripts.bones_to_library --subset dev \
+    --data-dir ~/Projects/supermimic/kangaroo_bones_seed/dataset_5dof   # hands
 """
 
 from __future__ import annotations

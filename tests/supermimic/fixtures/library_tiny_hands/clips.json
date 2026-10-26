@@ -1,0 +1,58 @@
+{
+ "fps": 50,
+ "joint_names": [
+  "pelvis_1_joint",
+  "pelvis_2_joint",
+  "arm_left_1_joint",
+  "arm_left_2_joint",
+  "arm_left_3_joint",
+  "arm_left_4_joint",
+  "arm_left_5_joint",
+  "hand_left_palm_roll_joint",
+  "hand_left_palm_pitch_joint",
+  "arm_right_1_joint",
+  "arm_right_2_joint",
+  "arm_right_3_joint",
+  "arm_right_4_joint",
+  "arm_right_5_joint",
+  "hand_right_palm_roll_joint",
+  "hand_right_palm_pitch_joint",
+  "leg_left_1_joint",
+  "leg_left_2_joint",
+  "leg_left_3_joint",
+  "leg_left_length_joint",
+  "leg_left_4_joint",
+  "leg_left_5_joint",
+  "leg_left_femur_joint",
+  "leg_left_knee_joint",
+  "leg_right_1_joint",
+  "leg_right_2_joint",
+  "leg_right_3_joint",
+  "leg_right_length_joint",
+  "leg_right_4_joint",
+  "leg_right_5_joint",
+  "leg_right_femur_joint",
+  "leg_right_knee_joint"
+ ],
+ "subset": "test-fixture",
+ "clips": [
+  {
+   "name": "221011/idle_turn_270_002__A051",
+   "category": "Basic Locomotion Neutral",
+   "start": 0,
+   "length": 100
+  },
+  {
+   "name": "230414/dance_retro_jackson_jump_on_R_loop_002__A323",
+   "category": "Dancing",
+   "start": 100,
+   "length": 100
+  },
+  {
+   "name": "231009/burning_start_R_001__A468",
+   "category": "Stunts",
+   "start": 200,
+   "length": 100
+  }
+ ]
+}

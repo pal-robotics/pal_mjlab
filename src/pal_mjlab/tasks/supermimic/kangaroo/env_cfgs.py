@@ -1,11 +1,12 @@
-"""PAL Kangaroo (7-DoF arms with grippers) SuperMimic configuration.
+"""PAL Kangaroo SuperMimic configuration: 7-DoF arms with grippers, and 5-DoF arms with Seed
+Robotics hands (``hands``: the hand's 2-DoF wrist in the place of arm joints 6-7, fingers fixed).
 
 Robot-specific choices only; every paper setting lives in ``supermimic_env_cfg.py``.
 Kangaroo facts that shape the mapping:
   - legs are a hip-ankle slide (``leg_*_length_joint``) with a passive four-bar knee;
   - the IMU sits on the torso (``pelvis_2_link``), after the two waist joints;
-  - the passive four-bar joints are not measured, so proprioception covers the 28
-    actuated joints.
+  - the passive four-bar joints are not measured, so proprioception covers the 28 actuated
+    joints (both variants).
 """
 
 import math
@@ -16,7 +17,11 @@ from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 
-from pal_mjlab.robots import REGEX_ALL_ACTUATED_JOINTS, get_kangaroo_grippers_robot_cfg
+from pal_mjlab.robots import (
+  REGEX_ALL_ACTUATED_JOINTS,
+  get_kangaroo_grippers_robot_cfg,
+  get_kangaroo_hands_robot_cfg,
+)
 from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import DAMPING_RATIO
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommandCfg
 from pal_mjlab.tasks.supermimic.supermimic_env_cfg import make_supermimic_env_cfg
@@ -24,6 +29,8 @@ from pal_mjlab.tasks.supermimic.supermimic_env_cfg import make_supermimic_env_cf
 # BONES-SEED retarget (its ``dataset`` folder) and the default motion subset (2.5 h); the CLI
 # overrides both: --env.commands.motion.dataset <path> --env.commands.motion.subset 10h
 DEFAULT_DATASET = "~/Projects/supermimic/kangaroo_bones_seed/dataset"
+# the 5-DoF retarget, for the hands
+HANDS_DATASET = "~/Projects/supermimic/kangaroo_bones_seed/dataset_5dof"
 DEFAULT_SUBSET = "dev"
 DEFAULT_LIBRARY = f"{DEFAULT_DATASET}/libraries/{DEFAULT_SUBSET}"
 
@@ -55,6 +62,22 @@ TRACKED_BODIES = (
   "arm_right_4_link",
   "arm_right_7_link",
 )
+# With hands the wrist_yaw_link slot is the middle of the hand (hand_*_center_link, the frame
+# the 5-DoF retarget matches to the middle of the G1 hand). It moves with the Seed wrist as
+# arm_*_7_link does with the 7-DoF wrist.
+HANDS_TRACKED_BODIES = tuple(
+  {
+    "arm_left_7_link": "hand_left_center_link",
+    "arm_right_7_link": "hand_right_center_link",
+  }.get(b, b)
+  for b in TRACKED_BODIES
+)
+
+# Per variant: robot, tracked bodies, BONES-SEED retarget.
+VARIANTS = {
+  "grippers": (get_kangaroo_grippers_robot_cfg, TRACKED_BODIES, DEFAULT_DATASET),
+  "hands": (get_kangaroo_hands_robot_cfg, HANDS_TRACKED_BODIES, HANDS_DATASET),
+}
 
 FOOT_GEOMS = tuple(
   f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(0, 12, 2)
@@ -62,14 +85,16 @@ FOOT_GEOMS = tuple(
 TORSO_BODY = "pelvis_2_link"
 
 
-def kangaroo_robot_cfg(arm_waist_natural_freq_hz: float | None = None) -> EntityCfg:
-  """Kangaroo with grippers; gains from ``kangaroo_constants`` (3.5 Hz everywhere, D26).
+def kangaroo_robot_cfg(
+  arm_waist_natural_freq_hz: float | None = None, variant: str = "grippers"
+) -> EntityCfg:
+  """Kangaroo with grippers or hands; gains from ``kangaroo_constants`` (3.5 Hz everywhere, D26).
 
   ``arm_waist_natural_freq_hz`` re-derives the arm and waist gains at another natural
   frequency with the same rule and rounding (the gain experiment of D27); the legs keep
   theirs.
   """
-  cfg = get_kangaroo_grippers_robot_cfg()
+  cfg = VARIANTS[variant][0]()
   if arm_waist_natural_freq_hz is None:
     return cfg
   w = 2.0 * math.pi * arm_waist_natural_freq_hz
@@ -102,9 +127,23 @@ def pal_kangaroo_grippers_supermimic_env_cfg(
   play: bool = False, arm_waist_natural_freq_hz: float | None = None
 ) -> ManagerBasedRlEnvCfg:
   """Kangaroo SuperMimic tracking env; ``play`` is the paper's evaluation setting."""
+  return kangaroo_supermimic_env_cfg("grippers", play, arm_waist_natural_freq_hz)
+
+
+def pal_kangaroo_hands_supermimic_env_cfg(
+  play: bool = False, arm_waist_natural_freq_hz: float | None = None
+) -> ManagerBasedRlEnvCfg:
+  """The same with 5-DoF arms and Seed Robotics hands, on the 5-DoF retarget."""
+  return kangaroo_supermimic_env_cfg("hands", play, arm_waist_natural_freq_hz)
+
+
+def kangaroo_supermimic_env_cfg(
+  variant: str, play: bool = False, arm_waist_natural_freq_hz: float | None = None
+) -> ManagerBasedRlEnvCfg:
+  _, tracked_bodies, dataset = VARIANTS[variant]
   cfg = make_supermimic_env_cfg()
 
-  robot = kangaroo_robot_cfg(arm_waist_natural_freq_hz)
+  robot = kangaroo_robot_cfg(arm_waist_natural_freq_hz, variant)
   cfg.scene.entities = {"robot": robot}
   cfg.viewer.body_name = "base_link"
 
@@ -117,12 +156,12 @@ def pal_kangaroo_grippers_supermimic_env_cfg(
   assert cfg.commands is not None
   motion_cmd = cfg.commands["motion"]
   assert isinstance(motion_cmd, MotionLibraryCommandCfg)
-  motion_cmd.dataset = DEFAULT_DATASET
+  motion_cmd.dataset = dataset
   motion_cmd.subset = DEFAULT_SUBSET
-  motion_cmd.body_names = TRACKED_BODIES
+  motion_cmd.body_names = tracked_bodies
   motion_cmd.goal_joint_names = (REGEX_ALL_ACTUATED_JOINTS,)
 
-  # Measured joints: the 28 actuated ones (proprioception, calibration offsets, limits).
+  # Measured joints: the actuated ones (proprioception, calibration offsets, limits).
   actuated = SceneEntityCfg("robot", joint_names=(REGEX_ALL_ACTUATED_JOINTS,))
   proprio = cfg.observations["proprio"].terms
   proprio["joint_pos"].params["asset_cfg"] = actuated

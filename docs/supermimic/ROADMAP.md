@@ -171,6 +171,12 @@ hours, about 4,560 left (≈ 570 A100-h). In the suggested order:
 8. **Data sweep** (1, 10, 40 h; paper Fig. 3b/c): local runs, or 24 A100-h each.
 - **Gate:** failure counts by category on the full benchmark, and the compute-to-target curve.
 
+## Hands variant (D42, 2026-10-26)
+
+- Tasks `...-Kangaroo-Hands[-ArmWaist1Hz]` are ready, tested on 3 real clips. The full 5-DoF retarget
+  (`kangaroo_bones_seed/dataset_5dof`) is being built. No training run yet; it starts on the user's
+  go-ahead.
+
 ## Later
 
 - Kangaroo sys-ID DR in ξ (D14).

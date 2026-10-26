@@ -1,4 +1,5 @@
-"""SuperMimic Kangaroo env on a 3-clip real-data library (2 s each, 50 Hz)."""
+"""SuperMimic Kangaroo env on a 3-clip real-data library (2 s each, 50 Hz), for both variants
+(7-DoF arms with grippers, 5-DoF arms with hands; fixtures/make_fixtures.py)."""
 
 from pathlib import Path
 
@@ -7,38 +8,48 @@ import torch
 from conftest import get_test_device
 from mjlab.envs import ManagerBasedRlEnv
 from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import (
-  TRACKED_BODIES,
   pal_kangaroo_grippers_supermimic_env_cfg,
+  pal_kangaroo_hands_supermimic_env_cfg,
 )
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommand
 
-LIBRARY = Path(__file__).parent / "fixtures" / "library_tiny"
+FIXTURES = Path(__file__).parent / "fixtures"
+VARIANTS = {  # env, library, joints (all, actuated)
+  "grippers": (pal_kangaroo_grippers_supermimic_env_cfg, "library_tiny", 32, 28),
+  "hands": (pal_kangaroo_hands_supermimic_env_cfg, "library_tiny_hands", 32, 28),
+}
 NUM_ENVS = 3
 CLIP_LENGTH = 100
 
 
-def _make_env(play: bool = False, **cmd) -> ManagerBasedRlEnv:
-  cfg = pal_kangaroo_grippers_supermimic_env_cfg(play=play)
+def _make_env(variant: str, play: bool = False, **cmd) -> ManagerBasedRlEnv:
+  make_cfg, library, _, _ = VARIANTS[variant]
+  cfg = make_cfg(play=play)
   cfg.scene.num_envs = NUM_ENVS
   motion = cfg.commands["motion"]
-  motion.library_path = str(LIBRARY)
+  motion.library_path = str(FIXTURES / library)
   motion.compile_kinematics = False
   for k, v in cmd.items():
     setattr(motion, k, v)
   return ManagerBasedRlEnv(cfg=cfg, device=get_test_device())
 
 
+@pytest.fixture(scope="module", params=list(VARIANTS))
+def variant(request) -> str:
+  return request.param
+
+
 @pytest.fixture(scope="module")
-def env():
-  env = _make_env()
+def env(variant):
+  env = _make_env(variant)
   env.reset()
   yield env
   env.close()
 
 
-def test_observation_layout(env):
+def test_observation_layout(env, variant):
   obs = env.observation_manager.compute()
-  k, nj, na = 10, 32, 28
+  k, (nj, na) = 10, VARIANTS[variant][2:]
   frame = na + na + 6  # reference q, q̇ and root orientation (6D)
   assert obs["goal"].shape == (NUM_ENVS, k * frame)
   assert obs["proprio"].shape == (NUM_ENVS, 10 * (na + na + 3 + 3 + na))
@@ -65,7 +76,7 @@ def test_torch_kinematics_match_the_simulator(env):
   ).abs().max() > 1e-3  # robot moved off the reference
   command._version += 1  # drop the cache
   robot = env.scene["robot"]
-  ids = robot.find_bodies(TRACKED_BODIES, preserve_order=True)[0]
+  ids = robot.find_bodies(command.cfg.body_names, preserve_order=True)[0]
   bodies = command.robot_bodies
   data = robot.data
   torch.testing.assert_close(
@@ -81,14 +92,15 @@ def test_torch_kinematics_match_the_simulator(env):
   )
 
 
-def test_sim_context_ranges(env):
-  start = (13 + 2 * 32) + 10 * (28 + 28 + 6)
-  xi = env.observation_manager.compute_group("critic")[:, start : start + 1 + 28 + 3]
+def test_sim_context_ranges(env, variant):
+  nj, na = VARIANTS[variant][2:]
+  start = (13 + 2 * nj) + 10 * (na + na + 6)
+  xi = env.observation_manager.compute_group("critic")[:, start : start + 1 + na + 3]
   assert ((xi[:, 0] >= 0.3) & (xi[:, 0] <= 1.2)).all()  # foot friction
   assert (
-    xi[:, 1:29].abs() <= 0.01 + 1e-6
+    xi[:, 1 : 1 + na].abs() <= 0.01 + 1e-6
   ).all()  # calibration offsets, actuated joints
-  com = xi[:, 29:]
+  com = xi[:, 1 + na :]
   assert (com[:, 0].abs() <= 0.025 + 1e-6).all() and (
     com[:, 1:].abs() <= 0.05 + 1e-6
   ).all()
@@ -98,9 +110,10 @@ def test_sim_context_ranges(env):
   assert (robot.data.encoder_bias[:, passive] == 0).all()
 
 
-def test_episode_ends_at_the_clip_end():
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_episode_ends_at_the_clip_end(variant):
   """Each env plays one clip from frame 0; with failures disabled it ends after L-1 steps."""
-  env = _make_env(play=True)
+  env = _make_env(variant, play=True)
   env.cfg.terminations.pop("anchor_failure", None)
   env.termination_manager._term_names.remove("anchor_failure")
   command: MotionLibraryCommand = env.command_manager.get_term("motion")
@@ -121,9 +134,10 @@ def test_episode_ends_at_the_clip_end():
   env.close()
 
 
-def test_falls_terminate():
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_falls_terminate(variant):
   """Large random actions make the robot fall; the anchor rule must catch it."""
-  env = _make_env()
+  env = _make_env(variant)
   env.reset()
   gen = torch.Generator(device=env.device).manual_seed(1)
   failures = 0

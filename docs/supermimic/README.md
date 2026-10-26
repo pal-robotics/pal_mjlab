@@ -1,10 +1,12 @@
 # SuperMimic on Kangaroo
 
 SuperMimic (arXiv 2610.28480) on PAL Kangaroo with 7-DoF arms, trained on the BONES-SEED retarget in
-`~/Projects/supermimic/kangaroo_bones_seed`.
+`~/Projects/supermimic/kangaroo_bones_seed`. A second variant, 5-DoF arms with Seed Robotics hands
+(their 2-DoF wrist in the place of arm joints 6–7, fingers fixed), has its own tasks (`...-Kangaroo-Hands`,
+D42) and retarget (`dataset_5dof`).
 
 - [ROADMAP.md](ROADMAP.md): milestones and their gates
-- [DECISIONS.md](DECISIONS.md): what we chose, why, and when to revisit (D0–D36)
+- [DECISIONS.md](DECISIONS.md): what we chose, why, and when to revisit (D0–D43)
 - [LEARNINGS.md](LEARNINGS.md): facts and measurements
 - `m0/`: raw benchmark outputs
 - `m1/`: gain A/B (`gain_ab.md`), PPO-Sim baseline (`ppo_sim_baseline.md`), action-scale note
@@ -56,6 +58,10 @@ uv run python -m pal_mjlab.scripts.supermimic.train $TASK --env.commands.motion.
 #    runs with the same --agent.run-name (preemptions: rerun the same command); plain
 #    `uv run train $TASK ...` always starts fresh.
 
+# Hands (5-DoF arms, Seed Robotics hands; D42): the same commands with
+#   TASK=Mjlab-SuperMimic-Flat-Pal-Kangaroo-Hands-ArmWaist1Hz and the 5-DoF dataset folder
+#   (kangaroo_bones_seed/dataset_5dof); logs in logs/rsl_rl/kangaroo_hands_supermimic/.
+
 # Ablations (paper Fig. 4): --agent.algorithm.policy.use-critic False
 #   --agent.algorithm.policy.horizon 16    --agent.algorithm.policy.termination rule (D31)
 # mjlab CLI syntax: tuples comma-separated (--agent.algorithm.world-model.hidden 1024,1024,1024,
@@ -63,7 +69,13 @@ uv run python -m pal_mjlab.scripts.supermimic.train $TASK --env.commands.motion.
 
 # Watch, play, benchmark
 tensorboard --logdir logs/rsl_rl/kangaroo_supermimic
-uv run play $TASK --checkpoint-file <run>/model_N.pt --env.commands.motion.dataset ../dataset
+#    a policy on a library (a downloaded one, a subset of the dataset, or one motion of either;
+#    D43): mjlab's play plus --library and --clips (mjlab's play takes no env overrides)
+uv run python -m pal_mjlab.scripts.supermimic.play $TASK --checkpoint-file <run>/model_N.pt \
+  --library ../dataset/libraries/full --clips 230324/flip_360_001__A304
+#    the motions themselves, as retargeted (kinematic replay, no policy; MuJoCo viewer)
+uv run python -m pal_mjlab.scripts.supermimic.view_motion ../dataset/libraries/dev \
+  --clips 230324/flip_360_001__A304
 uv run python -m pal_mjlab.scripts.supermimic.eval --task $TASK \
   --checkpoints <run>/model_N.pt --out-dir results/   # every clip of the subset once (paper F.1)
 ```

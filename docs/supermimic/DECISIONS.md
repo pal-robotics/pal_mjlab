@@ -442,8 +442,77 @@ at every step (user, 2026-10-23).**
   `torch.compiler.cudagraph_mark_step_begin()` at each iteration, and graphs pending across the
   world-model and policy updates. Verify with `bench_update.py` and a few hundred training iterations.
 
+**D42. Second robot variant: Kangaroo with 5-DoF arms and Seed Robotics hands (user, 2026-10-26).**
+- **Tasks.** `Mjlab-SuperMimic[-PPO]-Flat-Pal-Kangaroo-Hands[-ArmWaist1Hz]` are the grippers tasks with
+  only the robot, the tracked hand body and the dataset swapped (`kangaroo/env_cfgs.py`, `VARIANTS`).
+  - The grippers tasks are unchanged: their env configs compare equal to the previous commit's.
+  - Hands runs log under `kangaroo_hands_supermimic[_ppo]`, so resuming by run name never loads a
+    grippers checkpoint.
+  - Sizes are the grippers': 32 joints, 28 actuated. The Seed wrist's two joints take the place of arm
+    joints 6–7.
+- **The arm is the G1's: shoulder 3, elbow, forearm roll, 2-DoF wrist** (user). `arm_*_1..5` are the
+  7-DoF arm's joints 1–5. The RH8D's spherical wrist has rotation, adduction and flexion (Seed actuators
+  1–3); its rotation is bypassed, since `arm_*_5` rolls the forearm. Its adduction and flexion are
+  `hand_*_palm_roll_joint` and `hand_*_palm_pitch_joint`: PAL's axes and ±0.785 rad, which PAL had
+  commented out. Both axes cross the forearm and meet at the wrist centre (`hand_*_palm_base_link`).
+  The fingers stay fixed, straight.
+- **Robot (`kangaroo_hands.xml`).** Everything up to the forearm roll is the 7-DoF's.
+  - Legs, feet, torso and arms 1–4 already matched `kangaroo_grippers.xml` and `kangaroo.xml`: bodies,
+    joints and collision geoms are equal.
+  - `arm_*_5` now has the 7-DoF's axis (+z, D3) and range (−3.665..1.571 rad, mirrored on the right).
+    PAL's file had −z and ±1.57.
+  - The wrist is actuated with the 7-DoF wrist's values (XS, `KANGAROO_SEED_WRIST_ACTUATOR_CFG`; user):
+    the RH8D docs give no servo data. This also changes PAL's hands reaching and tracking tasks on this
+    branch (2 more actions per arm, `csv_to_npz`'s joint list).
+  - **Masses** are PAL's (user). The datasheet gives only 620 g in total. PAL's model has 168 g of hand
+    bodies plus a 738 g `arm_*_5_link` that lumps PAL's arm-5 flange, the Seed adaptor and the RH8D
+    forearm with its actuators. If the flange weighs what the 7-DoF's arm-5 link does (348 g), the RH8D
+    comes to about 558 g.
+  - **Collisions added.** The file had none below the elbow, so hands passed through the body and the
+    legs. Added: a forearm capsule (radius 44 mm), a palm-and-fingers box and a thumb capsule. They are
+    class `collision` (density 0), so the bodies' masses are unchanged. The palm/forearm pair is excluded
+    because they overlap at the wrist.
+  - **`hand_*_center_link`:** a massless frame at the middle of the hand (the centre of the palm and
+    straight-finger bounding box), oriented like the palm.
+- **Tracked body.** The G1 `wrist_yaw_link` slot (D25) is `hand_*_center_link`, the frame the retarget
+  matches to the middle of the G1 hand. It moves with the Seed wrist, as `arm_*_7_link` does with the
+  7-DoF wrist.
+- **Data.** `kangaroo_bones_seed/dataset_5dof`, retargeted with GMR branch `bones-seed-kangaroo-5dof`.
+  - GMR's `kangaroo_hands.xml` is generated from `kangaroo_7dof.xml`
+    (`kangaroo_bones_seed/pipeline/make_hands_model.py`), so legs and arms 1–5 are the reviewed model's.
+  - The IK config is the 7-DoF one with the wrist row (same weights) on `hand_*_center_link` ← the middle
+    of the G1 hand.
+  - On 85 clips, joints 1–4 reach their limits as often as on the 7-DoF (within 0.2 points). The upper
+    arm is 9–10° off the G1 (7-DoF: 9–10°) and the hand 4.4°.
+- **History.** The first version (same day) kept the wrist fixed, with arm 5 at ±1.57. The hand's
+  orientation then had to come from joints 1–5: the elbow and forearm roll took it on, and joint 5 lost
+  its 7-DoF range. The user pointed out that joints 1–5 must behave as on the 7-DoF and the wrist belongs
+  on the Seed hand.
+- **Tests.** Every SuperMimic test that touches the robot runs on both variants: FK parity, the
+  GMR-model check on 3 real clips (shared bodies to 0.0 m) and the env tests.
+  `tests/supermimic/fixtures/make_fixtures.py` builds the fixtures. `bones_3clips.npz` was caught by the
+  repo's `*.npz` ignore and existed only on the machine that made it; both fixtures are now committed.
+- **Revisit if:** PAL gives the RH8D wrist servos' torque and armature, measured hand inertias or the
+  wrist's real range, or the fingers get actuated.
+
+**D43. Play chosen clips of a library: `--env.commands.motion.clips` (2026-10-26).**
+- `MotionLibraryCommandCfg.clips` takes clip names as in `clips.json` (e.g.
+  `230324/flip_360_001__A304`) and loads only their frames (memmap rows). That way one motion of the
+  14 GB `full` library plays without loading the rest.
+- It's for the downloads of the motion browser: a playable single motion, and a training subset.
+- Empty (the default) means every clip, so training is unchanged.
+- **Entry points.**
+  - `scripts/supermimic/play.py` is mjlab's `play` plus `--library` and `--clips`. mjlab's `play`
+    loads the registered play config with no overrides, so the README's earlier
+    `play ... --env.commands.motion.dataset` could not work. Clips are plain names
+    (`--clips a/b c/d`): mjlab's flags would parse a tuple as a Python literal.
+  - `scripts/supermimic/view_motion.py` replays clips kinematically, as retargeted, with no policy. It
+    picks the robot whose joints match the library's.
+  - Checked end to end, with the viewer replaced by 100 policy steps: one clip read out of the 14 GB
+    `full` library (358 frames) with a SuperMimic checkpoint, and the hands task with the zero agent.
+
 **D44. Constraint buffer `njmax` 300 → 1024 per world (user, 2026-10-26).**
-- D42 and D43 are taken on `omm/supermimic-5dof` (hands variant, play entry points); commit bc44e76 says D42.
+- Commit bc44e76 called this D42; D42 and D43 were taken on the 5-DoF branch, merged since.
 - **Why:** the `full` run collapsed to NaN at iteration ~44,620 (17.5 h in). Within 10 iterations the
   world model, critic and actor were all NaN (checkpoints from 45,000 on; 44,000 is clean). MuJoCo Warp
   had warned "nefc overflow - please increase njmax" all run long, about 250 times per 100 iterations,

@@ -1,8 +1,12 @@
-"""Motion-library converter: MuJoCo qvel layout, subsets, and library path resolution."""
+"""Motion-library converter: MuJoCo qvel layout, subsets, library path resolution, and
+loading chosen clips of a library."""
+
+from pathlib import Path
 
 import mujoco
 import numpy as np
 import pytest
+import torch
 from pal_mjlab.scripts.bones_to_library import (
   FPS,
   clip_qpos_qvel,
@@ -10,7 +14,11 @@ from pal_mjlab.scripts.bones_to_library import (
   select_clips,
   subset_name,
 )
-from pal_mjlab.tasks.supermimic.library import resolve_library
+from pal_mjlab.scripts.supermimic.view_motion import robot_model
+from pal_mjlab.tasks.supermimic.library import MotionLibrary, resolve_library
+
+FIXTURES = Path(__file__).parent / "fixtures"
+LIBRARY = FIXTURES / "library_tiny"
 
 
 @pytest.mark.parametrize("seed", range(5))
@@ -122,3 +130,26 @@ def test_reviewed_clips_leave_subsets_without_reshuffling(tmp_path):
   assert new["clip"] == old["clip"]
   assert new["excluded"] == [False, False, True, False]
   assert select_clips(new, "full") == select_clips(old, "full")
+
+
+def test_chosen_clips_of_a_library():
+  """``clips`` loads only those clips, in the order asked, with their own frames."""
+  full = MotionLibrary(LIBRARY)
+  names = full.clip_names
+  lib = MotionLibrary(LIBRARY, clips=(names[2], names[0]))
+  assert lib.clip_names == (names[2], names[0])
+  assert lib.clip_start.tolist() == [0, 100] and lib.clip_length.tolist() == [100, 100]
+  assert lib.categories == ("Basic Locomotion Neutral", "Stunts")
+  torch.testing.assert_close(lib.qpos, torch.cat([full.qpos[200:], full.qpos[:100]]))
+  torch.testing.assert_close(lib.qvel, torch.cat([full.qvel[200:], full.qvel[:100]]))
+  with pytest.raises(KeyError):
+    MotionLibrary(LIBRARY, clips=("221011/not_a_clip",))
+
+
+@pytest.mark.parametrize(
+  "library, robot_joints", [("library_tiny", 32), ("library_tiny_hands", 32)]
+)
+def test_view_motion_picks_the_robot_of_the_library(library, robot_joints):
+  lib = MotionLibrary(FIXTURES / library)
+  model = robot_model(lib.joint_names)
+  assert model.nq == 7 + robot_joints == lib.qpos.shape[1]

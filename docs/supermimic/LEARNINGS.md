@@ -60,6 +60,19 @@ UTD 0.4 = 2.5 vector steps per iteration, it implies ~93k sim steps/s per GPU.
   - `kangaroo_grippers.xml` has two `<exclude>`s naming geoms (`leg_*_ankle_bar_collision`) as bodies. The
     mjlab scene still compiles.
   - For standalone kinematics, `compile_kinematic_model()` drops all excludes.
+- **Hands variant (D42).** `kangaroo_hands.xml` has the same legs, torso and arm joints 1–5 as
+  `kangaroo_grippers.xml` and the same 32-joint layout (28 actuated). The Seed wrist's two joints take
+  the place of arm joints 6–7.
+  - GMR's model is generated from `kangaroo_7dof.xml`, so GMR's two models share legs and arms 1–5 exactly.
+    Against pal_mjlab, every shared body frame, joint axis and the joint order are equal.
+  - GMR's files (both variants) keep 0 as the lower limit of the slide and the passive femur/knee (pal:
+    0.13 m, 0.17 and 0.35 rad). The IK clamps the slide to its actuator range, and the femur/knee
+    limits are the linkage at that slide limit. In 2,000 7-DoF clips and the 5-DoF test clips no frame
+    is below pal's limits.
+  - Two problems in PAL's hands file, fixed: arm 5 had ±1.57 rad instead of the 7-DoF's −3.665..1.571,
+    and it had no collision geometry below the elbow (the hands went through the body).
+  - Pre-existing on this branch, unrelated: `Mjlab-Reaching-Flat-Pal-Kangaroo-Hands` fails at env
+    construction on the installed mjlab (`UniformPoseCommand._update_command` must take `env_ids`).
 - **Clip lengths.** Median 5.7 s, p95 15.7 s, max 180 s; 1,499 clips are under 2 s. The manifest's
   `g1_n_frames` equals the Kangaroo clip length (checked on 300 clips).
 - **Packed library.** Converting from the pickles is fast: `smoke` (141 clips, 0.25 h) and `dev`
