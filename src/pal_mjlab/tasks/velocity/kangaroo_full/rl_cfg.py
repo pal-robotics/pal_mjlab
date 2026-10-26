@@ -6,6 +6,15 @@ from mjlab.rl import (
   RslRlPpoAlgorithmCfg,
 )
 
+from dataclasses import dataclass
+
+@dataclass
+class ProjectorRunnerCfg(RslRlOnPolicyRunnerCfg):
+  projector_hidden_in: tuple[int, ...] = (256, 256)
+  """Hidden widths of the residual MLP in head_in (env obs -> backbone obs)."""
+  projector_hidden_out: tuple[int, ...] = (128,)
+  """Hidden widths of the residual MLP in head_out (backbone action -> env action)."""
+
 
 def pal_kangaroo_full_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
   """Create RL runner configuration for PAL kangaroo_full velocity task."""
@@ -45,13 +54,13 @@ def pal_kangaroo_full_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
     max_iterations=30_000,
   )
 
-def pal_kangaroo_full_projector_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+def pal_kangaroo_full_projector_ppo_runner_cfg() -> ProjectorRunnerCfg:
   """Projector heads on top of a frozen pretrained base policy.
 
   The backbone's architecture, normalizer and exploration std come from the
   base checkpoint (--pretrained-checkpoint), not from this cfg.
   """
-  return RslRlOnPolicyRunnerCfg(
+  return ProjectorRunnerCfg(
     actor=RslRlModelCfg(
       hidden_dims=(512, 256, 128),  # only used to read obs/act dims; replaced by the backbone
       activation="elu",  # must match the base policy: the backbone is rebuilt with this
@@ -81,4 +90,6 @@ def pal_kangaroo_full_projector_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
     save_interval=500,
     num_steps_per_env=24,
     max_iterations=500,
+    projector_hidden_in=(256, 256),
+    projector_hidden_out=(256, 256),
   )

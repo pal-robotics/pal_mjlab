@@ -19,15 +19,10 @@ _ACTIVATIONS = {
 
 
 class _ProjectionHead(nn.Module):
-  """Always-present trainable head: base(x) + f(x).
-
-  base is a learnable rectangular-identity Linear when in_dim != out_dim, or a
-  plain skip connection when dims match. f is a small MLP whose last layer is
-  zero-initialised, so the head starts as an identity map (padding / truncating
-  if dims differ). The MLP residual is created in both cases."""
-
-  def __init__(self, in_dim: int, out_dim: int, hidden: int):
+  def __init__(self, in_dim: int, out_dim: int, hidden: int | tuple[int, ...]):
     super().__init__()
+    hidden = (hidden,) if isinstance(hidden, int) else hidden
+
     self.proj = None
     if in_dim != out_dim:
       self.proj = nn.Linear(in_dim, out_dim, bias=False)
@@ -35,7 +30,13 @@ class _ProjectionHead(nn.Module):
         self.proj.weight.zero_()
         k = min(in_dim, out_dim)
         self.proj.weight[:k, :k] = torch.eye(k)
-    self.net = nn.Sequential(nn.Linear(in_dim, hidden), nn.ELU(), nn.Linear(hidden, out_dim))
+
+    layers, d = [], in_dim
+    for h in hidden:
+      layers += [nn.Linear(d, h), nn.ELU()]
+      d = h
+    layers.append(nn.Linear(d, out_dim))
+    self.net = nn.Sequential(*layers)
     nn.init.zeros_(self.net[-1].weight)
     nn.init.zeros_(self.net[-1].bias)
 
@@ -84,13 +85,12 @@ class _FrozenBackbone(nn.Module):
 
 
 class _ProjectedMLP(nn.Module):
-  """head_in -> frozen pretrained backbone -> head_out."""
-
-  def __init__(self, backbone: _FrozenBackbone, obs_dim: int, act_dim: int, hidden: int = 128):
+  def __init__(self, backbone, obs_dim, act_dim,
+               hidden_in=(128,), hidden_out=(128,)):
     super().__init__()
     self.backbone = backbone
-    self.head_in = _ProjectionHead(obs_dim, backbone.in_dim, hidden)
-    self.head_out = _ProjectionHead(backbone.out_dim, act_dim, hidden)
+    self.head_in = _ProjectionHead(obs_dim, backbone.in_dim, hidden_in)
+    self.head_out = _ProjectionHead(backbone.out_dim, act_dim, hidden_out)
 
   def train(self, mode: bool = True):
     super().train(mode)
@@ -130,7 +130,11 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
       activation=activation,
       eps=getattr(actor.obs_normalizer, "eps", 1e-2),
     )
-    actor.mlp = _ProjectedMLP(backbone, obs_dim, act_dim).to(self.device)
+    hidden_in = tuple(train_cfg.get("projector_hidden_in", (256, 256)))
+    hidden_out = tuple(train_cfg.get("projector_hidden_out", (128,)))
+    actor.mlp = _ProjectedMLP(
+    backbone, obs_dim, act_dim, hidden_in=hidden_in, hidden_out=hidden_out
+    ).to(self.device)
 
     def _n(params):
         return sum(p.numel() for p in params)
