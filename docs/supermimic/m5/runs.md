@@ -37,7 +37,7 @@
   the hardest clips; on `full` it spreads them over about 900,000 bins, a quarter of which are still
   unvisited. Their quality will be compared on the benchmark.
 
-## `full` collapsed at 17.5 h; resumed from 44,000 with a larger constraint buffer (D42)
+## `full` collapsed at 17.5 h; resumed from 44,000 with a larger constraint buffer (D44)
 
 - **What happened:** at iteration ~44,620 (2026-10-26 ~17:55) the world model, critic and actor went NaN
   within 10 iterations: the logged losses disappear, episodes end after 11 steps, 96% of them fail. The
@@ -46,7 +46,7 @@
   per 100 iterations all run long (up to 636 rows requested, 300 allowed); dropped rows give wrong contact
   physics, and one non-finite state in the replay poisons every network. `dev` warned 263 times in total.
 - **Actions (user):** the job was cancelled at 17.4 h (it only produced NaN), `njmax` raised to 1024
-  (D42), and `full` resumed from `model_44000` for another 24 h as `SMfull2`.
+  (D44), and `full` resumed from `model_44000` for another 24 h as `SMfull2`.
 - **Detection:** the logger skips NaN values, so the losses simply stopped appearing; the collapse showed
   as a jump of training failure to 96%.
 

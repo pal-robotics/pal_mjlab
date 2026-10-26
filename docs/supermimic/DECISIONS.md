@@ -442,7 +442,8 @@ at every step (user, 2026-10-23).**
   `torch.compiler.cudagraph_mark_step_begin()` at each iteration, and graphs pending across the
   world-model and policy updates. Verify with `bench_update.py` and a few hundred training iterations.
 
-**D42. Constraint buffer `njmax` 300 → 1024 per world (user, 2026-10-26).**
+**D44. Constraint buffer `njmax` 300 → 1024 per world (user, 2026-10-26).**
+- D42 and D43 are taken on `omm/supermimic-5dof` (hands variant, play entry points); commit bc44e76 says D42.
 - **Why:** the `full` run collapsed to NaN at iteration ~44,620 (17.5 h in). Within 10 iterations the
   world model, critic and actor were all NaN (checkpoints from 45,000 on; 44,000 is clean). MuJoCo Warp
   had warned "nefc overflow - please increase njmax" all run long, about 250 times per 100 iterations,
