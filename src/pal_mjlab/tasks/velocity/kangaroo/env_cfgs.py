@@ -612,7 +612,7 @@ def pal_kangaroo_lower_body_rough_env_cfg(play: bool = False) -> ManagerBasedRlE
 
 
 def pal_kangaroo_stairs_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-  """Create PAL Robotics KANGAROO rough terrain (extra stairs) velocity configuration."""
+  """Create PAL Robotics KANGAROO rough terrain with straight stairs velocity configuration."""
   cfg = pal_kangaroo_rough_env_cfg(play=play)
 
   ### SENSORS
