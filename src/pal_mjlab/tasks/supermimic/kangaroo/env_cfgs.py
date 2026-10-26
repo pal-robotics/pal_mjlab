@@ -1,12 +1,12 @@
 """PAL Kangaroo SuperMimic configuration: 7-DoF arms with grippers, and 5-DoF arms with Seed
-Robotics hands (``hands``; the hand is unactuated, its fingers fixed straight).
+Robotics hands (``hands``: the hand's 2-DoF wrist in the place of arm joints 6-7, fingers fixed).
 
 Robot-specific choices only; every paper setting lives in ``supermimic_env_cfg.py``.
 Kangaroo facts that shape the mapping:
   - legs are a hip-ankle slide (``leg_*_length_joint``) with a passive four-bar knee;
   - the IMU sits on the torso (``pelvis_2_link``), after the two waist joints;
-  - the passive four-bar joints are not measured, so proprioception covers the actuated
-    joints (28 with grippers, 24 with hands).
+  - the passive four-bar joints are not measured, so proprioception covers the 28 actuated
+    joints (both variants).
 """
 
 import math
@@ -63,8 +63,8 @@ TRACKED_BODIES = (
   "arm_right_7_link",
 )
 # With hands the wrist_yaw_link slot is the middle of the hand (hand_*_center_link, the frame
-# the 5-DoF retarget matches to the middle of the G1 hand): the last arm link, arm_*_5_link,
-# starts at the forearm roll joint, next to the elbow.
+# the 5-DoF retarget matches to the middle of the G1 hand). It moves with the Seed wrist as
+# arm_*_7_link does with the 7-DoF wrist.
 HANDS_TRACKED_BODIES = tuple(
   {
     "arm_left_7_link": "hand_left_center_link",

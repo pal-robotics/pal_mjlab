@@ -2,7 +2,8 @@
 
 SuperMimic (arXiv 2610.28480) on PAL Kangaroo with 7-DoF arms, trained on the BONES-SEED retarget in
 `~/Projects/supermimic/kangaroo_bones_seed`. A second variant, 5-DoF arms with Seed Robotics hands
-(unactuated), has its own tasks (`...-Kangaroo-Hands`, D42) and retarget (`dataset_5dof`).
+(their 2-DoF wrist in the place of arm joints 6–7, fingers fixed), has its own tasks (`...-Kangaroo-Hands`,
+D42) and retarget (`dataset_5dof`).
 
 - [ROADMAP.md](ROADMAP.md): milestones and their gates
 - [DECISIONS.md](DECISIONS.md): what we chose, why, and when to revisit (D0–D43)

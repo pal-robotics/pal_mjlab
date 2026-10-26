@@ -147,7 +147,7 @@ def test_chosen_clips_of_a_library():
 
 
 @pytest.mark.parametrize(
-  "library, robot_joints", [("library_tiny", 32), ("library_tiny_hands", 28)]
+  "library, robot_joints", [("library_tiny", 32), ("library_tiny_hands", 32)]
 )
 def test_view_motion_picks_the_robot_of_the_library(library, robot_joints):
   lib = MotionLibrary(FIXTURES / library)

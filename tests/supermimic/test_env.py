@@ -16,7 +16,7 @@ from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommand
 FIXTURES = Path(__file__).parent / "fixtures"
 VARIANTS = {  # env, library, joints (all, actuated)
   "grippers": (pal_kangaroo_grippers_supermimic_env_cfg, "library_tiny", 32, 28),
-  "hands": (pal_kangaroo_hands_supermimic_env_cfg, "library_tiny_hands", 28, 24),
+  "hands": (pal_kangaroo_hands_supermimic_env_cfg, "library_tiny_hands", 32, 28),
 }
 NUM_ENVS = 3
 CLIP_LENGTH = 100

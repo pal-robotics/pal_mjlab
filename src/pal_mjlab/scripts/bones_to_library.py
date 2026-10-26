@@ -2,7 +2,7 @@
 
 Input: the GMR pickles of a ``kangaroo_bones_seed`` dataset folder (``root_pos`` (T, 3),
 ``root_rot`` (T, 4) xyzw, ``dof_pos`` (T, nj) in the robot's qpos order, 50 Hz: 32 joints in
-``dataset`` for ``kangaroo_grippers``, 28 in ``dataset_5dof`` for ``kangaroo_hands``) and its
+``dataset`` for ``kangaroo_grippers``, 32 in ``dataset_5dof`` for ``kangaroo_hands``) and its
 ``manifest.parquet`` (``final_kept`` selects the clips that passed the paper's filters and a
 manual review; ``review_excluded`` marks the clips the review removed).
 

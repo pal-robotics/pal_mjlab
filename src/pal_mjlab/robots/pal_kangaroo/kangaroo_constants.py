@@ -11,7 +11,7 @@ from pal_mjlab import PAL_MJLAB_SRC_PATH
 
 # There are multiple variants of the KANGAROO robot. For simplicity, we only implemented the following:
 # - kangaroo: simplified model with 4 DoF per arm and a fake forearm
-# - kangaroo_hands: simplified model with 5 DoF per arm and a Seed Robotics hand
+# - kangaroo_hands: simplified model with 5 DoF per arm and a Seed Robotics hand (its 2-DoF wrist, fingers fixed)
 # - kangaroo_gripper: simplified model with 7 DoF per arm and a gripper
 # - kangaroo_full: full model with 4 DoF per arm and a fake forearm
 
@@ -231,6 +231,13 @@ KANGAROO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
   target_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
   **XS,
 )
+# The Seed Robotics RH8D wrist (flexion, adduction), in the place of the 7-DoF's arm joints 6-7. Its
+# servos are not documented (no torque or armature in the RH8D docs): the 7-DoF wrist's values until
+# PAL provides them.
+KANGAROO_SEED_WRIST_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+  target_names_expr=(r"hand_.*_palm_(roll|pitch)_joint",),
+  **XS,
+)
 
 COMMON_ACTUATORS = KANGAROO_LEG_ACTUATORS + (
   KANGAROO_S_PLUS_ACTUATOR_CFG,
@@ -303,7 +310,8 @@ KANGAROO_LOWER_BODY_ARTICULATION = EntityArticulationInfoCfg(
   soft_joint_pos_limit_factor=0.9,
 )
 KANGAROO_HANDS_ARTICULATION = EntityArticulationInfoCfg(
-  actuators=COMMON_ACTUATORS, soft_joint_pos_limit_factor=0.9
+  actuators=COMMON_ACTUATORS + (KANGAROO_SEED_WRIST_ACTUATOR_CFG,),
+  soft_joint_pos_limit_factor=0.9,
 )
 KANGAROO_GRIPPERS_ARTICULATION = EntityArticulationInfoCfg(
   actuators=COMMON_ACTUATORS + (KANGAROO_XS_ACTUATOR_CFG,),

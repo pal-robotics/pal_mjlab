@@ -96,14 +96,14 @@
                   <body name="arm_left_tip_link" pos="0.4 -0.02 0.0"/>
                   <body name="arm_left_5_link" pos="-0.17011 0.02 -0.03711" quat="0.707105 0 -0.707108 0">
                     <inertial pos="0.00582226 -0.000330137 0.0702339" quat="0.965441 -0.00213396 -0.0211456 0.259754" mass="0.73786" diaginertia="0.00302019 0.00300619 0.000658945" />
-                    <joint name="arm_left_5_joint" axis="0 0 1" range="-1.57 1.57"/>
+                    <joint name="arm_left_5_joint" axis="0 0 1" range="-3.66519 1.5708"/>
                     <geom class="visual" mesh="arm5_tip_link" />
                     <geom pos="0 0 0.0303" quat="-0.707107 0 0 0.707106" class="visual" mesh="seedRobotics_adaptor" />
                     <geom pos="0 0 0.0498" quat="-0.000398673 0 0 1" class="visual" mesh="forearm_link" />
                     <geom name="arm_left_forearm_collision" size="0.044" fromto="0 0 0.094  0 0 0.18" class="collision"/>
                     <body name="hand_left_palm_base_link" pos="0 0 0.2158" quat="0.707108 -0.000282842 0.707105 0.000282843">
                       <inertial pos="0.00858508 -2.4614e-09 0.000249999" quat="0.5 0.5 -0.5 0.5" mass="0.0509809" diaginertia="1.88432e-05 1.37535e-05 9.79678e-06" />
-                      <!-- <joint name="hand_left_palm_roll_joint" axis="0 0 -1" range="-0.785398 0.785398"/> -->
+                      <joint name="hand_left_palm_roll_joint" axis="0 0 -1" range="-0.785398 0.785398"/>
                       <geom class="visual" mesh="wrist_link" />
                       <body name="hand_left_palm_link" quat="0.707105 -0.707108 0 0">
                         <site name="ee_left" pos="0.0 0.0 0.0"/>
@@ -114,7 +114,7 @@
                         <geom name="hand_left_palm_collision" type="box" size="0.079 0.0205 0.0545" pos="-0.078 -0.0055 0.0035" class="collision"/>
                         <geom name="hand_left_thumb_collision" size="0.011" fromto="-0.023 -0.004 -0.014  -0.044 -0.005 -0.106" class="collision"/>
                         <inertial pos="-0.052625 0.000781495 -0.00275893" quat="0.740136 -0.0434134 -7.69336e-05 0.671055" mass="0.0389736" diaginertia="2.76787e-05 1.98299e-05 1.10229e-05" />
-                        <!-- <joint name="hand_left_palm_pitch_joint" range="-0.785398 0.785398"/> -->
+                        <joint name="hand_left_palm_pitch_joint" range="-0.785398 0.785398"/>
                         <geom class="visual" mesh="palm_left_link" />
                         <body name="hand_left_index_prox_link" pos="-0.081291 -0.0045543 -0.036786" quat="0.991128 -0.0829563 -0.0508768 0.0905266">
                           <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
@@ -223,14 +223,14 @@
                   <body name="arm_right_tip_link" pos="0.4 -0.02 0.0"/>
                   <body name="arm_right_5_link" pos="-0.17011 0.02 -0.03711" quat="0.707105 0 -0.707108 0">
                     <inertial pos="0.00582226 -0.000330137 0.0702339" quat="0.965441 -0.00213396 -0.0211456 0.259754" mass="0.73786" diaginertia="0.00302019 0.00300619 0.000658945" />
-                    <joint name="arm_right_5_joint" axis="0 0 1" range="-1.57 1.57"/>
+                    <joint name="arm_right_5_joint" axis="0 0 1" range="-1.5708 3.66519"/>
                     <geom class="visual" mesh="arm5_tip_link" />
                     <geom pos="0 0 0.0303" quat="-0.707107 0 0 0.707106" class="visual" mesh="seedRobotics_adaptor" />
                     <geom pos="0 0 0.0498" quat="-1 0 0 0.000397654" class="visual" mesh="forearm_link" />
                     <geom name="arm_right_forearm_collision" size="0.044" fromto="0 0 0.094  0 0 0.18" class="collision"/>
                     <body name="hand_right_palm_base_link" pos="0 0 0.2158" quat="0.000280246 -0.707105 0.000280245 0.707108">
                       <inertial pos="0.00858508 -2.4614e-09 0.000249999" quat="0.5 0.5 -0.5 0.5" mass="0.0509809" diaginertia="1.88432e-05 1.37535e-05 9.79678e-06" />
-                      <!-- <joint name="hand_right_palm_roll_joint" axis="0 0 -1" range="-0.785398 0.785398"/> -->
+                      <joint name="hand_right_palm_roll_joint" axis="0 0 -1" range="-0.785398 0.785398"/>
                       <geom class="visual" mesh="wrist_link" />
                       <body name="hand_right_palm_link" quat="0.707105 -0.707108 0 0">
                         <site name="ee_right" pos="0.0 0.0 0.0"/>
@@ -241,7 +241,7 @@
                         <geom name="hand_right_palm_collision" type="box" size="0.079 0.0205 0.0545" pos="-0.078 -0.0055 -0.0035" class="collision"/>
                         <geom name="hand_right_thumb_collision" size="0.011" fromto="-0.023 -0.003 0.014  -0.042 0.007 0.106" class="collision"/>
                         <inertial pos="-0.052625 0.000781495 -0.00275893" quat="0.740136 -0.0434134 -7.69336e-05 0.671055" mass="0.0389736" diaginertia="2.76787e-05 1.98299e-05 1.10229e-05" />
-                        <!-- <joint name="hand_right_palm_pitch_joint" range="-0.785398 0.785398"/> -->
+                        <joint name="hand_right_palm_pitch_joint" range="-0.785398 0.785398"/>
                         <geom class="visual" mesh="palm_right_link" />
                         <body name="hand_right_index_prox_link" pos="-0.081291 -0.0045543 0.036786" quat="0.991128 0.0829563 0.0508768 0.0905266">
                           <inertial pos="-0.0111483 9.28713e-05 -6.08808e-05" quat="0.509105 0.509044 0.490967 0.490548" mass="0.00478125" diaginertia="4.07603e-07 3.57283e-07 1.57379e-07" />
