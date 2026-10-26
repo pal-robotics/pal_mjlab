@@ -54,7 +54,7 @@ class MotionLibraryCommand(CommandTerm):
     super().__init__(cfg, env)
     self.robot: Entity = env.scene[cfg.entity_name]
     path = resolve_library(cfg.library_path, cfg.dataset, cfg.subset)
-    self.library = MotionLibrary(path, device=self.device)
+    self.library = MotionLibrary(path, device=self.device, clips=cfg.clips)
     if self.library.joint_names != tuple(self.robot.joint_names):
       raise ValueError("Motion library joint order differs from the robot's joints.")
     if abs(self.library.fps * env.step_dt - 1.0) > 1e-6:
@@ -370,6 +370,9 @@ class MotionLibraryCommandCfg(CommandTermCfg):
   library_path: str = ""
   """An already packed library folder (qpos.npy, qvel.npy, clips.json); overrides
   ``dataset`` and ``subset`` when set."""
+  clips: tuple[str, ...] = ()
+  """Only these clips of the library, by name as in its clips.json (e.g.
+  230324/flip_360_001__A304); empty for all. For playing chosen motions of a library."""
 
   body_names: tuple[str, ...]
   """Tracked bodies; the first one is the anchor (root)."""
