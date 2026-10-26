@@ -15,7 +15,7 @@ from mjlab.terrains.terrain_generator import (
 from mjlab.terrains.utils import make_plane
 from mjlab.utils.color import brand_ramp
 
-_PAL_ORANGE = (0.95, 0.55, 0.15)
+_ORANGE = (0.95, 0.55, 0.15)
 
 
 @dataclass(kw_only=True)
@@ -80,7 +80,7 @@ class BoxStraightStairsTerrainCfg(SubTerrainCfg):
         size=((x1 - x0) / 2.0, width / 2.0, max(height, 1e-3) / 2.0),
         pos=((x0 + x1) / 2.0, y_center, max(height, 1e-3) / 2.0),
       )
-      geometries.append(TerrainGeometry(geom=box, color=brand_ramp(_PAL_ORANGE, t)))
+      geometries.append(TerrainGeometry(geom=box, color=brand_ramp(_ORANGE, t)))
 
     # Up flight, landing, down flight. Solid blocks resting on the floor.
     x = x_start
