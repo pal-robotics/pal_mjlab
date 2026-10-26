@@ -60,6 +60,15 @@ UTD 0.4 = 2.5 vector steps per iteration, it implies ~93k sim steps/s per GPU.
   - `kangaroo_grippers.xml` has two `<exclude>`s naming geoms (`leg_*_ankle_bar_collision`) as bodies. The
     mjlab scene still compiles.
   - For standalone kinematics, `compile_kinematic_model()` drops all excludes.
+- **Hands variant (D42).** `kangaroo_hands.xml` has the same legs, torso and arm joints 1–4 as
+  `kangaroo_grippers.xml`, with 5-DoF arms and a fixed Seed hand: nq 35, 28 joints (24 actuated).
+  - Against GMR's `kangaroo_hands.xml` (branch `bones-seed-kangaroo-5dof`), every shared body frame,
+    joint axis and the joint order are equal. GMR's foot link sat 0.5 mm higher; it was moved to pal's.
+    The IK never targets it, so the retarget is bit-identical either way.
+  - Still different in GMR, with no effect on the retarget: the passive femur/knee and the slide have
+    0 as lower limit (pal: 0.17, 0.35 and 0.13 rad/m; the pipeline clamps the slide to pal's range), and
+    the leg and torso masses (GMR 59.1 kg in total, pal 61.1 kg). The hand masses are equal.
+  - PAL's file had no collision geometry below the elbow: the hands went through the body.
 - **Clip lengths.** Median 5.7 s, p95 15.7 s, max 180 s; 1,499 clips are under 2 s. The manifest's
   `g1_n_frames` equals the Kangaroo clip length (checked on 300 clips).
 - **Packed library.** Converting from the pickles is fast: `smoke` (141 clips, 0.25 h) and `dev`

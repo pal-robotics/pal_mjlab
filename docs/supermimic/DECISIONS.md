@@ -441,3 +441,53 @@ at every step (user, 2026-10-23).**
 - **To make it work later:** reproduce in the full `learn` loop on a short debug job. Likely candidates:
   `torch.compiler.cudagraph_mark_step_begin()` at each iteration, and graphs pending across the
   world-model and policy updates. Verify with `bench_update.py` and a few hundred training iterations.
+
+**D42. Second robot variant: Kangaroo with 5-DoF arms and Seed Robotics hands (user, 2026-10-26).**
+- **Tasks.** `Mjlab-SuperMimic[-PPO]-Flat-Pal-Kangaroo-Hands[-ArmWaist1Hz]` are the grippers tasks with
+  only the robot, the tracked hand body and the dataset swapped (`kangaroo/env_cfgs.py`, `VARIANTS`).
+  - The grippers tasks are unchanged: their env configs compare equal to the previous commit's.
+  - Hands runs log under `kangaroo_hands_supermimic[_ppo]`, so resuming by run name never loads a
+    grippers checkpoint.
+  - Sizes: 24 actuated joints (28 with the passive femur/knee). Proprio is 10 × (24 + 24 + 3 + 3 + 24) and
+    the goal is 10 × (24 + 24 + 6).
+- **Robot (`kangaroo_hands.xml`).**
+  - **arm_*_5 axis +z**, as in GMR's model and the 7-DoF arms (D3). The data is defined with +z; with
+    PAL's −z the forearm roll would play mirrored.
+  - **The hand is unactuated.** The fingers are fixed straight (their joints are commented out, as PAL
+    ships the file). The RH8D's own wrist is bypassed: arm_*_5 rolls the forearm.
+  - **Masses** are PAL's. The RH8D share is about 0.56 kg: forearm and adaptor in arm_*_5_link (about
+    0.39 kg of its 0.74 kg) plus 0.17 kg of hand bodies. The datasheet unit is 0.62 kg.
+  - **Collisions added.** The file had none below the elbow, so hands passed through the body and the
+    legs. Added: a forearm capsule (radius 44 mm), a palm-and-fingers box and a thumb capsule. They are
+    class `collision` (density 0), so the bodies' masses are unchanged. The palm/forearm pair is excluded
+    because they overlap at the wrist.
+  - **`hand_*_center_link`:** a massless frame at the middle of the hand (the centre of the palm and
+    straight-finger bounding box), oriented like the palm.
+- **Tracked body.** The G1 `wrist_yaw_link` slot (D25) is `hand_*_center_link`, the frame the retarget
+  matches to the middle of the G1 hand. `arm_*_5_link` starts at the forearm roll joint, next to the
+  elbow, so tracking it would add little beyond the elbow.
+- **Data.** `kangaroo_bones_seed/dataset_5dof` is the BONES-SEED retarget with GMR branch
+  `bones-seed-kangaroo-5dof`, config `g1_to_kangaroo_hands.json`. That config is the 7-DoF one with the
+  wrist target replaced by the hand's orientation; see that dataset's README.
+- **Tests.** Every SuperMimic test that touches the robot runs on both variants: FK parity, the
+  GMR-model check on 3 real clips (73 shared bodies, including the hand, to 0.0 m) and the env tests.
+  `tests/supermimic/fixtures/make_fixtures.py` builds the fixtures. `bones_3clips.npz` was caught by the
+  repo's `*.npz` ignore and existed only on the machine that made it; both fixtures are now committed.
+- **Revisit if:** the hand gets actuated (finger joints and a goal for them), or PAL gives measured hand
+  inertias.
+
+**D43. Play chosen clips of a library: `--env.commands.motion.clips` (2026-10-26).**
+- `MotionLibraryCommandCfg.clips` takes clip names as in `clips.json` (e.g.
+  `230324/flip_360_001__A304`) and loads only their frames (memmap rows). That way one motion of the
+  14 GB `full` library plays without loading the rest.
+- It's for the downloads of the motion browser: a playable single motion, and a training subset.
+- Empty (the default) means every clip, so training is unchanged.
+- **Entry points.**
+  - `scripts/supermimic/play.py` is mjlab's `play` plus `--library` and `--clips`. mjlab's `play`
+    loads the registered play config with no overrides, so the README's earlier
+    `play ... --env.commands.motion.dataset` could not work. Clips are plain names
+    (`--clips a/b c/d`): mjlab's flags would parse a tuple as a Python literal.
+  - `scripts/supermimic/view_motion.py` replays clips kinematically, as retargeted, with no policy. It
+    picks the robot whose joints match the library's.
+  - Checked end to end, with the viewer replaced by 100 policy steps: one clip read out of the 14 GB
+    `full` library (358 frames) with a SuperMimic checkpoint, and the hands task with the zero agent.
