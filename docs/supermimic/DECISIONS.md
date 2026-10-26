@@ -477,11 +477,13 @@ at every step (user, 2026-10-23).**
 - **Tracked body.** The G1 `wrist_yaw_link` slot (D25) is `hand_*_center_link`, the frame the retarget
   matches to the middle of the G1 hand. It moves with the Seed wrist, as `arm_*_7_link` does with the
   7-DoF wrist.
-- **Data.** `kangaroo_bones_seed/dataset_5dof`, retargeted with GMR branch `bones-seed-kangaroo-5dof`.
+- **Data.** `kangaroo_bones_seed/dataset_5dof`, retargeted with GMR branch `bones-seed-kangaroo` (the 7-DoF's too).
   - GMR's `kangaroo_hands.xml` is generated from `kangaroo_7dof.xml`
-    (`kangaroo_bones_seed/pipeline/make_hands_model.py`), so legs and arms 1–5 are the reviewed model's.
+    (`kangaroo_bones_seed/pipeline/make_gmr_models.py`), so legs and arms 1–5 are the reviewed model's. Both
+    GMR models carry pal_mjlab's collision geometry.
   - The IK config is the 7-DoF one with the wrist row (same weights) on `hand_*_center_link` ← the middle
-    of the G1 hand.
+    of the G1 hand. Since 2026-10-27 the IK also keeps the robot out of itself and the feet above the
+    floor, and weights the torso orientation 100 (kangaroo_bones_seed REPORT.md section 7).
   - On 85 clips, joints 1–4 reach their limits as often as on the 7-DoF (within 0.2 points). The upper
     arm is 9–10° off the G1 (7-DoF: 9–10°) and the hand 4.4°.
 - **History.** The first version (same day) kept the wrist fixed, with arm 5 at ±1.57. The hand's
