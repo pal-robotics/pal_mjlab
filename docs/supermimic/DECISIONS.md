@@ -441,3 +441,16 @@ at every step (user, 2026-10-23).**
 - **To make it work later:** reproduce in the full `learn` loop on a short debug job. Likely candidates:
   `torch.compiler.cudagraph_mark_step_begin()` at each iteration, and graphs pending across the
   world-model and policy updates. Verify with `bench_update.py` and a few hundred training iterations.
+
+**D42. Constraint buffer `njmax` 300 → 1024 per world (user, 2026-10-26).**
+- **Why:** the `full` run collapsed to NaN at iteration ~44,620 (17.5 h in). Within 10 iterations the
+  world model, critic and actor were all NaN (checkpoints from 45,000 on; 44,000 is clean). MuJoCo Warp
+  had warned "nefc overflow - please increase njmax" all run long, about 250 times per 100 iterations,
+  asking for up to 636 rows; `dev` warned 263 times in its whole run. Rows beyond `njmax` are dropped,
+  which gives wrong contact physics, and a single non-finite state in the replay poisons every network
+  in one update. The overflow is the likely cause, not proven.
+- **How:** `njmax=1024` in `supermimic_env_cfg.py` (about 0.6 GB more GPU memory at 4096 worlds). No
+  guard on non-finite updates (the user chose the fix over a guard).
+- **Run:** `full` resumed from `model_44000` for 24 h more (`SMfull2`, `../m5/runs.md`); the NaN
+  checkpoints are in the run's `nan_quarantine/`.
+- **Revisit:** if overflow warnings or a NaN come back, add the guard and find the non-finite source.

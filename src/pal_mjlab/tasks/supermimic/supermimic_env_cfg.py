@@ -267,10 +267,12 @@ def make_supermimic_env_cfg() -> ManagerBasedRlEnvCfg:
       azimuth=120.0,
     ),
     # nconmax is a contact pool shared by all worlds (~15 contacts per world in use);
-    # njmax is a hard per-world cap (up to ~280 rows seen with fallen robots).
+    # njmax is a hard per-world cap on constraint rows. Rows beyond it are dropped (wrong
+    # physics, "nefc overflow"): on the full library up to 636 rows were requested, and the
+    # 300 used before ended in a NaN collapse at iteration ~44,600 (D42).
     sim=SimulationCfg(
       nconmax=50,
-      njmax=300,
+      njmax=1024,
       mujoco=MujocoCfg(timestep=0.005, iterations=10, ls_iterations=20),
     ),
     decimation=4,
