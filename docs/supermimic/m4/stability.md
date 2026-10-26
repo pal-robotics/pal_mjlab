@@ -125,9 +125,41 @@ All runs compared at iteration 17,670, against the old cluster baseline at the s
 - **Decisions (user):** A6 stopped at 6 h 17 min. A2′ + A5 made the default (D39), pending the
   benchmark of these runs.
 
-## Results
+## Results (2026-10-26; full write-up: [stability_report.pdf](stability_report.pdf))
 
-| id | iterations | best (fails / return) | last | collapses after take-off | spikes / 10k | critic-loss bursts (>10³, logged) | extreme iterations |
+The benchmark uses the 1,296-clip `dev` (`libraries_archive/dev_1296`), every clip once from its first
+frame. Checkpoints are every 2000 iterations; the odd thousands are still being added. All runs are cut
+at iteration 35,520 (A6: 20,530). Figures and tables come from `make_stability_figures.py`.
+
+| run | early min V | take-off (≥ 0.742) | best (fails / return) | last | collapses after take-off | spikes / 10k | critic-loss bursts |
 |---|---|---|---|---|---|---|---|
-| M4 local, seed 42 | 27,510 | 3 / 0.832 | 12 / 0.684 | 4 of 15 | 4.9 | 0 | — (not logged) |
-| cluster baseline `dev-paper`, seed 42, 24 h | 49,300 | 2 / 0.872 | 4 / 0.819 | 3 of 33 | 5.4 | 66 | — (not logged) |
+| old baseline, seed 42 | −277 | 17,000 | 2 / 0.861 | 17 / 0.767 | 3 of 19 | 7.2 | 15 |
+| B, seed 43 | 0.3 | 4,000 | 4 / 0.892 | 5 / 0.885 | 0 of 16 | 0 | 0 |
+| A1, no critic | −175 | 4,000 | 16 / 0.878 | 23 / 0.871 | 0 of 16 | 0 | 0 |
+| A2′, rule-feature head | −0.4 | 2,000 | 2 / 0.894 | 2 / 0.894 | 0 of 17 | 0 | 0 |
+| A5, survival-weighted critic | 0.3 | 4,000 | 2 / 0.892 | 3 / 0.891 | 0 of 16 | 0 | 0 |
+| A6, no privileged inputs (stopped at 6 h) | −396 | not reached | 7 / 0.711 | 7 / 0.711 | – | 5.8 | 1 |
+
+![benchmark](figures/stability_benchmark.png)
+
+## Conclusions
+
+- **The oscillation came from an early critic blow-up, and A2′ and A5 each prevent it by design.**
+  - Runs whose policy uses a critic that blew up in the first 2000 iterations (baseline, A6) kept
+    spiking afterwards.
+  - No run that avoided the blow-up ever spiked.
+  - B avoided it by chance (seed). A1 blew up its critic, but its policy does not use it.
+- **Without the blow-up, training is stable and better.** B, A2′ and A5 rise steadily to 0.885–0.894
+  with 2–5 failures. That beats the old baseline's best over its whole 24 h run (0.872), and they get
+  there in about 20,000 iterations.
+- **A2′ is fastest early:** 4 failures at iteration 2000, against 48–49 for B and A5.
+- **The critic helps tracking:** A1 is stable but fails 16–23 clips, against 2–5.
+- **Removing the privileged critic inputs does not help:** A6 behaved like the baseline, which has the
+  same seed. D7 and D22 stay.
+- **Adopted (D39):** A2′ and A5 together. They are now in the 24 h `full` and `dev` runs (`../m5/runs.md`).
+- **Caveats:**
+  - One run per configuration.
+  - Two of the baseline's collapses showed only at odd checkpoints, so "no collapse" is final once the
+    odd thousands are benchmarked. The training signals already cover every iteration.
+
+![training signals](figures/stability_training.png)

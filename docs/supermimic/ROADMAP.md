@@ -121,16 +121,24 @@ with a gate: if it fails, we stop and rethink before building on top.
     the cause.
   - A late failure mode: extreme imagined rewards blow up the critic loss.
   - Gate: met at equal hours and at the best checkpoint; stability not met; critic ablation open.
-- **Stability study (running, `m4/stability.md`, D38).** User decision 2026-10-25: fix speed and
-  stability before M5.
-  - Speed: the imagination step and the world-model loss are compiled (D37).
-  - Diagnosis: the main collapses come from the critic going wrong on live states. The late burst is
-    post-fall world-model extrapolation, through the joint-limit penalty, poisoning the critic.
-  - Runs: a second-seed baseline plus four ablations (no critic; failure head on the rule's features;
-    survival-weighted critic loss; no privileged critic inputs), 12 h each on Leonardo.
-- **Next:** adopt what fixes stability, then `full` directly on the cluster (M5).
+- **Stability study, done 2026-10-26** (`m4/stability.md`, `m4/stability_report.pdf`, D38):
+  - Five 12 h Leonardo runs: second seed, no critic, rule-feature head, survival-weighted critic, no
+    privileged critic inputs.
+  - The oscillation came from an early critic blow-up: the learned head misses falls early, and
+    exploding post-fall penalties enter the objective and the critic.
+  - Runs without the blow-up trained with no collapse and reached tracking return 0.885–0.894 with 2–5
+    failures, beating the old baseline's 24 h best (0.872) within about 20,000 iterations.
+  - Adopted: rule-feature head plus survival-weighted critic loss (D39).
+  - Also: the dataset review (D40), compiled imagination (D37), CUDA graphs not used (D41).
+- **Gate:** met. Stable training, better than PPO-Sim at equal hours (cluster report) and at its best.
 
-## M5: Speed, stability, scale (options, user decides; `m4/cluster_report.pdf` §5)
+## M5: Scale (started 2026-10-26, `m5/runs.md`)
+
+- **Running:** `full` (124,077 clips) and `dev`, 24 h each on Leonardo, with the D39 defaults. Both are
+  stable at about iteration 20,000.
+- **Next:** benchmark them (`dev` clips; a stratified sample of `full`).
+
+### Options listed in M4 (`m4/cluster_report.pdf` §5)
 
 User decisions 2026-10-25: (1) compile, (2) the stability ablations are under way in M4; no G1
 control, multi-GPU or data sweep for now; `full` on the cluster once stability and speed are fixed.

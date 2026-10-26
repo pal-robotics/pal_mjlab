@@ -398,7 +398,9 @@ at every step (user, 2026-10-23).**
   - `--agent.algorithm.critic.survival-weighted False`
 - **Deviations:** A5 deviates from the paper's unweighted Eq. 3. A2' keeps a learned head (the paper does
   not state its input).
-- **Temporary:** confirmed or revisited once the stability runs are benchmarked.
+- **Confirmed 2026-10-26** by the benchmark: A2' and A5 trained with no collapse and reached tracking
+  return 0.89 with 2–5 failures. The old baseline collapsed 3 times over the same iterations
+  (`m4/stability_report.pdf`).
 
 **D40. Dataset review: two infeasible clips removed (user, 2026-10-25).**
 - **Which:**

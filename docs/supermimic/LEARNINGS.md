@@ -371,6 +371,30 @@ return, mix failures and sampled starts. Judge runs on the whole-clip benchmark.
   passes its 24 h result at 9.3 h. 25 of its 31 later checkpoints have a higher return, and it uses 15×
   fewer sim steps.
 
+## M4 stability study (`m4/stability.md`, `m4/stability_report.pdf`)
+
+- **The oscillation follows from an early critic blow-up.**
+  - In the first 2000 iterations, the 256×256 learned failure head ranks falls worse than chance, so
+    imagined falls keep their survival weight.
+  - The world model's post-fall extrapolation (joint-limit penalty down to −10^6 per step) then floods
+    the policy objective and the critic's targets.
+  - The critic value falls to −175…−396 and its loss reaches 10^6–10^8. Runs that go through this spike
+    for tens of thousands of iterations afterwards; runs that avoid it never spike.
+- **Two fixes, each sufficient on its own:** a failure head on the rule's two errors (A2′), and a critic
+  loss weighted by the survival ĉ_t (A5). Both are now the default (D39).
+- **Without the blow-up**, `dev` training is stable and reaches tracking return 0.885–0.894 with 2–5
+  failures (of 1296) by about 30,000 iterations. The old baseline's 24 h best was 0.872.
+- **The critic helps tracking:** with no critic, training is stable but fails 16–23 clips.
+- **The seed matters a lot early.** The same code with seed 43 avoided the blow-up; seed 42 did not.
+  Compare configurations on more than one seed, or on mechanisms that remove the failure mode.
+- **TF32 plus the 32-step backward pass** makes actor gradients differ 3–12% between equivalent
+  computations. The equations match to 10^-6 in FP32.
+- **The return-based sampler concentrates** about half of the starts on about 1% of the bins once the
+  policy is good. One clip got up to 42% of all starts.
+- **Local GPU queue:** `gpuq`'s game check matches the `pgrep` of concurrent `gpuq status` calls, so
+  polling the queue (an agent loop, the Bridge page refreshing every 3 s) preempts running jobs. Use
+  `gpuq wait`, not status polling.
+
 ## Repo state found on MAC/WBC (not caused by us)
 
 - `tests/test_kangaroo_velocity_task_launch.py`: all 12 velocity tasks fail at env construction on GPU.

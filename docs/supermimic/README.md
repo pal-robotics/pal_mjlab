@@ -12,7 +12,9 @@ SuperMimic (arXiv 2610.28480) on PAL Kangaroo with 7-DoF arms, trained on the BO
 - `m3/`: imagination and policy-update checks: `imagination.md` (short), `report.pdf`, `make_figures.py`
 - `m4/`: the online loop on `dev` vs PPO-Sim: `online_loop.md` (short), `report.pdf`, `make_figures.py`;
   the 24 h cluster runs with the paper's settings and the M5 options: `cluster_runs.md`,
-  `cluster_report.pdf`, `make_cluster_figures.py`; the stability study: `stability.md`
+  `cluster_report.pdf`, `make_cluster_figures.py`; the stability study: `stability.md`,
+  `stability_report.pdf`, `make_stability_figures.py`
+- `m5/`: the 24 h `full` and `dev` runs with the D39 defaults: `runs.md`
 
 ## Environment
 
