@@ -675,7 +675,7 @@ def pal_kangaroo_stairs_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCf
     "straight_stairs_up": (0.0,),
     "straight_stairs_down": (0.0, math.pi),
   }
-  cfg.events["reset_base"].params["yaw_noise"] = 0.3
+  cfg.events["reset_base"].params["yaw_half_range"] = 0.3
 
   ### CURRICULUM
 
