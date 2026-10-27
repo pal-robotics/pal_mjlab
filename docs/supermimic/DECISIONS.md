@@ -544,3 +544,18 @@ failure in play (user, 2026-10-26).**
   lasted 3 s, so a fall plays out in physics instead of the robot reappearing on the reference. Training and
   the benchmark keep `anchor_failure` (paper F.1).
 - **Branches:** `omm/supermimic-5dof` was merged into `omm/supermimic` (one branch).
+
+**D46. Hands: the elbow capsule no longer collides with the palm on the same arm (user, 2026-10-27).**
+- **Finding** (5-DoF session): `arm_*_4_collision` in `kangaroo_hands.xml` is copied from the 7-DoF model,
+  where it covers the 7-DoF forearm. On the 5-DoF arm it reaches the Seed palm when the wrist rolls: 18.5 mm
+  of overlap at `hand_left_palm_roll_joint` = −0.785. MuJoCo only skips parent-child pairs, and the palm is
+  two bodies below `arm_*_4_link`, so the contact was generated.
+- **Size:** on `dataset_5dof/libraries/dev` (every second frame) the palm overlaps the elbow capsule in
+  4.8% of frames, in 425 of 1,193 clips, up to 33.9 mm deep. With self-collision on (`FULL_COLLISION`),
+  training would block these real reference poses.
+- **Fix:** `<exclude body1="arm_*_4_link" body2="hand_*_palm_link"/>`, next to the arm 5/palm excludes.
+  The pair excludes the palm's thumb too (89 frames). Crossed arms still collide with the other hand.
+- **Test:** `test_hand_does_not_collide_with_its_elbow` (seeded arm and wrist poses, both roll limits);
+  it fails without the exclude.
+- **Affects** only the hands variant, which has no training run yet; the grippers model is unchanged.
+

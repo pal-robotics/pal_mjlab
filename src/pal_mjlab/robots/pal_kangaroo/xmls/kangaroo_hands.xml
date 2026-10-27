@@ -505,6 +505,9 @@
     <!-- the palm overlaps the end of the forearm -->
     <exclude body1="arm_left_5_link" body2="hand_left_palm_link"/>
     <exclude body1="arm_right_5_link" body2="hand_right_palm_link"/>
+    <!-- the elbow capsule (sized for the 7-DoF forearm) reaches the palm when the wrist rolls (D46) -->
+    <exclude body1="arm_left_4_link" body2="hand_left_palm_link"/>
+    <exclude body1="arm_right_4_link" body2="hand_right_palm_link"/>
   </contact>
 
   <sensor>
