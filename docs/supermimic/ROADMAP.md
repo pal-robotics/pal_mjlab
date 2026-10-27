@@ -175,9 +175,11 @@ hours, about 4,560 left (≈ 570 A100-h). In the suggested order:
 
 ## Hands variant (D42, 2026-10-26)
 
-- Tasks `...-Kangaroo-Hands[-ArmWaist1Hz]` are ready, tested on 3 real clips. The full 5-DoF retarget
-  (`kangaroo_bones_seed/dataset_5dof`) is being built. No training run yet; it starts on the user's
-  go-ahead.
+- Tasks `...-Kangaroo-Hands[-ArmWaist1Hz]` are ready, tested on 3 real clips.
+- The 5-DoF data is done (2026-10-27): `kangaroo_bones_seed/dataset_5dof`, 123,607 motions, 249.0 h;
+  libraries `smoke` (109 clips), `dev` (1,193, 2.53 h) and `full` (123,607); its REPORT.md, section 7. The
+  Hands tasks load `dataset_5dof/libraries/dev` by default (joint names match `kangaroo_hands.xml`).
+- No training run yet; it starts on the user's go-ahead.
 
 ## Later
 
