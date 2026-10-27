@@ -25,17 +25,14 @@ from mjlab.utils.noise import UniformNoiseCfg
 from ..kinematics import (
   TorchKinematics,
   compile_kinematic_model,
-  quat_conj,
-  quat_mul,
   quat_rotate_inv,
-  rot6d,
 )
 from ..mdp import observations as sm_obs
 from ..mdp import rewards as sm_rewards
 from ..mdp import tracking
 from ..mdp.commands import MotionLibraryCommand
 from ..mdp.tracking import BodyState
-from ..state import root_pose_error, state_to_qpos_qvel
+from ..state import reference_goal, root_pose_error, state_to_qpos_qvel
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -228,11 +225,7 @@ class AnalyticHeads:
     last = self.library.clip_end[clip] - 1
     idx = torch.minimum(frame[:, None] + k, last[:, None])
     qp, qv = self.library.qpos[idx], self.library.qvel[idx]
-    ref_quat = qp[..., 3:7]
-    rel = quat_mul(quat_conj(root_quat[:, None].expand_as(ref_quat)), ref_quat)
-    ids = self.goal_joints
-    feats = (qp[..., 7:][..., ids], qv[..., 6:][..., ids], rot6d(rel))
-    return torch.cat(feats, dim=-1).flatten(1)
+    return reference_goal(qp, qv, root_quat, self.goal_joints)
 
   def critic_input(
     self,

@@ -26,13 +26,11 @@ from mjlab.utils.lab_api.math import quat_from_euler_xyz, sample_uniform
 from ..kinematics import (
   TorchKinematics,
   compile_kinematic_model,
-  quat_conj,
   quat_mul,
   quat_rotate,
-  rot6d,
 )
 from ..library import MotionLibrary, resolve_library
-from ..state import heading_state, root_pose_error
+from ..state import heading_state, reference_goal, root_pose_error
 from .sampler import ReturnSampler
 from .tracking import BodyState
 
@@ -134,14 +132,7 @@ class MotionLibraryCommand(CommandTerm):
     last = self.library.clip_end[self.clip] - 1
     idx = torch.minimum(self.frame[:, None] + k, last[:, None])
     qp, qv = self.library.qpos[idx], self.library.qvel[idx]  # (E, K, ·)
-    ref_quat = qp[..., 3:7]
-    robot_quat = self.robot_qpos[:, None, 3:7].expand_as(ref_quat)
-    feats = (
-      qp[..., 7:][..., self._goal_joint_ids],
-      qv[..., 6:][..., self._goal_joint_ids],
-      rot6d(quat_mul(quat_conj(robot_quat), ref_quat)),
-    )
-    return torch.cat(feats, dim=-1).flatten(1)
+    return reference_goal(qp, qv, self.robot_qpos[:, 3:7], self._goal_joint_ids)
 
   # Robot and reference state ----------------------------------------------------
 

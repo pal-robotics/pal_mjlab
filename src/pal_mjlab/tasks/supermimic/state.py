@@ -97,3 +97,28 @@ def root_pose_error(
   dyaw = 2.0 * torch.atan2(dq[:, 3], dq[:, 0])
   dyaw = torch.atan2(torch.sin(dyaw), torch.cos(dyaw))
   return torch.cat([dpos, dyaw[:, None]], dim=-1)
+
+
+def reference_goal(
+  qpos: torch.Tensor,
+  qvel: torch.Tensor,
+  robot_quat: torch.Tensor,
+  joint_ids: torch.Tensor,
+) -> torch.Tensor:
+  """The policy's goal (D6): (..., K * F) from K reference frames.
+
+  ``qpos`` (..., K, nq) and ``qvel`` (..., K, nv) are the reference in MuJoCo layout, from the
+  target frame (the one the next action should reach) on, the last frame repeated past the clip
+  end; ``robot_quat`` (..., 4) is the robot's root orientation (wxyz). Per frame: the reference
+  positions and velocities of the ``joint_ids`` joints, and the reference root orientation in the
+  robot root frame, rot6d(conj(q_robot) * q_ref). The training env's goal, and the goal builder for
+  deployment (rl/export.py, D48).
+  """
+  ref_quat = qpos[..., 3:7]
+  robot_quat = robot_quat[..., None, :].expand_as(ref_quat)
+  feats = (
+    qpos[..., 7:][..., joint_ids],
+    qvel[..., 6:][..., joint_ids],
+    rot6d(quat_mul(quat_conj(robot_quat), ref_quat)),
+  )
+  return torch.cat(feats, dim=-1).flatten(-2)
