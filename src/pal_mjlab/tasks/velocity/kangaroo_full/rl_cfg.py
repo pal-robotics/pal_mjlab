@@ -89,7 +89,7 @@ def pal_kangaroo_full_projector_ppo_runner_cfg() -> ProjectorRunnerCfg:
     experiment_name="kangaroo_full_projector_velocity",
     save_interval=500,
     num_steps_per_env=24,
-    max_iterations=500,
+    max_iterations=10000,
     projector_hidden_in=(256, 256),
     projector_hidden_out=(256, 256),
   )
