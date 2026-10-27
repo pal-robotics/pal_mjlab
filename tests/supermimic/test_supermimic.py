@@ -82,6 +82,7 @@ def test_runner_trains_saves_and_resumes(env, tmp_path):
   runner = SuperMimicRunner(env, cfg, str(tmp_path), env.device)
   runner.learn(num_learning_iterations=6)
   assert (tmp_path / "model_3.pt").exists() and (tmp_path / "model_6.pt").exists()
+  assert (tmp_path / "model_6.onnx").exists()  # the policy for the robot (D48)
   resumed = SuperMimicRunner(env, asdict(_tiny_cfg()), None, env.device)
   resumed.load(str(tmp_path / "model_6.pt"))
   assert resumed.current_learning_iteration == 6

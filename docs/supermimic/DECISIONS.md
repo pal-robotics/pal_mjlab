@@ -559,3 +559,24 @@ failure in play (user, 2026-10-26).**
   it fails without the exclude.
 - **Affects** only the hands variant, which has no training run yet; the grippers model is unchanged.
 
+**D48. ONNX export of the policy for the robot: one library-free file per checkpoint (user, 2026-10-27).**
+- **Why:** the user needs ONNX policies to run SuperMimic on the real robots, as the other tasks have.
+  WBC's export bakes one clip into the file (LEARNINGS: not reused); the user chose the policy alone
+  (ROADMAP "Later"), so one file runs any motion and the robot builds the goal.
+- **The file** (`rl/export.py`): the actor (observation normalizer, goal encoder, decoder), input `obs`
+  (1, obs_dim) = [goal, proprio], output `actions`; joint targets `action_offset + action_scale * actions`.
+  Metadata (mjlab's key names where they exist): joint names, default positions, action joints, scale,
+  offset and gains, per observation term its name, dims per step and history length, the proprio joints,
+  the IMU site, K and the goal joints. Proprio history is oldest first and starts filled with the first
+  observation.
+- **The goal builder** is `state.reference_goal`, now the only copy of the goal: the env's command and the
+  imagination heads call it too.
+- **When:** `SuperMimicRunner.save()` writes `model_N.onnx` next to every `model_N.pt` (35 MB vs 213 MB), so
+  the best checkpoint picked after benchmarking has its file; an export error is printed and training goes
+  on. `scripts/supermimic/export_onnx.py <task> --library <folder> <checkpoints>` exports older ones.
+- **Checks:** `tests/supermimic/test_export.py` (both robots): ONNX (onnx's reference runtime) equals the
+  actor on recorded env observations; the metadata adds up to the observation; the goal rebuilt from the
+  library, and the newest proprio step from the robot state, equal the env's; the history shifts oldest
+  first. On the 7-DoF dev run's model_70000, 100 closed-loop steps: max difference 1.6e-6.
+- **On the robot:** the reference must start at the robot's heading (episodes start on the reference):
+  rotate the motion about z so its first root yaw is the robot's.

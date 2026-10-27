@@ -34,6 +34,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from ..mdp.commands import MotionLibraryCommand
 from ..state import heading_pose, heading_state, pose_delta
+from .export import export_policy
 from .heads import AnalyticHeads
 from .replay import ReplayBuffer
 from .supermimic import (
@@ -188,6 +189,13 @@ class SuperMimicRunner:
       },
       path,
     )
+    # The policy for the robot next to each checkpoint (model_N.onnx, D48).
+    try:
+      export_policy(
+        self.env.unwrapped, self.alg.actor, Path(path).with_suffix(".onnx"), path
+      )
+    except Exception as e:  # never stop a training run over the export
+      print(f"[WARN] ONNX export failed (training continues): {e}")
 
   def load(
     self,

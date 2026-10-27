@@ -184,6 +184,6 @@ hours, about 4,560 left (≈ 570 A100-h). In the suggested order:
 ## Later
 
 - Kangaroo sys-ID DR in ξ (D14).
-- A library-free ONNX export: the policy plus a goal-builder interface.
+- ~~A library-free ONNX export: the policy plus a goal-builder interface.~~ Done (D48, 2026-10-27).
 - Deployment.
 - Velocity and sparse-WBC encoders (Appendix B).

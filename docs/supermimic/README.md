@@ -60,7 +60,17 @@ uv run python -m pal_mjlab.scripts.supermimic.play $TASK --checkpoint-file <run>
   --clips 230324/flip_360_001__A304
 #    the motions as retargeted, without physics or a policy
 uv run python -m pal_mjlab.scripts.supermimic.view_motion <library> [--clips <name> ...]
+
+# 4. The policy for the robot: training writes <run>/model_N.onnx next to every checkpoint (D48); for
+#    checkpoints saved before that (any library of the robot sets up the env):
+uv run python -m pal_mjlab.scripts.supermimic.export_onnx $TASK --library <library> <run>/model_N.pt
 ```
+
+**ONNX policy** (`tasks/supermimic/rl/export.py`): input `obs` (1, obs_dim), output `actions`; joint targets
+`action_offset + action_scale * actions`. `obs` is the goal, then 10 steps of proprioception (oldest first),
+as listed in the file's metadata. The goal is `state.reference_goal` of the next 10 reference frames: joint
+positions and velocities, and the reference root orientation in the robot root frame. One file runs any
+motion. The motion's root yaw at its first frame must match the robot's.
 
 **How it trains** (Algorithm A.1, D0–D44): every iteration the 4096 simulated robots collect about 2.5 steps
 each with exploration noise into a replay buffer, the world model fits 10 batches of 8-step windows from it,
