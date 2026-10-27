@@ -16,7 +16,7 @@ D42) and retarget (`dataset_5dof`).
   the 24 h cluster runs with the paper's settings and the M5 options: `cluster_runs.md`,
   `cluster_report.pdf`, `make_cluster_figures.py`; the stability study: `stability.md`,
   `stability_report.pdf`, `make_stability_figures.py`
-- `m5/`: the 24 h `full` and `dev` runs with the D39 defaults: `runs.md`
+- `m5/`: the 24 h `full` and `dev` runs with the D39 defaults and their benchmark: `runs.md`, `make_figures.py`
 
 ## Environment
 

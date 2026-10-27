@@ -134,9 +134,11 @@ with a gate: if it fails, we stop and rethink before building on top.
 
 ## M5: Scale (started 2026-10-26, `m5/runs.md`)
 
-- **Running:** `full` (124,077 clips) and `dev`, 24 h each on Leonardo, with the D39 defaults. Both are
-  stable at about iteration 20,000.
-- **Next:** benchmark them (`dev` clips; a stratified sample of `full`).
+- **`dev`, 24 h: done.** No collapse; on `dev` it fails no clip from 46,000 iterations on (one exception)
+  and reaches tracking return 0.906 at 70,000, above PPO-Sim (0.770) and every earlier run.
+- **`full`:** went NaN at 44,600 (constraint-buffer overflow, D44); resumed from 44,000 with `njmax` 1024 for
+  24 h more (until ~2026-10-27 19:30). On `dev` its first job levels off at 0.87–0.88.
+- **Next:** benchmark `full` when it ends (`dev` clips; a stratified sample of `full`).
 
 ### Options listed in M4 (`m4/cluster_report.pdf` §5)
 

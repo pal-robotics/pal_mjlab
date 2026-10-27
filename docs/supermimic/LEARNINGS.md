@@ -404,9 +404,21 @@ return, mix failures and sampled starts. Judge runs on the whole-clip benchmark.
   computations. The equations match to 10^-6 in FP32.
 - **The return-based sampler concentrates** about half of the starts on about 1% of the bins once the
   policy is good. One clip got up to 42% of all starts.
-- **Local GPU queue:** `gpuq`'s game check matches the `pgrep` of concurrent `gpuq status` calls, so
-  polling the queue (an agent loop, the Bridge page refreshing every 3 s) preempts running jobs. Use
-  `gpuq wait`, not status polling.
+- **Local GPU queue:** `gpuq`'s game check matched the `pgrep` of concurrent `gpuq status` calls, so
+  polling the queue preempted running jobs. Fixed in gpuq since: no game detection, `gpuq pause`.
+
+## M5: the 24 h runs (`m5/runs.md`)
+
+- **`dev` for 24 h:** no collapse, and it kept improving to the end: 0 failed clips (of 1,294) from 46,000
+  iterations on (one checkpoint with 1), tracking return 0.906 at 70,000; arms 5.4, legs 3.6, torso 1.4 cm.
+- **`full` on `dev`** follows `dev` to about 16,000 iterations, then levels off at 0.87–0.88.
+- **The constraint buffer matters on `full`:** with `njmax` 300, MuJoCo Warp dropped contact rows about 250
+  times per 100 iterations (up to 636 requested); the run went NaN at 44,600 (D44). `dev` overflowed 263
+  times in 24 h. With 1024: no overflow. The benchmark then ran about 4× slower per checkpoint (pure
+  simulation; likely the larger buffer), training speed did not change visibly.
+- **Training failure on `full` is the sampler's, not the policy's:** it rose from 1% to about 35% once
+  all 965k bins had been visited (about 28,000), while bin returns kept rising.
+- **The training logger drops NaN values,** so a NaN run shows as missing losses, not as NaN.
 
 ## Repo state found on MAC/WBC (not caused by us)
 
