@@ -136,9 +136,11 @@ with a gate: if it fails, we stop and rethink before building on top.
 
 - **`dev`, 24 h: done.** No collapse; on `dev` it fails no clip from 46,000 iterations on (one exception)
   and reaches tracking return 0.906 at 70,000, above PPO-Sim (0.770) and every earlier run.
-- **`full`:** went NaN at 44,600 (constraint-buffer overflow, D44); resumed from 44,000 with `njmax` 1024 for
-  24 h more (until ~2026-10-27 19:30). On `dev` its first job levels off at 0.87–0.88.
-- **Next:** benchmark `full` when it ends (`dev` clips; a stratified sample of `full`).
+- **`full`: done** (~40 h: NaN at 44,600 from a constraint-buffer overflow, D44, then resumed from 44,000
+  with `njmax` 1024 for 24 h). On `dev` 0.894 with 0 failures at 110,000; on a second sample of `full`
+  1 failure of 1,242 where `dev` fails 23. Report: `m5/report.pdf`.
+- **Next:** a `full` run on the re-retargeted 7-DoF data (D47); a learning-rate schedule fitted to the run
+  length so the last checkpoint is the best (user's go); the 5-DoF `full` run (job 62432587).
 
 ### Options listed in M4 (`m4/cluster_report.pdf` §5)
 
@@ -176,10 +178,13 @@ hours, about 4,560 left (≈ 570 A100-h). In the suggested order:
 ## Hands variant (D42, 2026-10-26)
 
 - Tasks `...-Kangaroo-Hands[-ArmWaist1Hz]` are ready, tested on 3 real clips.
-- The 5-DoF data is done (2026-10-27): `kangaroo_bones_seed/dataset_5dof`, 123,607 motions, 249.0 h;
-  libraries `smoke` (109 clips), `dev` (1,193, 2.53 h) and `full` (123,607); its REPORT.md, section 7. The
-  Hands tasks load `dataset_5dof/libraries/dev` by default (joint names match `kangaroo_hands.xml`).
-- No training run yet; it starts on the user's go-ahead.
+- The 5-DoF data is done (2026-10-27): `kangaroo_bones_seed/dataset_5dof`, 118,959 motions, 234.3 h, after
+  the QA rule that drops clips with any collision shape > 5 cm in the floor (it removed 4,649 clips, 14.7 h);
+  libraries `smoke` (139 clips), `dev` (1,323, 2.53 h) and `full` (118,959); its REPORT.md, section 7. The
+  previous libraries (123,607 motions) are in `dataset_5dof/libraries_archive/`. The Hands tasks load
+  `dataset_5dof/libraries/dev` by default (joint names match `kangaroo_hands.xml`).
+- First run: `SMfull5dof` (job 62432587, 24 h) on the previous `full` (123,607 clips); benchmark it on
+  `libraries_archive/dev_1193`.
 
 ## Later
 

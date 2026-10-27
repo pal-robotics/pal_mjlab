@@ -411,13 +411,25 @@ return, mix failures and sampled starts. Judge runs on the whole-clip benchmark.
 
 - **`dev` for 24 h:** no collapse, and it kept improving to the end: 0 failed clips (of 1,294) from 46,000
   iterations on (one checkpoint with 1), tracking return 0.906 at 70,000; arms 5.4, legs 3.6, torso 1.4 cm.
-- **`full` on `dev`** follows `dev` to about 16,000 iterations, then levels off at 0.87–0.88.
+- **`full` on `dev`** follows `dev` to about 16,000 iterations, levels off at 0.87–0.88, then climbs slowly
+  after the resume to 0.894 at 110,000 (0 failures). On `dev`'s own clips `dev` stays ahead (0.906).
+- **Data scale buys coverage:** on a second 2.5 h sample of `full` (1,242 clips, 14 in `dev`), `dev`'s final
+  policy fails 23 (0.851); every `full` checkpoint fails 1 (0.862–0.878), as on `dev`.
+- **Infeasible references attract the hard sampler.** Before `full`'s dip at 82,700 (world model, then
+  policy; recovered by itself), four kneeling clips held 14% of all starts; their retargeted knee is 17.7 cm
+  in the floor in every frame. Clips that can never be tracked keep their bins hard forever. The dataset
+  QA checked link origins only (paper E); it now drops clips with any collision shape > 5 cm in the floor.
+- **The last checkpoint is not the best while the learning rate is high:** both runs ended at 54–82% of the
+  initial rate (decay over 250k iterations); `full` 121,000 fails 3 where 120,000 fails none.
+- **The sampler state is in every checkpoint** (`sampler`: returns, visits, past weight per bin): where the
+  starts went can be reconstructed afterwards.
 - **The constraint buffer matters on `full`:** with `njmax` 300, MuJoCo Warp dropped contact rows about 250
   times per 100 iterations (up to 636 requested); the run went NaN at 44,600 (D44). `dev` overflowed 263
   times in 24 h. With 1024: no overflow. The benchmark then ran about 4× slower per checkpoint (pure
   simulation; likely the larger buffer), training speed did not change visibly.
 - **Training failure on `full` is the sampler's, not the policy's:** it rose from 1% to about 35% once
-  all 965k bins had been visited (about 28,000), while bin returns kept rising.
+  all 965k bins had been visited (about 28,000), while bin returns kept rising (0.766 → 0.791 at the end).
+  The mean bin return and the benchmark measure progress on `full`; training return does not.
 - **The training logger drops NaN values,** so a NaN run shows as missing losses, not as NaN.
 
 ## Repo state found on MAC/WBC (not caused by us)
