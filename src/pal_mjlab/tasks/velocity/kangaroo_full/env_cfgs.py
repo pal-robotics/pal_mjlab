@@ -215,65 +215,54 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # the arms and pelvis that carries over unchanged; for the screws it is translated
   # the same way as std_walking / std_running above.
   cfg.rewards["pose"].params["std_standing"] = {
-    r"leg_(left|right)_1_actuator$": 0.001998,
-    r"leg_(left|right)_2_actuator$": 0.002970,
-    r"leg_(left|right)_3_actuator$": 0.002966,
-    r"leg_(left|right)_length_actuator$": 0.013251,
-    r"leg_(left|right)_4_actuator$": 0.001721,
-    r"leg_(left|right)_5_actuator$": 0.001721,
-    r"pelvis_1_joint$|pelvis_2_joint$|arm_.*_[1-4]_joint$": 0.05,
+    # Lower body: ball screws
+    r"leg_(left|right)_1_actuator$": 0.0030,
+    r"leg_(left|right)_2_actuator$": 0.0045,
+    r"leg_(left|right)_3_actuator$": 0.0045,
+    r"leg_(left|right)_length_actuator$": 0.0200,
+    r"leg_(left|right)_4_actuator$": 0.0026,
+    r"leg_(left|right)_5_actuator$": 0.0026,
+
+    # Arms and pelvis
+    r"pelvis_1_joint$|pelvis_2_joint$|arm_.*_[1-4]_joint$": 0.075,
   }
-  # Screw-space stds translated from pal_kangaroo's joint-space ones, so the two
-  # tasks penalise the same physical posture error.
-  #
-  # variable_posture scores mean_j ((q_j - q_j*) / std_j)^2. Writing dq = J dx for
-  # the transmission Jacobian J = d(joint)/d(screw), the simple model's penalty is a
-  # quadratic form in dx whose diagonal is sum_j (J[j,i] / std_q_j)^2; matching that
-  # gives std_x_i = 1 / sqrt(sum_j (J[j,i] / std_q_j)^2), which is what the numbers
-  # below are. J was measured at the home keyframe by solving the equality-constraint
-  # Jacobian for each screw (see _TRANSMISSION_AT_HOME):
-  #   screw 1      -> hip yaw                        25.031 rad/m
-  #   screws 2,3   -> hip pitch 8.53, hip roll +-14.52 rad/m   (differential pair)
-  #   screws 4,5   -> ankle pitch -14.29, ankle roll +-25.29    (differential pair)
-  #   screw length -> leg length                     -3.7734 m/m
-  #
-  # The two differential pairs cannot be matched exactly: for them J^T K J carries
-  # off-diagonal terms worth ~50% of the diagonal, which two independent stds have no
-  # way to express. The diagonal match above is the closest two-number approximation.
-  #
-  # Arms and pelvis are identity-mapped -- same joint names, axes and ranges in both
-  # models -- so they take pal_kangaroo's values verbatim.
+
   cfg.rewards["pose"].params["std_walking"] = {
-    # Lower body. 1 = hip yaw, 2/3 = hip xy, 4/5 = ankle xy.
-    r"leg_(left|right)_1_actuator$": 0.005993,
-    r"leg_(left|right)_2_actuator$": 0.009913,
-    r"leg_(left|right)_3_actuator$": 0.009899,
-    r"leg_(left|right)_length_actuator$": 0.026501,
-    r"leg_(left|right)_4_actuator$": 0.003857,
-    r"leg_(left|right)_5_actuator$": 0.003857,
-    # Waist.
-    r"pelvis_1.*": 0.08,
-    r"pelvis_2.*": 0.2,
-    # Arms.
-    r"arm_.*_1_.*": 0.2,  # pitch
-    r"arm_.*_4_.*": 0.2,  # elbow
-    r"arm_.*_(?![14]_joint)\d+_joint": 0.1,
+    # Lower body
+    r"leg_(left|right)_1_actuator$": 0.0090,
+    r"leg_(left|right)_2_actuator$": 0.0150,
+    r"leg_(left|right)_3_actuator$": 0.0150,
+    r"leg_(left|right)_length_actuator$": 0.0400,
+    r"leg_(left|right)_4_actuator$": 0.0058,
+    r"leg_(left|right)_5_actuator$": 0.0058,
+
+    # Waist
+    r"pelvis_1.*": 0.12,
+    r"pelvis_2.*": 0.30,
+
+    # Arms
+    r"arm_.*_1_.*": 0.30,
+    r"arm_.*_4_.*": 0.30,
+    r"arm_.*_(?![14]_joint)\\d+_joint": 0.15,
   }
+
   cfg.rewards["pose"].params["std_running"] = {
-    # Lower body. 1 = hip yaw, 2/3 = hip xy, 4/5 = ankle xy.
-    r"leg_(left|right)_1_actuator$": 0.007990,
-    r"leg_(left|right)_2_actuator$": 0.013411,
-    r"leg_(left|right)_3_actuator$": 0.013391,
-    r"leg_(left|right)_length_actuator$": 0.039752,
-    r"leg_(left|right)_4_actuator$": 0.005765,
-    r"leg_(left|right)_5_actuator$": 0.005765,
-    # Waist.
-    r"pelvis_1.*": 0.08,
-    r"pelvis_2.*": 0.3,
-    # Arms.
-    r"arm_.*_1_.*": 0.4,
-    r"arm_.*_4_.*": 0.35,
-    r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
+    # Lower body
+    r"leg_(left|right)_1_actuator$": 0.0120,
+    r"leg_(left|right)_2_actuator$": 0.0200,
+    r"leg_(left|right)_3_actuator$": 0.0200,
+    r"leg_(left|right)_length_actuator$": 0.0600,
+    r"leg_(left|right)_4_actuator$": 0.0085,
+    r"leg_(left|right)_5_actuator$": 0.0085,
+
+    # Waist
+    r"pelvis_1.*": 0.12,
+    r"pelvis_2.*": 0.40,
+
+    # Arms
+    r"arm_.*_1_.*": 0.50,
+    r"arm_.*_4_.*": 0.45,
+    r"arm_.*_(?![14]_joint)\\d+_joint": 0.22,
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["upright"].weight = 1.25
