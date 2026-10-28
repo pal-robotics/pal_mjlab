@@ -50,7 +50,7 @@ TASK=Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers-ArmWaist1Hz  # hands: ...-Kanga
 #    command again resumes from the newest checkpoint of that run name (preemptions).
 uv run python -m pal_mjlab.scripts.supermimic.train $TASK --library <library> --agent.run-name <name>
 #    local 16 GB GPU (D16): add --agent.algorithm.precision bf16 --agent.replay-steps 500
-#    full (250.9 h): a cluster GPU; the library takes 13.9 GB of GPU memory
+#    full (233.5 h): a cluster GPU; the library takes 13 GB of GPU memory
 
 # 3. Replay it with a trained policy, in MuJoCo physics: the library's motions in random order, one after
 #    another, or the ones given with --clips (one repeats). No reset when the robot fails: the fall plays
@@ -103,7 +103,7 @@ Key TensorBoard scalars: `episode/return`, `eval/return_gap_head` (imagined vs s
 ## Commands
 
 ```bash
-# Motion library: smoke (0.25 h), dev (2.5 h), full (250.9 h) or hours (10h). Writes to
+# Motion library: smoke (0.25 h), dev (2.5 h), full (233.5 h) or hours (10h). Writes to
 # <data-dir>/libraries/<subset> (default data dir: kangaroo_bones_seed/dataset; the training
 # CLI also packs a missing subset on first use).
 .venv/bin/python -m pal_mjlab.scripts.bones_to_library --subset dev

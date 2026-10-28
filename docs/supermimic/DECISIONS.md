@@ -559,6 +559,23 @@ failure in play (user, 2026-10-26).**
   it fails without the exclude.
 - **Affects** only the hands variant, which has no training run yet; the grippers model is unchanged.
 
+**D47. The 7-DoF data re-retargeted and replaced; the first set archived (user, 2026-10-27/28).**
+- **Why:** the first 7-DoF set (PAL's SMPL-X config and `fix_ankles.py`, 2026-10-22) predates the GMR fixes
+  made for the 5-DoF set. On 1,000 random clips in our collision model: a self-penetration over 1 cm in 30.6% of
+  frames (24.4% arm into leg), a foot over 1 cm in the floor in 28.2%. Wrist joint 7 sat at a limit in 18-19%
+  of frames: GMR's `arm_*_tip_link` was turned 45° from ours, and the wrist target paired the G1 thumb with the
+  gripper's jaws. The M5 `full` run's sampler concentrated on impossible clips of it (`m5/report.pdf`).
+- **New set** (`kangaroo_bones_seed/dataset/`, GMR `bones-seed-kangaroo` 0a53c94): GMR's model has our grippers
+  and wrist frame (same FK as `kangaroo_grippers.xml` for every shared body); the wrist target pairs fingers with
+  fingers and the palm normal with the jaw axis; collision avoidance, the clip's own floor, torso weight 100,
+  the IK limits applied. The QA also drops clips with any collision shape more than 5 cm in the floor.
+  119,085 motions, 233.5 h (was 124,077, 250.9 h); `dev` 1,272 clips, `full` 119,085.
+- **Result** (same 1,000 clips): self-penetration 0.49% of frames, floor 5.4%; joint 7 at a limit 0.7/1.7%.
+- **The first set** is in `kangaroo_bones_seed/archive/7dof_v1_2026-10-27/`. Every run before this date trained
+  on it, and the M1-M5 benchmarks used its `dev`: compare old checkpoints there, not on the new `dev`.
+- **Revisit:** if the 5 cm floor rule drops motions we need (most rejects are feet at toe-off and palms reaching
+  down).
+
 **D48. ONNX export of the policy for the robot: one library-free file per checkpoint (user, 2026-10-27).**
 - **Why:** the user needs ONNX policies to run SuperMimic on the real robots, as the other tasks have.
   WBC's export bakes one clip into the file (LEARNINGS: not reused); the user chose the policy alone
