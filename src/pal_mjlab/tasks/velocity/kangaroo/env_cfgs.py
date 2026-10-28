@@ -891,19 +891,19 @@ def pal_kangaroo_grippers_wbc_rough_env_cfg(play: bool = False) -> ManagerBasedR
     tracked_body_ranges= {
       "arm_right_tip_link" : mdp.WbcPoseCommandCfg.Ranges(
         x=(0.2, 0.5),
-        y=(-0.5, 0.1),
+        y=(-0.6, 0.1),
         z=(-0.1, 0.5),
-        yaw= (-math.pi / 2 - math.pi / 6, -math.pi / 2 + math.pi / 6),#(-math.pi / 6, math.pi / 6),
-        pitch= (-math.pi / 6, math.pi / 6),#(math.pi / 2 - math.pi / 6, math.pi / 2 + math.pi / 6),#- 
-        roll= (-math.pi / 2 - math.pi / 6, -math.pi / 2 + math.pi / 6),#(-math.pi / 6, math.pi / 6),
+        yaw=   (-math.pi / 6, math.pi / 6),
+        pitch= (-math.pi / 2 - math.pi / 6, -math.pi / 2 + math.pi / 6),
+        roll=  (math.pi - math.pi / 6, math.pi + math.pi / 6),
       ),
       "arm_left_tip_link" : mdp.WbcPoseCommandCfg.Ranges(
-        x=(0.2, 0.5),
-        y=(-0.1, 0.5),
+        x=(0.3, 0.5),
+        y=(-0.1, 0.6),
         z=(-0.1, 0.5),
         yaw= (-math.pi / 6, math.pi / 6),
-        pitch= (-math.pi / 2 - math.pi / 6, -math.pi / 2 + math.pi / 6),
-        roll= (math.pi - math.pi / 6, math.pi + math.pi / 6),
+        pitch= (math.pi / 2 - math.pi / 6, math.pi / 2 + math.pi / 6),
+        roll= (-math.pi / 6, math.pi / 6),
       ),
       "base_link" : mdp.WbcPoseCommandCfg.Ranges(
         z=(0.95, 0.95),
