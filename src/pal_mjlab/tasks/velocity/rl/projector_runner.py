@@ -21,30 +21,45 @@ _ACTIVATIONS = {
 # --------------------------------------------------------------------------- #
 # Index-map helpers
 # --------------------------------------------------------------------------- #
-def build_index_map(cur_terms, base_terms):
+def build_index_map(cur_terms, base_terms, term_maps=None):
   """Match observation terms by name.
 
-  cur_terms / base_terms: ordered lists of (name, dim) in concatenation order.
-  Returns [(cur_idx, base_idx), ...] with one pair per matched scalar.
+  Equal-dim terms are matched 1:1. An explicit per-term map
+  {name: [(cur_local, base_local), ...]} overrides. Same-name terms with
+  different dims and no explicit map are left unmapped (learned by the proj).
+  Returns [(cur_idx, base_idx), ...].
   """
+  term_maps = term_maps or {}
 
   def offsets(terms):
     out, o = {}, 0
     for name, dim in terms:
-      out[name] = (o, dim)
-      o += dim
+      out[name] = (o, int(dim))
+      o += int(dim)
     return out
 
   cur, base = offsets(cur_terms), offsets(base_terms)
   pairs = []
   for name, (co, cd) in cur.items():
-    if name in base:
-      bo, bd = base[name]
-      if cd != bd:
-        raise ValueError(f"Term '{name}' dim mismatch: {cd} (current) vs {bd} (base)")
+    if name not in base:
+      continue
+    bo, bd = base[name]
+    if name in term_maps:
+      for c, b in term_maps[name]:
+        if not (0 <= c < cd and 0 <= b < bd):
+          raise ValueError(
+            f"projector_term_maps['{name}']: pair ({c}, {b}) out of range "
+            f"(cur dim {cd}, base dim {bd})"
+          )
+        pairs.append((co + c, bo + b))
+    elif cd == bd:
       pairs += [(co + j, bo + j) for j in range(cd)]
+    else:
+      print(
+        f"[INFO] Term '{name}' dim {cd} (current) vs {bd} (base): "
+        f"not index-mapped, learned by the projection layer."
+      )
   return pairs
-
 
 def _validate_index_map(index_map, in_dim, out_dim, name="index_map"):
   """Normalise to list of (src, dst) int tuples and sanity check."""
@@ -251,7 +266,8 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
     hidden_out = tuple(train_cfg.get("projector_hidden_out", (128,)))
     freeze_proj = bool(train_cfg.get("projector_freeze_remap", False))
 
-    # Observation remap: explicit [(cur_idx, base_idx), ...] or built from term names.
+    term_maps = train_cfg.get("projector_term_maps")
+
     obs_map = train_cfg.get("projector_obs_map")
     if (
       obs_map is None
@@ -259,10 +275,15 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
       and train_cfg.get("projector_base_terms")
     ):
       obs_map = build_index_map(
-        train_cfg["projector_cur_terms"], train_cfg["projector_base_terms"]
+        train_cfg["projector_cur_terms"],
+        train_cfg["projector_base_terms"],
+        term_maps,
       )
-    # Action remap (only needed if action ordering differs): [(backbone_idx, cur_idx), ...]
+
     act_map = train_cfg.get("projector_act_map")
+    if act_map is None and term_maps and "actions" in term_maps:
+      # Obs pairs are (cur, base); the output head wants (backbone_idx, cur_idx).
+      act_map = [(b, c) for c, b in term_maps["actions"]]
 
     actor.mlp = _ProjectedMLP(
       backbone,
