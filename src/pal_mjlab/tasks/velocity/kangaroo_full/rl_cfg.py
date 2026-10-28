@@ -11,10 +11,13 @@ from dataclasses import dataclass
 @dataclass
 class ProjectorRunnerCfg(RslRlOnPolicyRunnerCfg):
   projector_hidden_in: tuple[int, ...] = (256, 256)
-  """Hidden widths of the residual MLP in head_in (env obs -> backbone obs)."""
   projector_hidden_out: tuple[int, ...] = (128,)
-  """Hidden widths of the residual MLP in head_out (backbone action -> env action)."""
   projector_freeze_remap: bool = False
+  projector_obs_map: list[tuple[int, int]] | None = None
+  projector_cur_terms: list[tuple[str, int]] | None = None
+  projector_base_terms: list[tuple[str, int]] | None = None
+  projector_term_maps: dict[str, list[tuple[int, int]]] | None = None
+  projector_act_map: list[tuple[int, int]] | None = None
 
 
 def pal_kangaroo_full_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
@@ -93,4 +96,13 @@ def pal_kangaroo_full_projector_ppo_runner_cfg() -> ProjectorRunnerCfg:
     max_iterations=10000,
     projector_hidden_in=(256, 256),
     projector_hidden_out=(256, 256),
+    projector_cur_terms=[
+      ("base_ang_vel", 3), ("joint_pos", 22), ("joint_vel", 22),
+      ("actions", 22), ("command", 3), ("imu_projected_gravity", 3),
+    ],
+    projector_base_terms=[
+      ("base_ang_vel", 3), ("joint_pos", 26), ("joint_vel", 26),
+      ("actions", 22), ("command", 3), ("imu_projected_gravity", 3),
+    ],
+    projector_term_maps= None
   )

@@ -32,47 +32,6 @@ class TrainConfig:
   """Full checkpoint of the base policy. Used by projector runners (via the
   PRETRAINED_CKPT env var) to supply the frozen backbone, critic and obs
   normalizer. Ignored by other runners."""
-
-  # ------------------------------------------------------------------ projector
-  # All of these are injected into the agent config dict right before the runner
-  # is built, so VelocityProjectorOnPolicyRunner picks them up from train_cfg.
-  # None means "leave unset" (the runner falls back to its own defaults).
-  projector_obs_map: list[tuple[int, int]] | None = None
-  """Explicit obs remap [(cur_idx, base_idx), ...]. Takes priority over the
-  term-name based map below. Leave None to use the term lists."""
-  projector_cur_terms: list[tuple[str, int]] | None = field(
-    default_factory=lambda: [
-      ("base_ang_vel", 3),
-      ("joint_pos", 22),
-      ("joint_vel", 22),
-      ("actions", 22),
-      ("command", 3),
-      ("imu_projected_gravity", 3),
-    ]
-  )
-  """Ordered (name, dim) obs terms of the CURRENT env (sums to 75)."""
-  projector_base_terms: list[tuple[str, int]] | None = field(
-    default_factory=lambda: [
-      ("base_ang_vel", 3),
-      ("joint_pos", 26),
-      ("joint_vel", 26),
-      ("actions", 22),
-      ("command", 3),
-      ("imu_projected_gravity", 3),
-    ]
-  )
-  """Ordered (name, dim) obs terms of the BASE policy (sums to 83)."""
-  # Terms with the same name but different dims (the robots have different joint
-  # counts) cannot be matched automatically. For those, give (cur_local_idx,
-  # base_local_idx) pairs, local to the term. Terms with equal dims (actions,
-  # command, ...) are matched 1:1 in order. If "actions" is given here it is also
-  # reused (reversed) as the output-head action map unless projector_act_map is set.
-
-  projector_term_maps: dict[str, list[tuple[int, int]]] | None = None
-  projector_act_map: list[tuple[int, int]] | None = None
-  """Optional action remap [(backbone_idx, cur_idx), ...]. Only needed if the
-  action ordering differs from the base policy."""
-
   resume_path: str | None = None
   """Explicit checkpoint to resume from: a full model_*.pt or a heads/model_*.pt.
   Overrides agent.resume / load_run / load_checkpoint / W&B loading."""
@@ -160,9 +119,10 @@ def _projector_overrides(cfg: TrainConfig) -> dict:
     cur_dim = sum(int(d) for _, d in cur_terms)
     base_dim = sum(int(d) for _, d in base_terms)  # type: ignore[union-attr]
     print(
-      f"[INFO] Projector obs map: {len(obs_map)} dims remapped "
-      f"(current obs {cur_dim}, base obs {base_dim}, "
-      f"{base_dim - len(obs_map)} base inputs filled with normalizer mean)"
+      f"[INFO] Projector obs map: {len(obs_map)} dims index-mapped "
+      f"(current obs {cur_dim}, base obs {base_dim}); "
+      f"{base_dim - len(obs_map)} base inputs start at normalizer mean "
+      f"and are learned by the projection layer"
     )
   if obs_map is not None:
     o["projector_obs_map"] = [list(p) for p in obs_map]
