@@ -243,7 +243,7 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     # Arms
     r"arm_.*_1_.*": 0.30,
     r"arm_.*_4_.*": 0.30,
-    r"arm_.*_(?![14]_joint)\\d+_joint": 0.15,
+    r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
   }
 
   cfg.rewards["pose"].params["std_running"] = {
@@ -262,7 +262,7 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     # Arms
     r"arm_.*_1_.*": 0.50,
     r"arm_.*_4_.*": 0.45,
-    r"arm_.*_(?![14]_joint)\\d+_joint": 0.22,
+    r"arm_.*_(?![14]_joint)\d+_joint": 0.22,
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["upright"].weight = 1.25
