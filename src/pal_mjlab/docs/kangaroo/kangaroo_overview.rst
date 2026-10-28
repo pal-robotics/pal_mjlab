@@ -94,6 +94,7 @@ Models:
 
 - :ref:`Kangaroo model_simple`
 - :ref:`Kangaroo model_lower_body`
+- :ref:`Kangaroo model_grippers`
 
 Tasks:
 
