@@ -21,6 +21,13 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
+- **Re-enabled the Kangaroo Grippers rough velocity task.**
+  ``Mjlab-Velocity-Rough-Pal-Kangaroo-Grippers`` is registered again and
+  now builds directly on ``pal_kangaroo_rough_env_cfg``, so it shares the
+  PAL terrain generator, critic height scan, command ranges, rewards and
+  curriculum of ``Mjlab-Velocity-Rough-Pal-Kangaroo``. Only the robot model
+  (7 DoF arms with grippers) and the action scales differ.
+
 - **Denser, square height scan and wider lateral commands in the Kangaroo
   rough velocity task.** The critic-only height scan now covers a
   1.0x1.0 m area at 5 cm resolution (previously 1.2x0.6 m at 10 cm), giving
@@ -118,6 +125,10 @@ New Features & Tasks
 Model Updates
 ^^^^^^^^^^^^^
 
+- Added wrist and gripper collision capsules (1 mm margin) to the Kangaroo
+  grippers model, so they can no longer pass through the torso and legs
+  unpenalized. Contacts against the forearm of the same arm are excluded, and
+  their visual meshes move to geom group 2, like the other Kangaroo visuals.
 - Updated the Kangaroo 7-DoF and hands MuJoCo models with proper masses
   and inertias.
   (`#107 <https://github.com/pal-robotics/pal_mjlab/pull/107>`_)

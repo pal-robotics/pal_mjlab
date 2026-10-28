@@ -624,7 +624,7 @@ def pal_kangaroo_hands_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg
 
 def pal_kangaroo_grippers_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO with grippers (7 DoF per arms) rough terrain velocity configuration."""
-  cfg = pal_kangaroo_baseline_env_cfg(play=play)
+  cfg = pal_kangaroo_rough_env_cfg(play=play)
 
   cfg.scene.entities = {"robot": get_kangaroo_grippers_robot_cfg()}
 
