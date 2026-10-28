@@ -18,18 +18,107 @@ _ACTIVATIONS = {
 }
 
 
+# --------------------------------------------------------------------------- #
+# Index-map helpers
+# --------------------------------------------------------------------------- #
+def build_index_map(cur_terms, base_terms):
+  """Match observation terms by name.
+
+  cur_terms / base_terms: ordered lists of (name, dim) in concatenation order.
+  Returns [(cur_idx, base_idx), ...] with one pair per matched scalar.
+  """
+
+  def offsets(terms):
+    out, o = {}, 0
+    for name, dim in terms:
+      out[name] = (o, dim)
+      o += dim
+    return out
+
+  cur, base = offsets(cur_terms), offsets(base_terms)
+  pairs = []
+  for name, (co, cd) in cur.items():
+    if name in base:
+      bo, bd = base[name]
+      if cd != bd:
+        raise ValueError(f"Term '{name}' dim mismatch: {cd} (current) vs {bd} (base)")
+      pairs += [(co + j, bo + j) for j in range(cd)]
+  return pairs
+
+
+def _validate_index_map(index_map, in_dim, out_dim, name="index_map"):
+  """Normalise to list of (src, dst) int tuples and sanity check."""
+  pairs = [(int(s), int(d)) for s, d in index_map]
+  for s, d in pairs:
+    if not (0 <= s < in_dim):
+      raise ValueError(f"{name}: src index {s} out of range [0, {in_dim})")
+    if not (0 <= d < out_dim):
+      raise ValueError(f"{name}: dst index {d} out of range [0, {out_dim})")
+  dsts = [d for _, d in pairs]
+  if len(set(dsts)) != len(dsts):
+    raise ValueError(f"{name}: duplicate dst indices (contributions would sum)")
+  return pairs
+
+
+def _build_fill(backbone, index_map, in_dim, out_dim):
+  """Constant offset for backbone inputs that nothing maps onto.
+
+  The backbone normalises as (x - mean) / (std + eps), so a raw 0 in an unmatched
+  slot is NOT neutral. Filling it with the pretrained mean makes it normalise to 0.
+  Matched slots get their value from the projection, so their fill is 0.
+  """
+  if not backbone.normalize:
+    return None
+  if index_map is None:
+    k = min(in_dim, out_dim)
+    index_map = [(i, i) for i in range(k)]
+  fill = backbone.mean.clone().flatten()
+  for _, dst in index_map:
+    fill[dst] = 0.0
+  if not torch.any(fill != 0):
+    return None
+  return fill
+
+
+# --------------------------------------------------------------------------- #
+# Modules
+# --------------------------------------------------------------------------- #
 class _ProjectionHead(nn.Module):
-  def __init__(self, in_dim: int, out_dim: int, hidden: int | tuple[int, ...]):
+  def __init__(
+    self,
+    in_dim: int,
+    out_dim: int,
+    hidden: int | tuple[int, ...],
+    index_map: list[tuple[int, int]] | None = None,  # (src idx in x, dst idx in output)
+    fill: torch.Tensor | None = None,  # constant for unmatched outputs, shape (out_dim,)
+    freeze_proj: bool = False,
+  ):
     super().__init__()
     hidden = (hidden,) if isinstance(hidden, int) else hidden
 
+    self.n_mapped = None
     self.proj = None
-    if in_dim != out_dim:
+    if in_dim != out_dim or index_map is not None:
       self.proj = nn.Linear(in_dim, out_dim, bias=False)
       with torch.no_grad():
         self.proj.weight.zero_()
-        k = min(in_dim, out_dim)
-        self.proj.weight[:k, :k] = torch.eye(k)
+        if index_map is None:
+          k = min(in_dim, out_dim)
+          self.proj.weight[:k, :k] = torch.eye(k)
+        else:
+          index_map = _validate_index_map(index_map, in_dim, out_dim)
+          self.n_mapped = len(index_map)
+          for src, dst in index_map:
+            self.proj.weight[dst, src] = 1.0
+      if freeze_proj:
+        self.proj.weight.requires_grad_(False)
+
+    # persistent=False: recomputed from the backbone, so heads checkpoints stay
+    # interchangeable regardless of whether a fill was used.
+    if fill is not None:
+      self.register_buffer("fill", fill.clone(), persistent=False)
+    else:
+      self.fill = None
 
     layers, d = [], in_dim
     for h in hidden:
@@ -42,6 +131,8 @@ class _ProjectionHead(nn.Module):
 
   def forward(self, x):
     base = x if self.proj is None else self.proj(x)
+    if self.fill is not None:
+      base = base + self.fill
     return base + self.net(x)
 
 
@@ -85,12 +176,36 @@ class _FrozenBackbone(nn.Module):
 
 
 class _ProjectedMLP(nn.Module):
-  def __init__(self, backbone, obs_dim, act_dim,
-               hidden_in=(128,), hidden_out=(128,)):
+  def __init__(
+    self,
+    backbone,
+    obs_dim,
+    act_dim,
+    hidden_in=(128,),
+    hidden_out=(128,),
+    obs_map=None,
+    act_map=None,
+    freeze_proj=False,
+  ):
     super().__init__()
     self.backbone = backbone
-    self.head_in = _ProjectionHead(obs_dim, backbone.in_dim, hidden_in)
-    self.head_out = _ProjectionHead(backbone.out_dim, act_dim, hidden_out)
+    self.head_in = _ProjectionHead(
+      obs_dim,
+      backbone.in_dim,
+      hidden_in,
+      index_map=obs_map,
+      fill=_build_fill(backbone, obs_map, obs_dim, backbone.in_dim),
+      freeze_proj=freeze_proj,
+    )
+    # Output side: no normalizer on actions, so no fill needed.
+    self.head_out = _ProjectionHead(
+      backbone.out_dim,
+      act_dim,
+      hidden_out,
+      index_map=act_map,
+      fill=None,
+      freeze_proj=freeze_proj,
+    )
 
   def train(self, mode: bool = True):
     super().train(mode)
@@ -101,6 +216,9 @@ class _ProjectedMLP(nn.Module):
     return self.head_out(self.backbone(self.head_in(x)))
 
 
+# --------------------------------------------------------------------------- #
+# Runner
+# --------------------------------------------------------------------------- #
 class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
   env: RslRlVecEnvWrapper
 
@@ -122,31 +240,57 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
 
     ckpt = torch.load(ckpt_path, map_location=self.device, weights_only=False)
     actor_cfg = train_cfg.get("actor", {}) or {}
-    activation = (
-      actor_cfg.get("activation", "elu") if isinstance(actor_cfg, dict) else "elu"
-    )
+    activation = actor_cfg.get("activation", "elu") if isinstance(actor_cfg, dict) else "elu"
     backbone = _FrozenBackbone(
       ckpt["actor_state_dict"],
       activation=activation,
       eps=getattr(actor.obs_normalizer, "eps", 1e-2),
     )
+
     hidden_in = tuple(train_cfg.get("projector_hidden_in", (256, 256)))
     hidden_out = tuple(train_cfg.get("projector_hidden_out", (128,)))
+    freeze_proj = bool(train_cfg.get("projector_freeze_remap", False))
+
+    # Observation remap: explicit [(cur_idx, base_idx), ...] or built from term names.
+    obs_map = train_cfg.get("projector_obs_map")
+    if (
+      obs_map is None
+      and train_cfg.get("projector_cur_terms")
+      and train_cfg.get("projector_base_terms")
+    ):
+      obs_map = build_index_map(
+        train_cfg["projector_cur_terms"], train_cfg["projector_base_terms"]
+      )
+    # Action remap (only needed if action ordering differs): [(backbone_idx, cur_idx), ...]
+    act_map = train_cfg.get("projector_act_map")
+
     actor.mlp = _ProjectedMLP(
-    backbone, obs_dim, act_dim, hidden_in=hidden_in, hidden_out=hidden_out
+      backbone,
+      obs_dim,
+      act_dim,
+      hidden_in=hidden_in,
+      hidden_out=hidden_out,
+      obs_map=obs_map,
+      act_map=act_map,
+      freeze_proj=freeze_proj,
     ).to(self.device)
 
     def _n(params):
-        return sum(p.numel() for p in params)
+      return sum(p.numel() for p in params)
 
     def _head_desc(name, head, i, o):
-        if head.proj is None:
-            return f"{name:<9}: {i} -> {o}  (dims match: identity skip + residual MLP)"
-        k = min(i, o)
+      if head.n_mapped is not None:
         return (
-            f"{name:<9}: {i} -> {o}  (identity-init proj on first {k} dims, "
-            f"{'zero-padded' if o > i else 'truncated'}, + residual MLP)"
+          f"{name:<9}: {i} -> {o}  ({head.n_mapped} dims remapped by index"
+          f"{', frozen' if freeze_proj else ''}, rest via residual MLP)"
         )
+      if head.proj is None:
+        return f"{name:<9}: {i} -> {o}  (dims match: identity skip + residual MLP)"
+      k = min(i, o)
+      return (
+        f"{name:<9}: {i} -> {o}  (identity-init proj on first {k} dims, "
+        f"{'zero-padded' if o > i else 'truncated'}, + residual MLP)"
+      )
 
     m = actor.mlp
     print(
@@ -156,7 +300,8 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
       f"  backbone  : {backbone.in_dim} -> {backbone.out_dim}  (frozen, "
       f"{_n(backbone.parameters()):,} params)\n"
       f"  {_head_desc('head_out', m.head_out, backbone.out_dim, act_dim)}\n"
-      f"  trainable : heads {_n(list(m.head_in.parameters()) + list(m.head_out.parameters())):,}"
+      f"  trainable : heads "
+      f"{_n([p for p in list(m.head_in.parameters()) + list(m.head_out.parameters()) if p.requires_grad]):,}"
       f" | std {_n(actor.distribution.parameters()):,}"
       f" | critic {_n(self.alg.critic.parameters()):,}"
     )

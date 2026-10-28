@@ -32,6 +32,53 @@ class TrainConfig:
   """Full checkpoint of the base policy. Used by projector runners (via the
   PRETRAINED_CKPT env var) to supply the frozen backbone, critic and obs
   normalizer. Ignored by other runners."""
+
+  # ------------------------------------------------------------------ projector
+  # All of these are injected into the agent config dict right before the runner
+  # is built, so VelocityProjectorOnPolicyRunner picks them up from train_cfg.
+  # None means "leave unset" (the runner falls back to its own defaults).
+  projector_obs_map: list[tuple[int, int]] | None = None
+  """Explicit obs remap [(cur_idx, base_idx), ...]. Takes priority over the
+  term-name based map below. Leave None to use the term lists."""
+  projector_cur_terms: list[tuple[str, int]] | None = field(
+    default_factory=lambda: [
+      ("base_ang_vel", 3),
+      ("joint_pos", 22),
+      ("joint_vel", 22),
+      ("actions", 22),
+      ("command", 3),
+      ("imu_projected_gravity", 3),
+    ]
+  )
+  """Ordered (name, dim) obs terms of the CURRENT env (sums to 75)."""
+  projector_base_terms: list[tuple[str, int]] | None = field(
+    default_factory=lambda: [
+      ("base_ang_vel", 3),
+      ("joint_pos", 26),
+      ("joint_vel", 26),
+      ("actions", 22),
+      ("command", 3),
+      ("imu_projected_gravity", 3),
+    ]
+  )
+  """Ordered (name, dim) obs terms of the BASE policy (sums to 83)."""
+  # Terms with the same name but different dims (the robots have different joint
+  # counts) cannot be matched automatically. For those, give (cur_local_idx,
+  # base_local_idx) pairs, local to the term. Terms with equal dims (actions,
+  # command, ...) are matched 1:1 in order. If "actions" is given here it is also
+  # reused (reversed) as the output-head action map unless projector_act_map is set.
+
+  projector_term_maps: dict[str, list[tuple[int, int]]] | None = None
+  projector_act_map: list[tuple[int, int]] | None = None
+  """Optional action remap [(backbone_idx, cur_idx), ...]. Only needed if the
+  action ordering differs from the base policy."""
+  projector_hidden_in: tuple[int, ...] | None = (256, 256)
+  """Hidden sizes of the input head's residual MLP."""
+  projector_hidden_out: tuple[int, ...] | None = (128,)
+  """Hidden sizes of the output head's residual MLP."""
+  projector_freeze_remap: bool = False
+  """Freeze the selection / identity projection matrices so the remap cannot drift."""
+
   resume_path: str | None = None
   """Explicit checkpoint to resume from: a full model_*.pt or a heads/model_*.pt.
   Overrides agent.resume / load_run / load_checkpoint / W&B loading."""
@@ -56,6 +103,84 @@ class TrainConfig:
 
 def _is_projector_runner(runner_cls: type) -> bool:
   return hasattr(runner_cls, "_heads_path")
+
+
+def _build_obs_map(cur_terms, base_terms, term_maps) -> list[tuple[int, int]]:
+  """[(cur_idx, base_idx), ...] by term name. Terms present in both with equal
+  dims are matched 1:1; an explicit per-term map overrides. Same-name terms with
+  different dims are left unmapped and learned by the dense projection."""
+  term_maps = term_maps or {}
+
+  def offsets(terms):
+    out, o = {}, 0
+    for name, dim in terms:
+      out[name] = (o, int(dim))
+      o += int(dim)
+    return out
+
+  cur, base = offsets(cur_terms), offsets(base_terms)
+  pairs: list[tuple[int, int]] = []
+  for name, (co, cd) in cur.items():
+    if name not in base:
+      continue
+    bo, bd = base[name]
+    if name in term_maps:
+      for c, b in term_maps[name]:
+        if not (0 <= c < cd and 0 <= b < bd):
+          raise ValueError(
+            f"projector_term_maps['{name}']: pair ({c}, {b}) out of range "
+            f"(cur dim {cd}, base dim {bd})"
+          )
+        pairs.append((co + c, bo + b))
+    elif cd == bd:
+      pairs += [(co + j, bo + j) for j in range(cd)]
+    else:
+      print(
+        f"[INFO] Term '{name}' dim {cd} (current) vs {bd} (base): "
+        f"not index-mapped, learned by the projection layer."
+      )
+  return pairs
+
+
+def _projector_overrides(cfg: TrainConfig) -> dict:
+  """Collect the projector settings from TrainConfig. The obs / action maps are
+  resolved here to explicit index lists, so the runner needs no extra logic."""
+  if (cfg.projector_cur_terms is None) != (cfg.projector_base_terms is None):
+    raise ValueError(
+      "Set both --projector-cur-terms and --projector-base-terms (or neither)."
+    )
+
+  # Plain lists (not tuples) so the dict dumps cleanly to YAML.
+  o: dict = {}
+
+  obs_map = cfg.projector_obs_map  # explicit map wins
+  if obs_map is None and cfg.projector_cur_terms is not None:
+    obs_map = _build_obs_map(
+      cfg.projector_cur_terms, cfg.projector_base_terms, cfg.projector_term_maps
+    )
+    cur_dim = sum(int(d) for _, d in cfg.projector_cur_terms)
+    base_dim = sum(int(d) for _, d in cfg.projector_base_terms)  # type: ignore[union-attr]
+    print(
+      f"[INFO] Projector obs map: {len(obs_map)} dims remapped "
+      f"(current obs {cur_dim}, base obs {base_dim}, "
+      f"{base_dim - len(obs_map)} base inputs filled with normalizer mean)"
+    )
+  if obs_map is not None:
+    o["projector_obs_map"] = [list(p) for p in obs_map]
+
+  act_map = cfg.projector_act_map
+  if act_map is None and cfg.projector_term_maps and "actions" in cfg.projector_term_maps:
+    # Obs pairs are (cur, base); the output head wants (backbone_idx, cur_idx).
+    act_map = [(b, c) for c, b in cfg.projector_term_maps["actions"]]
+  if act_map is not None:
+    o["projector_act_map"] = [list(p) for p in act_map]
+
+  if cfg.projector_hidden_in is not None:
+    o["projector_hidden_in"] = list(cfg.projector_hidden_in)
+  if cfg.projector_hidden_out is not None:
+    o["projector_hidden_out"] = list(cfg.projector_hidden_out)
+  o["projector_freeze_remap"] = cfg.projector_freeze_remap
+  return o
 
 
 def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
@@ -94,6 +219,7 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
   if explicit_resume is not None and not explicit_resume.exists():
     raise FileNotFoundError(f"resume_path not found: {explicit_resume}")
 
+  projector_overrides: dict = {}
   if is_projector:
     if cfg.pretrained_checkpoint:
       ckpt = Path(cfg.pretrained_checkpoint).expanduser().resolve()
@@ -107,6 +233,8 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
         "including when resuming.\n"
         "  --pretrained-checkpoint /path/to/model_XXXX.pt"
       )
+    projector_overrides = _projector_overrides(cfg)
+  # Non-projector runners simply never see the projector_* settings.
   registry_name: str | None = None
 
   # Check if this is a tracking task by checking for motion command.
@@ -190,6 +318,13 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
 
   agent_cfg = asdict(cfg.agent)
   env_cfg = asdict(cfg.env)
+
+  # Inject projector settings so the runner reads them from train_cfg.
+  # Done before the YAML dump so the exact remap used is recorded with the run.
+  if projector_overrides:
+    agent_cfg.update(projector_overrides)
+    if rank == 0:
+      print(f"[INFO] Projector settings: {projector_overrides}")
 
   runner_kwargs = {}
   if is_tracking_task:
