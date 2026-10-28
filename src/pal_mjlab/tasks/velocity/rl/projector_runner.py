@@ -278,28 +278,43 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
     def _n(params):
       return sum(p.numel() for p in params)
 
-    def _head_desc(name, head, i, o):
-      if head.n_mapped is not None:
-        return (
-          f"{name:<9}: {i} -> {o}  ({head.n_mapped} dims remapped by index"
-          f"{', frozen' if freeze_proj else ''}, rest via residual MLP)"
-        )
+    def _mlp_dims(net):
+      lins = [l for l in net.modules() if isinstance(l, nn.Linear)]
+      return " -> ".join([str(lins[0].in_features)] + [str(l.out_features) for l in lins])
+
+    def _head_block(name, head):
+      tot = _n(head.parameters())
+      trn = _n(p for p in head.parameters() if p.requires_grad)
+      lines = [f"  {name}: {head.net[0].in_features} -> {head.net[-1].out_features}"]
       if head.proj is None:
-        return f"{name:<9}: {i} -> {o}  (dims match: identity skip + residual MLP)"
-      k = min(i, o)
-      return (
-        f"{name:<9}: {i} -> {o}  (identity-init proj on first {k} dims, "
-        f"{'zero-padded' if o > i else 'truncated'}, + residual MLP)"
+        lines.append("    proj  : none (identity skip)")
+      else:
+        kind = (
+          f"{head.n_mapped} dims remapped by index"
+          if head.n_mapped is not None
+          else f"identity-init on first {min(head.proj.in_features, head.proj.out_features)} dims"
+        )
+        state = "trainable" if head.proj.weight.requires_grad else "frozen"
+        lines.append(
+          f"    proj  : Linear({head.proj.in_features} -> {head.proj.out_features}, "
+          f"bias=False), {kind}, {state}"
+        )
+      lines.append(
+        f"    fill  : {'normalizer-mean offset' if head.fill is not None else 'none'}"
       )
+      lines.append(f"    mlp   : {_mlp_dims(head.net)}  (residual, zero-init last layer)")
+      lines.append(f"    params: {tot:,} total, {trn:,} trainable")
+      return "\n".join(lines)
 
     m = actor.mlp
     print(
       "[INFO] Projector runner\n"
       f"  base policy : {ckpt_path}\n"
-      f"  {_head_desc('head_in', m.head_in, obs_dim, backbone.in_dim)}\n"
-      f"  backbone  : {backbone.in_dim} -> {backbone.out_dim}  (frozen, "
+      f"{_head_block('head_in', m.head_in)}\n"
+      f"  backbone: {backbone.in_dim} -> {backbone.out_dim}  (frozen, "
       f"{_n(backbone.parameters()):,} params)\n"
-      f"  {_head_desc('head_out', m.head_out, backbone.out_dim, act_dim)}\n"
+      f"    mlp   : {_mlp_dims(backbone.mlp)}\n"
+      f"{_head_block('head_out', m.head_out)}\n"
       f"  trainable : heads "
       f"{_n([p for p in list(m.head_in.parameters()) + list(m.head_out.parameters()) if p.requires_grad]):,}"
       f" | std {_n(actor.distribution.parameters()):,}"
