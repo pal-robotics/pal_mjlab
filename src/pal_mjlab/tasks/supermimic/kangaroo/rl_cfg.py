@@ -19,7 +19,7 @@ SUPERMIMIC_NUM_ENVS = 4096
 def pal_kangaroo_supermimic_runner_cfg() -> SuperMimicRunnerCfg:
   """The paper's hyperparameters (Table A.5); see ``rl/supermimic.py`` for the values."""
   return SuperMimicRunnerCfg(
-    experiment_name="kangaroo_supermimic",
+    experiment_name="supermimic",
     logger="tensorboard",
     max_iterations=320_000,
     save_interval=2000,
@@ -69,7 +69,7 @@ def pal_kangaroo_supermimic_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
       max_grad_norm=1.0,
     ),
     obs_groups={"actor": ("goal", "proprio"), "critic": ("critic",)},
-    experiment_name="kangaroo_supermimic_ppo",
+    experiment_name="supermimic_ppo",
     logger="tensorboard",
     save_interval=200,
     num_steps_per_env=24,

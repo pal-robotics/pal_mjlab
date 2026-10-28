@@ -140,7 +140,7 @@ with a gate: if it fails, we stop and rethink before building on top.
   with `njmax` 1024 for 24 h). On `dev` 0.894 with 0 failures at 110,000; on a second sample of `full`
   1 failure of 1,242 where `dev` fails 23. Report: `m5/report.pdf`.
 - **Next:** a `full` run on the re-retargeted 7-DoF data (D47); a learning-rate schedule fitted to the run
-  length so the last checkpoint is the best (user's go); the 5-DoF `full` run (job 62432587).
+  length so the last checkpoint is the best (user's go); the 5-DoF `full` run (job 62433262).
 
 ### Options listed in M4 (`m4/cluster_report.pdf` §5)
 
@@ -183,7 +183,7 @@ hours, about 4,560 left (≈ 570 A100-h). In the suggested order:
   libraries `smoke` (139 clips), `dev` (1,323, 2.53 h) and `full` (118,959); its REPORT.md, section 7. The
   previous libraries (123,607 motions) are in `dataset_5dof/libraries_archive/`. The Hands tasks load
   `dataset_5dof/libraries/dev` by default (joint names match `kangaroo_hands.xml`).
-- First run: `SMfull5dof` (job 62432587, 24 h) on the previous `full` (123,607 clips); benchmark it on
+- First run: `SMfull5dof` (job 62433262, 24 h) on the previous `full` (123,607 clips); benchmark it on
   `libraries_archive/dev_1193`.
 
 ## Later

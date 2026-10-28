@@ -597,3 +597,15 @@ failure in play (user, 2026-10-26).**
   first. On the 7-DoF dev run's model_70000, 100 closed-loop steps: max difference 1.6e-6.
 - **On the robot:** the reference must start at the robot's heading (episodes start on the reference):
   rotate the motion about z so its first root yaw is the robot's.
+
+**D49. One log folder: every SuperMimic run in `logs/rsl_rl/supermimic/`, run names start with the robot
+(user, 2026-10-28).**
+- **Why:** the user downloads and tracks jobs by their log folder. Each study had its own experiment name
+  (`supermimic_d39`, `supermimic_d39_hands`, `supermimic_stability`, `supermimic_wm_1hz`, ...), and the defaults
+  were one folder per robot.
+- **Now:** every SuperMimic task logs to `supermimic`, the PPO-Sim baseline to `supermimic_ppo`; no job passes
+  `--agent.experiment-name`. The launcher puts the robot in front of the run name (`grippers`, `hands`):
+  `--agent.run-name full-24h` on a Grippers task logs to `supermimic/<time>_grippers-full-24h/`. Resuming
+  matches the run name, so it never picks up the other robot's checkpoint; a new clean run needs a new name.
+- **Earlier runs stay where they are** (the docs and dashboards point there).
+

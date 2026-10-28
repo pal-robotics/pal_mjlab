@@ -2,7 +2,9 @@
 
 Local GPU jobs can be preempted and rerun from the same command, so this picks the
 highest-iteration ``model_*.pt`` among the runs of ``<log_root>/<experiment_name>/`` that have
-the same ``--agent.run-name`` and resumes from it; with no checkpoint it starts fresh. Same CLI
+the same ``--agent.run-name`` and resumes from it; with no checkpoint it starts fresh. Every SuperMimic
+run logs to ``logs/rsl_rl/supermimic/`` (PPO-Sim: ``supermimic_ppo/``) and its run name starts with the
+robot: ``--agent.run-name full-24h`` on a Grippers task is ``grippers-full-24h`` (D49). Same CLI
 as ``mjlab train``, plus ``--library``: the motion library to train on (a folder with clips.json,
 qpos.npy and qvel.npy, as the motion browser downloads them; D45):
 
@@ -23,6 +25,14 @@ import mjlab.tasks  # noqa: F401  (populates the task registry)
 import tyro
 from mjlab.scripts.train import TrainConfig, launch_training
 from mjlab.tasks.registry import list_tasks
+
+
+def robot_run_name(task: str, run_name: str) -> str:
+  """The run name, starting with the task's robot ("grippers", "hands"): both robots log to one folder (D49)."""
+  robot = TrainConfig.from_task(task).agent.run_name
+  if not robot or run_name.startswith(robot):
+    return run_name
+  return f"{robot}-{run_name}" if run_name else robot
 
 
 def latest_checkpoint(experiment_dir: Path, run_name: str = "") -> Path | None:
@@ -48,7 +58,11 @@ def main() -> None:
     config=mjlab.TYRO_FLAGS,
   )
   library, remaining = tyro.cli(
-    LibraryArg, args=remaining, add_help=False, return_unknown_args=True, config=mjlab.TYRO_FLAGS
+    LibraryArg,
+    args=remaining,
+    add_help=False,
+    return_unknown_args=True,
+    config=mjlab.TYRO_FLAGS,
   )
   args = tyro.cli(
     TrainConfig,
@@ -59,6 +73,9 @@ def main() -> None:
   )
   if library.library:
     args.env.commands["motion"].library_path = library.library
+  args = replace(
+    args, agent=replace(args.agent, run_name=robot_run_name(task, args.agent.run_name))
+  )
   checkpoint = latest_checkpoint(
     Path(args.log_root) / args.agent.experiment_name, args.agent.run_name
   )

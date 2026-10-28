@@ -173,5 +173,5 @@ open (D41).
   `full` run on it, benchmarked on a sample of the new set.
 - **Learning-rate schedule fitted to the run length** (or a weight average), so the last checkpoint is the
   best. Needs the user's go.
-- **5-DoF:** `SMfull5dof` (job 62432587) trains on the full 5-DoF library.
+- **5-DoF:** `SMfull5dof` (job 62433262) trains on the full 5-DoF library.
 - **Options:** an upper-body goal interface trained on a frozen checkpoint (paper Appendix B; not started).

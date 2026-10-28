@@ -46,7 +46,7 @@ TASK=Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers-ArmWaist1Hz  # hands: ...-Kanga
 # 1. A library: download it from the motion browser (helium-kangaroo-retarget, or kangaroo-motions with
 #    the token), or pack a subset of the dataset here: python -m pal_mjlab.scripts.bones_to_library --subset 10h
 
-# 2. Train on it. Logs and checkpoints in logs/rsl_rl/kangaroo_supermimic/<time>_<run name>/; the same
+# 2. Train on it. Logs and checkpoints in logs/rsl_rl/supermimic/<time>_<robot>-<run name>/; the same
 #    command again resumes from the newest checkpoint of that run name (preemptions).
 uv run python -m pal_mjlab.scripts.supermimic.train $TASK --library <library> --agent.run-name <name>
 #    local 16 GB GPU (D16): add --agent.algorithm.precision bf16 --agent.replay-steps 500
@@ -91,7 +91,7 @@ module load cuda/12.6 && export LD_LIBRARY_PATH=$CUDA_HOME/compat:$LD_LIBRARY_PA
 #   one element: 256,), booleans as --flag False.
 
 # Watch and benchmark
-tensorboard --logdir logs/rsl_rl/kangaroo_supermimic
+tensorboard --logdir logs/rsl_rl/supermimic
 uv run python -m pal_mjlab.scripts.supermimic.eval --task $TASK --library <library> \
   --checkpoints <run>/model_N.pt --out-dir results/   # every clip of the library once (paper F.1)
 ```
@@ -114,7 +114,7 @@ Key TensorBoard scalars: `episode/return`, `eval/return_gap_head` (imagined vs s
 # PPO-Sim baseline (D17): resumes from the latest checkpoint if the job is preempted and rerun
 gpu-run --detach --label sm-ppo --max 12h -- .venv/bin/python -m pal_mjlab.scripts.supermimic.train \
   Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers
-# other library: --library <folder>; logs: logs/rsl_rl/kangaroo_supermimic_ppo
+# other library: --library <folder>; logs: logs/rsl_rl/supermimic_ppo
 
 # M2 world model (GPU, through the queue). Write paths out in full: the queue's shell does not
 # word-split a $VAR into several arguments.
