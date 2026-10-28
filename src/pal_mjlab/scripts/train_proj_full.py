@@ -72,12 +72,6 @@ class TrainConfig:
   projector_act_map: list[tuple[int, int]] | None = None
   """Optional action remap [(backbone_idx, cur_idx), ...]. Only needed if the
   action ordering differs from the base policy."""
-  projector_hidden_in: tuple[int, ...] | None = (256, 256)
-  """Hidden sizes of the input head's residual MLP."""
-  projector_hidden_out: tuple[int, ...] | None = (128,)
-  """Hidden sizes of the output head's residual MLP."""
-  projector_freeze_remap: bool = False
-  """Freeze the selection / identity projection matrices so the remap cannot drift."""
 
   resume_path: str | None = None
   """Explicit checkpoint to resume from: a full model_*.pt or a heads/model_*.pt.
@@ -143,23 +137,28 @@ def _build_obs_map(cur_terms, base_terms, term_maps) -> list[tuple[int, int]]:
 
 
 def _projector_overrides(cfg: TrainConfig) -> dict:
-  """Collect the projector settings from TrainConfig. The obs / action maps are
-  resolved here to explicit index lists, so the runner needs no extra logic."""
-  if (cfg.projector_cur_terms is None) != (cfg.projector_base_terms is None):
+  """Resolve the projector obs / action maps from the agent cfg into explicit
+  index lists. Hidden sizes and freeze flag are read by the runner directly from
+  train_cfg, so they are not injected here."""
+  a = cfg.agent
+  cur_terms = getattr(a, "projector_cur_terms", None)
+  base_terms = getattr(a, "projector_base_terms", None)
+  term_maps = getattr(a, "projector_term_maps", None)
+
+  if (cur_terms is None) != (base_terms is None):
     raise ValueError(
-      "Set both --projector-cur-terms and --projector-base-terms (or neither)."
+      "Set both projector_cur_terms and projector_base_terms in the runner cfg "
+      "(or neither)."
     )
 
   # Plain lists (not tuples) so the dict dumps cleanly to YAML.
   o: dict = {}
 
-  obs_map = cfg.projector_obs_map  # explicit map wins
-  if obs_map is None and cfg.projector_cur_terms is not None:
-    obs_map = _build_obs_map(
-      cfg.projector_cur_terms, cfg.projector_base_terms, cfg.projector_term_maps
-    )
-    cur_dim = sum(int(d) for _, d in cfg.projector_cur_terms)
-    base_dim = sum(int(d) for _, d in cfg.projector_base_terms)  # type: ignore[union-attr]
+  obs_map = getattr(a, "projector_obs_map", None)  # explicit map wins
+  if obs_map is None and cur_terms is not None:
+    obs_map = _build_obs_map(cur_terms, base_terms, term_maps)
+    cur_dim = sum(int(d) for _, d in cur_terms)
+    base_dim = sum(int(d) for _, d in base_terms)  # type: ignore[union-attr]
     print(
       f"[INFO] Projector obs map: {len(obs_map)} dims remapped "
       f"(current obs {cur_dim}, base obs {base_dim}, "
@@ -168,18 +167,13 @@ def _projector_overrides(cfg: TrainConfig) -> dict:
   if obs_map is not None:
     o["projector_obs_map"] = [list(p) for p in obs_map]
 
-  act_map = cfg.projector_act_map
-  if act_map is None and cfg.projector_term_maps and "actions" in cfg.projector_term_maps:
+  act_map = getattr(a, "projector_act_map", None)
+  if act_map is None and term_maps and "actions" in term_maps:
     # Obs pairs are (cur, base); the output head wants (backbone_idx, cur_idx).
-    act_map = [(b, c) for c, b in cfg.projector_term_maps["actions"]]
+    act_map = [(b, c) for c, b in term_maps["actions"]]
   if act_map is not None:
     o["projector_act_map"] = [list(p) for p in act_map]
 
-  if cfg.projector_hidden_in is not None:
-    o["projector_hidden_in"] = list(cfg.projector_hidden_in)
-  if cfg.projector_hidden_out is not None:
-    o["projector_hidden_out"] = list(cfg.projector_hidden_out)
-  o["projector_freeze_remap"] = cfg.projector_freeze_remap
   return o
 
 

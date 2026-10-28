@@ -14,6 +14,7 @@ class ProjectorRunnerCfg(RslRlOnPolicyRunnerCfg):
   """Hidden widths of the residual MLP in head_in (env obs -> backbone obs)."""
   projector_hidden_out: tuple[int, ...] = (128,)
   """Hidden widths of the residual MLP in head_out (backbone action -> env action)."""
+  projector_freeze_remap: bool = False
 
 
 def pal_kangaroo_full_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
