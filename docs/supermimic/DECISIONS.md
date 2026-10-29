@@ -631,3 +631,23 @@ failure in play (user, 2026-10-26).**
   have.
 - **Revisit** when the wrist is identified on the robot (the RH8D driver's `servo_stiffness` calibration
   gives the linkage), or if the 1 Hz wrist tracks too loosely.
+
+**D51. Hands: the robot's URDF is authoritative for joint ranges and axes: arm 5 ±1.57, right wrist roll mirrored
+(user, 2026-10-29).**
+- **Why:** an audit of the 5-DoF models (`kangaroo_5dof_mjcf_audit.pdf`: training, retargeting, PAL's sim built from
+  the robot's URDF) found training and retargeting identical to each other, but two differences from the URDF:
+  - `hand_right_palm_roll_joint` had axis `0 0 -1` like the left; the URDF mirrors it (`0 0 1`, its xacro's
+    `-reflect`, pal_rh8d ebb854e). The kinematics are the same with `q_URDF = -q_old` (default 0, symmetric range),
+    so a policy trained here would send the opposite command to the real right wrist.
+  - `arm_*_5_joint` had the 7-DoF's range (D42: −3.665..1.571, mirrored); the 5-DoF robot's is ±1.5708. About 2 %
+    of the library's frames (7.4 % of clips) went beyond it.
+- **Now:** `kangaroo_hands.xml` has both from the URDF. The 7-DoF models are unchanged. GMR's hands model takes the
+  axes and ranges of arm 5 and the wrist from this file (`make_gmr_models.py`, GMR 828e5f5).
+- **Data:** the 5-DoF set is retargeted again with it, since the arm-5 range changes the IK. On the 487-clip
+  benchmark, clips that never reach the new limit come out identical but for the right roll's sign; the 28 that
+  went beyond ±1.57 track the G1 hand 0.1–0.4° worse (median); collisions, floor, torso and QA are unchanged. The
+  first 5-DoF set (and the runs trained on it, `supermimic_d39_hands/`) is archived, as the 7-DoF's (D47).
+- **Fixtures:** `library_tiny_hands` and `bones_3clips_hands.npz` regenerated from the new retarget (they still
+  held the first D42 retarget). `test_bones_clips_match_gmr_model` fails with data of the old convention.
+- **The wrist actuator** is D50's. Not changed here: the leg slide's lower limit (URDF 0.141 vs 0.132 m; 0.05 % of
+  frames below) and the base/pelvis masses (URDF +2 kg), both shared with the 7-DoF.

@@ -10,7 +10,7 @@ Suffix "" for grippers (7-DoF arms, from kangaroo_bones_seed/dataset), "_hands" 
 
   python tests/supermimic/fixtures/make_fixtures.py --variant hands \
     --motions ~/Projects/supermimic/kangaroo_bones_seed/dataset_5dof/motions \
-    --gmr-xml <GMR bones-seed-kangaroo-5dof>/assets/pal_kangaroo_hands/kangaroo_hands.xml
+    --gmr-xml <GMR bones-seed-kangaroo>/assets/pal_kangaroo_hands/kangaroo_hands.xml
 """
 
 import json
