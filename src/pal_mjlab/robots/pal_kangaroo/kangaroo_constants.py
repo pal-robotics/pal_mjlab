@@ -143,6 +143,10 @@ def _calc_leg_params(
 S_PLUS = _calc_actuator_params(121, 3.3e-05, 50)  # joint armature = 0.483
 S_MINUS = _calc_actuator_params(101, 2.99e-05, 25)  # joint armature = 0.305
 XS = _calc_actuator_params(101, 1.99e-05, 25)  # joint armature = 0.203
+# Seed Robotics RH8D wrist: Hitec HS-5245MG servo (stall 0.43-0.54 Nm) behind a ~2:1 linkage.
+# Estimates until identified (D50): ~200:1 servo gearbox x 2:1 linkage, ~0.94 g*cm^2 rotor;
+# effort = the joint's ~1 Nm stall torque, as in PAL's URDF and the RH8D driver.
+SEED_WRIST = _calc_actuator_params(2 * 200, 9.4e-08, 1.0)  # joint armature = 0.015
 
 ##
 # MJCF & Assets
@@ -231,12 +235,11 @@ KANGAROO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
   target_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
   **XS,
 )
-# The Seed Robotics RH8D wrist (flexion, adduction), in the place of the 7-DoF's arm joints 6-7. Its
-# servos are not documented (no torque or armature in the RH8D docs): the 7-DoF wrist's values until
-# PAL provides them.
+# The Seed Robotics RH8D wrist (flexion, adduction), in the place of the 7-DoF's arm joints 6-7, with
+# its servo's estimated values (SEED_WRIST, D50).
 KANGAROO_SEED_WRIST_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
   target_names_expr=(r"hand_.*_palm_(roll|pitch)_joint",),
-  **XS,
+  **SEED_WRIST,
 )
 
 COMMON_ACTUATORS = KANGAROO_LEG_ACTUATORS + (

@@ -461,7 +461,7 @@ at every step (user, 2026-10-23).**
     joints and collision geoms are equal.
   - `arm_*_5` now has the 7-DoF's axis (+z, D3) and range (−3.665..1.571 rad, mirrored on the right).
     PAL's file had −z and ±1.57.
-  - The wrist is actuated with the 7-DoF wrist's values (XS, `KANGAROO_SEED_WRIST_ACTUATOR_CFG`; user):
+  - The wrist is actuated with the 7-DoF wrist's values (XS, `KANGAROO_SEED_WRIST_ACTUATOR_CFG`; user; superseded by D50):
     the RH8D docs give no servo data. This also changes PAL's hands reaching and tracking tasks on this
     branch (2 more actions per arm, `csv_to_npz`'s joint list).
   - **Masses** are PAL's (user). The datasheet gives only 620 g in total. PAL's model has 168 g of hand
@@ -609,3 +609,25 @@ failure in play (user, 2026-10-26).**
   matches the run name, so it never picks up the other robot's checkpoint; a new clean run needs a new name.
 - **Earlier runs stay where they are** (the docs and dashboards point there).
 
+**D50. Hands: the Seed wrist gets its servo's estimated values, not the 7-DoF wrist's (user, 2026-10-29).**
+- **Why:** the wrist servos are Hitec HS-5245MG (PAL), not the 7-DoF's XS actuators. D42's placeholder
+  (armature 0.203 kg·m², 25 Nm) is about 13× heavier and 25× stronger than the real joint. The real hand's
+  driver and PAL's sim cap the wrist at 1 Nm.
+- **Values (`SEED_WRIST`, estimates until identified):**
+  - **Effort 1 Nm:** HS-5245MG stall is 0.43–0.54 Nm; the 0–4095 encoder range spans the joint's 90°, so a
+    ~2:1 linkage is assumed (about 1 Nm at the joint).
+  - **Armature 0.015 kg·m²** = rotor inertia × (gear ratio)²: ~200:1 servo gearbox (no-load
+    0.12–0.15 s/60° against a 12–18k rpm 3-pole motor) × the 2:1 linkage, rotor ~0.94 g·cm². Range
+    0.005–0.025. The hand's own inertia about the wrist axes is ~0.5–0.8 × 10⁻³ kg·m².
+  - **No friction or viscous damping**, as before.
+- **Gains** follow from D26's rule:
+  - At 1 Hz (`-ArmWaist1Hz`): Kp 8.014 → 0.594 Nm/rad, Kd 5.102 → 0.378, action scale 0.78 → 0.42 rad.
+  - At 3.5 Hz: Kp 7.274, Kd 1.323, action scale 0.034 rad.
+  - At 1 Hz the wrist's own weight (~0.09 Nm) sags it ~0.15 rad under Kp alone.
+  - As in D42, this also changes PAL's hands tasks (velocity, reaching, tracking) on this branch, which use
+    the same articulation.
+- **PAL's sim follows:** its 5dof RH8D MJCF has the same armature and no friction on the palm joints
+  (kangaroo_mujoco). Its palm joints keep the URDF's 0.1 N·m·s/rad passive damping, which training does not
+  have.
+- **Revisit** when the wrist is identified on the robot (the RH8D driver's `servo_stiffness` calibration
+  gives the linkage), or if the 1 Hz wrist tracks too loosely.
