@@ -256,11 +256,16 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
     ckpt = torch.load(ckpt_path, map_location=self.device, weights_only=False)
     actor_cfg = train_cfg.get("actor", {}) or {}
     activation = actor_cfg.get("activation", "elu") if isinstance(actor_cfg, dict) else "elu"
+    env_norm = os.environ.get("PROJECTOR_BACKBONE_NORMALIZE")
+    backbone_normalize = (
+      env_norm == "1" if env_norm is not None
+      else bool(train_cfg.get("projector_backbone_normalize", True))
+    )
     backbone = _FrozenBackbone(
       ckpt["actor_state_dict"],
       activation=activation,
       eps=getattr(actor.obs_normalizer, "eps", 1e-2),
-      normalize=bool(train_cfg.get("projector_backbone_normalize", True)),
+      normalize=backbone_normalize,
     )
     ckpt["actor_state_dict"].keys()
     dist_sd = {k.split("distribution.", 1)[1]: v
