@@ -167,7 +167,9 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.builtin_sensor,
     params={"sensor_name": "robot/imu_lin_acc"},
   )
-  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.5, n_max=0.5)
+
+  cfg.observations["actor"].terms["joint_pos"].noise = Unoise(n_min=-0.001, n_max=0.001)
+  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.01, n_max=0.01)
 
   ### Disabling the use of history length as we haven't seen much improvements with it
   ### Moreover, our best policy #62 doesn't use any history length
