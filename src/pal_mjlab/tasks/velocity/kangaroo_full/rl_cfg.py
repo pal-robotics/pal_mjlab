@@ -95,7 +95,7 @@ def pal_kangaroo_full_projector_ppo_runner_cfg() -> ProjectorRunnerCfg:
     save_interval=500,
     num_steps_per_env=24,
     max_iterations=10000,
-    projector_hidden_in=(256, 256),
+    projector_hidden_in=(128, 128),
     projector_hidden_out=(64, 64),
     projector_cur_terms=[
       ("base_ang_vel", 3), ("joint_pos", 22), ("joint_vel", 22),
