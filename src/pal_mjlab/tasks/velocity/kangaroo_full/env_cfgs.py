@@ -228,41 +228,41 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   }
 
   cfg.rewards["pose"].params["std_walking"] = {
-    # Lower body
-    r"leg_(left|right)_1_actuator$": 0.0090,
-    r"leg_(left|right)_2_actuator$": 0.0150,
-    r"leg_(left|right)_3_actuator$": 0.0150,
-    r"leg_(left|right)_length_actuator$": 0.0400,
-    r"leg_(left|right)_4_actuator$": 0.0058,
-    r"leg_(left|right)_5_actuator$": 0.0058,
+    # Lower body (~1.6x)
+    r"leg_(left|right)_1_actuator$": 0.0140,
+    r"leg_(left|right)_2_actuator$": 0.0240,
+    r"leg_(left|right)_3_actuator$": 0.0240,
+    r"leg_(left|right)_length_actuator$": 0.0600,
+    r"leg_(left|right)_4_actuator$": 0.0090,
+    r"leg_(left|right)_5_actuator$": 0.0090,
 
     # Waist
-    r"pelvis_1.*": 0.12,
-    r"pelvis_2.*": 0.30,
+    r"pelvis_1.*": 0.20,
+    r"pelvis_2.*": 0.45,
 
     # Arms
-    r"arm_.*_1_.*": 0.30,
-    r"arm_.*_4_.*": 0.30,
-    r"arm_.*_(?![14]_joint)\d+_joint": 0.15,
+    r"arm_.*_1_.*": 0.40,
+    r"arm_.*_4_.*": 0.40,
+    r"arm_.*_(?![14]_joint)\d+_joint": 0.22,
   }
 
   cfg.rewards["pose"].params["std_running"] = {
-    # Lower body
-    r"leg_(left|right)_1_actuator$": 0.0120,
-    r"leg_(left|right)_2_actuator$": 0.0200,
-    r"leg_(left|right)_3_actuator$": 0.0200,
-    r"leg_(left|right)_length_actuator$": 0.0600,
-    r"leg_(left|right)_4_actuator$": 0.0085,
-    r"leg_(left|right)_5_actuator$": 0.0085,
+    # Lower body (~1.5x)
+    r"leg_(left|right)_1_actuator$": 0.0180,
+    r"leg_(left|right)_2_actuator$": 0.0300,
+    r"leg_(left|right)_3_actuator$": 0.0300,
+    r"leg_(left|right)_length_actuator$": 0.0900,
+    r"leg_(left|right)_4_actuator$": 0.0125,
+    r"leg_(left|right)_5_actuator$": 0.0125,
 
     # Waist
-    r"pelvis_1.*": 0.12,
-    r"pelvis_2.*": 0.40,
+    r"pelvis_1.*": 0.20,
+    r"pelvis_2.*": 0.55,
 
     # Arms
-    r"arm_.*_1_.*": 0.50,
-    r"arm_.*_4_.*": 0.45,
-    r"arm_.*_(?![14]_joint)\d+_joint": 0.22,
+    r"arm_.*_1_.*": 0.60,
+    r"arm_.*_4_.*": 0.55,
+    r"arm_.*_(?![14]_joint)\d+_joint": 0.30,
   }
   cfg.rewards["upright"].params["asset_cfg"].body_names = ("pelvis_2_link",)
   cfg.rewards["upright"].weight = 1.25
