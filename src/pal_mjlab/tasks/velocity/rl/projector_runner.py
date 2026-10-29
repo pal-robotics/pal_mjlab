@@ -155,10 +155,10 @@ class _FrozenBackbone(nn.Module):
   """Pretrained obs normalizer + MLP rebuilt from the base policy's own
   state_dict, so its dimensions are independent of the current env."""
 
-  def __init__(self, actor_sd: dict, activation: str = "elu", eps: float = 1e-2):
+  def __init__(self, actor_sd: dict, activation: str = "elu", eps: float = 1e-2, normalize: bool = True):
     super().__init__()
     self.eps = eps
-    self.normalize = "obs_normalizer._mean" in actor_sd
+    self.normalize = normalize and "obs_normalizer._mean" in actor_sd
     if self.normalize:
       self.register_buffer("mean", actor_sd["obs_normalizer._mean"].clone())
       self.register_buffer("std", actor_sd["obs_normalizer._std"].clone())
@@ -260,6 +260,7 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
       ckpt["actor_state_dict"],
       activation=activation,
       eps=getattr(actor.obs_normalizer, "eps", 1e-2),
+      normalize=bool(train_cfg.get("projector_backbone_normalize", True)),
     )
 
     hidden_in = tuple(train_cfg.get("projector_hidden_in", (256, 256)))
@@ -342,10 +343,12 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
       f" | critic {_n(self.alg.critic.parameters()):,}"
     )
 
-    # The backbone owns the (pretrained) normalizer; the actor's own one is bypassed.
-    actor.obs_normalizer = nn.Identity()
-    if hasattr(actor, "update_normalization"):
-      actor.update_normalization = lambda obs: None
+    if backbone.normalize:
+      # The backbone owns the (pretrained) normalizer; the actor's own one is bypassed.
+      actor.obs_normalizer = nn.Identity()
+      if hasattr(actor, "update_normalization"):
+        actor.update_normalization = lambda obs: None
+    # else: the actor's own normalizer stays active and keeps updating.
 
     # The critic's obs space differs from the base policy's, so it trains from scratch.
     params = [p for p in actor.parameters() if p.requires_grad]
@@ -360,11 +363,14 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
 
   def _heads_state(self) -> dict:
     actor = self.alg.get_policy()
-    return {
+    state = {
       "head_in": actor.mlp.head_in.state_dict(),
       "head_out": actor.mlp.head_out.state_dict(),
       "distribution": actor.distribution.state_dict(),
     }
+    if not actor.mlp.backbone.normalize:
+      state["obs_normalizer"] = actor.obs_normalizer.state_dict()
+    return state
 
   def save(self, path: str, infos=None) -> None:
     super().save(path, infos)
@@ -390,4 +396,6 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
     actor.mlp.head_in.load_state_dict(state["head_in"], strict=strict)
     actor.mlp.head_out.load_state_dict(state["head_out"], strict=strict)
     actor.distribution.load_state_dict(state["distribution"], strict=strict)
+    if "obs_normalizer" in state:
+      actor.obs_normalizer.load_state_dict(state["obs_normalizer"])
     return loaded.get("infos")

@@ -18,6 +18,7 @@ class ProjectorRunnerCfg(RslRlOnPolicyRunnerCfg):
   projector_base_terms: list[tuple[str, int]] | None = None
   projector_term_maps: dict[str, list[tuple[int, int]]] | None = None
   projector_act_map: list[tuple[int, int]] | None = None
+  projector_backbone_normalize: bool = True
 
 
 def pal_kangaroo_full_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
@@ -104,5 +105,6 @@ def pal_kangaroo_full_projector_ppo_runner_cfg() -> ProjectorRunnerCfg:
       ("base_ang_vel", 3), ("joint_pos", 26), ("joint_vel", 26),
       ("actions", 22), ("command", 3), ("imu_projected_gravity", 3),
     ],
-    projector_term_maps= None
+    projector_term_maps= None,
+    projector_backbone_normalize= True
   )
