@@ -262,6 +262,12 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
       eps=getattr(actor.obs_normalizer, "eps", 1e-2),
       normalize=bool(train_cfg.get("projector_backbone_normalize", True)),
     )
+    ckpt["actor_state_dict"].keys()
+    dist_sd = {k.split("distribution.", 1)[1]: v
+                for k, v in ckpt["actor_state_dict"].items()
+                if k.startswith("distribution.")}
+    if dist_sd:
+      actor.distribution.load_state_dict(dist_sd, strict=False)
 
     hidden_in = tuple(train_cfg.get("projector_hidden_in", (256, 256)))
     hidden_out = tuple(train_cfg.get("projector_hidden_out", (128,)))

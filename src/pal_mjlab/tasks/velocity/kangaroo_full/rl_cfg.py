@@ -84,7 +84,7 @@ def pal_kangaroo_full_projector_ppo_runner_cfg() -> ProjectorRunnerCfg:
       entropy_coef=0.001,
       num_learning_epochs=5,
       num_mini_batches=4,
-      learning_rate=3.0e-4,
+      learning_rate=1.0e-4,
       schedule="adaptive",
       gamma=0.99,
       lam=0.95,
@@ -96,7 +96,7 @@ def pal_kangaroo_full_projector_ppo_runner_cfg() -> ProjectorRunnerCfg:
     num_steps_per_env=24,
     max_iterations=10000,
     projector_hidden_in=(256, 256),
-    projector_hidden_out=(256, 256),
+    projector_hidden_out=(64, 64),
     projector_cur_terms=[
       ("base_ang_vel", 3), ("joint_pos", 22), ("joint_vel", 22),
       ("actions", 22), ("command", 3), ("imu_projected_gravity", 3),
