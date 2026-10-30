@@ -362,9 +362,14 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
     # else: the actor's own normalizer stays active and keeps updating.
 
     # The critic's obs space differs from the base policy's, so it trains from scratch.
-    params = [p for p in actor.parameters() if p.requires_grad]
-    params += list(self.alg.critic.parameters())
+    actor_params = [p for p in actor.parameters() if p.requires_grad]
+    params = actor_params + list(self.alg.critic.parameters())
     self.alg.optimizer = torch.optim.Adam(params, lr=self.alg.learning_rate)
+
+    # Critic warm-up bookkeeping.
+    self._actor_trainable = actor_params  # excludes frozen backbone and a frozen proj
+    self._warmup_iters = int(train_cfg.get("projector_critic_warmup", 200))
+    self._warmup_pending = self._warmup_iters > 0
 
   # ---------------------------------------------------------------- save
   @staticmethod
@@ -383,6 +388,35 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
       state["obs_normalizer"] = actor.obs_normalizer.state_dict()
     return state
 
+  def learn(self, num_learning_iterations, init_at_random_ep_len=False):
+    warm = self._warmup_iters
+    if not self._warmup_pending or num_learning_iterations <= warm:
+      return super().learn(num_learning_iterations, init_at_random_ep_len)
+    self._warmup_pending = False
+
+    start = self.current_learning_iteration
+    print(f"[INFO] Critic warm-up: actor frozen for {warm} iterations")
+
+    # Frozen actor means KL ~ 0, so the adaptive schedule would ramp the lr to its cap.
+    schedule = getattr(self.alg, "schedule", None)
+    if schedule is not None:
+      self.alg.schedule = "fixed"
+    self._set_actor_trainable(False)
+    try:
+      super().learn(warm, init_at_random_ep_len)
+    finally:
+      self._set_actor_trainable(True)
+      if schedule is not None:
+        self.alg.schedule = schedule
+
+    self.current_learning_iteration = start + warm  # continuous numbering
+    print("[INFO] Critic warm-up done: actor unfrozen")
+    return super().learn(num_learning_iterations - warm, False)
+
+  def _set_actor_trainable(self, flag: bool) -> None:
+    for p in self._actor_trainable:
+      p.requires_grad_(flag)
+
   def save(self, path: str, infos=None) -> None:
     super().save(path, infos)
     heads_path = self._heads_path(path)
@@ -399,6 +433,7 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
   # ---------------------------------------------------------------- load
   def load(self, path, load_cfg=None, strict=True, map_location=None):
     if Path(path).parent.name != "heads":
+      self._warmup_pending = False  # full checkpoint restores the critic
       return super().load(path, load_cfg, strict, map_location)
 
     loaded = torch.load(path, map_location=map_location, weights_only=False)
@@ -409,4 +444,6 @@ class VelocityProjectorOnPolicyRunner(VelocityOnPolicyRunner):
     actor.distribution.load_state_dict(state["distribution"], strict=strict)
     if "obs_normalizer" in state:
       actor.obs_normalizer.load_state_dict(state["obs_normalizer"])
+    # Heads checkpoints don't hold the critic, so warm-up stays pending.
+    self.current_learning_iteration = int(loaded.get("iter", 0))
     return loaded.get("infos")

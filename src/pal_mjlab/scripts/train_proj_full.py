@@ -46,6 +46,13 @@ class TrainConfig:
   wandb_checkpoint_name: str | None = None
   """Optional checkpoint name within the W&B run to load (e.g. 'model_4000.pt')."""
   gpu_ids: list[int] | Literal["all"] | None = field(default_factory=lambda: [0])
+  pretrained_checkpoint: str | None = None
+  """..."""
+  projector_critic_warmup: int | None = None
+  """Iterations to train only the critic (actor heads and std frozen) at the start
+  of a projector run. 0 disables it. If unset, falls back to the value in the
+  runner cfg, or to the runner's default (200). Counted inside max_iterations."""
+  resume_path: str | None = None
 
   @staticmethod
   def from_task(task_id: str) -> "TrainConfig":
@@ -133,6 +140,10 @@ def _projector_overrides(cfg: TrainConfig) -> dict:
     act_map = [(b, c) for c, b in term_maps["actions"]]
   if act_map is not None:
     o["projector_act_map"] = [list(p) for p in act_map]
+  if cfg.projector_critic_warmup is not None:
+    if cfg.projector_critic_warmup < 0:
+      raise ValueError("projector_critic_warmup must be >= 0")
+    o["projector_critic_warmup"] = int(cfg.projector_critic_warmup)
 
   return o
 
