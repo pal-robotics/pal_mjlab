@@ -1,5 +1,7 @@
 """PAL Robotics kangaroo_full velocity tracking environment configurations."""
 
+import mujoco
+
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -20,6 +22,7 @@ from mjlab.sensor import (
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
+from mjlab.utils.lab_api.string import resolve_matching_names_values
 
 from pal_mjlab.robots.pal_kangaroo_full.kangaroo_full_constants import (  # noqa: F401
   ANKLE_XY_CONVEX_HULL_POINTS,
@@ -28,6 +31,7 @@ from pal_mjlab.robots.pal_kangaroo_full.kangaroo_full_constants import (  # noqa
   KANG_FULL_ACTUATOR_NAMES,
   KANG_FULL_LEG_LENGTH_VEL_LIMIT,
   get_kangaroo_full_robot_cfg,
+  get_kangaroo_spec
 )
 from pal_mjlab.tasks.velocity import mdp
 
@@ -59,6 +63,7 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   _LEG_ACTUATOR_RE = (
     r"leg_(left|right)_[1-5]_actuator$|leg_(left|right)_length_actuator$"
   )
+  _LEG_SCREW_RE = r"leg_(left|right)_[1-5]_actuator$"
   _LEG_LENGTH_ACTUATOR_RE = r"leg_(left|right)_length_actuator$"
   # Screws grouped by the coordinate they drive, for per-group encoder bias.
   _SCREW_BIAS_GROUPS = {
@@ -67,9 +72,8 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     "ankle_xy": r"leg_(left|right)_[45]_actuator$",
     "leg_length": _LEG_LENGTH_ACTUATOR_RE,
   }
-  _ACTUATED_JOINT_RE = (
-    _LEG_ACTUATOR_RE + r"|pelvis_1_joint$|pelvis_2_joint$|arm_.*_[1-4]_joint$"
-  )
+  _ARM_PELVIS_JOINT_RE = r"pelvis_1_joint$|pelvis_2_joint$|arm_.*_[1-4]_joint$"
+  _ACTUATED_JOINT_RE = _LEG_ACTUATOR_RE + "|" + _ARM_PELVIS_JOINT_RE
 
   feet_ground_cfg = ContactSensorCfg(
     name="feet_ground_contact",
@@ -168,8 +172,16 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={"sensor_name": "robot/imu_lin_acc"},
   )
 
-  cfg.observations["actor"].terms["joint_pos"].noise = Unoise(n_min=-0.001, n_max=0.001)
-  cfg.observations["actor"].terms["joint_vel"].noise = Unoise(n_min=-0.01, n_max=0.01)
+  spec = get_kangaroo_spec()  # keep a reference: the joints live inside the spec
+  joint_names = [j.name for j in spec.joints if j.type != mujoco.mjtJoint.mjJNT_FREE]
+  for term, bounds in (
+    ("joint_pos", {_LEG_ACTUATOR_RE: 0.001, _ARM_PELVIS_JOINT_RE: 0.01}),
+    ("joint_vel", {_LEG_ACTUATOR_RE: 0.01, _ARM_PELVIS_JOINT_RE: 0.5}),
+  ):
+    _, _, n = resolve_matching_names_values(bounds, joint_names)
+    cfg.observations["actor"].terms[term].noise = Unoise(
+      n_min=tuple(-x for x in n), n_max=tuple(n)
+    )
 
   ### Disabling the use of history length as we haven't seen much improvements with it
   ### Moreover, our best policy #62 doesn't use any history length
