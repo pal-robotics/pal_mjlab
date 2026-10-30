@@ -90,7 +90,8 @@ class Evaluator:
     self.lib = library
     model = compile_kinematic_model(get_kangaroo_grippers_spec())
     self.fk = TorchKinematics(model, TRACKED_BODIES, device=device)
-    self.reward = tracking_reward_fn(load_env_cfg(task).rewards)
+    cfg = load_env_cfg(task)
+    self.reward = tracking_reward_fn(cfg.rewards, cfg.commands["motion"].body_names)
     names = library.joint_names
     self.joint_groups = {
       g: torch.tensor(

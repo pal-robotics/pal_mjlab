@@ -7,27 +7,39 @@ evaluate the heads on the true states.
 
 from pathlib import Path
 
+import pytest
 import torch
 from conftest import get_test_device
 from mjlab.envs import ManagerBasedRlEnv
 from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import (
   pal_kangaroo_grippers_supermimic_env_cfg,
+  pal_kangaroo_hands_supermimic_env_cfg,
+  tight_tracking,
 )
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommand
 from pal_mjlab.tasks.supermimic.rl.heads import AnalyticHeads
 from pal_mjlab.tasks.supermimic.state import heading_pose, heading_state
 
-LIBRARY = Path(__file__).parent / "fixtures" / "library_tiny"
+FIXTURES = Path(__file__).parent / "fixtures"
 NUM_ENVS = 4
+# The paper's reward (grippers), and the experimental one with the feet tracked on their own (hands).
+VARIANTS = {
+  "grippers": (pal_kangaroo_grippers_supermimic_env_cfg, "library_tiny"),
+  "hands_tight": (
+    lambda: tight_tracking(pal_kangaroo_hands_supermimic_env_cfg()),
+    "library_tiny_hands",
+  ),
+}
 
 
-def _env() -> ManagerBasedRlEnv:
-  cfg = pal_kangaroo_grippers_supermimic_env_cfg()
+def _env(variant: str = "grippers") -> ManagerBasedRlEnv:
+  make_cfg, library = VARIANTS[variant]
+  cfg = make_cfg()
   cfg.scene.num_envs = NUM_ENVS
   cfg.auto_reset = False
   cfg.observations["proprio"].enable_corruption = False  # compare noise-free ō
   motion = cfg.commands["motion"]
-  motion.library_path = str(LIBRARY)
+  motion.library_path = str(FIXTURES / library)
   motion.compile_kinematics = False
   return ManagerBasedRlEnv(cfg=cfg, device=get_test_device())
 
@@ -38,8 +50,9 @@ def _state(env: ManagerBasedRlEnv, cmd: MotionLibraryCommand):
   return heading_state(qpos, cmd.robot_qvel), heading_pose(qpos)
 
 
-def test_heads_match_the_env():
-  env = _env()
+@pytest.mark.parametrize("variant", list(VARIANTS))
+def test_heads_match_the_env(variant):
+  env = _env(variant)
   heads = AnalyticHeads(env, compile_fk=False)
   cmd: MotionLibraryCommand = env.command_manager.get_term("motion")
   context_cfg = env.observation_manager.get_term_cfg("critic", "sim_context")

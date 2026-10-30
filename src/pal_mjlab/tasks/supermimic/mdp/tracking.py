@@ -60,9 +60,13 @@ def anchor_ori_error(robot: BodyState, ref: BodyState) -> torch.Tensor:
   return quat_error_magnitude(ref.quat[:, 0], robot.quat[:, 0]).square()
 
 
-def body_pos_error(robot: BodyState, ref: BodyState) -> torch.Tensor:
+def body_pos_error(
+  robot: BodyState, ref: BodyState, ids: list[int] | None = None
+) -> torch.Tensor:
+  """Over the tracked bodies, or those at ``ids`` (e.g. the feet)."""
   rel_pos, _ = relative_reference(ref, robot)
-  return (rel_pos - robot.pos).square().sum(-1).mean(-1)
+  err = (rel_pos - robot.pos).square().sum(-1)
+  return (err if ids is None else err[:, ids]).mean(-1)
 
 
 def body_ori_error(robot: BodyState, ref: BodyState) -> torch.Tensor:
@@ -70,8 +74,12 @@ def body_ori_error(robot: BodyState, ref: BodyState) -> torch.Tensor:
   return quat_error_magnitude(rel_quat, robot.quat).square().mean(-1)
 
 
-def body_lin_vel_error(robot: BodyState, ref: BodyState) -> torch.Tensor:
-  return (ref.lin_vel - robot.lin_vel).square().sum(-1).mean(-1)
+def body_lin_vel_error(
+  robot: BodyState, ref: BodyState, ids: list[int] | None = None
+) -> torch.Tensor:
+  """Over the tracked bodies, or those at ``ids`` (e.g. the feet)."""
+  err = (ref.lin_vel - robot.lin_vel).square().sum(-1)
+  return (err if ids is None else err[:, ids]).mean(-1)
 
 
 def body_ang_vel_error(robot: BodyState, ref: BodyState) -> torch.Tensor:

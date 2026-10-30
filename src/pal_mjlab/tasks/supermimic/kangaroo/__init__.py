@@ -5,6 +5,7 @@ from pal_mjlab.tasks.supermimic.rl.runner import SuperMimicRunner
 from .env_cfgs import (
   pal_kangaroo_grippers_supermimic_env_cfg,
   pal_kangaroo_hands_supermimic_env_cfg,
+  tight_tracking,
 )
 from .rl_cfg import (
   PPO_NUM_ENVS,
@@ -57,6 +58,15 @@ for name, env_cfg, robot in VARIANTS:
     task_id=f"Mjlab-SuperMimic-Flat-Pal-Kangaroo-{name}-ArmWaist1Hz",
     env_cfg=_supermimic_env_cfg(env_cfg, arm_waist_natural_freq_hz=1.0),
     play_env_cfg=env_cfg(play=True, arm_waist_natural_freq_hz=1.0),
+    rl_cfg=_runner_cfg(pal_kangaroo_supermimic_runner_cfg, robot),
+    runner_cls=SuperMimicRunner,
+  )
+
+  # Experimental: the same with tighter tracking and the feet tracked on their own (tight_tracking).
+  register_mjlab_task(
+    task_id=f"Mjlab-SuperMimic-Flat-Pal-Kangaroo-{name}-ArmWaist1Hz-Tight",
+    env_cfg=tight_tracking(_supermimic_env_cfg(env_cfg, arm_waist_natural_freq_hz=1.0)),
+    play_env_cfg=tight_tracking(env_cfg(play=True, arm_waist_natural_freq_hz=1.0)),
     rl_cfg=_runner_cfg(pal_kangaroo_supermimic_runner_cfg, robot),
     runner_cls=SuperMimicRunner,
   )

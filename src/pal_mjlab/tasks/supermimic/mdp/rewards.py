@@ -6,6 +6,7 @@ functions are the ones imagination will differentiate through.
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING, Callable, cast
 
 import torch
@@ -27,15 +28,24 @@ __all__ = [
   "motion_body_ang_vel_exp",
   "joint_pos_limits_hard",
   "tracking_reward_fn",
+  "bound_error",
 ]
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
 
+def bound_error(error_fn, body_names, bodies=()):
+  """``error_fn`` over the tracked bodies named in ``bodies`` (all of them when empty)."""
+  if not bodies:
+    return error_fn
+  return partial(error_fn, ids=[list(body_names).index(b) for b in bodies])
+
+
 def _exp_term(
-  env: ManagerBasedRlEnv, command_name: str, error_fn, std: float
+  env: ManagerBasedRlEnv, command_name: str, error_fn, std: float, bodies=()
 ) -> torch.Tensor:
   command = cast(MotionLibraryCommand, env.command_manager.get_term(command_name))
+  error_fn = bound_error(error_fn, command.cfg.body_names, bodies)
   return torch.exp(-error_fn(command.robot_bodies, command.ref_bodies) / std**2)
 
 
@@ -52,9 +62,9 @@ def motion_root_ori_exp(
 
 
 def motion_body_pos_exp(
-  env: ManagerBasedRlEnv, command_name: str, std: float
+  env: ManagerBasedRlEnv, command_name: str, std: float, bodies: tuple[str, ...] = ()
 ) -> torch.Tensor:
-  return _exp_term(env, command_name, tracking.body_pos_error, std)
+  return _exp_term(env, command_name, tracking.body_pos_error, std, bodies)
 
 
 def motion_body_ori_exp(
@@ -64,9 +74,9 @@ def motion_body_ori_exp(
 
 
 def motion_body_lin_vel_exp(
-  env: ManagerBasedRlEnv, command_name: str, std: float
+  env: ManagerBasedRlEnv, command_name: str, std: float, bodies: tuple[str, ...] = ()
 ) -> torch.Tensor:
-  return _exp_term(env, command_name, tracking.body_lin_vel_error, std)
+  return _exp_term(env, command_name, tracking.body_lin_vel_error, std, bodies)
 
 
 def motion_body_ang_vel_exp(
@@ -88,7 +98,7 @@ def joint_pos_limits_hard(
 
 
 def tracking_reward_fn(
-  rewards: dict,
+  rewards: dict, body_names: tuple[str, ...] = ()
 ) -> Callable[[tracking.BodyState, tracking.BodyState], torch.Tensor]:
   """Pure version of the env's tracking reward, built from its reward config.
 
@@ -105,7 +115,11 @@ def tracking_reward_fn(
     motion_body_ang_vel_exp: tracking.body_ang_vel_error,
   }
   terms = [
-    (cfg.weight, cfg.params["std"], errors[cfg.func])
+    (
+      cfg.weight,
+      cfg.params["std"],
+      bound_error(errors[cfg.func], body_names, cfg.params.get("bodies", ())),
+    )
     for cfg in rewards.values()
     if cfg is not None and cfg.func in errors
   ]

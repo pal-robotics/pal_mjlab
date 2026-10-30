@@ -117,9 +117,11 @@ class AnalyticHeads:
       if term is None or term.weight == 0.0:
         continue
       if term.func in _TRACKING:
-        self.tracking_terms.append(
-          (term.weight, term.params["std"], _TRACKING[term.func])
+        error = _TRACKING[term.func]
+        error = sm_rewards.bound_error(
+          error, cmd.cfg.body_names, term.params.get("bodies", ())
         )
+        self.tracking_terms.append((term.weight, term.params["std"], error))
       elif term.func is mj_rewards.action_rate_l2:
         self.action_rate_weight = term.weight
       elif term.func is sm_rewards.joint_pos_limits_hard:

@@ -15,6 +15,7 @@ from dataclasses import replace
 from mjlab.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
+from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 
 from pal_mjlab.robots import (
@@ -23,6 +24,7 @@ from pal_mjlab.robots import (
   get_kangaroo_hands_robot_cfg,
 )
 from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import DAMPING_RATIO
+from pal_mjlab.tasks.supermimic import mdp
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommandCfg
 from pal_mjlab.tasks.supermimic.supermimic_env_cfg import make_supermimic_env_cfg
 
@@ -83,6 +85,27 @@ FOOT_GEOMS = tuple(
   f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(0, 12, 2)
 )
 TORSO_BODY = "pelvis_2_link"
+
+
+FEET = ("leg_left_5_link", "leg_right_5_link")  # tracked bodies
+
+
+def tight_tracking(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
+  """Experimental, not a decision yet: the tracking terms with half the paper's stds, plus the feet's position
+  and linear velocity tracked on their own with tight stds (0.05 m, 0.1 m/s), against feet that slide or
+  shuffle while the reference foot stands still. In the paper's terms a sliding foot barely counts: its
+  error is averaged with the other 13 bodies'."""
+  for term in cfg.rewards.values():
+    if "std" in term.params:
+      term.params["std"] /= 2
+  feet = {"command_name": "motion", "bodies": FEET}
+  cfg.rewards["motion_feet_pos"] = RewardTermCfg(
+    func=mdp.motion_body_pos_exp, weight=1.0, params={**feet, "std": 0.05}
+  )
+  cfg.rewards["motion_feet_lin_vel"] = RewardTermCfg(
+    func=mdp.motion_body_lin_vel_exp, weight=1.0, params={**feet, "std": 0.1}
+  )
+  return cfg
 
 
 def kangaroo_robot_cfg(
