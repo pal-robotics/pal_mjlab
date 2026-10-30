@@ -1,6 +1,7 @@
 """PAL Robotics kangaroo_full velocity tracking environment configurations."""
 
 import mujoco
+import re
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
@@ -173,12 +174,27 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
 
   spec = get_kangaroo_spec()  # keep a reference: the joints live inside the spec
-  joint_names = [j.name for j in spec.joints if j.type != mujoco.mjtJoint.mjJNT_FREE]
+  # Same regex source as the joint_pos/joint_vel obs terms (SceneEntityCfg
+  # joint_names=KANG_FULL_ACTUATOR_NAMES), so the noise vector has exactly the
+  # same joints, in the same (model) order, as the observation it is added to.
+  actuated_res = [re.compile(p) for p in KANG_FULL_ACTUATOR_NAMES]
+  joint_names = [
+    j.name
+    for j in spec.joints
+    if j.type != mujoco.mjtJoint.mjJNT_FREE
+    and any(r.match(j.name) for r in actuated_res)
+  ]
   for term, bounds in (
     ("joint_pos", {_LEG_ACTUATOR_RE: 0.001, _ARM_PELVIS_JOINT_RE: 0.01}),
-    ("joint_vel", {_LEG_ACTUATOR_RE: 0.01, _ARM_PELVIS_JOINT_RE: 0.5}),
+    ("joint_vel", {_LEG_ACTUATOR_RE: 0.05, _ARM_PELVIS_JOINT_RE: 0.5}),
   ):
-    _, _, n = resolve_matching_names_values(bounds, joint_names)
+    _, names, n = resolve_matching_names_values(bounds, joint_names)
+    # resolve_* silently drops joints that match no bound, so a length mismatch
+    # here means a joint is either missing a noise value or was renamed.
+    assert names == joint_names, (
+      f"{term} noise does not cover the actuated joints: "
+      f"missing={sorted(set(joint_names) - set(names))}"
+    )
     cfg.observations["actor"].terms[term].noise = Unoise(
       n_min=tuple(-x for x in n), n_max=tuple(n)
     )
