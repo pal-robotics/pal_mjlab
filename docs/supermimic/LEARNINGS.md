@@ -431,6 +431,11 @@ return, mix failures and sampled starts. Judge runs on the whole-clip benchmark.
   all 965k bins had been visited (about 28,000), while bin returns kept rising (0.766 → 0.791 at the end).
   The mean bin return and the benchmark measure progress on `full`; training return does not.
 - **The training logger drops NaN values,** so a NaN run shows as missing losses, not as NaN.
+- **Clean data did not remove the collapses.** On the re-retargeted 7-DoF data (D47) `full` trained stably to
+  85,500, then collapsed twice (world-model loss first, then the policy) and went NaN at ~102,000 without any
+  buffer overflow; normalizers and weights showed no blow-up at 1,000-iteration resolution. Before the first
+  collapse the 23 flip clips (360° somersaults) held 17% of all training starts: extreme clips the robot cannot do
+  attract the hard sampler as the impossible ones did (`kangaroo_bones_seed/data/variants/sampler/`).
 
 ## Repo state found on MAC/WBC (not caused by us)
 

@@ -139,8 +139,15 @@ with a gate: if it fails, we stop and rethink before building on top.
 - **`full`: done** (~40 h: NaN at 44,600 from a constraint-buffer overflow, D44, then resumed from 44,000
   with `njmax` 1024 for 24 h). On `dev` 0.894 with 0 failures at 110,000; on a second sample of `full`
   1 failure of 1,242 where `dev` fails 23. Report: `m5/report.pdf`.
-- **Next:** a `full` run on the re-retargeted 7-DoF data (D47); a learning-rate schedule fitted to the run
-  length so the last checkpoint is the best (user's go); the 5-DoF `full` run (job 62433262).
+- **`full` on the re-retargeted 7-DoF data (D47), `SMgrippers`:** job 62529574 (24 h, 0 → 73,400) and
+  62738915 (resumed from 73,000), logs `supermimic/<time>_grippers-full-24h`. Stable to 85,500 (training failure
+  ~22%, old data ~34%). Then the world model's loss jumped (0.03 → 8.7) and the policy collapsed; it recovered by
+  ~95,000, collapsed again at ~101,500 and went NaN at ~102,010 (no buffer overflow). Cancelled 2026-10-30 09:27
+  at 133,600 (user); checkpoints 102,000-133,000 moved to the run's `nan_quarantine/`, the newest usable is
+  101,000. Before the first collapse the 23 flip clips held 17% of all training starts
+  (`kangaroo_bones_seed/data/variants/sampler/`; the old run's dip followed kneeling clips at 14%).
+- **Next:** benchmark candidates (85,000, 95,000-100,000) on the new `dev`; for a new 7-DoF run, the user's call
+  on dropping the flips (done for the 5-DoF set) and on a learning-rate schedule fitted to the run length.
 
 ### Options listed in M4 (`m4/cluster_report.pdf` §5)
 
@@ -178,13 +185,14 @@ hours, about 4,560 left (≈ 570 A100-h). In the suggested order:
 ## Hands variant (D42, 2026-10-26)
 
 - Tasks `...-Kangaroo-Hands[-ArmWaist1Hz]` are ready, tested on 3 real clips.
-- The 5-DoF data is done (2026-10-27): `kangaroo_bones_seed/dataset_5dof`, 118,959 motions, 234.3 h, after
-  the QA rule that drops clips with any collision shape > 5 cm in the floor (it removed 4,649 clips, 14.7 h);
-  libraries `smoke` (139 clips), `dev` (1,323, 2.53 h) and `full` (118,959); its REPORT.md, section 7. The
-  previous libraries (123,607 motions) are in `dataset_5dof/libraries_archive/`. The Hands tasks load
-  `dataset_5dof/libraries/dev` by default (joint names match `kangaroo_hands.xml`).
-- First run: `SMfull5dof` (job 62433262, 24 h) on the previous `full` (123,607 clips); benchmark it on
-  `libraries_archive/dev_1193`.
+- The 5-DoF data (2026-10-30): `kangaroo_bones_seed/dataset_5dof`, re-retargeted with the URDF's arm 5 and
+  right wrist roll (D51, GMR 828e5f5), the 5 cm floor rule and without the 44 flip clips
+  (`pipeline/review_excluded_5dof.json`, user): 118,953 motions, 234.3 h; libraries `smoke` (142 clips), `dev`
+  (1,321, 2.53 h), `full` (118,953). The first 5-DoF set is in `kangaroo_bones_seed/archive/5dof_v1_2026-10-27/`.
+  The Hands tasks load `dataset_5dof/libraries/dev` by default.
+- First run `SMfull5dof` (job 62433262, 24 h, logs `supermimic_d39_hands/`) trained on the first set (123,607
+  clips, before D51): its checkpoints only work with that snapshot and the archived libraries.
+- New run `SMhands` (job 62860958, snapshot 64e0f03) on the new `full`, logs `supermimic/<time>_hands-full-v2-24h`.
 
 ## Later
 
