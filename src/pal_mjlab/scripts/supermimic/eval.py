@@ -14,6 +14,11 @@ policy. Per clip:
   joint_err_<g>    mean |q - q_ref| [rad] of the actuated joints, per joint group
   torque_rate_<g>  mean |Δτ| / τ_max per step, per joint group
   saturation_<g>   fraction of (step, actuator) samples at the torque limit, per joint group
+  foot_slide       mean horizontal speed [m/s] of the robot's feet while the reference foot is planted
+                   (reference foot below FOOT_UP and slower than STILL horizontally and vertically)
+  foot_slip        share of those foot-steps above SLIP
+  root_drift       mean horizontal speed [m/s] of the robot's root while the reference root stands still
+                   (slower than STILL, turning slower than 0.1 rad/s): standing still
 
 Usage:
   python -m pal_mjlab.scripts.supermimic.eval <task> --checkpoints run/model_200.pt ... \\
@@ -46,6 +51,8 @@ BODY_GROUPS = {
   "arms": r"arm_.*",
 }
 JOINT_GROUPS = {"legs": r"leg_.*", "waist": r"pelvis_.*", "arms": r"arm_.*"}
+FEET = r"leg_.*_5_link"  # the tracked foot bodies
+FOOT_UP, STILL, SLIP = 0.15, 0.02, 0.05  # m, m/s, m/s
 
 
 def _group_index(names, patterns: dict[str, str], device) -> dict[str, torch.Tensor]:
@@ -81,6 +88,9 @@ class Benchmark:
     self.robot = self.env.scene["robot"]
 
     self.body_groups = _group_index(self.command.cfg.body_names, BODY_GROUPS, device)
+    self.feet = _group_index(self.command.cfg.body_names, {"feet": FEET}, device)[
+      "feet"
+    ]
     goal_names = self.command.goal_joint_names
     self.joint_ids = self.command._goal_joint_ids
     self.joint_groups = _group_index(goal_names, JOINT_GROUPS, device)
@@ -122,6 +132,8 @@ class Benchmark:
     steps = torch.zeros(n, device=dev)
     sums: dict[str, torch.Tensor] = {}
     counts = torch.zeros(n, device=dev)
+    planted_steps = torch.zeros(n, device=dev)
+    still_steps = torch.zeros(n, device=dev)
 
     def add(name: str, value: torch.Tensor, mask: torch.Tensor) -> None:
       sums[name] = sums.get(name, torch.zeros(n, device=dev)) + torch.where(
@@ -165,6 +177,26 @@ class Benchmark:
       prev_tau = tau.clone()
       counts += live.float()
 
+      # Feet that slide where the reference foot is planted; a root that drifts where it stands still.
+      f = self.feet
+      planted = (
+        (ref.pos[:, f, 2] < FOOT_UP)
+        & (ref.lin_vel[:, f, :2].norm(dim=-1) < STILL)
+        & (ref.lin_vel[:, f, 2].abs() < STILL)
+        & live[:, None]
+      )
+      speed = robot.lin_vel[:, f, :2].norm(dim=-1)
+      add("foot_slide", (speed * planted).sum(-1), live)
+      add("foot_slip", ((speed > SLIP) & planted).float().sum(-1), live)
+      planted_steps += planted.float().sum(-1)
+      still = (
+        (ref.lin_vel[:, 0, :2].norm(dim=-1) < STILL)
+        & (ref.ang_vel[:, 0].norm(dim=-1) < 0.1)
+        & live
+      )
+      add("root_drift", robot.lin_vel[:, 0, :2].norm(dim=-1), still)
+      still_steps += still.float()
+
       finished |= done
       if finished.all():
         break
@@ -174,12 +206,19 @@ class Benchmark:
     per_clip["tracking_return"] = sums.pop("tracking_return") / (
       self.tracking_max * env.step_dt * reward_steps
     )
+    for k in ("foot_slide", "foot_slip"):
+      per_clip[k] = torch.where(
+        planted_steps > 0, sums.pop(k) / planted_steps, torch.nan
+      )
+    per_clip["root_drift"] = torch.where(
+      still_steps > 0, sums.pop("root_drift") / still_steps, torch.nan
+    )
     for k, v in sums.items():
       per_clip[k] = v / counts.clamp_min(1)
     return {k: v.cpu().numpy() for k, v in per_clip.items()}
 
   def report(self, per_clip: dict[str, np.ndarray], checkpoint: Path) -> dict:
-    summary = {k: float(np.mean(v)) for k, v in per_clip.items()}
+    summary = {k: float(np.nanmean(v)) for k, v in per_clip.items()}
     summary["failed"] = int(per_clip["failed"].sum())
     cats = self.clip_category.cpu().numpy()
     by_category = {
