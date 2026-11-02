@@ -608,11 +608,18 @@ def pal_kangaroo_lower_body_rough_env_cfg(play: bool = False) -> ManagerBasedRlE
   return cfg
 
 
+def _seed_wrist_pose_std(cfg: ManagerBasedRlEnvCfg) -> None:
+  """The Seed hand's wrist (palm roll and pitch, actuated) gets the pose stds of the other wrist joints."""
+  for pose_type, std in (("std_walking", 0.1), ("std_running", 0.15)):
+    cfg.rewards["pose"].params[pose_type][r"hand_.*_palm_.*_joint"] = std
+
+
 def pal_kangaroo_hands_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO with hands (5 DoF per arms) rough terrain velocity configuration."""
   cfg = pal_kangaroo_baseline_env_cfg(play=play)
 
   cfg.scene.entities = {"robot": get_kangaroo_hands_robot_cfg()}
+  _seed_wrist_pose_std(cfg)
 
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
@@ -708,6 +715,7 @@ def pal_kangaroo_hands_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg = pal_kangaroo_flat_env_cfg(play=play)
 
   cfg.scene.entities = {"robot": get_kangaroo_hands_robot_cfg()}
+  _seed_wrist_pose_std(cfg)
 
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)

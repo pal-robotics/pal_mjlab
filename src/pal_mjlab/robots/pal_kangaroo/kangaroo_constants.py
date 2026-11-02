@@ -11,7 +11,7 @@ from pal_mjlab import PAL_MJLAB_SRC_PATH
 
 # There are multiple variants of the KANGAROO robot. For simplicity, we only implemented the following:
 # - kangaroo: simplified model with 4 DoF per arm and a fake forearm
-# - kangaroo_hands: simplified model with 5 DoF per arm and a Seed Robotics hand
+# - kangaroo_hands: simplified model with 5 DoF per arm and a Seed Robotics hand (its 2-DoF wrist, fingers fixed)
 # - kangaroo_gripper: simplified model with 7 DoF per arm and a gripper
 # - kangaroo_full: full model with 4 DoF per arm and a fake forearm
 
@@ -143,6 +143,10 @@ def _calc_leg_params(
 S_PLUS = _calc_actuator_params(121, 3.3e-05, 50)  # joint armature = 0.483
 S_MINUS = _calc_actuator_params(101, 2.99e-05, 25)  # joint armature = 0.305
 XS = _calc_actuator_params(101, 1.99e-05, 25)  # joint armature = 0.203
+# Seed Robotics RH8D wrist: Hitec HS-5245MG servo (stall 0.43-0.54 Nm) behind a ~2:1 linkage.
+# Estimates until identified (D50): ~200:1 servo gearbox x 2:1 linkage, ~0.94 g*cm^2 rotor;
+# effort = the joint's ~1 Nm stall torque, as in PAL's URDF and the RH8D driver.
+SEED_WRIST = _calc_actuator_params(2 * 200, 9.4e-08, 1.0)  # joint armature = 0.015
 
 ##
 # MJCF & Assets
@@ -231,6 +235,12 @@ KANGAROO_XS_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
   target_names_expr=(r"arm_.*_(?![12345]_joint)\d+_joint",),
   **XS,
 )
+# The Seed Robotics RH8D wrist (flexion, adduction), in the place of the 7-DoF's arm joints 6-7, with
+# its servo's estimated values (SEED_WRIST, D50).
+KANGAROO_SEED_WRIST_ACTUATOR_CFG = BuiltinPositionActuatorCfg(
+  target_names_expr=(r"hand_.*_palm_(roll|pitch)_joint",),
+  **SEED_WRIST,
+)
 
 COMMON_ACTUATORS = KANGAROO_LEG_ACTUATORS + (
   KANGAROO_S_PLUS_ACTUATOR_CFG,
@@ -303,7 +313,8 @@ KANGAROO_LOWER_BODY_ARTICULATION = EntityArticulationInfoCfg(
   soft_joint_pos_limit_factor=0.9,
 )
 KANGAROO_HANDS_ARTICULATION = EntityArticulationInfoCfg(
-  actuators=COMMON_ACTUATORS, soft_joint_pos_limit_factor=0.9
+  actuators=COMMON_ACTUATORS + (KANGAROO_SEED_WRIST_ACTUATOR_CFG,),
+  soft_joint_pos_limit_factor=0.9,
 )
 KANGAROO_GRIPPERS_ARTICULATION = EntityArticulationInfoCfg(
   actuators=COMMON_ACTUATORS + (KANGAROO_XS_ACTUATOR_CFG,),
