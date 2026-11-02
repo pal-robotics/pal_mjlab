@@ -491,7 +491,9 @@ def pal_kangaroo_full_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "reward_name": "action_rate_l2",
       "stages": [
         {"step": 0, "weight": -0.01},
-        {"step": 3_500 * 24, "weight": -0.1},
+        {"step": 2_000 * 24, "weight": -0.02},
+        {"step": 3_000 * 24, "weight": -0.05},
+        {"step": 4_000 * 24, "weight": -0.1},
       ],
     },
   )
