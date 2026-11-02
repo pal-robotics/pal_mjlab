@@ -485,6 +485,17 @@ def pal_kangaroo_full_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
   )
 
+  cfg.curriculum["action_rate_curr"] = CurriculumTermCfg(
+    func=mdp.reward_curriculum,
+    params={
+      "reward_name": "action_rate_l2",
+      "stages": [
+        {"step": 0, "weight": -0.01},
+        {"step": 3_500 * 24, "weight": -0.1},
+      ],
+    },
+  )
+
   if play:
     # Disable command curriculum.
     assert "command_vel" in cfg.curriculum
