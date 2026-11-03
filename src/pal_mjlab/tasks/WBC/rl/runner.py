@@ -23,10 +23,6 @@ class _OnnxMotionModel(nn.Module):
     self.policy = actor.as_onnx(verbose=False)
     self.register_buffer("joint_pos", motion.joint_pos.to("cpu"))
     self.register_buffer("joint_vel", motion.joint_vel.to("cpu"))
-    self.register_buffer("body_pos_w", motion.body_pos_w.to("cpu"))
-    self.register_buffer("body_quat_w", motion.body_quat_w.to("cpu"))
-    self.register_buffer("body_lin_vel_w", motion.body_lin_vel_w.to("cpu"))
-    self.register_buffer("body_ang_vel_w", motion.body_ang_vel_w.to("cpu"))
     self.time_step_total: int = self.joint_pos.shape[0]  # type: ignore[index]
 
   def forward(self, x, time_step):
@@ -37,10 +33,6 @@ class _OnnxMotionModel(nn.Module):
       self.policy(x),
       self.joint_pos[time_step_clamped],  # type: ignore[index]
       self.joint_vel[time_step_clamped],  # type: ignore[index]
-      self.body_pos_w[time_step_clamped],  # type: ignore[index]
-      self.body_quat_w[time_step_clamped],  # type: ignore[index]
-      self.body_lin_vel_w[time_step_clamped],  # type: ignore[index]
-      self.body_ang_vel_w[time_step_clamped],  # type: ignore[index]
     )
 
 
@@ -80,10 +72,6 @@ class WBCMotionTrackingOnPolicyRunner(MjlabOnPolicyRunner):
         "actions",
         "joint_pos",
         "joint_vel",
-        "body_pos_w",
-        "body_quat_w",
-        "body_lin_vel_w",
-        "body_ang_vel_w",
       ],
       dynamic_axes={},
       dynamo=False,
