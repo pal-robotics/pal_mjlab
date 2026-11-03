@@ -27,13 +27,20 @@ from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
   _build_action_scales,
 )
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommandCfg
-from pal_mjlab.tasks.supermimic.supermimic_env_cfg import make_supermimic_env_cfg
+from pal_mjlab.tasks.supermimic.supermimic_env_cfg import (
+  make_supermimic_env_cfg,
+  make_velocity_env_cfg,
+)
 
 # Default motion libraries, 2.5 h of the BONES-SEED retarget of each robot, relative to the working directory
 # (artifacts/ is ignored by git; link or copy the retarget there). The CLI overrides them:
 # --env.commands.motion.library-path <folder>
 GRIPPERS_LIBRARY = "artifacts/kangaroo_bones_seed/dataset/libraries/dev"
 HANDS_LIBRARY = "artifacts/kangaroo_bones_seed/dataset_5dof/libraries/dev"
+# The velocity task's: every walk/jog/run clip of the 5-DoF retarget (D56).
+HANDS_LOCOMOTION_LIBRARY = (
+  "artifacts/kangaroo_bones_seed/dataset_5dof/libraries/locomotion"
+)
 
 # Arm and waist actuators of both robots: the natural frequency of their gains (None: kangaroo_constants' 3.5 Hz,
 # the robot's) and the one their action scales are computed at (None: the gains'). The robot's gains with the 1 Hz
@@ -135,6 +142,23 @@ def pal_kangaroo_grippers_supermimic_env_cfg(
 def pal_kangaroo_hands_supermimic_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """The same with 5-DoF arms and Seed Robotics hands, on the 5-DoF retarget."""
   return kangaroo_supermimic_env_cfg("hands", play)
+
+
+def pal_kangaroo_hands_velocity_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """The velocity interface on the Hands robot (D56), post-trained on a frozen Hands policy.
+
+  The actuators are pinned to the frozen policy's (run B, ``hands-tight-full-24h``: 1 Hz arm and
+  waist gains, their own action scales), not to the module defaults. The motions are the
+  walk/jog/run library. The fall height is the paper's 0.35 m scaled from the G1's root height
+  (0.79 m) to Kangaroo's (0.92 m).
+  """
+  cfg = kangaroo_supermimic_env_cfg(
+    "hands", play, gain_freq_hz=1.0, action_scale_freq_hz=None
+  )
+  motion_cmd = cfg.commands["motion"]
+  assert isinstance(motion_cmd, MotionLibraryCommandCfg)
+  motion_cmd.library_path = HANDS_LOCOMOTION_LIBRARY
+  return make_velocity_env_cfg(cfg, torso=TORSO_BODY, min_root_height=0.4)
 
 
 def kangaroo_supermimic_env_cfg(

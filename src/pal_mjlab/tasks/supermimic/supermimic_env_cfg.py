@@ -15,7 +15,11 @@ Paper settings reproduced here:
     CoM offset (sampled once per env, see the events below); no pushes;
   - sim: 5 ms physics, 4 substeps per 50 Hz control step.
 The critic sees the heading-invariant state, the goal, ξ and two privileged terms (D7).
+
+``make_velocity_env_cfg`` turns it into the velocity interface's env (Appendix G, D56).
 """
+
+import math
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
@@ -34,7 +38,7 @@ from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.viewer import ViewerConfig
 
 from pal_mjlab.tasks.supermimic import mdp
-from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommandCfg
+from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommandCfg, VelocityCommandCfg
 
 # BeyondMimic's reset noise (reference state initialization).
 RESET_POSE_RANGE = {
@@ -278,3 +282,69 @@ def make_supermimic_env_cfg() -> ManagerBasedRlEnvCfg:
     decimation=4,
     episode_length_s=10.0,
   )
+
+
+def make_velocity_env_cfg(
+  cfg: ManagerBasedRlEnvCfg, torso: str, min_root_height: float
+) -> ManagerBasedRlEnvCfg:
+  """The velocity interface's env (Appendix G, Table A.6, D56) on a tracking env ``cfg``: the
+  same robot, proprioception, DR and reference starts, with a base twist command, the
+  velocity-tracking reward and a fall-only termination. ``torso``: a tracked body;
+  ``min_root_height``: the fall height.
+
+  Every env runs the velocity interface: the motion policy is frozen during post-training.
+  The motion goal stays an observation group (the frozen actor's input and the latent
+  alignment's target). Episodes end at a fall or the time-out; past the clip end the reference
+  holds its last frame. Starts are uniform over the library's bins: the clip-normalized return
+  does not rank velocity episodes.
+  """
+  motion = cfg.commands["motion"]
+  assert isinstance(motion, MotionLibraryCommandCfg)
+  motion.sampler_mix = (1.0, 0.0, 0.0)
+  cfg.commands["velocity"] = VelocityCommandCfg()
+
+  command = ObservationTermCfg(
+    func=mdp.velocity_command, params={"command_name": "velocity"}
+  )
+  cfg.observations["velocity_command"] = ObservationGroupCfg(
+    terms={"velocity_command": command},
+    concatenate_terms=True,
+    enable_corruption=False,
+  )
+  critic = cfg.observations["critic"].terms
+  cfg.observations["critic"].terms = {
+    "heading_state": critic["heading_state"],
+    "velocity_command": command,
+    "sim_context": critic["sim_context"],
+  }
+
+  # Table A.6, every term x dt.
+  velocity = {"command_name": "velocity"}
+  cfg.rewards = {
+    "track_lin_vel": RewardTermCfg(
+      func=mdp.track_lin_vel_exp, weight=2.0, params={**velocity, "std": 0.5}
+    ),
+    "track_yaw_rate": RewardTermCfg(
+      func=mdp.track_yaw_rate_exp,
+      weight=2.0,
+      params={**velocity, "std": math.sqrt(0.5)},
+    ),
+    "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.3),
+    "joint_limit": cfg.rewards["joint_limit"],
+    "torso_lean": RewardTermCfg(
+      func=mdp.torso_lean_l2, weight=-4.0, params={**velocity, "body_name": torso}
+    ),
+    "torso_rate": RewardTermCfg(
+      func=mdp.torso_rate_l2, weight=-0.05, params={**velocity, "body_name": torso}
+    ),
+  }
+
+  # The fall keeps the failure term's name: the runner logs and labels it.
+  cfg.terminations = {
+    "time_out": cfg.terminations["time_out"],
+    "anchor_failure": TerminationTermCfg(
+      func=mdp.fall,
+      params={**velocity, "min_height": min_root_height, "max_tilt": 0.7},
+    ),
+  }
+  return cfg

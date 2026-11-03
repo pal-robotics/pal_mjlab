@@ -6,6 +6,9 @@
 Used by the PPO-Sim baseline with a Gaussian output head, so both methods share the actor
 network (paper Section 4.1). The goal observation group is encoded; every other actor
 group (the proprioceptive history) goes straight to the decoder.
+
+``VelocityActor`` is the velocity interface: its own encoder in front of a frozen motion
+policy's decoder (Appendix B/G).
 """
 
 from __future__ import annotations
@@ -128,3 +131,78 @@ class _ExportModel(nn.Module):
   @property
   def output_names(self) -> list[str]:
     return ["actions"]
+
+
+class VelocityActor(nn.Module):
+  """The velocity interface's policy (Appendix B/G, Table A.4) on a motion-tracking policy.
+
+      z = tanh(enc_vel(c / c_max, ō))    enc_vel: MLP 256-256, ō the normalized proprio history
+      a = dec(z, ō)                       the motion policy's decoder
+
+  The motion policy (goal encoder, decoder, observation normalizer) is frozen; post-training
+  trains ``encoder`` only (D56). The command c is the base twist: (vx, vy) [m/s] in the
+  root's heading frame and the yaw rate [rad/s]; ``command_scale`` is c_max.
+  """
+
+  obs_groups = ["velocity_command", "proprio"]
+  is_recurrent: bool = False
+
+  def __init__(
+    self,
+    motion: EncoderDecoderModel,
+    command_scale: torch.Tensor,
+    hidden_dims: tuple[int, ...] | list[int] = (256, 256),
+    activation: str = "elu",
+  ) -> None:
+    super().__init__()
+    assert motion.distribution is None, "a deterministic motion policy"
+    self.motion = motion.requires_grad_(False)
+    self.command_dim = len(command_scale)
+    proprio_dim = motion.obs_dim - motion.goal_dim
+    self.encoder = MLP(
+      self.command_dim + proprio_dim, motion.latent_dim, hidden_dims, activation
+    )
+    self.register_buffer("command_scale", torch.as_tensor(command_scale).float())
+
+  def normalize(self, proprio: torch.Tensor) -> torch.Tensor:
+    """ō: the proprio history normalized as the motion policy's input."""
+    g = self.motion.goal_dim
+    return self.motion.obs_normalizer(nn.functional.pad(proprio, (g, 0)))[:, g:]
+
+  def latent(self, command: torch.Tensor, proprio_n: torch.Tensor) -> torch.Tensor:
+    x = torch.cat([command / self.command_scale, proprio_n], dim=-1)
+    return torch.tanh(self.encoder(x))
+
+  def decode(self, z: torch.Tensor, proprio_n: torch.Tensor) -> torch.Tensor:
+    return self.motion.mlp(torch.cat([z, proprio_n], dim=-1))
+
+  def motion_latent(self, goal: torch.Tensor, proprio: torch.Tensor) -> torch.Tensor:
+    """The motion encoder's latent of a reference goal: the alignment target."""
+    x = self.motion.obs_normalizer(torch.cat([goal, proprio], dim=-1))
+    return torch.tanh(self.motion.encoder(x[:, : self.motion.goal_dim]))
+
+  def act(self, command: torch.Tensor, proprio: torch.Tensor) -> torch.Tensor:
+    proprio_n = self.normalize(proprio)
+    return self.decode(self.latent(command, proprio_n), proprio_n)
+
+  def forward(self, obs: TensorDict) -> torch.Tensor:
+    return self.act(obs["velocity_command"], obs["proprio"])
+
+  def update_normalization(self, obs: TensorDict) -> None:
+    """Nothing to update: the decoder's input normalization is the frozen policy's."""
+
+  def as_onnx(self, verbose: bool) -> nn.Module:
+    return _VelocityExportModel(self)
+
+
+class _VelocityExportModel(_ExportModel):
+  """Deterministic velocity policy on the concatenated observation (command first)."""
+
+  def __init__(self, actor: VelocityActor) -> None:
+    nn.Module.__init__(self)
+    self.actor = copy.deepcopy(actor)
+    self.command_dim = actor.command_dim
+    self.input_size = actor.command_dim + actor.motion.obs_dim - actor.motion.goal_dim
+
+  def forward(self, x: torch.Tensor) -> torch.Tensor:
+    return self.actor.act(x[:, : self.command_dim], x[:, self.command_dim :])

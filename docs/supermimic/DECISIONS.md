@@ -790,6 +790,45 @@ URDF (user, 2026-11-02).**
 - **Measured only under the tight reward:** "the action scale was what mattered" comes from B vs B2, both with D53's
   reward. D57 keeps these gains and scales with the paper's reward, a combination with no benchmark yet.
 
+**D56. The velocity interface: an encoder post-trained on a frozen Hands policy (user, 2026-11-03).**
+- **Why:** to drive the robot with a base twist command (vx, vy, ωz) as well as with reference motions. The
+  paper's velocity encoder (App. B, G) trains on its own reward through the world model. That reward never
+  updates the shared decoder (§6), so training the encoder after the motion policy is the paper's joint
+  training without the motion half.
+- **Task** `Mjlab-SuperMimic-Velocity-Flat-Pal-Kangaroo-Hands` (`rl/velocity.py`, `mdp/velocity.py`):
+  - frozen: the motion encoder, decoder and observation normalizer of `--agent.motion-checkpoint`;
+  - trained: the velocity encoder (MLP 256-256 → tanh z), the velocity critic V(ŝ, c, ξ) from scratch, and the
+    world model, loaded with its optimizer and refit online;
+  - loss: −Ĵ_vel + 0.1 · MSE(z_vel, sg(z_motion)) on the reference-command rollouts (App. G);
+  - command, reward (Table A.6) and fall as the paper's; 100,000 iterations; logs in `supermimic_velocity/`.
+  - Every sim env runs the velocity interface: the motion half of the paper's run would train nothing here.
+- **Our readings of what the paper leaves open:**
+  - the encoder's "feature of the last 10 frames of o" is the normalized history itself (the decoder's input);
+  - the command is divided by the largest held command per component, (2.0, 1.32, 3.35);
+  - imagination starts keep their logged command source: the held command, or the reference read frame by frame;
+  - the failure head (D39) is reused with the upright root (default height, gz −1) as its reference: it sees the
+    fall rule's two quantities and refits online on the fall labels;
+  - episodes end at a fall or the 10 s time-out, not at the clip end (the reference holds its last frame);
+  - starts are uniform over 1 s bins: the clip-normalized return does not rank velocity episodes;
+  - the fall height is 0.4 m, the paper's 0.35 m scaled by the root height (G1 0.79 m, Kangaroo 0.92 m);
+  - the torso of the lean and rate terms is `pelvis_2_link` (after the waist), in the root's heading frame.
+- **Data and ranges (user):** the `locomotion` subset, every walk/jog/run clip of Basic Locomotion Neutral (the
+  smoke filter without its budget): 18,663 motions, 34.4 h of the 5-DoF set. The held commands use the paper's
+  ranges; the references span vx −1.3..2.1 m/s, vy −1.3..1.0, ωz ±1.6 rad/s (1st–99th percentile).
+- **Pinned actuators:** the task uses the frozen policy's gains (run B: 1 Hz arm and waist, their own action
+  scales), not D55's defaults. A policy trained with other gains needs its values there.
+- **Start:** run B, `hands-tight-full-24h/model_140000.pt`, trained under D53's reward (D57 went back to the
+  paper's). This task reads its actor and world model, not its reward. A policy trained under D57 needs its own
+  post-training.
+- **Shared code:** hooks only (the runner's classes, a command per replay row, the heads' reward and critic
+  layouts, the actor's own ONNX inputs); the motion tasks are unchanged and their tests pass.
+- **Smoke check** (local GPU, `smoke` library, bf16, replay 500, 1,000 iterations at 2 s each, 7.8 GB):
+  - episodes reach the 10 s time-out from iteration ~190; the return goes −4 → 10, the velocity-tracking reward
+    ×6; the world-model loss stays at 0.01–0.02 and the failure head's AUC near 1;
+  - imagined vs simulated 32-step return: −36 % at 500 (the world model adapting from motion data), −5 % at
+    1,000, correlation 0.99;
+  - the frozen motion policy is bit-identical to the checkpoint; `play` runs the result.
+
 **D57. The paper's tracking reward again; the action scales stay (user, 2026-11-04).** D56 is the velocity head's, on
 its own branch.
 - **Why (user):** the lower stds and the feet-slide reward are unproven. No robot result for them is recorded, and foot

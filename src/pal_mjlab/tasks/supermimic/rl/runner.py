@@ -67,9 +67,9 @@ class SuperMimicRunnerCfg(RslRlBaseRunnerCfg):
   eval_envs: int = 512
 
 
-def _from_dict(cfg: dict) -> SuperMimicCfg:
+def _from_dict(cfg: dict, cls: type[SuperMimicCfg] = SuperMimicCfg) -> SuperMimicCfg:
   alg = dict(cfg["algorithm"])
-  return SuperMimicCfg(
+  return cls(
     world_model=WorldModelUpdateCfg(**alg.pop("world_model")),
     policy=PolicyUpdateCfg(**alg.pop("policy")),
     critic=CriticUpdateCfg(**alg.pop("critic")),
@@ -103,6 +103,10 @@ class SimCollector:
   def context(self) -> torch.Tensor:
     return self._context.func(self.env, **self._context.params)
 
+  def command(self) -> torch.Tensor:
+    """The interface's command besides the reference: none for motion tracking."""
+    return torch.zeros(self.env.num_envs, 0, device=self.env.device)
+
   def observations(self) -> TensorDict:
     obs = self.env.observation_manager.compute()
     return TensorDict(obs, batch_size=[self.env.num_envs])
@@ -117,6 +121,7 @@ class SimCollector:
       "context": self.context(),
       "clip": cmd.clip.clone(),
       "frame": cmd.frame.clone(),
+      "command": self.command(),
     }
     _, reward, terminated, truncated, _ = env.step(action)
     t["next_state"], t["next_pose"] = self.state()  # terminal state where done
@@ -132,6 +137,10 @@ class SimCollector:
 
 
 class SuperMimicRunner:
+  collector_cls = SimCollector
+  heads_cls = AnalyticHeads
+  algorithm_cls = SuperMimic
+
   def __init__(
     self,
     env: RslRlVecEnvWrapper,
@@ -141,15 +150,16 @@ class SuperMimicRunner:
   ) -> None:
     self.env, self.cfg, self.log_dir, self.device = env, train_cfg, log_dir, device
     raw = env.unwrapped
-    self.collector = SimCollector(raw)
-    self.heads = AnalyticHeads(raw, compile_fk=train_cfg["compile"])
+    self.collector = self.collector_cls(raw)
+    self.heads = self.heads_cls(raw, compile_fk=train_cfg["compile"])
     obs = self.collector.observations()
-    self.alg = SuperMimic(
+    self.alg = self.algorithm_cls(
       obs,
       self.heads,
       raw.action_manager.total_action_dim,
+      self.collector.state()[0].shape[-1],
       self.collector.context().shape[-1],
-      _from_dict(train_cfg),
+      _from_dict(train_cfg, self.algorithm_cls.cfg_cls),
       device,
       compile=train_cfg["compile"],
     )
@@ -271,7 +281,7 @@ class SuperMimicRunner:
     self.replay = ReplayBuffer(
       raw.num_envs, self.cfg["replay_steps"], state.shape[-1],
       raw.action_manager.total_action_dim, self.collector.context().shape[-1],
-      self.device,
+      self.device, self.collector.command().shape[-1],
     )  # fmt: skip
     self._stats: dict[str, list[float]] = {}
     self._episode_return = torch.zeros(raw.num_envs, device=self.device)
@@ -299,7 +309,7 @@ class SuperMimicRunner:
     )  # fmt: skip
     self.replay.add(
       t["state"], t["pose"], t["action"], t["context"], t["clip"], t["frame"],
-      t["failure"], t["done"], t["next_state"], t["next_pose"],
+      t["failure"], t["done"], t["next_state"], t["next_pose"], t["command"],
     )  # fmt: skip
 
     # The termination head on fresh sim states, before the model trains on them: all
@@ -345,6 +355,7 @@ class SuperMimicRunner:
       "context": self.collector.context()[:n],
       "clip": cmd.clip[:n].clone(),
       "frame": cmd.frame[:n].clone(),
+      "command": self.collector.command()[:n],
       "history": heads.unflatten_history(obs["proprio"][:n]),
       "last_action": raw.action_manager.action[:n].clone(),
     }

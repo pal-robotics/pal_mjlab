@@ -12,10 +12,11 @@ class ReplayBuffer:
   """SuperMimic's FIFO replay buffer (Alg. A.1, D9): the newest ``capacity`` rows per env.
 
   A row is a state. A transition row also holds the executed (noisy) action, the
-  reference clip and target frame it was scored against and its failure label, and leads
-  to the next row. When an episode ends, its terminal state is written as an extra row
-  without an action, so the next row starts the new episode. A k-step window is then k
-  consecutive transition rows plus the row after them, and never spans two episodes.
+  reference clip and target frame it was scored against, the interface's command (none for
+  motion tracking, whose goal is the reference) and its failure label, and leads to the
+  next row. When an episode ends, its terminal state is written as an extra row without an
+  action, so the next row starts the new episode. A k-step window is then k consecutive
+  transition rows plus the row after them, and never spans two episodes.
   """
 
   def __init__(
@@ -26,6 +27,7 @@ class ReplayBuffer:
     action_dim: int,
     context_dim: int,
     device: str | torch.device,
+    command_dim: int = 0,
   ) -> None:
     c, e = capacity, num_envs
     self.capacity, self.num_envs, self.device = capacity, num_envs, device
@@ -35,6 +37,7 @@ class ReplayBuffer:
     self.context = torch.zeros(c, e, context_dim, device=device)
     self.clip = torch.zeros(c, e, dtype=torch.long, device=device)
     self.frame = torch.zeros(c, e, dtype=torch.long, device=device)
+    self.command = torch.zeros(c, e, command_dim, device=device)
     self.failure = torch.zeros(c, e, dtype=torch.bool, device=device)
     self.has_action = torch.zeros(c, e, dtype=torch.bool, device=device)
     self.count = torch.zeros(e, dtype=torch.long, device=device)  # rows written
@@ -59,11 +62,14 @@ class ReplayBuffer:
     done: torch.Tensor,
     next_state: torch.Tensor,
     next_pose: torch.Tensor,
+    command: torch.Tensor | None = None,
   ) -> None:
     """One env step of all envs; ``next_*`` is only stored where the episode ended."""
+    extra = {} if command is None else {"command": command}
     self._write(
       self._envs, state=state, pose=pose, action=action, context=context,
       clip=clip.long(), frame=frame.long(), failure=failure, has_action=torch.ones_like(done),
+      **extra,
     )  # fmt: skip
     ids = done.nonzero().squeeze(-1)
     if len(ids):
@@ -174,6 +180,7 @@ class ReplayBuffer:
       "context": self.context[start],
       "clip": self.clip[start],
       "frame": self.frame[start],
+      "command": self.command[start],
       "history_state": self.state[idx],
       "history_pose": self.pose[idx],
       "history_last_action": last_action,

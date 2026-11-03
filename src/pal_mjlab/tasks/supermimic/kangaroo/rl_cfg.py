@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from mjlab.rl import RslRlModelCfg, RslRlOnPolicyRunnerCfg, RslRlPpoAlgorithmCfg
 
 from pal_mjlab.tasks.supermimic.rl.runner import SuperMimicRunnerCfg
+from pal_mjlab.tasks.supermimic.rl.velocity import VelocityRunnerCfg
 
 PPO_NUM_ENVS = 8192
 SUPERMIMIC_NUM_ENVS = 4096
@@ -24,6 +25,17 @@ def pal_kangaroo_supermimic_runner_cfg() -> SuperMimicRunnerCfg:
     max_iterations=320_000,
     save_interval=2000,
     obs_groups={"actor": ("goal", "proprio"), "critic": ("critic",)},
+  )
+
+
+def pal_kangaroo_velocity_runner_cfg() -> VelocityRunnerCfg:
+  """The velocity encoder's post-training (Appendix G: 100,000 iterations); the rest as SuperMimic."""
+  return VelocityRunnerCfg(
+    experiment_name="supermimic_velocity",
+    logger="tensorboard",
+    max_iterations=100_000,
+    save_interval=2000,
+    obs_groups={"actor": ("velocity_command", "proprio"), "critic": ("critic",)},
   )
 
 

@@ -16,17 +16,19 @@ BONES-SEED motions retargeted to Kangaroo (about 119,000 motions, 233 h).
 Tasks
 -----
 
-+-------------------------------------------------+------------------------------------------+
-| Task                                            | Robot                                    |
-+=================================================+==========================================+
-| Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers     | 7-DoF arms with grippers                 |
-+-------------------------------------------------+------------------------------------------+
-| Mjlab-SuperMimic-Flat-Pal-Kangaroo-Hands        | 5-DoF arms with Seed Robotics hands      |
-+-------------------------------------------------+------------------------------------------+
-| Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers | the same env trained with PPO (baseline) |
-+-------------------------------------------------+------------------------------------------+
-| Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Hands    | the same env trained with PPO (baseline) |
-+-------------------------------------------------+------------------------------------------+
++---------------------------------------------------+------------------------------------------+
+| Task                                              | Robot                                    |
++===================================================+==========================================+
+| Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers       | 7-DoF arms with grippers                 |
++---------------------------------------------------+------------------------------------------+
+| Mjlab-SuperMimic-Flat-Pal-Kangaroo-Hands          | 5-DoF arms with Seed Robotics hands      |
++---------------------------------------------------+------------------------------------------+
+| Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers   | the same env trained with PPO (baseline) |
++---------------------------------------------------+------------------------------------------+
+| Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Hands      | the same env trained with PPO (baseline) |
++---------------------------------------------------+------------------------------------------+
+| Mjlab-SuperMimic-Velocity-Flat-Pal-Kangaroo-Hands | base twist command on a Hands policy     |
++---------------------------------------------------+------------------------------------------+
 
 Motion library
 --------------
@@ -67,6 +69,26 @@ Tools:
   with a policy. A fall plays out for 3 s instead of resetting.
 - ``uv run -m pal_mjlab.scripts.supermimic.view_motion``: the motions as
   retargeted, without physics.
+
+Velocity command
+----------------
+
+``Mjlab-SuperMimic-Velocity-Flat-Pal-Kangaroo-Hands`` drives the robot with a base
+twist command, (vx, vy) in the root's heading frame and the yaw rate, instead of a
+reference motion. A small velocity encoder is post-trained in front of a frozen
+Hands policy, whose checkpoint it takes (the paper's Appendix B and G):
+
+.. code-block:: bash
+
+   uv run train Mjlab-SuperMimic-Velocity-Flat-Pal-Kangaroo-Hands \
+     --agent.motion-checkpoint <hands run>/model_N.pt \
+     --env.commands.motion.library-path <library> --agent.run-name hands-<name>
+
+Its runs log to ``logs/rsl_rl/supermimic_velocity/``; its ``model_N.onnx`` takes
+the command, then the same 10 steps of proprioception.
+
+Configuration
+-------------
 
 The arm and waist actuators of both robots are set in one place,
 ``ARM_WAIST_GAIN_FREQ_HZ`` and ``ARM_WAIST_ACTION_SCALE_FREQ_HZ`` in

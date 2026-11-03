@@ -19,10 +19,15 @@ builds ``obs`` as the env does, with no noise:
 Training episodes start at the reference pose, so the reference's root yaw at its first frame
 must match the robot's: rotate the motion about z before building goals (a yaw offset reads as
 a tracking error).
+
+The velocity interface's policy (``VelocityActor``) takes ``obs = [velocity_command, proprio]``
+instead: the base twist command (vx, vy) [m/s] in the root's heading frame and the yaw rate
+[rad/s], then the same proprio.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
 
@@ -32,19 +37,21 @@ from mjlab.envs.mdp.actions import JointPositionAction
 from mjlab.rl.exporter_utils import attach_metadata_to_onnx
 
 from ..mdp.commands import MotionLibraryCommand
-from .models import EncoderDecoderModel
+from .models import EncoderDecoderModel, VelocityActor
 
 OBS_GROUPS = ("goal", "proprio")  # the actor's input, in this order (supermimic.py)
 
 
-def policy_metadata(env: ManagerBasedRlEnv, checkpoint: str = "") -> dict:
-  """Everything the robot needs to build ``obs`` and apply ``actions``."""
+def policy_metadata(
+  env: ManagerBasedRlEnv, checkpoint: str = "", groups: Sequence[str] = OBS_GROUPS
+) -> dict:
+  """Everything the robot needs to build ``obs`` from ``groups`` and apply ``actions``."""
   robot = env.scene["robot"]
   action = cast(JointPositionAction, env.action_manager.get_term("joint_pos"))
   cmd = cast(MotionLibraryCommand, env.command_manager.get_term("motion"))
   om = env.observation_manager
   names, dims, history = [], [], []
-  for group in OBS_GROUPS:
+  for group in groups:
     for name, dim in zip(
       om.active_terms[group], om.group_obs_term_dim[group], strict=True
     ):
@@ -65,6 +72,11 @@ def policy_metadata(env: ManagerBasedRlEnv, checkpoint: str = "") -> dict:
   ctrl = {a.target.split("/")[-1]: a.id for a in robot.spec.actuators}
   ids = [ctrl[j] for j in action.target_names]
   model = env.sim.mj_model
+  goal = {
+    "goal_num_future_frames": cmd.cfg.num_future_frames,
+    "goal_joint_names": list(cmd.goal_joint_names),
+    "goal_root_body": robot.body_names[0],
+  }
   return {
     "checkpoint": checkpoint,
     "control_dt": env.step_dt,
@@ -80,9 +92,7 @@ def policy_metadata(env: ManagerBasedRlEnv, checkpoint: str = "") -> dict:
     "observation_terms_history_length": history,
     "observation_joint_names": [robot.joint_names[i] for i in proprio.joint_ids],
     "imu_site": imu_sites.pop(),
-    "goal_num_future_frames": cmd.cfg.num_future_frames,
-    "goal_joint_names": list(cmd.goal_joint_names),
-    "goal_root_body": robot.body_names[0],
+    **(goal if "goal" in groups else {}),
   }
 
 
@@ -95,11 +105,11 @@ def _per_action(value: torch.Tensor | float, dim: int) -> list[float]:
 
 def export_policy(
   env: ManagerBasedRlEnv,
-  actor: EncoderDecoderModel,
+  actor: EncoderDecoderModel | VelocityActor,
   path: str | Path,
   checkpoint: str = "",
 ) -> None:
-  """Write the actor to ``path`` as ONNX with ``policy_metadata``."""
+  """Write the actor to ``path`` as ONNX with ``policy_metadata`` of its input groups."""
   model = actor.as_onnx(verbose=False).to("cpu").eval()
   torch.onnx.export(
     model,
@@ -112,4 +122,4 @@ def export_policy(
     dynamic_axes={},
     dynamo=False,
   )
-  attach_metadata_to_onnx(str(path), policy_metadata(env, checkpoint))
+  attach_metadata_to_onnx(str(path), policy_metadata(env, checkpoint, actor.obs_groups))

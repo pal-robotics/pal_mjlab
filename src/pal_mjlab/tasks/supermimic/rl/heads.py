@@ -55,6 +55,10 @@ class Kin(NamedTuple):
 
 
 class AnalyticHeads:
+  CRITIC_TERMS = ["heading_state", "motion_goal", "sim_context", "root_pose_error",
+                  "time_left"]  # fmt: skip
+  """The critic's input layout (D7, D22)."""
+
   def __init__(
     self,
     env: ManagerBasedRlEnv,
@@ -108,31 +112,32 @@ class AnalyticHeads:
     self._fk = torch.compile(self.fk.forward) if compile_fk else self.fk.forward
 
     # Reward (Table A.2), with the env's weights, stds and dt scaling.
+    self.body_names = cmd.cfg.body_names
     self.tracking_terms, self.action_rate_weight = [], 0.0
     self.limit_weight, self.limit_joints = 0.0, None
     for name, term in cfg.rewards.items():
-      if term is None or term.weight == 0.0:
-        continue
-      if term.func in _TRACKING:
-        self.tracking_terms.append(
-          (term.weight, term.params["std"], _TRACKING[term.func])
-        )
-      elif term.func is mj_rewards.action_rate_l2:
-        self.action_rate_weight = term.weight
-      elif term.func is sm_rewards.joint_pos_limits_hard:
-        self.limit_weight = term.weight
-        ids = env.reward_manager.get_term_cfg(name).params["asset_cfg"].joint_ids
-        self.limit_joints = torch.as_tensor(ids, device=self.device)
-        self.limits = robot.data.joint_pos_limits[0, self.limit_joints]
-      else:
-        raise NotImplementedError(f"reward term {name!r} has no analytic head")
+      if term is not None and term.weight != 0.0:
+        self._add_reward_term(env, name, term)
     self.reward_scale = env.step_dt if cfg.scale_rewards_by_dt else 1.0
 
-    # The critic's input layout (D7, D22).
     self.critic_terms = list(cfg.observations["critic"].terms)
-    expected = ["heading_state", "motion_goal", "sim_context", "root_pose_error",
-                "time_left"]  # fmt: skip
-    assert self.critic_terms == expected, self.critic_terms
+    assert self.critic_terms == self.CRITIC_TERMS, self.critic_terms
+
+  def _add_reward_term(self, env: ManagerBasedRlEnv, name: str, term) -> None:
+    if term.func in _TRACKING:
+      self.tracking_terms.append(
+        (term.weight, term.params["std"], _TRACKING[term.func])
+      )
+    elif term.func is mj_rewards.action_rate_l2:
+      self.action_rate_weight = term.weight
+    elif term.func is sm_rewards.joint_pos_limits_hard:
+      self.limit_weight = term.weight
+      asset_cfg = env.reward_manager.get_term_cfg(name).params["asset_cfg"]
+      self.limit_joints = torch.as_tensor(asset_cfg.joint_ids, device=self.device)
+      limits = env.scene[asset_cfg.name].data.joint_pos_limits
+      self.limits = limits[0, self.limit_joints]
+    else:
+      raise NotImplementedError(f"reward term {name!r} has no analytic head")
 
   # Kinematics -------------------------------------------------------------------
 
@@ -194,6 +199,18 @@ class AnalyticHeads:
       u = torch.rand(shape, device=self.device, generator=generator)
       out[name] = lo + (hi - lo) * u
     return out
+
+  def push_history(
+    self,
+    history: dict[str, torch.Tensor],
+    frame: dict[str, torch.Tensor],
+    noise: dict[str, torch.Tensor],
+  ) -> dict[str, torch.Tensor]:
+    """Append a noise-free frame ō plus the sensor noise η to each term's history."""
+    frame = {n: o + noise[n] if n in noise else o for n, o in frame.items()}
+    return {
+      n: torch.cat([history[n][:, 1:], frame[n][:, None]], dim=1) for n in history
+    }
 
   def flatten_history(self, history: dict[str, torch.Tensor]) -> torch.Tensor:
     """(B, h, dim) per term -> the env's flat layout: per-term history, oldest first."""

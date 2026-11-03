@@ -82,6 +82,18 @@ def test_a_missing_library_names_the_flag(tmp_path):
     MotionLibrary(tmp_path / "nowhere")
 
 
+def test_locomotion_is_every_walk_jog_run_clip():
+  """The velocity interface's motions (D56): smoke's filter without its time budget."""
+  m = {
+    "clip": [f"clip_{i}" for i in range(5)],
+    "category": ["Basic Locomotion Neutral"] * 4 + ["Dancing"],
+    "move_name": ["walk_ff_loop", "jog_arc_cw", "idle_turn_270", "turn_run_90", "walk"],
+    "g1_n_frames": [100] * 5,
+  }
+  assert select_clips(m, "locomotion") == [0, 1, 3]
+  assert set(select_clips(m, "smoke")) <= {0, 1, 3}
+
+
 def test_reviewed_clips_leave_subsets_without_reshuffling(tmp_path):
   """A clip removed by review stays in the selection pool (flagged), so subsets keep the
   same other clips."""

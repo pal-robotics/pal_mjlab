@@ -127,10 +127,7 @@ def make_step(heads: AnalyticHeads, cfg: PolicyUpdateCfg):
     terms = heads.reward_terms(s_next, kin, ref, action, prev_action)
     logit = world_model.termination_logit(s_next, heads.ref_root(frame)).float()
     obs = heads.observation(s_next, kin, ctx, action)
-    obs = {n: o + noise[n] if n in noise else o for n, o in obs.items()}
-    history = {
-      n: torch.cat([history[n][:, 1:], obs[n][:, None]], dim=1) for n in history
-    }
+    history = heads.push_history(history, obs, noise)
     return x, action, s_next, p_next, terms, torch.sigmoid(logit), history
 
   return step
@@ -155,24 +152,7 @@ def imagine(
   step = step or make_step(heads, cfg)
   b, gamma = start["state"].shape[0], cfg.gamma
   ctx, clip, frame = start["context"], start["clip"], start["frame"]
-
-  if "history" in start:  # the sim's current observation history
-    history, prev_action = start["history"], start["last_action"]
-  else:  # rebuilt from the logged states before the start (D9)
-    hs = start["history_state"]
-    h = hs.shape[1]
-    flat_state = hs.flatten(0, 1)
-    kin = heads.kinematics(flat_state, start["history_pose"].flatten(0, 1))
-    history = heads.observation(
-      flat_state,
-      kin,
-      ctx[:, None].expand(-1, h, -1).flatten(0, 1),
-      start["history_last_action"].flatten(0, 1),
-    )
-    history = heads.add_noise(history, generator)
-    history = {n: o.unflatten(0, (b, h)) for n, o in history.items()}
-    prev_action = start["history_last_action"][:, -1]
-
+  history, prev_action = start_history(heads, start, generator)
   s, p = start["state"], start["pose"]
   c = torch.ones(b, device=s.device)
   alive = torch.ones(b, device=s.device)
@@ -222,6 +202,30 @@ def imagine(
   )
 
 
+def start_history(
+  heads: AnalyticHeads,
+  start: dict[str, torch.Tensor],
+  generator: torch.Generator | None = None,
+) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
+  """The policy's observation history and previous action at an imagination start."""
+  if "history" in start:  # the sim's current observation history
+    return start["history"], start["last_action"]
+  # Rebuilt from the logged states before the start (D9).
+  hs = start["history_state"]
+  b, h = hs.shape[:2]
+  flat_state = hs.flatten(0, 1)
+  kin = heads.kinematics(flat_state, start["history_pose"].flatten(0, 1))
+  history = heads.observation(
+    flat_state,
+    kin,
+    start["context"][:, None].expand(-1, h, -1).flatten(0, 1),
+    start["history_last_action"].flatten(0, 1),
+  )
+  history = heads.add_noise(history, generator)
+  history = {n: o.unflatten(0, (b, h)) for n, o in history.items()}
+  return history, start["history_last_action"][:, -1]
+
+
 def survival_before(cont: torch.Tensor) -> torch.Tensor:
   """(B, H) ĉ_t: the product of the continuations before step t (1 at t = 0)."""
   return torch.cat([torch.ones_like(cont[:, :1]), cont.cumprod(1)[:, :-1]], dim=1)
@@ -246,11 +250,14 @@ def lambda_returns(
 class SuperMimic:
   """World model, policy and critic with their optimizers (Algorithm A.1)."""
 
+  cfg_cls = SuperMimicCfg
+
   def __init__(
     self,
     obs: TensorDict,
     heads: AnalyticHeads,
     num_actions: int,
+    state_dim: int,
     context_dim: int,
     cfg: SuperMimicCfg,
     device: str,
@@ -266,7 +273,6 @@ class SuperMimic:
     self.critic = MLPModel(
       obs, groups, "critic", 1, hidden_dims=cc.hidden_dims, obs_normalization=True
     ).to(device)
-    state_dim = obs["critic"].shape[-1] - obs["goal"].shape[-1] - context_dim - 5
     self.world_model = WorldModel(
       WorldModelCfg(
         state_dim=state_dim, action_dim=num_actions, context_dim=context_dim,
@@ -361,16 +367,17 @@ class SuperMimic:
     frozen = [*self.world_model.parameters(), *self.critic.parameters()]
     if not update_actor:
       frozen += list(self.actor.parameters())
+    frozen = [prm for prm in frozen if prm.requires_grad]
     for prm in frozen:
       prm.requires_grad_(False)
     try:
       with self._autocast():
-        roll = self.imagine(start, generator)
-      stats = {"objective": float(roll.objective.detach().mean())}
+        roll, loss, stats = self._imagined_loss(start, generator)
+      stats["objective"] = float(roll.objective.detach().mean())
       if update_actor:
         self.actor_optimizer.zero_grad(set_to_none=True)
-        (-roll.objective.mean()).backward()
-        params = list(self.actor.parameters())
+        loss.backward()
+        params = [p for g in self.actor_optimizer.param_groups for p in g["params"]]
         norm = torch.nn.utils.clip_grad_norm_(params, pc.max_grad_norm)
         for prm in params:
           prm.grad.clamp_(-pc.max_grad_value, pc.max_grad_value)
@@ -382,6 +389,13 @@ class SuperMimic:
     stats.update(self._fit_critic(roll))
     stats.update(_rollout_stats(roll, pc.gamma))
     return stats
+
+  def _imagined_loss(
+    self, start: dict[str, torch.Tensor], generator: torch.Generator | None
+  ) -> tuple[Rollout, torch.Tensor, dict[str, float]]:
+    """The imagined rollouts, the actor's loss (Eq. 2, negated) and extra statistics."""
+    roll = self.imagine(start, generator)
+    return roll, -roll.objective.mean(), {}
 
   def _fit_critic(self, roll: Rollout) -> dict[str, float]:
     cc = self.cfg.critic

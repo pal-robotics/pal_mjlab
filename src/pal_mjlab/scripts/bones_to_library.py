@@ -16,9 +16,10 @@ Body poses are not stored: they come from forward kinematics on the fly, which k
 frame at ~308 bytes (14 GB for the full 45M frames instead of ~44 GB with body data).
 
 Subsets:
-  smoke  ~15 min of walk/jog/run clips (Basic Locomotion Neutral)
-  dev    ~2.5 h stratified by category (like LAFAN1's 2.45 h in the paper)
-  full   every ``final_kept`` clip
+  smoke       ~15 min of walk/jog/run clips (Basic Locomotion Neutral)
+  locomotion  every walk/jog/run clip: the velocity interface's motions (D56)
+  dev         ~2.5 h stratified by category (like LAFAN1's 2.45 h in the paper)
+  full        every ``final_kept`` clip
 Subsets are drawn before the reviewed clips are removed, so a review only takes those clips out.
 
   uv run -m pal_mjlab.scripts.bones_to_library --subset dev --data-dir <dataset folder>
@@ -131,6 +132,14 @@ def select_clips(manifest: dict[str, list], subset: str, seed: int = 0) -> list[
   n = len(manifest["clip"])
   if subset == "full":
     return list(range(n))
+  walk_jog_run = [
+    i
+    for i in range(n)
+    if manifest["category"][i] == "Basic Locomotion Neutral"
+    and re.search(r"(^|_)(walk|jog|run)", manifest["move_name"][i])
+  ]
+  if subset == "locomotion":
+    return walk_jog_run
   rng = np.random.default_rng(seed)
   hours = np.asarray(manifest["g1_n_frames"], dtype=np.float64) / FPS / 3600.0
   target = SUBSET_HOURS[subset]
@@ -145,13 +154,7 @@ def select_clips(manifest: dict[str, list], subset: str, seed: int = 0) -> list[
     return picked
 
   if subset == "smoke":
-    cand = [
-      i
-      for i in range(n)
-      if manifest["category"][i] == "Basic Locomotion Neutral"
-      and re.search(r"(^|_)(walk|jog|run)", manifest["move_name"][i])
-    ]
-    return sorted(take(cand, target))
+    return sorted(take(walk_jog_run, target))
 
   # dev: proportional to each category's share of the hours, at least one clip each.
   cats = sorted(set(manifest["category"]))
@@ -248,7 +251,7 @@ def build_library(
 
 def main(
   data_dir: Path,
-  subset: Literal["smoke", "dev", "full"] = "dev",
+  subset: Literal["smoke", "locomotion", "dev", "full"] = "dev",
   out_dir: Path | None = None,
   seed: int = 0,
   workers: int = 16,

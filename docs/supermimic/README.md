@@ -111,10 +111,37 @@ Key TensorBoard scalars: `episode/return`, `eval/return_gap_head` (imagined vs s
   `ARM_WAIST_GAIN_FREQ_HZ = 1.0` and `ARM_WAIST_ACTION_SCALE_FREQ_HZ = None` to play or benchmark. Each ONNX file
   carries its joint stiffness and damping for the robot.
 
+## Velocity head (D56)
+
+`Mjlab-SuperMimic-Velocity-Flat-Pal-Kangaroo-Hands` drives the Hands robot with a base twist command: (vx, vy)
+[m/s] in the root's heading frame and the yaw rate [rad/s]. A velocity encoder (paper App. B, G) maps the command
+and the proprio history into the latent of a frozen Hands policy, whose decoder acts. The encoder, its critic and
+the world model (refit online) train; the motion policy stays as it is.
+
+```bash
+# Pack the walk/jog/run library (34 h) of the 5-DoF dataset once.
+uv run -m pal_mjlab.scripts.bones_to_library --subset locomotion --data-dir <dataset_5dof>
+# Post-train on a Hands checkpoint (run B: hands-tight-full-24h/model_140000.pt). Logs in
+# logs/rsl_rl/supermimic_velocity/<time>_<run name>.
+uv run train Mjlab-SuperMimic-Velocity-Flat-Pal-Kangaroo-Hands --agent.motion-checkpoint <run>/model_N.pt \
+  --env.commands.motion.library-path <dataset_5dof>/libraries/locomotion --agent.run-name hands-<name>
+#    local 16 GB GPU: add --agent.algorithm.precision bf16 --agent.replay-steps 500 and the smoke library's path
+#    other command ranges: --env.commands.velocity.ranges.lin-vel-x -1.0,1.5 (and lin-vel-y, ang-vel-z)
+uv run play Mjlab-SuperMimic-Velocity-Flat-Pal-Kangaroo-Hands --checkpoint-file <run>/model_N.pt
+```
+
+Each env draws a command source at every reset and every 5 s: half the time the reference clip's own velocity
+(a centered 25-frame mean), otherwise a held command uniform over vx [−1.5, 2], vy ±1.32 m/s and ωz ±3.35 rad/s,
+zero 10 % of the time. `model_N.onnx` takes `obs = [velocity_command (3), proprio]`. The task pins the frozen
+policy's actuators (run B's): a policy trained with other gains needs them in
+`pal_kangaroo_hands_velocity_env_cfg`. TensorBoard: `env/Episode_Reward/track_lin_vel`, `track_yaw_rate`,
+`policy/align`.
+
 ## Commands
 
 ```bash
-# Motion library: smoke (0.25 h), dev (2.5 h) or full (233.5 h). Writes to <dataset>/libraries/<subset>.
+# Motion library: smoke (0.25 h), dev (2.5 h), full (233.5 h) or locomotion (walk/jog/run, the velocity task's).
+# Writes to <dataset>/libraries/<subset>.
 uv run -m pal_mjlab.scripts.bones_to_library --subset dev --data-dir <dataset>
 
 # Tests (CPU)

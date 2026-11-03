@@ -1,5 +1,6 @@
-"""The registered SuperMimic tasks (D52): one SuperMimic and one PPO-Sim task per robot, run with mjlab's
-``train`` and ``play``; each algorithm logs to one folder for both robots, run names default to the robot."""
+"""The registered SuperMimic tasks (D52): one SuperMimic and one PPO-Sim task per robot, and the velocity
+interface on the Hands (D56), run with mjlab's ``train`` and ``play``; each algorithm logs to one folder for
+both robots, run names default to the robot."""
 
 from pathlib import Path
 
@@ -15,9 +16,9 @@ from pal_mjlab.tasks.supermimic.rl.runner import SuperMimicRunner, SuperMimicRun
 from pal_mjlab.tasks.supermimic.rl.supermimic import (
   CriticUpdateCfg,
   PolicyUpdateCfg,
-  SuperMimicCfg,
   WorldModelUpdateCfg,
 )
+from pal_mjlab.tasks.supermimic.rl.velocity import VelocityRunner
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -26,7 +27,9 @@ TASKS = {
   "Mjlab-SuperMimic-Flat-Pal-Kangaroo-Hands": ("supermimic", "hands"),
   "Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers": ("supermimic_ppo", "grippers"),
   "Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Hands": ("supermimic_ppo", "hands"),
+  "Mjlab-SuperMimic-Velocity-Flat-Pal-Kangaroo-Hands": ("supermimic_velocity", "hands"),
 }
+RUNNERS = {"PPO": None, "Velocity": VelocityRunner}
 
 
 def test_registered_supermimic_tasks():
@@ -41,7 +44,7 @@ def test_log_folders_and_run_names():
 
 def test_supermimic_tasks_train_with_the_supermimic_runner():
   for task in TASKS:
-    expected = SuperMimicRunner if "-PPO-" not in task else None
+    expected = RUNNERS.get(task.split("-")[2], SuperMimicRunner)
     assert load_runner_cls(task) is expected
 
 
@@ -72,7 +75,7 @@ def _tiny(cfg: TrainConfig, task: str) -> TrainConfig:
   if isinstance(agent, SuperMimicRunnerCfg):
     agent.compile, agent.warmup_steps, agent.replay_steps = False, 12, 60
     agent.eval_interval = 0
-    agent.algorithm = SuperMimicCfg(
+    agent.algorithm = type(agent.algorithm)(
       world_model=WorldModelUpdateCfg(batches=1, batch_size=16, hidden=(32,)),
       policy=PolicyUpdateCfg(
         horizon=4, num_rollouts=8, hidden_dims=(32,), encoder_dims=(32,), latent_dim=8
@@ -90,6 +93,10 @@ def test_train_launches(task, tmp_path, monkeypatch):
   monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0" if get_test_device() == "cuda" else "")
   cfg = _tiny(TrainConfig.from_task(task), task)
   cfg.agent.logger = "tensorboard"
+  if "-Velocity-" in task:  # post-trained on a motion policy: a tiny Hands run first
+    hands = "Mjlab-SuperMimic-Flat-Pal-Kangaroo-Hands"
+    run_train(hands, _tiny(TrainConfig.from_task(hands), hands), tmp_path / "motion")
+    cfg.agent.motion_checkpoint = str(next((tmp_path / "motion").glob("model_*.pt")))
   run_train(task, cfg, tmp_path / "train")
   assert sorted(p.name for p in (tmp_path / "train").glob("model_*.pt"))
 
