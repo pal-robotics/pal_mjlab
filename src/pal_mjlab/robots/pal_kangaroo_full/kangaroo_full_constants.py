@@ -104,6 +104,13 @@ ANKLE_XY_CONVEX_HULL_POINTS = torch.tensor(
 )
 
 
+_VISUAL_CLASS = "visual"
+_JOINT_NQ = {
+  mujoco.mjtJoint.mjJNT_FREE: 7,
+  mujoco.mjtJoint.mjJNT_BALL: 4,
+  mujoco.mjtJoint.mjJNT_SLIDE: 1,
+  mujoco.mjtJoint.mjJNT_HINGE: 1,
+}
 NATURAL_FREQ = 5 * 2.0 * 3.1415926535  # 5Hz
 DAMPING_RATIO = 2.0
 
@@ -132,6 +139,59 @@ def _calc_actuator_params(armature: float, effort: float) -> dict:
   }
 
 
+def _lock_free_crosses(spec: mujoco.MjSpec) -> None:
+  """Weld the four hip crosses to their hip_xy bodies.
+
+  Each cross's <connect> sits on its hinge axis, so nothing constrains its spin; on the
+  robot the fork's pin does. Left free, these 65 g parts (3e-06 kg m^2 about the axis)
+  swing like pendulums on mujoco_warp and spin past 20 rad/s on Kamino.
+  """
+  names = {f"{s}_hip_xy_cross_{k}" for s in ("left", "right") for k in "lr"}
+  nq = np.array([_JOINT_NQ[joint.type] for joint in spec.joints])
+  adr = np.cumsum([0, *nq[:-1]])
+  drop = [a for a, joint in zip(adr, spec.joints, strict=True) if joint.name in names]
+  for key in spec.keys:
+    key.qpos = np.delete(np.asarray(key.qpos), drop)
+  for name in names:
+    spec.delete(spec.joint(name))
+
+
+def _fix_generated_values(spec: mujoco.MjSpec) -> None:
+  """Correct values the generator gets wrong; each should move to the xacro."""
+  # Both pelvis joints are S+ drives like arm 1/2, but kept the simple model's
+  # FACTOR=0.05, which left the waist with 1/20 of the arms' gains.
+  for name in ("pelvis_1_joint", "pelvis_2_joint"):
+    spec.joint(name).armature = spec.joint("arm_left_1_joint").armature
+
+  # Closed-chain IK puts hip pitch -0.7418 at -0.04097 m and +0.6632 at +0.0359 m,
+  # so the hip screws' range has its signs mirrored. Screw 5 is the mirror of screw
+  # 4 in the ankle's differential pair, but carries that same hip range.
+  for side in ("left", "right"):
+    for screw in (2, 3):
+      spec.joint(f"leg_{side}_{screw}_actuator").range = (-0.04097, 0.03634)
+    spec.joint(f"leg_{side}_5_actuator").range = spec.joint(
+      f"leg_{side}_4_actuator"
+    ).range
+
+  # A placeholder with no mesh; the same part on the three other crosses is 65 g.
+  twin, body = spec.body("left_hip_xy_cross_l"), spec.body("right_hip_xy_cross_r")
+  body.mass, body.ipos, body.iquat = twin.mass, twin.ipos, twin.iquat
+  body.inertia = twin.inertia
+  body.add_geom(
+    default=spec.find_default(_VISUAL_CLASS),
+    type=mujoco.mjtGeom.mjGEOM_MESH,
+    meshname="left_hip_xy_cross_l",
+    material="mtl_left_hip_xy_cross_l",
+  )
+
+  # right_hip_z.obj holds the left part's vertices, so its lug sits on the inner side
+  # and the screw's clevis closes on nothing. Visual only: the mesh has no mass or
+  # contact, and the loop's anchors are mirrored correctly.
+  spec.mesh("right_hip_z").scale = (1.0, -1.0, 1.0)
+
+  _lock_free_crosses(spec)
+
+
 def _read_joint_armatures() -> dict[str, float]:
   """Reflected inertia per joint, as the MJCF resolves it.
 
@@ -141,6 +201,7 @@ def _read_joint_armatures() -> dict[str, float]:
   spec only (no ``compile()``), so no meshes are loaded.
   """
   spec = mujoco.MjSpec.from_file(str(KANG_FULL_XML))
+  _fix_generated_values(spec)
   return {joint.name: float(joint.armature) for joint in spec.joints}
 
 
@@ -253,7 +314,6 @@ def _name_geoms(spec: mujoco.MjSpec) -> None:
 # those bodies.
 ##
 
-_VISUAL_CLASS = "visual"
 _COLLISION_CLASS = "collision"
 _VISUAL_MATERIAL = "dark_gray"
 _COLLISION_MATERIAL = "bright_orange"
@@ -578,6 +638,7 @@ def _normalize_spec(spec: mujoco.MjSpec) -> mujoco.MjSpec:
     if texture.name in _SCENE_TEXTURES:
       spec.delete(texture)
 
+  _fix_generated_values(spec)
   _style_visuals(spec)
   _replace_collisions(spec)
   _name_geoms(spec)
@@ -652,8 +713,8 @@ KANG_FULL_TRANSMISSION_AT_HOME: dict[str, dict[str, float]] = {
   "1": {"hip_yaw": 25.031},
   "2": {"hip_pitch": 8.526, "hip_roll": 14.518},
   "3": {"hip_pitch": 8.524, "hip_roll": -14.541},
-  "4": {"ankle_pitch": -14.291, "ankle_roll": 25.287},
-  "5": {"ankle_pitch": -14.292, "ankle_roll": -25.287},
+  "4": {"ankle_pitch": -14.291, "ankle_roll": -25.287},
+  "5": {"ankle_pitch": -14.292, "ankle_roll": 25.287},
   "length": {"leg_length": -3.7734},
 }
 
@@ -666,13 +727,6 @@ KANG_FULL_LEG_LENGTH_VEL_LIMIT = 1.6 / abs(
 ##
 # Keyframes.
 ##
-
-_JOINT_NQ = {
-  mujoco.mjtJoint.mjJNT_FREE: 7,
-  mujoco.mjtJoint.mjJNT_BALL: 4,
-  mujoco.mjtJoint.mjJNT_SLIDE: 1,
-  mujoco.mjtJoint.mjJNT_HINGE: 1,
-}
 
 
 def _read_keyframe(
@@ -694,6 +748,7 @@ def _read_keyframe(
   Parses the spec only (no ``compile()``), so no meshes are loaded.
   """
   spec = mujoco.MjSpec.from_file(str(KANG_FULL_XML))
+  _fix_generated_values(spec)
   key = next((k for k in spec.keys if k.name == key_name), None)
   if key is None:
     raise ValueError(
@@ -715,7 +770,6 @@ def _read_keyframe(
 
 
 KANG_FULL_HOME_POS, KANG_FULL_HOME_JOINT_POS = _read_keyframe("home")
-
 
 
 _GROUND_OFFSET = -0.1147
