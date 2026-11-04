@@ -145,7 +145,7 @@ Bug Fixes & Reliability
   The density of the whole capsule class needs to be zero to avoid
   generating the inertial properties due to the ``inertiafromgeom``
   property of the compiler
-  (`#116 <https://github.com/pal-robotics/pal_mjlab/pull/117>`_)
+  (`#117 <https://github.com/pal-robotics/pal_mjlab/pull/117>`_)
 
 - **Reduced GPU memory usage and fixed hfield contact overflow in the
   Kangaroo rough velocity task.** ``ccd_iterations`` is now capped at 100
@@ -220,6 +220,13 @@ Breaking Changes
 
 Documentation & CI
 ^^^^^^^^^^^^^^^^^^
+- Brought the documentation up to date with the code. All registered
+  tasks are now listed. New pages cover the Kangaroo Hands model, the
+  Kangaroo reaching task, TALOS and TIAGo Pro. Stale values are fixed:
+  the velocity ``upright`` weight, the tracking observations and the
+  grippers joint count. A test now fails if a registered task is missing
+  from the docs.
+  (`#129 <https://github.com/pal-robotics/pal_mjlab/pull/129>`_)
 - Updated the documentation for Kangaroo in ``pal_mjlab``. Added
   notes for rough terrain in the velocity task, and added documentation
   for Kangaroo grippers model (7-DoF + gripper).
