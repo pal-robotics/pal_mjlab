@@ -17,6 +17,10 @@ from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (  # noqa: F401
   get_kangaroo_lower_body_robot_cfg,
   get_kangaroo_robot_cfg,
 )
+from pal_mjlab.robots.pal_kangaroo_full.kangaroo_full_constants import (  # noqa: F401
+  REGEX_FULL_ACTUATED_JOINTS,
+  get_kangaroo_full_grippers_robot_cfg,
+)
 from pal_mjlab.robots.pal_talos.talos_constants import (  # noqa: F401
   TALOS_ACTION_SCALE,
   get_talos_robot_cfg,
