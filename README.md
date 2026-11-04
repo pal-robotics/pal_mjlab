@@ -45,7 +45,7 @@ uv run play Mjlab-Velocity-Flat-Pal-Kangaroo --agent random  # send random actio
 
 
 For every task family (velocity, motion tracking, reaching), the
-[Training and Playing Tasks](src/pal_mjlab/docs/usage/train_and_play.rst) guide covers:
+[Training and Playing Tasks](https://pal-robotics.github.io/pal_mjlab/usage/train_and_play.html) guide covers:
 the train and play commands, the common options, where checkpoints are
 saved, and how to resume.
 
