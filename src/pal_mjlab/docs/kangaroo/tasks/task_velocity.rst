@@ -117,7 +117,7 @@ Here is a table with the rewards used in the baseline of the velocity tracking t
 +--------------------------------+--------+----------------------+
 | track_angular_velocity         |    2.0 | objective            |
 +--------------------------------+--------+----------------------+
-| upright                        |    1.0 | objective            |
+| upright                        |    2.0 | objective            |
 +--------------------------------+--------+----------------------+
 | pose                           |    1.0 | regularization       |
 +--------------------------------+--------+----------------------+
@@ -167,6 +167,8 @@ An episode ends when one of the following conditions is met :
   not a failure)
 
 - **fell over** — the base exceeds an unrecoverable roll/pitch tilt
+
+- **out of terrain bounds** — the robot walks off the edge of the terrain
 
 - **illegal contacts** — a femur or knee link touches the terrain
 
