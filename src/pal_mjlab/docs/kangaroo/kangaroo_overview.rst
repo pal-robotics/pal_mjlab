@@ -26,42 +26,96 @@ The tasks explored here focus mainly on:
 
 - Motion imitation (reference motion tracking)
 
+- Reaching (end-effector pose tracking while walking)
+
 
 Each registered task pairs an objective (Velocity, Tracking, Reaching), a terrain
 type (Flat, Rough) and a model variant:
 
-+----+---------------------------------------------------------------------------+
-| 1  | Mjlab-Reaching-Flat-Pal-Kangaroo                                          |
-+----+---------------------------------------------------------------------------+
-| 2  | Mjlab-Reaching-Flat-Pal-Kangaroo-Grippers                                 |
-+----+---------------------------------------------------------------------------+
-| 3  | Mjlab-Reaching-Flat-Pal-Kangaroo-Hands                                    |
-+----+---------------------------------------------------------------------------+
-| 4  | Mjlab-Tracking-Flat-Pal-Kangaroo                                          |
-+----+---------------------------------------------------------------------------+
-| 5  | Mjlab-Tracking-Flat-Pal-Kangaroo-No-State-Estimation                      |
-+----+---------------------------------------------------------------------------+
-| 6  | Mjlab-Velocity-Flat-Pal-Kangaroo                                          |
-+----+---------------------------------------------------------------------------+
-| 7  | Mjlab-Velocity-Flat-Pal-Kangaroo-Grippers                                 |
-+----+---------------------------------------------------------------------------+
-| 8  | Mjlab-Velocity-Flat-Pal-Kangaroo-Hands                                    |
-+----+---------------------------------------------------------------------------+
-| 9  | Mjlab-Velocity-Flat-Pal-Kangaroo-Lower-Body                               |
-+----+---------------------------------------------------------------------------+
-| 10 | Mjlab-Velocity-Rough-Pal-Kangaroo                                         |
-+----+---------------------------------------------------------------------------+
-| 11 | Mjlab-Velocity-Rough-Pal-Kangaroo-Grippers                                |
-+----+---------------------------------------------------------------------------+
-| 12 | Mjlab-Velocity-Rough-Pal-Kangaroo-Hands                                   |
-+----+---------------------------------------------------------------------------+
+.. list-table::
+   :header-rows: 1
+   :widths: 55 15 10 20
 
+   * - Task ID
+     - Objective
+     - Terrain
+     - Model
+   * - ``Mjlab-Velocity-Flat-Pal-Kangaroo``
+     - Velocity
+     - Flat
+     - Simple
+   * - ``Mjlab-Velocity-Flat-Pal-Kangaroo-Lower-Body``
+     - Velocity
+     - Flat
+     - Lower body
+   * - ``Mjlab-Velocity-Flat-Pal-Kangaroo-Hands``
+     - Velocity
+     - Flat
+     - Hands
+   * - ``Mjlab-Velocity-Flat-Pal-Kangaroo-Grippers``
+     - Velocity
+     - Flat
+     - Grippers
+   * - ``Mjlab-Velocity-Rough-Pal-Kangaroo``
+     - Velocity
+     - Rough
+     - Simple
+   * - ``Mjlab-Velocity-Rough-Pal-Kangaroo-Lower-Body``
+     - Velocity
+     - Rough
+     - Lower body
+   * - ``Mjlab-Tracking-Flat-Pal-Kangaroo``
+     - Tracking
+     - Flat
+     - Simple
+   * - ``Mjlab-Tracking-Flat-Pal-Kangaroo-No-State-Estimation``
+     - Tracking
+     - Flat
+     - Simple
+   * - ``Mjlab-Tracking-Flat-Pal-Kangaroo-Hands``
+     - Tracking
+     - Flat
+     - Hands
+   * - ``Mjlab-Tracking-Flat-Pal-Kangaroo-Hands-No-State-Estimation``
+     - Tracking
+     - Flat
+     - Hands
+   * - ``Mjlab-Tracking-Flat-Pal-Kangaroo_Lower_Body``
+     - Tracking
+     - Flat
+     - Lower body
+   * - ``Mjlab-Tracking-Flat-Pal-Kangaroo-Lower-Body-No-State-Estimation``
+     - Tracking
+     - Flat
+     - Lower body
+   * - ``Mjlab-Reaching-Flat-Pal-Kangaroo``
+     - Reaching
+     - Flat
+     - Simple
+   * - ``Mjlab-Reaching-Flat-Pal-Kangaroo-Hands``
+     - Reaching
+     - Flat
+     - Hands
+   * - ``Mjlab-Reaching-Flat-Pal-Kangaroo-Grippers``
+     - Reaching
+     - Flat
+     - Grippers
+
+The ``-No-State-Estimation`` tracking variants remove the observations that need
+a base state estimator on the real robot (``motion_anchor_pos_b``,
+``motion_anchor_ori_b`` and ``base_lin_vel``) from the actor.
+
+.. note::
+
+   The lower-body tracking task ID uses underscores
+   (``Kangaroo_Lower_Body``), unlike the other task IDs. Use it exactly as
+   written.
 
 The full list of tasks can be checked anytime with:
 
 .. code-block:: bash
 
-   uv run list-envs
+   uv run list-envs --keyword Kangaroo
 
 To train a task on Kangaroo, use:
 
@@ -94,9 +148,11 @@ Models:
 
 - :ref:`Kangaroo model_simple`
 - :ref:`Kangaroo model_lower_body`
+- :ref:`Kangaroo model_hands`
 - :ref:`Kangaroo model_grippers`
 
 Tasks:
 
 - :ref:`Kangaroo task_velocity`
 - :ref:`Kangaroo task_motion_imitation`
+- :ref:`Kangaroo task_reaching`
