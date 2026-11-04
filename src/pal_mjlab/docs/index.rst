@@ -9,6 +9,7 @@ pal_mjlab Documentation
    :caption: Getting Started
 
    installation
+   usage/train_and_play
    release_notes
 
 .. toctree::
