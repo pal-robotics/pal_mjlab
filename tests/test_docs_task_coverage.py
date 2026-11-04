@@ -27,9 +27,11 @@ def test_every_registered_pal_task_is_documented():
 
 def test_docs_do_not_reference_unregistered_pal_tasks():
   registered = set(list_tasks())
+  # The lookahead skips shorthand like ``Kangaroo-{Hands,Grippers}`` or ``Talos*``.
   documented = set(
     re.findall(
-      r"Mjlab-[A-Za-z]+-[A-Za-z]+-Pal-[A-Za-z0-9_-]+", _docs_text(include_history=False)
+      r"Mjlab-[A-Za-z]+-[A-Za-z]+-Pal-[A-Za-z0-9_-]*[A-Za-z0-9](?![\w{\[*-])",
+      _docs_text(include_history=False),
     )
   )
   stale = sorted(documented - registered)
