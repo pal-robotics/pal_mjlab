@@ -2,6 +2,7 @@
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
+from mjlab.envs.mdp import terminations as mdp_terminations
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers import MetricsTermCfg
 from mjlab.managers.event_manager import EventTermCfg
@@ -28,6 +29,7 @@ from pal_mjlab.robots.pal_kangaroo_full.kangaroo_full_constants import (  # noqa
   KANG_FULL_LEG_LENGTH_VEL_LIMIT,
   get_kangaroo_full_robot_cfg,
 )
+from pal_mjlab.sim.kamino import KaminoSimulationCfg
 from pal_mjlab.tasks.velocity import mdp
 
 
@@ -42,7 +44,7 @@ def pal_kangaroo_full_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # if timestep and decimation used when playing the policy
   # dont match the values used during training does not work properly
   # this should not be the case as long as timestep * decimation does not change
-  # however we observed that it changes (TODO investigate) 
+  # however we observed that it changes (TODO investigate)
   cfg.sim.mujoco.timestep = 0.002
   cfg.decimation = 10
 
@@ -484,3 +486,18 @@ def pal_kangaroo_full_grippers_flat_env_cfg(play: bool = False) -> ManagerBasedR
 
     return cfg
 '''
+
+
+def pal_kangaroo_full_flat_kamino_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """The flat task with Kamino as the physics; everything else is unchanged."""
+  cfg = pal_kangaroo_full_flat_env_cfg(play=play)
+  sim = cfg.sim
+  cfg.sim = KaminoSimulationCfg(
+    nconmax=sim.nconmax,
+    njmax=sim.njmax,
+    contact_sensor_maxmatch=sim.contact_sensor_maxmatch,
+    mujoco=sim.mujoco,
+  )
+  # A hard solver can diverge in one world; mjw's soft constraints rarely do.
+  cfg.terminations["nan"] = TerminationTermCfg(func=mdp_terminations.nan_detection)
+  return cfg
