@@ -11,8 +11,8 @@ import numpy as np
 import warp as wp
 
 # Newton imports
-from .....sim import Model
-from ....coupled.model_view import ModelView
+from ..._newton import Model
+from ..._newton import ModelView
 
 # Kamino imports
 from .bodies import RigidBodiesData, RigidBodiesModel

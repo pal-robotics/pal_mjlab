@@ -29,7 +29,7 @@ from enum import IntEnum
 import numpy as np
 import warp as wp
 
-from .....core.types import override
+from ..._newton import override
 from ..utils import logger as msg
 from .math import tril_index
 from .types import Descriptor

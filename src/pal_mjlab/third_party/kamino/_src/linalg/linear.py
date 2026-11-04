@@ -19,7 +19,7 @@ from typing import Any, Generic
 import numpy as np
 import warp as wp
 
-from .....core.types import override
+from ..._newton import override
 from . import conjugate, factorize
 from .conjugate_fused import MAX_BLOCKS_PER_ROW, build_row_index, build_transpose_index, make_fused_cr_kernel
 from .core import DenseLinearOperatorData, DenseSquareMultiLinearInfo, make_dtype_tolerance

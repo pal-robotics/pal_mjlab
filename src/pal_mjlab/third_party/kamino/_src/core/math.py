@@ -11,7 +11,7 @@ import numpy as np
 import warp as wp
 from warp._src.types import Any
 
-from .....core.types import Axis, AxisType
+from ..._newton import Axis, AxisType
 from .types import (
     mat34f,
     mat63f,

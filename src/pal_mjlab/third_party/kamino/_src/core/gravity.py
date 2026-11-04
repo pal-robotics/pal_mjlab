@@ -9,8 +9,8 @@ from dataclasses import dataclass
 
 import warp as wp
 
-from .....sim.model import Model
-from ....coupled.model_view import ModelView
+from ..._newton import Model
+from ..._newton import ModelView
 
 __all__ = ["GRAVITY_DEFAULT", "GravityModel"]
 

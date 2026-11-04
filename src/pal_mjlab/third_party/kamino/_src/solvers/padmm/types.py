@@ -38,7 +38,7 @@ from enum import IntEnum
 import numpy as np
 import warp as wp
 
-from ......core.types import override
+from ...._newton import override
 from ....config import PADMMSolverConfig
 from ...core.size import SizeKamino
 from ...core.types import to_warp_int32_array

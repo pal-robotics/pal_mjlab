@@ -12,8 +12,8 @@ import numpy as np
 import warp as wp
 from warp._src.types import Any, Int, Vector
 
-from .....core.types import MAXVAL, override
-from .....sim import JointTargetMode, JointType
+from ..._newton import MAXVAL, override
+from ..._newton import JointTargetMode, JointType
 from .types import (
     mat63f,
     vec1f,

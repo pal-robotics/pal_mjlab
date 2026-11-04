@@ -5,14 +5,12 @@
 
 from . import device
 from . import logger as msg
-from .profiles import PerformanceProfile
 
 ###
 # Module API
 ###
 
 __all__ = [
-    "PerformanceProfile",
     "device",
     "msg",
 ]

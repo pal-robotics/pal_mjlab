@@ -13,8 +13,8 @@ from typing import Any, Literal
 
 import warp as wp
 
-from ...core.types import override
-from ...sim import Model, ModelBuilder
+from ._newton import override
+from ._newton import Model, ModelBuilder
 
 ###
 # Module interface
@@ -1210,3 +1210,25 @@ class MaterialManagerConfig(ConfigBase):
     def __post_init__(self):
         """Post-initialization to validate configurations."""
         self.validate()
+
+
+@dataclass
+class SolverKaminoConfig:
+    """``SolverKamino.Config`` from Newton's solver_kamino.py, without USD parsing, DVI and FK."""
+
+    sparse_jacobian: bool = False
+    sparse_dynamics: bool = False
+    rotation_correction: Literal["twopi", "continuous", "none"] = "twopi"
+    angular_velocity_damping: float = 0.0
+    collect_solver_info: bool = False
+    compute_solution_metrics: bool = False
+    constraints: ConstraintStabilizationConfig = field(default_factory=ConstraintStabilizationConfig)
+    dynamics: ConstrainedDynamicsConfig = field(default_factory=ConstrainedDynamicsConfig)
+    padmm: PADMMSolverConfig = field(default_factory=PADMMSolverConfig)
+
+    def validate(self) -> None:
+        if self.sparse_dynamics and not self.sparse_jacobian:
+            raise ValueError("`sparse_dynamics` requires `sparse_jacobian`.")
+        self.constraints.validate()
+        self.dynamics.validate()
+        self.padmm.validate()

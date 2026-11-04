@@ -11,7 +11,7 @@ from functools import cache
 
 import warp as wp
 
-from .....sim.articulation import transform_3d_rotational_axes
+from ..._newton import transform_3d_rotational_axes
 from ..core.data import DataKamino
 from ..core.joints import DofActuationPath, JointActuationType, JointCorrectionMode, JointDoFType
 from ..core.math import FLOAT32_MAX, quat_log, quat_twist_angle

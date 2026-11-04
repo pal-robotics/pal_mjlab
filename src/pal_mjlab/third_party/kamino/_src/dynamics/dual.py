@@ -58,7 +58,7 @@ from typing import Any
 
 import warp as wp
 
-from .....core.types import override
+from ..._newton import override
 from ...config import ConfigBase, ConstrainedDynamicsConfig, ConstraintStabilizationConfig
 from ..core.data import DataKamino
 from ..core.math import FLOAT32_EPS, compute_gyroscopic_torque

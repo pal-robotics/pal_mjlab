@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import warp as wp
 
-from .....sim import BodyFlags
+from ..._newton import BodyFlags
 
 ###
 # Module interface

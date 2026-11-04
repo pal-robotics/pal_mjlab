@@ -16,7 +16,6 @@ from ..core.data import DataKamino
 from ..core.model import ModelKamino
 from ..core.state import StateKamino
 from ..geometry.contacts import ContactsKamino
-from ..geometry.detector import CollisionDetector
 from ..kinematics.limits import LimitsKamino
 
 ###
@@ -70,7 +69,6 @@ class IntegratorBase:
         control: ControlKamino,
         limits: LimitsKamino | None = None,
         contacts: ContactsKamino | None = None,
-        detector: CollisionDetector | None = None,
     ):
         """
         Solves the time integration sub-problem to compute the next state of the system.
@@ -86,7 +84,6 @@ class IntegratorBase:
                 If `None`, no joint limits are considered for the current time-step.
             contacts: The set of active contacts of the system at the current time-step.
                 If `None`, no contacts are considered for the current time-step.
-            detector: The collision detector to use for generating the set of active contacts at the current time-step.
                 If `None`, no collision detection is performed for the current time-step,
                 and active contacts must be provided via the `contacts` argument.
         """

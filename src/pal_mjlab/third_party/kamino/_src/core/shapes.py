@@ -11,8 +11,8 @@ from collections.abc import Sequence
 import numpy as np
 import warp as wp
 
-from .....core.types import Vec2, Vec3, override
-from .....geometry.types import GeoType, Heightfield, Mesh
+from ..._newton import Vec2, Vec3, override
+from ..._newton import GeoType, Heightfield, Mesh
 from .types import Descriptor
 
 ###

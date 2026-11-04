@@ -17,7 +17,6 @@ This module provides a front-end defined by:
 """
 
 from .euler import IntegratorEuler
-from .moreau import IntegratorMoreauJean
 
 ##
 # Module interface
@@ -25,5 +24,4 @@ from .moreau import IntegratorMoreauJean
 
 __all__ = [
     "IntegratorEuler",
-    "IntegratorMoreauJean",
 ]

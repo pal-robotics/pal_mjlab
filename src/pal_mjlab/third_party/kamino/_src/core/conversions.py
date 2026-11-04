@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 import warp as wp
 
-from .....geometry import ShapeFlags
-from .....sim.model import Model
-from ....coupled.model_view import ModelView
+from ..._newton import ShapeFlags
+from ..._newton import Model
+from ..._newton import ModelView
 from ..utils import logger as msg
 from .bodies import (
     RigidBodiesModel,

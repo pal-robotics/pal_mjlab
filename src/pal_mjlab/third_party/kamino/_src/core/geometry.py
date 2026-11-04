@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import warp as wp
 
 if TYPE_CHECKING:
-    from .....utils.heightfield import HeightfieldData
+    from ..._newton import HeightfieldData
 
 ###
 # Module interface

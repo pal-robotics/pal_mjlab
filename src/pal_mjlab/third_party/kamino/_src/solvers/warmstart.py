@@ -25,7 +25,7 @@ from enum import IntEnum
 
 import warp as wp
 
-from .....core.types import override
+from ..._newton import override
 from ..core.data import DataKamino
 from ..core.math import contact_wrench_matrix_from_points
 from ..core.model import ModelKamino

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import warp as wp
 
-from .....sim.control import Control
+from ..._newton import Control
 from .conversions import convert_target_coords_to_target_dofs, convert_target_dofs_to_target_coords
 
 if TYPE_CHECKING:

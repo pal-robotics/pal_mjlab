@@ -3,8 +3,6 @@
 
 """Numerical Solvers for Constraint Rigid Multi-Body Kinematics & Dynamics"""
 
-from .dvi import DVISolver
-from .fk import ForwardKinematicsSolver
 from .padmm import PADMMSolver, PADMMWarmStartMode
 
 ###
@@ -12,8 +10,6 @@ from .padmm import PADMMSolver, PADMMWarmStartMode
 ###
 
 __all__ = [
-    "DVISolver",
-    "ForwardKinematicsSolver",
     "PADMMSolver",
     "PADMMWarmStartMode",
 ]

@@ -11,14 +11,13 @@ from collections.abc import Callable
 
 import warp as wp
 
-from .....core.types import override
+from ..._newton import override
 from ..core.control import ControlKamino
 from ..core.data import DataKamino
 from ..core.math import compute_body_pose_update_with_logmap, compute_body_twist_update_with_eom
 from ..core.model import ModelKamino
 from ..core.state import StateKamino
 from ..geometry.contacts import ContactsKamino
-from ..geometry.detector import CollisionDetector
 from ..kinematics.limits import LimitsKamino
 from .integrator import IntegratorBase
 
@@ -226,7 +225,6 @@ class IntegratorEuler(IntegratorBase):
         control: ControlKamino,
         limits: LimitsKamino | None = None,
         contacts: ContactsKamino | None = None,
-        detector: CollisionDetector | None = None,
     ):
         """
         Solves the time integration sub-problem using a Semi-Implicit Euler scheme
@@ -243,7 +241,6 @@ class IntegratorEuler(IntegratorBase):
                 If `None`, no joint limits are considered for the current time-step.
             contacts: The set of active contacts of the system at the current time-step.
                 If `None`, no contacts are considered for the current time-step.
-            detector: The collision detector to use for generating the set of active contacts at the current time-step.
                 If `None`, no collision detection is performed for the current time-step,
                 and active contacts must be provided via the `contacts` argument.
         """
@@ -255,7 +252,6 @@ class IntegratorEuler(IntegratorBase):
             control=control,
             limits=limits,
             contacts=contacts,
-            detector=detector,
         )
 
         # Perform forward integration to compute the next state of the system
