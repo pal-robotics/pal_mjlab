@@ -9,7 +9,9 @@ authors = [
 requires-python = ">=3.10,<3.14"
 dependencies = [
     "mjlab>=1.6.0",
-    "moviepy>=2.0"
+    "moviepy>=2.0",
+    # The vendored Kamino solver (third_party/kamino) needs it; mjlab allows it.
+    "warp-lang>=1.17.0",
 ]
 
 [build-system]
