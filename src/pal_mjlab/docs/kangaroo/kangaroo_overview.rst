@@ -27,7 +27,7 @@ The tasks explored here focus mainly on:
 - Motion imitation (reference motion tracking)
 
 
-Each registered task pairs an objective (Velocity, Tracking, Reaching), a terrain
+Each registered task pairs an objective (Velocity, Tracking, Reaching, SuperMimic), a terrain
 type (Flat, Rough) and a model variant:
 
 +----+---------------------------------------------------------------------------+
@@ -54,6 +54,14 @@ type (Flat, Rough) and a model variant:
 | 11 | Mjlab-Velocity-Rough-Pal-Kangaroo-Grippers                                |
 +----+---------------------------------------------------------------------------+
 | 12 | Mjlab-Velocity-Rough-Pal-Kangaroo-Hands                                   |
++----+---------------------------------------------------------------------------+
+| 13 | Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers                               |
++----+---------------------------------------------------------------------------+
+| 14 | Mjlab-SuperMimic-Flat-Pal-Kangaroo-Hands                                  |
++----+---------------------------------------------------------------------------+
+| 15 | Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers                           |
++----+---------------------------------------------------------------------------+
+| 16 | Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Hands                              |
 +----+---------------------------------------------------------------------------+
 
 
@@ -100,3 +108,4 @@ Tasks:
 
 - :ref:`Kangaroo task_velocity`
 - :ref:`Kangaroo task_motion_imitation`
+- :ref:`Kangaroo task_supermimic`

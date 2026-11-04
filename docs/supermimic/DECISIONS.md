@@ -1,0 +1,823 @@
+# SuperMimic on Kangaroo: decisions
+
+The paper is arXiv 2610.28480. No code was released, so we build from the paper text only. Each entry
+records the decision, why we took it, and what would make us revisit it. **(user)** marks decisions the
+user made; the rest are proposals, open to change. Entries are numbered so commits and issues can cite
+them, e.g. "D7". This is a record: older entries name tasks, flags and scripts as they were then. The reports
+`m0/`–`m5/` and `ROADMAP.md` they cite, those scripts and the commits they name are not part of this repository (D52).
+
+**D0. Follow the paper's methodology; the WBC branch is a starting point, not a constraint.** (user)
+- Robot config, XML, gains, loader and sampling change whenever that makes the implementation easier.
+  Every change gets an entry here.
+- Anything inherited from WBC or PAL tasks must either follow the paper or have a written reason.
+- Audited 2026-10-22, which led to D25 and D26 and the changes to D6, D12 and D14.
+- Kept on purpose, each with its reason:
+  - the IMU frame for angular velocity and gravity (the real sensor sits on the torso);
+  - the critic's privileged root-pose error and time left (D7, D22);
+  - the CoM offset sampled at startup (D14);
+  - BeyondMimic's reset noise (the paper keeps BeyondMimic's setup except for pushes).
+
+**D1. Branch and layout.**
+- A development branch, created from `MAC/WBC`; `feat/supermimic` replaced it (D52).
+- Separate task in `src/pal_mjlab/tasks/supermimic/`, laid out like mjlab's tracking task; the WBC task
+  is left alone (user):
+  - `supermimic_env_cfg.py`: robot-agnostic base config with the paper's numbers.
+  - `mdp/`: the command, sampler, observations, rewards, terminations, and the pure `tracking.py` terms.
+  - `kangaroo/`: robot config, PPO config, task registration.
+  - `rl/`: networks.
+  - `kinematics.py`, `library.py`, `state.py`: core pieces shared with the future world-model code.
+- Docs live here. The library converter is `scripts/bones_to_library.py`; benchmarks and the resumable
+  launcher are in `scripts/supermimic/`.
+- **The merge request branch is `feat/supermimic`** (D52), from `main`.
+
+**D2. Interface: the basic joint-following tracker.** (user)
+- The goal is the reference trajectory over K=10 future frames, each frame being BeyondMimic's command
+  (D6).
+- The reward is the paper's body-space Table A.2.
+- The WBC sparse end-effector interface becomes a later downstream encoder (paper Appendix B).
+
+**D3. Arm 5/7 axis is +z in `kangaroo_grippers.xml`.** (user)
+- Why: GMR is authoritative and the robot URDF agrees. The ranges are unchanged.
+- Effect: the BONES clips load unchanged, matching GMR body positions exactly, with 0% of actuated frames
+  out of range.
+- Before: the axis was −z, with arm bodies off by up to 0.18 m and arm_5 out of range on 15–21% of frames.
+- Side effects:
+  - This also changes the existing WBC grippers task. Any npz converted with the old axis must be
+    reconverted.
+  - `kangaroo_hands.xml` is untouched (5-DoF arm, symmetric range).
+
+**D4. World-model state is in generalized coordinates, heading-invariant, about 77 dims.**
+- Layout: root height, root tilt (6D rotation in the heading frame), root linear and angular velocity in
+  the root frame, and all 32 joint q and q̇, including the passive femur/knee (that keeps it Markov).
+- The WM predicts normalized deltas, plus planar displacement and Δyaw in the heading frame. The world
+  root pose is integrated analytically.
+- Inputs: (ŝ, a, ξ). A running mean/std normalizer is updated only in the WM fit and frozen during policy
+  updates.
+- Why: compact, exact symmetry, cheap.
+- Revisit if the per-component WM error in M2 is dominated by the representation.
+
+**D5. Heads.**
+- Analytic reward and observation through a torch FK of the robot tree (`kinematics.py`). This gives
+  exact rewards, and the sim and imagination use the same functions.
+- Learned termination d_ω(ŝ, g), trained with BCE, as in the paper; its calibration is logged.
+- M0 cost: the FK must be `torch.compile`d. Eager it is launch-bound (3–5 s per update); compiled it adds
+  ~20% over no FK.
+- Revisit, with a learned reward head as the fallback, if FK gradients become a problem.
+
+**D6. Goal frame, for each of t+1..t+10.**
+- Contents: BeyondMimic's command without state estimation, which is the variant matching the paper's
+  proprioception (no base linear velocity):
+  - reference q and q̇ of the 28 actuated joints;
+  - reference root orientation relative to the current robot root (6D).
+  - That is 62 values per frame, 620 for the goal.
+- An earlier version also had reference root velocity and height. Those came from WBC's sparse
+  interface, so they were removed.
+
+**D7. Critic input** is (ŝ, g, ξ) plus the privileged root-pose error (planar position, yaw). The
+heading-invariant ŝ can't see drift, and the reward has a global root-position term.
+
+**D8. Clip end.**
+- In sim, the episode ends at the clip end (no teleport to a new clip), so replay windows never mix clips.
+- In imagination, the return stops at the last frame, with no bootstrap. Goal frames past the end repeat
+  the last frame.
+
+**D9. Replay.**
+- Contents: an E × 1000 ring of state, world pose, executed noisy action, ξ, (clip, frame), terminated
+  flag and episode-start flag.
+- WM windows stay inside one episode.
+- Imagination starts carry the previous 9 steps, to rebuild the 10-frame obs history. a_{t−1} in obs is the
+  executed action.
+- Env: our runner uses `auto_reset=False` so terminal states are stored. Pushes are removed.
+
+**D10. Reading the ambiguities.**
+- UTD 0.4 = 2.5 vector env steps per iteration, via a fractional accumulator. This fits the paper's
+  320k iterations in ~9.8 h.
+- "10 batches of 2048 windows" = 10 WM optimizer steps per iteration; ablate in M2.
+- A warm-up fills the replay before the first update.
+
+**D11. Motion library: one packed folder.**
+- `qpos.npy` (N, 39), `qvel.npy` (N, 38) in MuJoCo qvel layout, and `clips.json`. About 308 B per frame.
+- Body poses come from FK on the fly.
+- Full set: 13.9 GB fp32, versus ~44 GB for the WBC loader's per-body layout.
+- Local runs use subsets on the GPU; the full set goes on the H100.
+
+**D12. Reward.**
+- Paper Table A.2 only: weights and stds over the 14 bodies of D25, action rate −0.1, joint limits −2.
+- The joint-limit term uses the hard limits of the actuated joints: references exceed the 0.9× soft
+  limits on up to 27% of frames.
+- The hip/ankle convex-hull penalties (PAL's coupled actuator limits) were removed: they aren't in the
+  paper. They come back with sys-ID DR before hardware work.
+
+**D13. Termination.** The paper's rule only: |e_z| > 0.25 m or tilt > 0.8. No end-effector termination,
+no self-collision term.
+
+**D14. Domain randomization.** (user)
+- v1 uses the paper's set as ξ: foot friction, joint calibration offsets, pelvis_2 CoM.
+- Calibration offsets apply only to the 28 measured (actuated) joints, since the passive four-bar joints
+  have no encoders. So ξ is 1 + 28 + 3 = 32 dims.
+- Friction and calibration are resampled every episode. The CoM offset is sampled once per env at
+  startup.
+  - Why: resampling it at reset triggers mujoco_warp `set_const` over all worlds, which took the step
+    from 72 to 235 ms at 8192 envs (M1).
+  - Coverage: with thousands of envs the CoM distribution is still covered, and the world model gets ξ
+    either way.
+- Kangaroo sys-ID DR (frictionloss, damping, armature) joins ξ before any hardware work.
+
+**D15. Sim settings: 5 ms × 4 substeps, as in the paper.** (user)
+- Solver iterations 10, ls_iterations 20.
+- The four-bar's solref 0.004 gets clamped at 5 ms. M0 measured that as fine: loop residual 0.17 mm mean,
+  3.2 mm max, no NaNs.
+- Gains: see D26.
+
+**D16. Two configs.**
+- "paper": the exact hyperparameters and TF32, for a Lambda H100.
+- "dev": the local 16 GB GPU.
+  - The same nets and batch 4096, but bf16 autocast instead of TF32: 7.7 GB measured vs 12.7 GB.
+  - Replay of 500 steps per env, and data subsets.
+  - Smaller nets only if memory forces it.
+- Every deviation is logged in the run config.
+
+**D17. Baseline: PPO-Sim (paper §4.1).** (user: paper numbers, local GPU)
+- Task `Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers`: the same env, rsl_rl PPO with BeyondMimic's
+  hyperparameters (mjlab G1 tracking), and 8192 envs (twice SuperMimic's).
+- Actor: the paper's encoder-decoder (`rl/models.py`, 2048-1024-512-256 each, z = 32 with tanh), with a
+  Gaussian head.
+- Critic: 256-128, with the privileged inputs of D7.
+- Budget: about 12 h of local GPU on `dev`. `scripts/supermimic/train.py` resumes from the latest
+  checkpoint when the queue reruns a preempted job.
+
+**D21. Return-based sampler details** (paper D.1 leaves them open).
+- G_b is normalized per bin by the best return attainable from that start (the clip may end inside the
+  discount horizon). With one global maximum, every clip's last second would look like a failure and
+  take the 40% branch.
+- G_b starts at 0, so unvisited bins count as hard. Each visit updates it as an EMA with rate 0.2.
+- The "past weight" is an EMA (rate 0.01) of the softmax distribution.
+- Returns are Monte-Carlo over the sim episode. Truncation at 10 s barely matters, since γ^500 ≈ 0.007.
+
+**D22. Episode structure.**
+- An episode starts at a sampled frame, with BeyondMimic's reset noise on root pose, velocity and joints.
+- It runs to the clip's last frame (`motion_end`, terminal, no bootstrap, D8), a failure, or a 10 s cap
+  (truncation).
+- The critic also gets the normalized time left in the clip (capped at 3 s). Otherwise it can't predict
+  the return ending at the clip end.
+
+**D23. Simulation buffers.**
+- `nconmax` is 50. It is a contact pool shared by all worlds, and about 15 contacts per world are in use.
+- `njmax` is 300. It is a hard per-world cap, and fallen robots reach about 280 rows; 160 overflowed.
+- Measured: `nconmax` 100 cost 10.7 GB at 8192 envs, `nconmax` 40 cost 5.2 GB.
+
+**D24. Kinematics in the env.**
+- Robot and reference bodies come from the torch FK on (qpos, qvel), compiled, and are cached per env step.
+- The reward, termination and (later) imagination share them.
+- The FK model is the robot's spec as attached to the scene (names prefixed `robot/`). That makes it the
+  exact simulated tree, and tests check it against mjlab's body data.
+
+**D18. G1 control.** The algorithm core is robot-agnostic. If Kangaroo misses a gate, run the same code
+on mjlab's G1 with the BONES G1 clips (`kangaroo_bones_seed/data/g1_npz`). That separates implementation
+bugs from robot difficulty.
+
+**D19. Sources.** Paper text only. The demo's license forbids reverse engineering, so never read its JS or
+weights.
+
+**D20. No extra data filtering.** (user) `final_kept` already applies the paper's name and feasibility
+filters on G1, and again on Kangaroo after retargeting.
+
+**D25. Tracked bodies: the paper's 14 (BeyondMimic's G1 set), mapped by function.**
+
+| G1 body | Kangaroo body | why |
+|---|---|---|
+| pelvis | `base_link` | the root, as in the paper |
+| torso_link | `pelvis_2_link` | after the two waist joints |
+| hip_roll_link | `leg_*_3_link` | hip roll |
+| knee_link | `leg_*_knee_link` | Kangaroo's serial leg is a hip-ankle slide; the knee exists only as the passive four-bar body |
+| ankle_roll_link | `leg_*_5_link` | foot |
+| shoulder_roll_link | `arm_*_2_link` | shoulder |
+| elbow_link | `arm_*_4_link` | elbow |
+| wrist_yaw_link | `arm_*_7_link` | last arm link |
+
+The first version copied WBC's list. It came from the retarget's IK table, which uses rotations only for
+these links. That list had two problems:
+- **The ankle was tracked twice and the knee not at all.** It used `leg_*_4_link` as the "knee", but
+  `leg_*_4_link`, `leg_*_5_link` and `leg_*_length_link` all sit at the ankle (measured 0.0 m apart).
+- **The wrist was an end-effector frame.** It used `arm_*_tip_link`, which sits at `arm_*_7_link` in
+  pal_mjlab but is rotated 45° in GMR.
+
+**D26. Actuator gains: as in pal_mjlab PR #126 (`feat/7dof_rough`, = main).** (user)
+- `kangaroo_constants.py` on this branch is that branch's file.
+- The rule is BeyondMimic's: Kp = armature·ω², Kd = 2ζ·armature·ω with ζ = 2, at 3.5 Hz for every joint.
+  Action scale is 0.25·effort/Kp. PAL's identified armatures, friction and effort limits are kept.
+- The 1 Hz arm/waist split on MAC/WBC was an experiment for that task and is reverted here; it also
+  affects the WBC tasks on this branch. With 3.5 Hz, arm and waist Kp rise 12× (e.g. 19 to 234 for the
+  shoulder) and the legs are unchanged.
+- The task uses the stock `get_kangaroo_grippers_robot_cfg()` and `KANGAROO_GRIPPERS_ACTION_SCALE`, so
+  there is no gain logic of its own.
+- **Superseded in part by D27, then D55:** the SuperMimic tasks keep these 3.5 Hz gains and compute the arm and
+  waist action scales at 1 Hz (`ARM_WAIST_ACTION_SCALE_FREQ_HZ`).
+
+**D27. Arm/waist gains: measure, don't assume. 3.5 Hz vs 1 Hz A/B (2026-10-22).** (user)
+- **Question.** MAC/WBC lowered the arm and waist frequency to 1 Hz "to improve tracking". With
+  BeyondMimic's rule, Kangaroo's arms at 3.5 Hz have Kp/τ_max ≈ 4–6 per rad (G1: ≈ 0.6), so their action
+  scale is 0.04–0.06 rad per unit. That makes reference arm poses need |a| ≈ 8 (median) to 41 (p95), and
+  makes the action-rate penalty expensive.
+- **Runs.** PPO-Sim on `dev`, 1,000 iterations, 8192 envs, seed 42:
+  - `Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers` (3.5 Hz);
+  - `...-ArmWaist1Hz` (arms and waist at 1 Hz, same rule).
+  Both use `run_gain_ab.sh`.
+- **Decision metric:** root-relative per-body position error on the `dev` benchmark (`eval.py`), arms
+  first, paired per clip.
+- **Guardrails:** failures, tracking-only normalized return, torque rate and saturation.
+- **Result** (`m1/gain_ab.md`): 1 Hz is better on every metric. Arm error 21.2 → 15.3 cm (better on 90% of
+  clips), legs 11.3 → 8.6 cm (95%), tracking return 0.53 → 0.62 (95%), failures 162 → 144, arm
+  saturation 0.8% → 0.04%. It's a single seed, sim only, at 1,000 iterations.
+- **Decision (user, 2026-10-22):** 1 Hz arms and waist for the 12 h PPO-Sim run.
+  - Task `Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers-ArmWaist1Hz`, experiment
+    `supermimic_ppo_sim_1hz`, GPU task 67.
+  - Started fresh from iteration 0 on commit 21d5962, for a clean baseline curve.
+  - Hardware gains stay a separate question for PAL.
+- **Superseded by D55:** the gain was not what helped; the 1 Hz action scale was.
+
+**D28. Passive joints: never in the actor's inputs; allowed in privileged inputs (flagged 2026-10-23).**
+- **Actor.** It sees only the 28 actuated joints (`REGEX_ALL_ACTUATED_JOINTS` excludes `leg_*_femur_joint`
+  and `leg_*_knee_joint`): proprio q, q̇ and actions, and the goal's reference q and q̇. Verified on the
+  running job's observation table: proprio 10 × (28 + 28 + 3 + 3 + 28), goal 10 × (28 + 28 + 6).
+- **Privileged inputs.** The critic's heading state (D4) has all 32 joints, including the passive q and
+  q̇. The tracking reward uses the passive knee body (D25). Both are training-only.
+- **Revisit if:**
+  - the world model's observation head (M2/M3) starts feeding anything derived from passive joints back
+    to the policy;
+  - a distilled or student policy (Appendix B encoders) copies the critic's inputs;
+  - the real robot turns out not to measure `leg_*_length_joint`, which counts as actuated here.
+- **Guard:** `tests/supermimic/test_env.py::test_observation_layout` pins the actor groups' sizes.
+
+**D29. M2 data and split (2026-10-23).**
+- **Policies:** PPO-Sim (1 Hz arms/waist) checkpoints at iterations 1000, 4000 and 8800. Mixing skill
+  levels gives good tracking, poor tracking and falls.
+- **Collection:** 4096 envs × 500 steps each on `dev`.
+  - Action noise N(0, 0.1²) on the deterministic policy.
+  - Paper DR per episode; ξ is logged (friction 1, calibration 28, torso CoM 3).
+  - `auto_reset=False`, so terminal states are logged and windows never span a reset (D8, D9).
+- **Held-out set:** 10% of clips by crc32 of the clip name, the same in every data set and every script.
+- **Revisit if:** M4's online replay replaces this offline data.
+
+**D30. World-model configuration for M3/M4 (2026-10-23, `m2/world_model.md`).**
+- **Training:** k = 8 windows (paper Eq. 1).
+- **Network:** MLP 2048×3 ELU on standardized (state, action, ξ), with statistics frozen after
+  computing them from 200k transitions.
+- **Targets:** the state change plus the heading-frame pose change.
+- **Loss scales:** 0.1 m and 0.1 rad for the integrated pose.
+- **Checkpoint:** the best held-out 8-step loss.
+- **Why:** each ablation is worse.
+  - k = 1 diverges at 32 steps.
+  - Absolute targets are 2× worse.
+  - Width 1024 is 15–20% worse.
+- **Revisit if:** the online loop (M4) shows the arm error limiting tracking. The arms carry the largest
+  model error, and loss weighting by body error after FK is the first thing to try.
+
+**D31. Failure probability in imagination: the paper's learned head, compared against the env's rule
+at every step (user, 2026-10-23).**
+- **Default (M3 and M4): the learned head d_ω, as in the paper.** It is trained with the model (BCE on
+  the logged failure flags), online in M4.
+- **The rule is one switch away.** The imagination config takes `termination = "learned" | "rule"`.
+  - "rule" is d̂ = σ((m − 1)/τ), τ = 0.05, with m = max(|z − z_ref| / 0.25, |g_z − g_z,ref| / 0.8): the
+    env's own failure condition, evaluated on the predicted state.
+- **Both are always computed and logged,** whichever one drives the gradient (the other without
+  gradient):
+  - the AUC of each on freshly collected sim transitions, scored before the model trains on them;
+  - the mean survival weight c at H under each, and the share of rollouts where they disagree (one
+    below 0.5, the other above);
+  - sim failures vs imagined failures of the same policy.
+- **Why compare.** Offline (M2) the head reached AUC 0.937 (0.872 on an unseen policy, 0.954 even on
+  true states), against 0.995 for the rule. The likely cause is that only 0.05% of transitions are
+  failures. Online it may do better (user's hypothesis): early training has many more failures. But late
+  training makes failures rare again, and the policy can exploit the head's false negatives.
+- **Run the rule variant** (M4 ablation) if the head's online AUC stays below the rule's, or if sim
+  failures clearly exceed imagined ones.
+
+**D32. Analytic heads read the training env (M3, `rl/heads.py`).**
+- **What they compute, from the predicted state:** reward r̂ (all reward terms, with the env's weights,
+  stds and dt), the noise-free observation ō (Table A.1, per-term 10-frame history in the env's layout,
+  calibration offset from ξ), the goal, the critic input (D7), the failure rule, and the clip end.
+- **Unsupported terms raise.** An env term without an analytic head stops the run, so imagination
+  never silently optimizes a different objective than the simulator.
+- **Parity is tested, not assumed** (`test_heads.py`): along random-action rollouts with resets, the
+  heads on the true states match the env's goal, critic input and 10-frame proprioception to 1e-4, its
+  reward to 1e-5, and its failure and clip-end flags exactly.
+
+**D33. Online replay rows (D9 implemented, `rl/replay.py`).**
+- **One row per state.** A transition row holds the state and executed action. When an episode ends,
+  its terminal state is written as an extra row without an action. Windows are k consecutive
+  transition rows plus the next row, so they never span two episodes, and no next-state copy is
+  stored. About 2.3 GB at 4096 envs × 1000 rows.
+- **Imagination starts** are transition rows. Their 10 history rows are rebuilt into observations
+  with fresh sensor noise. Rows before the episode's first row repeat it, like the env's backfill;
+  the env copies one noisy frame there, while imagination draws noise per frame.
+
+**D34. Normalization (paper silent).**
+- **Actor and critic:** running statistics of the sim observations during collection, as in PPO-Sim.
+  Inside imagination they are fixed and differentiable.
+- **World model:** running mean/std over every collected transition (D4). Policy steps never change
+  them.
+
+**D35. Motion data from the CLI, one transferable dataset folder (user, 2026-10-23).**
+- **Dataset folder** `kangaroo_bones_seed/dataset/` (README inside) holds everything:
+  - `manifest.parquet`;
+  - `motions/<date>/<clip>.pkl`, the retargeted GMR pickles;
+  - `libraries/<subset>/`, the packed training libraries (clips.json, qpos.npy, qvel.npy).
+  Copy it with rsync, or download it from the motion browser: the motions zip, or each library file
+  resumably. `data/` stays the dataset pipeline's workspace; its old paths are symlinks into
+  `dataset/`.
+- **CLI options of the motion command:**
+  - `dataset`: that folder; relative paths are resolved against the working directory.
+  - `subset`: `smoke`, `dev` (2.5 h), `full`, or a number of hours (`10`, `10h`).
+  - `library_path`: an already packed folder; overrides both.
+- **Packed on first use** into `<dataset>/libraries/<subset>`. The pack is written to a temporary
+  folder and renamed when complete, so an interrupted pack never looks valid.
+- **Hour subsets** are stratified by category like `dev` (`dev` = `2.5h`) and nested (1 h ⊂ 10 h ⊂
+  40 h), for the M5 data sweep.
+- **Run configurations:**
+  - local `dev`: bf16 and replay 500 (D16);
+  - cluster `dev` and `full`: the paper's settings (TF32, replay 1000). `full` puts the 13.9 GB
+    library on the GPU.
+- **Resuming:** `scripts/supermimic/train.py` resumes the newest checkpoint of runs with the same
+  `--agent.run-name`.
+
+**D36. Judge and keep SuperMimic checkpoints by the benchmark (M4, 2026-10-24).**
+- **Why:** M4's training oscillates, so the last checkpoint is often in a collapse (0.684 vs the best
+  0.832). Training-time signals mix failures and sampled starts.
+- **How:**
+  - Benchmark every checkpoint with `eval.py` (1296 `dev` clips, about 2 min each).
+  - Report the best one together with the share of late checkpoints in a collapse.
+  - Compare runs at equal training hours, never at equal iterations.
+- **Revisit when** training is stable. The paper's exact settings did not stabilize it (cluster run,
+  2026-10-25: collapses up to 1287 failures at 8.8 h; the last checkpoint is good, but it comes 1 h after
+  a dip). D36 stays.
+- **Cluster runs:** the checkpoints are copied to helium and benchmarked on the local GPU, with the same
+  protocol and no cluster budget (`m4/cluster_runs.md`).
+
+**D37. Compile the imagination step and the world-model loss (user, 2026-10-25).**
+- **Why:** a profile of one local policy update (1.09 s) shows about 70,000 small aten calls and
+  1.1 s of CPU time. The update is bound by launching kernels, not by the GPU. The reproduction compiles
+  the same step and measured 4.5×.
+- **How:**
+  - `make_step` is one imagined step as a function of tensors only; the sensor noise is sampled
+    outside and passed in.
+  - `torch.compile(dynamic=False)` on that step and on `window_loss`. The loop over H stays in Python.
+  - One flag, `--agent.compile` (default on; replaces `compile_kinematics`), covers the kinematics
+    too.
+  - A test checks that the traced step and loss (`aot_eager`) give the eager rollout, objective, loss
+    and gradients.
+- **Measured on a Leonardo A100 (TF32, smoke test):** 1.12 s per iteration against 1.78 s uncompiled
+  (policy 1.37 → 0.77 s, world model 0.25 → 0.19 s); one-time compile of about 12 min (7 graphs). It is
+  1.6×, short of the reproduction's 4.5×: the backward pass, the critic fit and the eager parts of the
+  loop remain. More speed work is open (CUDA graphs, compiling the critic fit).
+- **Also removed** the unused "fp32" precision: only the paper's TF32 and local bf16 remain (user: no
+  fp32 option).
+- **Known limit:** locally, the compiled update's memory cache leaves too little for MuJoCo Warp
+  (simulator out of memory at 16 GB). The stability runs therefore go to Leonardo.
+
+**D38. Stability study (user, 2026-10-25, `m4/stability.md`).**
+- Five 12 h runs on Leonardo in parallel, with the paper's settings: a second-seed baseline and four
+  one-change ablations. The four are no critic, a failure head on the rule's features, a
+  survival-weighted critic loss, and no privileged critic inputs.
+- Their switches default to the paper's behavior and are removed after the study, except the change
+  we adopt.
+- A diagnostic, `scripts/supermimic/reward_extremes.py`, splits imagined rewards and the critic's error
+  at the predicted fall. Every run now logs the imagined reward's extremes.
+
+**D39. Default: the failure head on the rule's features and a survival-weighted critic loss (user,
+2026-10-25; stability ablations A2' and A5).**
+- **Why:**
+  - Early in training the 256×256 head on the full state ranks failures worse than chance, so imagined
+    falls keep their survival weight.
+  - After a fall the world model extrapolates, the joint-limit penalty explodes, and the post-fall steps
+    flood the policy objective and the critic.
+  - The runs where this happened (old baseline, A6, A1) had a critic blow-up in their first 3,000
+    iterations and took off about 3,000 iterations later. They are the runs that spiked afterwards.
+  - The 64×64 head on the rule's two errors learns failure almost at once (A2'). Weighting the critic's
+    loss by ĉ_t keeps post-fall steps out of its fit (A5).
+  - Each prevented the blow-up in its 12 h run, and both stayed stable through 6 h.
+- **How:** `WorldModelUpdateCfg.termination_inputs = "rule"` with `termination_hidden = (64, 64)`, and
+  `CriticUpdateCfg.survival_weighted = True`.
+- **Paper variants:**
+  - `--agent.algorithm.world-model.termination-inputs state --agent.algorithm.world-model.termination-hidden 256,256`
+  - `--agent.algorithm.critic.survival-weighted False`
+- **Deviations:** A5 deviates from the paper's unweighted Eq. 3. A2' keeps a learned head (the paper does
+  not state its input).
+- **Confirmed 2026-10-26** by the benchmark of every checkpoint: A2' and A5 trained with no collapse and
+  reached tracking return 0.89 with 2–4 failures. The old baseline collapsed 3 times over the same iterations
+  (`m4/stability_report.pdf`).
+
+**D40. Dataset review: two infeasible clips removed (user, 2026-10-25).**
+- **Which:**
+  - `230119/crouch_ff_stop_270_002__A125_M`: reference about 23 cm below the ground for the whole clip.
+  - `221115/walk_ff_loop_315_006__A061`: 6.4 cm below the ground in its first second.
+- **Why:** every good SuperMimic and PPO-Sim policy failed them. The other persistently failing clips
+  are hard (jumps, a dance), not infeasible.
+- **How:** `kangaroo_bones_seed/pipeline/review_excluded.json`, applied in `build_manifest.py`
+  (`final_kept` false, `review_excluded` and `review_note` set).
+  - `bones_to_library` draws subsets before removing reviewed clips, so `dev` is the same clips minus
+    these two (1,294), and `full` has 124,077.
+  - The earlier `dev` is kept as `dataset/libraries_archive/dev_1296`. Benchmarks comparable with
+    M1–M4 and the stability runs use it: `eval.py --library .../libraries_archive/dev_1296`.
+
+**D41. CUDA graphs on the compiled imagination step and window loss: measured, not adopted
+(2026-10-25/26).**
+- **Why:** after D37 the update was still launch-bound. A local profile showed CPU time equal to wall
+  time, with each compiled step launching hundreds of small kernels (the kinematics chain).
+- **How:** `torch.compile(mode="reduce-overhead")` on the step and the window loss. Each call replays a
+  recorded CUDA graph. Same flag (`--agent.compile`).
+- **Measured on a Leonardo A100** (TF32, 4096 envs, one debug job per variant;
+  `scripts/supermimic/bench_update.py`):
+
+  | variant | policy update | world-model update | vs eager (objective / gradient) |
+  |---|---|---|---|
+  | compiled (D37) | 0.94 s | 0.21 s | 5e-7 / 7e-5 |
+  | + fused Adam | 1.11 s | 0.19 s | 6e-7 / 7e-5 |
+  | + CUDA graphs | **0.34 s** | **0.15 s** | 5e-7 / 1.4e-4 |
+  | + both | 0.33 s | 0.15 s | 6e-7 / 8e-5 |
+
+  So about 0.65 s per iteration instead of about 1.1 s would be possible. Fused Adam adds nothing and is
+  not used.
+- **But in the training loop it hung.** The 24 h full and dev runs with it (commit 8f68e36) logged no
+  iteration in 2 h: the process sat at 100% CPU with the GPU idle and 28 GB allocated. PyTorch warned
+  "Unable to hit fast path of CUDAGraphs because of pending, uninvoked backwards". The benchmark runs
+  only the updates, without the collection, evaluation and logging around them, and did not show this.
+  The runs were cancelled and resubmitted with the default compile mode (D37).
+- **To make it work later:** reproduce in the full `learn` loop on a short debug job. Likely candidates:
+  `torch.compiler.cudagraph_mark_step_begin()` at each iteration, and graphs pending across the
+  world-model and policy updates. Verify with `bench_update.py` and a few hundred training iterations.
+
+**D42. Second robot variant: Kangaroo with 5-DoF arms and Seed Robotics hands (user, 2026-10-26).**
+- **Tasks.** `Mjlab-SuperMimic[-PPO]-Flat-Pal-Kangaroo-Hands[-ArmWaist1Hz]` are the grippers tasks with
+  only the robot, the tracked hand body and the dataset swapped (`kangaroo/env_cfgs.py`, `VARIANTS`).
+  - The grippers tasks are unchanged: their env configs compare equal to the previous commit's.
+  - Hands runs log under `kangaroo_hands_supermimic[_ppo]`, so resuming by run name never loads a
+    grippers checkpoint.
+  - Sizes are the grippers': 32 joints, 28 actuated. The Seed wrist's two joints take the place of arm
+    joints 6–7.
+- **The arm is the G1's: shoulder 3, elbow, forearm roll, 2-DoF wrist** (user). `arm_*_1..5` are the
+  7-DoF arm's joints 1–5. The RH8D's spherical wrist has rotation, adduction and flexion (Seed actuators
+  1–3); its rotation is bypassed, since `arm_*_5` rolls the forearm. Its adduction and flexion are
+  `hand_*_palm_roll_joint` and `hand_*_palm_pitch_joint`: PAL's axes and ±0.785 rad, which PAL had
+  commented out. Both axes cross the forearm and meet at the wrist centre (`hand_*_palm_base_link`).
+  The fingers stay fixed, straight.
+- **Robot (`kangaroo_hands.xml`).** Everything up to the forearm roll is the 7-DoF's.
+  - Legs, feet, torso and arms 1–4 already matched `kangaroo_grippers.xml` and `kangaroo.xml`: bodies,
+    joints and collision geoms are equal.
+  - `arm_*_5` now has the 7-DoF's axis (+z, D3) and range (−3.665..1.571 rad, mirrored on the right).
+    PAL's file had −z and ±1.57.
+  - The wrist is actuated with the 7-DoF wrist's values (XS, `KANGAROO_SEED_WRIST_ACTUATOR_CFG`; user; superseded by D50):
+    the RH8D docs give no servo data. This also changes PAL's hands reaching and tracking tasks on this
+    branch (2 more actions per arm, `csv_to_npz`'s joint list).
+  - **Masses** are PAL's (user). The datasheet gives only 620 g in total. PAL's model has 168 g of hand
+    bodies plus a 738 g `arm_*_5_link` that lumps PAL's arm-5 flange, the Seed adaptor and the RH8D
+    forearm with its actuators. If the flange weighs what the 7-DoF's arm-5 link does (348 g), the RH8D
+    comes to about 558 g.
+  - **Collisions added.** The file had none below the elbow, so hands passed through the body and the
+    legs. Added: a forearm capsule (radius 44 mm), a palm-and-fingers box and a thumb capsule. They are
+    class `collision` (density 0), so the bodies' masses are unchanged. The palm/forearm pair is excluded
+    because they overlap at the wrist.
+  - **`hand_*_center_link`:** a massless frame at the middle of the hand (the centre of the palm and
+    straight-finger bounding box), oriented like the palm.
+- **Tracked body.** The G1 `wrist_yaw_link` slot (D25) is `hand_*_center_link`, the frame the retarget
+  matches to the middle of the G1 hand. It moves with the Seed wrist, as `arm_*_7_link` does with the
+  7-DoF wrist.
+- **Data.** `kangaroo_bones_seed/dataset_5dof`, retargeted with GMR branch `bones-seed-kangaroo` (the 7-DoF's too).
+  - GMR's `kangaroo_hands.xml` is generated from `kangaroo_7dof.xml`
+    (`kangaroo_bones_seed/pipeline/make_gmr_models.py`), so legs and arms 1–5 are the reviewed model's. Both
+    GMR models carry pal_mjlab's collision geometry.
+  - The IK config is the 7-DoF one with the wrist row (same weights) on `hand_*_center_link` ← the middle
+    of the G1 hand. Since 2026-10-27 the IK also keeps the robot out of itself and the feet above the
+    floor, and weights the torso orientation 100 (kangaroo_bones_seed REPORT.md section 7).
+  - On 85 clips, joints 1–4 reach their limits as often as on the 7-DoF (within 0.2 points). The upper
+    arm is 9–10° off the G1 (7-DoF: 9–10°) and the hand 4.4°.
+- **History.** The first version (same day) kept the wrist fixed, with arm 5 at ±1.57. The hand's
+  orientation then had to come from joints 1–5: the elbow and forearm roll took it on, and joint 5 lost
+  its 7-DoF range. The user pointed out that joints 1–5 must behave as on the 7-DoF and the wrist belongs
+  on the Seed hand.
+- **Tests.** Every SuperMimic test that touches the robot runs on both variants: FK parity, the
+  GMR-model check on 3 real clips (shared bodies to 0.0 m) and the env tests.
+  `tests/supermimic/fixtures/make_fixtures.py` builds the fixtures. `bones_3clips.npz` was caught by the
+  repo's `*.npz` ignore and existed only on the machine that made it; both fixtures are now committed.
+- **Revisit if:** PAL gives the RH8D wrist servos' torque and armature, measured hand inertias or the
+  wrist's real range, or the fingers get actuated.
+
+**D43. Play chosen clips of a library: `--env.commands.motion.clips` (2026-10-26).**
+- `MotionLibraryCommandCfg.clips` takes clip names as in `clips.json` (e.g.
+  `230324/flip_360_001__A304`) and loads only their frames (memmap rows). That way one motion of the
+  14 GB `full` library plays without loading the rest.
+- It's for the downloads of the motion browser: a playable single motion, and a training subset.
+- Empty (the default) means every clip, so training is unchanged.
+- **Entry points.**
+  - `scripts/supermimic/play.py` is mjlab's `play` plus `--library` and `--clips`. mjlab's `play`
+    loads the registered play config with no overrides, so the README's earlier
+    `play ... --env.commands.motion.dataset` could not work. Clips are plain names
+    (`--clips a/b c/d`): mjlab's flags would parse a tuple as a Python literal.
+  - `scripts/supermimic/view_motion.py` replays clips kinematically, as retargeted, with no policy. It
+    picks the robot whose joints match the library's.
+  - Checked end to end, with the viewer replaced by 100 policy steps: one clip read out of the 14 GB
+    `full` library (358 frames) with a SuperMimic checkpoint, and the hands task with the zero agent.
+
+**D44. Constraint buffer `njmax` 300 → 1024 per world (user, 2026-10-26).**
+- Commit bc44e76 called this D42; D42 and D43 were taken on the 5-DoF branch, merged since.
+- **Why:** the `full` run collapsed to NaN at iteration ~44,620 (17.5 h in). Within 10 iterations the
+  world model, critic and actor were all NaN (checkpoints from 45,000 on; 44,000 is clean). MuJoCo Warp
+  had warned "nefc overflow - please increase njmax" all run long, about 250 times per 100 iterations,
+  asking for up to 636 rows; `dev` warned 263 times in its whole run. Rows beyond `njmax` are dropped,
+  which gives wrong contact physics, and a single non-finite state in the replay poisons every network
+  in one update. The overflow is the likely cause, not proven.
+- **How:** `njmax=1024` in `supermimic_env_cfg.py` (about 0.6 GB more GPU memory at 4096 worlds). No
+  guard on non-finite updates (the user chose the fix over a guard).
+- **Run:** `full` resumed from `model_44000` for 24 h more (`SMfull2`, `../m5/runs.md`); the NaN
+  checkpoints are in the run's `nan_quarantine/`.
+- **Revisit:** if overflow warnings or a NaN come back, add the guard and find the non-finite source.
+
+**D45. One interface for motions: the motion library, `--library` to train and to play; no reset on
+failure in play (user, 2026-10-26).**
+- **Why:** the user asked for consistent formats and clear interfaces: whatever the motion browser
+  downloads must work for training and for playing, with an optional clip.
+- **The format** is the motion library already used for training (D11): `clips.json`, `qpos.npy`,
+  `qvel.npy`. The motion browser now offers only libraries (smoke, dev, full, the list's motions, one
+  motion), cut from `libraries/full`.
+- **Train:** `scripts/supermimic/train.py <task> --library <folder>` (sets
+  `env.commands.motion.library_path`). The `dataset`/`subset` fields stay for packing and for the cluster
+  job scripts, but the docs show `--library` only.
+- **Play:** `scripts/supermimic/play.py <task> --checkpoint-file <model> --library <folder> [--clips ...]`,
+  nothing else (D43's version took all of mjlab's play flags). Without `--clips` the library's motions play
+  in random order, one after another; with it, only those.
+- **No reset on failure in play:** `anchor_failure_held` ends an episode only after the failure has
+  lasted 3 s, so a fall plays out in physics instead of the robot reappearing on the reference. Training and
+  the benchmark keep `anchor_failure` (paper F.1).
+- **Superseded in part by D52:** training runs with `uv run train <task> --env.commands.motion.library-path
+  <folder>`, the only way to name the motions; `play.py` keeps `--library` and `--clips`.
+
+**D46. Hands: the elbow capsule no longer collides with the palm on the same arm (user, 2026-10-27).**
+- **Finding** (5-DoF session): `arm_*_4_collision` in `kangaroo_hands.xml` is copied from the 7-DoF model,
+  where it covers the 7-DoF forearm. On the 5-DoF arm it reaches the Seed palm when the wrist rolls: 18.5 mm
+  of overlap at `hand_left_palm_roll_joint` = −0.785. MuJoCo only skips parent-child pairs, and the palm is
+  two bodies below `arm_*_4_link`, so the contact was generated.
+- **Size:** on `dataset_5dof/libraries/dev` (every second frame) the palm overlaps the elbow capsule in
+  4.8% of frames, in 425 of 1,193 clips, up to 33.9 mm deep. With self-collision on (`FULL_COLLISION`),
+  training would block these real reference poses.
+- **Fix:** `<exclude body1="arm_*_4_link" body2="hand_*_palm_link"/>`, next to the arm 5/palm excludes.
+  The pair excludes the palm's thumb too (89 frames). Crossed arms still collide with the other hand.
+- **Test:** `test_hand_does_not_collide_with_its_elbow` (seeded arm and wrist poses, both roll limits);
+  it fails without the exclude.
+- **Affects** only the hands variant, which has no training run yet; the grippers model is unchanged.
+
+**D47. The 7-DoF data re-retargeted and replaced; the first set archived (user, 2026-10-27/28).**
+- **Why:** the first 7-DoF set (PAL's SMPL-X config and `fix_ankles.py`, 2026-10-22) predates the GMR fixes
+  made for the 5-DoF set. On 1,000 random clips in our collision model: a self-penetration over 1 cm in 30.6% of
+  frames (24.4% arm into leg), a foot over 1 cm in the floor in 28.2%. Wrist joint 7 sat at a limit in 18-19%
+  of frames: GMR's `arm_*_tip_link` was turned 45° from ours, and the wrist target paired the G1 thumb with the
+  gripper's jaws. The M5 `full` run's sampler concentrated on impossible clips of it (`m5/report.pdf`).
+- **New set** (`kangaroo_bones_seed/dataset/`, GMR `bones-seed-kangaroo` 0a53c94): GMR's model has our grippers
+  and wrist frame (same FK as `kangaroo_grippers.xml` for every shared body); the wrist target pairs fingers with
+  fingers and the palm normal with the jaw axis; collision avoidance, the clip's own floor, torso weight 100,
+  the IK limits applied. The QA also drops clips with any collision shape more than 5 cm in the floor.
+  119,085 motions, 233.5 h (was 124,077, 250.9 h); `dev` 1,272 clips, `full` 119,085.
+- **Result** (same 1,000 clips): self-penetration 0.49% of frames, floor 5.4%; joint 7 at a limit 0.7/1.7%.
+- **The first set** is in `kangaroo_bones_seed/archive/7dof_v1_2026-10-27/`. Every run before this date trained
+  on it, and the M1-M5 benchmarks used its `dev`: compare old checkpoints there, not on the new `dev`.
+- **Revisit:** if the 5 cm floor rule drops motions we need (most rejects are feet at toe-off and palms reaching
+  down).
+
+**D48. ONNX export of the policy for the robot: one library-free file per checkpoint (user, 2026-10-27).**
+- **Why:** the user needs ONNX policies to run SuperMimic on the real robots, as the other tasks have.
+  WBC's export bakes one clip into the file (LEARNINGS: not reused); the user chose the policy alone
+  (ROADMAP "Later"), so one file runs any motion and the robot builds the goal.
+- **The file** (`rl/export.py`): the actor (observation normalizer, goal encoder, decoder), input `obs`
+  (1, obs_dim) = [goal, proprio], output `actions`; joint targets `action_offset + action_scale * actions`.
+  Metadata (mjlab's key names where they exist): joint names, default positions, action joints, scale,
+  offset and gains, per observation term its name, dims per step and history length, the proprio joints,
+  the IMU site, K and the goal joints. Proprio history is oldest first and starts filled with the first
+  observation.
+- **The goal builder** is `state.reference_goal`, now the only copy of the goal: the env's command and the
+  imagination heads call it too.
+- **When:** `SuperMimicRunner.save()` writes `model_N.onnx` next to every `model_N.pt` (35 MB vs 213 MB), so
+  the best checkpoint picked after benchmarking has its file; an export error is printed and training goes
+  on. `scripts/supermimic/export_onnx.py <task> --library <folder> <checkpoints>` exports older ones.
+- **Checks:** `tests/supermimic/test_export.py` (both robots): ONNX (onnx's reference runtime) equals the
+  actor on recorded env observations; the metadata adds up to the observation; the goal rebuilt from the
+  library, and the newest proprio step from the robot state, equal the env's; the history shifts oldest
+  first. On the 7-DoF dev run's model_70000, 100 closed-loop steps: max difference 1.6e-6.
+- **On the robot:** the reference must start at the robot's heading (episodes start on the reference):
+  rotate the motion about z so its first root yaw is the robot's.
+
+**D49. One log folder: every SuperMimic run in `logs/rsl_rl/supermimic/`, run names start with the robot
+(user, 2026-10-28).**
+- **Why:** the user downloads and tracks jobs by their log folder. Each study had its own experiment name
+  (`supermimic_d39`, `supermimic_d39_hands`, `supermimic_stability`, `supermimic_wm_1hz`, ...), and the defaults
+  were one folder per robot.
+- **Now:** every SuperMimic task logs to `supermimic`, the PPO-Sim baseline to `supermimic_ppo`; no job passes
+  `--agent.experiment-name`. The launcher puts the robot in front of the run name (`grippers`, `hands`):
+  `--agent.run-name full-24h` on a Grippers task logs to `supermimic/<time>_grippers-full-24h/`. Resuming
+  matches the run name, so it never picks up the other robot's checkpoint; a new clean run needs a new name.
+- **Earlier runs stay where they are** (the docs and dashboards point there).
+- **Superseded in part by D52:** the launcher is gone; the default run name is the robot, and named runs start
+  with it by convention.
+
+**D50. Hands: the Seed wrist gets its servo's estimated values, not the 7-DoF wrist's (user, 2026-10-29).**
+- **Why:** the wrist servos are Hitec HS-5245MG (PAL), not the 7-DoF's XS actuators. D42's placeholder
+  (armature 0.203 kg·m², 25 Nm) is about 13× heavier and 25× stronger than the real joint. The real hand's
+  driver and PAL's sim cap the wrist at 1 Nm.
+- **Values (`SEED_WRIST`, estimates until identified):**
+  - **Effort 1 Nm:** HS-5245MG stall is 0.43–0.54 Nm; the 0–4095 encoder range spans the joint's 90°, so a
+    ~2:1 linkage is assumed (about 1 Nm at the joint).
+  - **Armature 0.015 kg·m²** = rotor inertia × (gear ratio)²: ~200:1 servo gearbox (no-load
+    0.12–0.15 s/60° against a 12–18k rpm 3-pole motor) × the 2:1 linkage, rotor ~0.94 g·cm². Range
+    0.005–0.025. The hand's own inertia about the wrist axes is ~0.5–0.8 × 10⁻³ kg·m².
+  - **No friction or viscous damping**, as before.
+- **Gains** follow from D26's rule:
+  - At 1 Hz (`-ArmWaist1Hz`): Kp 8.014 → 0.594 Nm/rad, Kd 5.102 → 0.378, action scale 0.78 → 0.42 rad.
+  - At 3.5 Hz: Kp 7.274, Kd 1.323, action scale 0.034 rad.
+  - At 1 Hz the wrist's own weight (~0.09 Nm) sags it ~0.15 rad under Kp alone.
+  - As in D42, this also changes PAL's hands tasks (velocity, reaching, tracking) on this branch, which use
+    the same articulation.
+- **PAL's sim follows:** its 5dof RH8D MJCF has the same armature and no friction on the palm joints
+  (kangaroo_mujoco). Its palm joints keep the URDF's 0.1 N·m·s/rad passive damping, which training does not
+  have.
+- **Revisit** when the wrist is identified on the robot (the RH8D driver's `servo_stiffness` calibration
+  gives the linkage), or if the 1 Hz wrist tracks too loosely.
+
+**D51. Hands: the robot's URDF is authoritative for joint ranges and axes: arm 5 ±1.57, right wrist roll mirrored
+(user, 2026-10-29).**
+- **Why:** an audit of the 5-DoF models (`kangaroo_5dof_mjcf_audit.pdf`: training, retargeting, PAL's sim built from
+  the robot's URDF) found training and retargeting identical to each other, but two differences from the URDF:
+  - `hand_right_palm_roll_joint` had axis `0 0 -1` like the left; the URDF mirrors it (`0 0 1`, its xacro's
+    `-reflect`, pal_rh8d ebb854e). The kinematics are the same with `q_URDF = -q_old` (default 0, symmetric range),
+    so a policy trained here would send the opposite command to the real right wrist.
+  - `arm_*_5_joint` had the 7-DoF's range (D42: −3.665..1.571, mirrored); the 5-DoF robot's is ±1.5708. About 2 %
+    of the library's frames (7.4 % of clips) went beyond it.
+- **Now:** `kangaroo_hands.xml` has both from the URDF. The 7-DoF models are unchanged. GMR's hands model takes the
+  axes and ranges of arm 5 and the wrist from this file (`make_gmr_models.py`, GMR 828e5f5).
+- **Data:** the 5-DoF set is retargeted again with it, since the arm-5 range changes the IK. On the 487-clip
+  benchmark, clips that never reach the new limit come out identical but for the right roll's sign; the 28 that
+  went beyond ±1.57 track the G1 hand 0.1–0.4° worse (median); collisions, floor, torso and QA are unchanged. The
+  first 5-DoF set (and the runs trained on it, `supermimic_d39_hands/`) is archived, as the 7-DoF's (D47).
+- **Fixtures:** `library_tiny_hands` and `bones_3clips_hands.npz` regenerated from the new retarget (they still
+  held the first D42 retarget). `test_bones_clips_match_gmr_model` fails with data of the old convention.
+- **The wrist actuator** is D50's. Not changed here: the leg slide's lower limit (URDF 0.141 vs 0.132 m; 0.05 % of
+  frames below) and the base/pelvis masses (URDF +2 kg), both shared with the 7-DoF.
+
+**D52. One branch for the merge request: `feat/supermimic` from `main`, SuperMimic only, run like every pal_mjlab task
+(user, 2026-11-02).**
+- **Why:** the user opens a merge request to `main`. The development branch sat on MAC/WBC (54 of its commits were
+  Manuel's, unmerged) and carried every experiment's task, script and switch. This branch replaced it, and it was
+  deleted.
+- **Content:** the SuperMimic task, its tests and docs, the library converter, the `supermimic` dependency group
+  (pyarrow), and the robot-model fixes it needs:
+  - the 7-DoF arm 5 and 7 about +z, as PAL's URDF (audited: `audit/kangaroo_7dof.md`; guarded by
+    `tests/test_kangaroo_arm_axes.py`);
+  - Manuel's gripper collisions and the `arm_*_tip_link` frames;
+  - the hands model of D42, D46, D50 and D51. The hands velocity tasks give the two new wrist joints the other
+    wrist joints' pose stds.
+  - Nothing of MAC/WBC's own task, scripts or tracking/velocity edits.
+- **Tasks, two per robot:** `Mjlab-SuperMimic-Flat-Pal-Kangaroo-{Grippers,Hands}` and the PPO-Sim baseline
+  `Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-{Grippers,Hands}`. The arm/waist setting (D27, D55) and the reward (D53, then
+  D57) are their defaults; `-ArmWaist1Hz`, `-Tight` and `-ArmWaistScale1Hz-Tight` are gone.
+- **One place for the arm/waist actuators of both robots:** `ARM_WAIST_GAIN_FREQ_HZ` (1.0) and
+  `ARM_WAIST_ACTION_SCALE_FREQ_HZ` (None: the gains') in `tasks/supermimic/kangaroo/env_cfgs.py` (None and 1.0 since
+  D55). The action scale
+  rule is `kangaroo_constants._build_action_scales`.
+- **Launch with mjlab's CLI, like the velocity tasks:** `uv run train <task>` and `uv run play <task>`. A run resumes
+  with `--agent.resume True --agent.load-run '.*_<run name>'`. The resumable launcher `scripts/supermimic/train.py`
+  and its run-name prefix are gone.
+- **One way to name the motions:** `--env.commands.motion.library-path <folder>`, a motion library. Without it the
+  tasks read `artifacts/kangaroo_bones_seed/dataset[_5dof]/libraries/dev`, relative to the working directory, since
+  `uv run play` takes no override. `dataset`, `subset` and packing on first use are gone (D35, D45);
+  `bones_to_library.py` packs `smoke`, `dev` or `full` from a required `--data-dir`, choosing the same clips as before
+  (checked against the built libraries of both robots).
+- **Logs (D49):** `logs/rsl_rl/supermimic/` (PPO-Sim `supermimic_ppo/`). The default run name is the robot
+  (`grippers`, `hands`). Named runs start with the robot by convention (`--agent.run-name grippers-final-48h`).
+- **Tools, as modules** (`uv run -m pal_mjlab.scripts.supermimic.<tool>`):
+  - `eval`: the benchmark;
+  - `play`: replay chosen clips of a library, the fall held 3 s (D45). The benchmark reads the play config's
+    immediate failure, so the held failure stays out of it.
+  - `view_motion`: the motions as retargeted.
+  - Training writes the ONNX policy next to every checkpoint (D48).
+- **Removed:**
+  - the M0–M4 research scripts: `bench_*`, `collect_rollouts`, `train_world_model`, `eval_world_model`,
+    `grad_check`, `m3_check`, `reward_extremes`, `run_gain_ab.sh`, `compare_evals`, and `export_onnx` (for
+    checkpoints saved before D48);
+  - the offline-data code (`RolloutData`, `set_normalization`, `load_world_model`);
+  - the stability study's logging (`extreme_*`, `reward_min`, `action_rate_min`, `joint_limit_min`, `action_max`), and
+    the hour subsets of the data sweep the user set aside;
+  - from the docs, the milestone reports `m0/`–`m5/` and `ROADMAP.md`. This branch keeps the README, DECISIONS,
+    LEARNINGS, `tight/report.md` and `audit/`.
+  - the switches of settled studies, each now fixed to its decision:
+    - failure head on the rule's features (D39, A2');
+    - learned failure head in the survival weight (D31; the rule's AUC is no longer logged);
+    - survival-weighted critic (D39, A5);
+    - privileged critic inputs (D7, A6);
+    - the world model predicting state changes;
+    - the actor initialized from a PPO-Sim checkpoint;
+    - uniform start sampling (the return-based sampler, or clip starts for evaluation).
+  - The paper's own ablations stay: `--agent.algorithm.policy.use-critic False`,
+    `--agent.algorithm.policy.horizon`.
+- **Checkpoints of earlier runs** play and benchmark unchanged (only the actor is read). Their world model does
+  not resume here.
+- **No regression:** the consolidation changed no behaviour. A fingerprint of both robots (every config, the env's
+  rewards over 30 random steps, and the actor, critic and world-model parameters after 6 training iterations, CPU,
+  fixed seeds) was bit-identical to the tasks it replaced, then with D53's reward (`-ArmWaist1Hz-Tight`). D55 and D57
+  changed the defaults afterwards, each checked the same way.
+
+**D53. Tight tracking is the reward (user, 2026-11-02).** Superseded by D57.
+- **Why:** on the real robot the 5-DoF policy slid its feet and did not stand still. The references are not the
+  cause: a planted G1 foot moves 0.6 cm/s on the 5-DoF Kangaroo (G1 0.3). In the paper's reward a sliding foot
+  barely counts, because its error is averaged with the other 13 bodies'.
+- **The reward** (`supermimic_env_cfg.py`):
+  - the six tracking stds halved (root 0.15 m / 0.2 rad; bodies 0.15 m / 0.2 rad / 0.5 m/s / 1.57 rad/s);
+  - `motion_feet_pos` (std 0.05 m) and `motion_feet_lin_vel` (std 0.1 m/s) on the feet (`leg_*_5_link`),
+    weight 1 each.
+  - The env, the imagination heads and the pure reward use the same body subset (`bound_error`).
+- **Evidence** (`tight/report.md`, 5-DoF, 48 h each, one A100):
+  - Legs 3.5 → 1.8 cm, arms 3.5 → 2.9 cm, 0 failures.
+  - Root drift while the reference stands still −29 %.
+  - Better on 69 % of clips.
+  - The user judged it proven on the real robot at the time. D57 withdraws that.
+  - Simulated foot slide is unchanged (≈ 2.3 cm/s); measuring sole slip is the next step there.
+- **Not comparable:** the benchmark's `tracking_return` now sums eight terms, so it cannot be compared with
+  earlier runs. Failures, rmpkpe, joint errors and the foot metrics can.
+
+**D54. The final 7-DoF data: no somersaults, one exclusion list for both sets; the model audited against the
+URDF (user, 2026-11-02).**
+- **Why:**
+  - Before the SMgrippers run collapsed at 85.5k, the somersaults (`flip_*`) drew 17 % of its training starts:
+    the sampler's hardest bins, clips the robot cannot do.
+  - The 5-DoF set had left them out since 10-29 through its own list.
+- **Data:**
+  - All 44 flips are in `kangaroo_bones_seed/pipeline/review_excluded.json`, one list for both sets.
+  - The 7-DoF set is rebuilt from the same motions: **119,062** motions, 233.5 h (23 flips out).
+  - `dev`: 1,272 clips. 7 clips differ from the 10-28 `dev`: the flips the QA had already rejected are now marked
+    reviewed and enter the subset draw. Re-benchmark older checkpoints on it before comparing.
+  - No library holds a flip; every arm joint of `full` is within the model's ranges.
+  - The 10-28 libraries: `kangaroo_bones_seed/archive/7dof_v2_flips_2026-10-28/`.
+- **Model** (`audit/kangaroo_7dof.md`), audited against the chain of PAL's URDF xacros (pal_sea_arm humble-devel):
+  - Every arm link and the tool link of `kangaroo_grippers.xml` and GMR's `kangaroo_7dof.xml` match within
+    0.001 mm and 0.000°, over 3,000 library poses and 3,000 uniform samples of the ranges.
+  - Ranges and zero-pose axes match. Arm 5 and 7 turn about +z, arm 6 about −z.
+  - `main`'s −z model fails the same audit (180°, the tool up to 198 mm off).
+  - Not changed: the URDF's 43 N·m effort for arms 1–7 (ours: PAL's identified 50 / 25 N·m, #119).
+- **Known limit of both sets:** the audit covers kinematics and joint ranges, not GMR's actuator limits. In GMR's models
+  `leg_right_1_actuator_position` has the left's `ctrlrange`, so the references' right hip yaw stays within ±0.262 rad
+  instead of −0.698..0.262 (7-DoF `full`: median left +0.330, right −0.239 rad). pal_mjlab's models are right. No
+  evidence that it hurts tracking, so no re-retarget.
+
+**D55. The robot's 3.5 Hz gains with the 1 Hz action scales, for both robots (user, 2026-11-04; B2).**
+- **Why:** B2 (`tight/report.md`) asked whether D27's 1 Hz arm and waist gains helped through the servo or through
+  the action scale α = 0.25·effort/Kp, which sets the exploration noise and the action-rate cost per radian.
+  - It trained the 5-DoF hands with every gain at 3.5 Hz (the robot's) and the 1 Hz runs' α.
+  - The result, 48 h each, scored in each run's own task: B2 has the tracking return of the 1 Hz run or better
+    (0.811 vs 0.785 at 146k, better on 89 % of clips), arm joint error 0.059 vs 0.070 rad, the same body errors and
+    0 failures.
+  - So the action scale was what mattered, and the robot keeps its own servo gains.
+- **Now:** `ARM_WAIST_GAIN_FREQ_HZ = None` (the robot's 3.5 Hz) and `ARM_WAIST_ACTION_SCALE_FREQ_HZ = 1.0`
+  (`tasks/supermimic/kangaroo/env_cfgs.py`), both robots.
+  - α in rad per unit: arm 1–2 and waist 0.66, arm 3–5 0.52; the wrist is 0.42 on the Seed hand, 0.78 on the 7-DoF
+    arm's joints 6–7. The legs are unchanged.
+  - These are B2's gains and action scales, bit-identical in the fingerprint of D52. B2's reward is not kept (D57).
+- **Cost to watch:** ~5× the arm torque rate (Δτ/τmax 0.099 vs 0.021) and 0.75 % arm torque saturation. Check it on
+  the robot (B2's `model_146000.onnx`). If it jitters, the fix is a torque- or action-rate penalty, not softer
+  servos.
+- **Gains must match:** a policy is scored, played and deployed with the gains it was trained with.
+  - Checkpoints from before D55 have 1 Hz arm, waist and wrist gains (12× softer). They need
+    `ARM_WAIST_GAIN_FREQ_HZ = 1.0` and `ARM_WAIST_ACTION_SCALE_FREQ_HZ = None` to benchmark or play.
+  - On the robot they need the 1 Hz gains. Each ONNX file carries its joint stiffness and damping in its metadata,
+    so the deployment takes the gains from there.
+  - The velocity head (D56, its own branch) pins the 1 Hz gains of its frozen B checkpoint.
+- **The 7-DoF arm has not been trained this way yet;** the final 7-DoF run is the first.
+- **Measured only under the tight reward:** "the action scale was what mattered" comes from B vs B2, both with D53's
+  reward. D57 keeps these gains and scales with the paper's reward, a combination with no benchmark yet.
+
+**D57. The paper's tracking reward again; the action scales stay (user, 2026-11-04).** D56 is the velocity head's, on
+its own branch.
+- **Why (user):** the lower stds and the feet-slide reward are unproven. No robot result for them is recorded, and foot
+  sliding in simulation did not change in any run (`tight/report.md`). The action scales earn their share, so they stay.
+- **Now, both robots:** the six tracking stds are Table A.2's (root 0.3 m / 0.4 rad; bodies 0.3 m / 0.4 rad / 1.0 m/s /
+  3.14 rad/s) and D53's feet terms are gone. So is the code they needed (`bound_error`, the `bodies` and `ids` params),
+  and the unused `tracking_reward_fn`.
+- **Stays:** D55's gains and action scales. Also the benchmark's `foot_slide`, `foot_slip` and `root_drift`: they are
+  metrics, not reward.
+- **What it gives back in simulation** (`tight/results.csv`, 5-DoF, both 1 Hz, mean of the checkpoints from 100k, B scored
+  in its own task). The feet terms and the halved stds were only tested together, so neither can be credited
+  separately:
+
+| | A (paper) | B (tight) |
+|---|---:|---:|
+| leg error | 3.6 cm | 1.86 cm |
+| arm error | 3.6 cm | 3.0 cm |
+| root drift while standing | 3.68 cm/s | 2.66 cm/s |
+| foot slide | 2.27 cm/s | 2.42 cm/s |
+| foot slip | 7.5 % | 6.7 % |
+| arm torque rate | 0.015 | 0.021 |
+
+- **Untested:** the paper's reward with the 3.5 Hz gains and 1 Hz action scales has no benchmark and no long run. A
+  new-default policy needs a new run.
+- **Older runs:** only the actor is read, so policies trained under D53 still play and benchmark in a task with their
+  gains: B2 in today's tasks, A and B with D55's note on 1 Hz gains. The training runs on the DCMR set (2026-11-04)
+  used D53's reward, so their numbers don't describe these defaults.
+- **Scoring:** `tracking_return` is on the paper's six terms again. It compares with A's, not with B's or B2's numbers in
+  the report, which are on D53's reward. Failures, body errors and foot metrics compare across all of them.
+- **Check:** the tasks are bit-identical to the code with D53's reward when its stds are set by hand to these and its
+  feet terms to weight 0, on both robots: rewards, the networks after 6 training iterations and the sampler state.

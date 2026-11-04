@@ -21,6 +21,17 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
+- **SuperMimic motion tracking for the Kangaroo with grippers and with hands.**
+  One policy tracks any motion of a large motion library (BONES-SEED retargeted
+  to Kangaroo, about 233 h). It is trained by backpropagating the tracking
+  reward through a world model learned online (arXiv 2610.28480).
+
+  - Adds ``Mjlab-SuperMimic-Flat-Pal-Kangaroo-{Grippers,Hands}`` and a PPO
+    baseline on the same env, ``Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-{Grippers,Hands}``.
+  - Training writes an ONNX policy for the robot next to every checkpoint.
+  - Adds the ``supermimic`` dependency group. See
+    :ref:`Kangaroo task_supermimic`.
+
 - **Denser, square height scan and wider lateral commands in the Kangaroo
   rough velocity task.** The critic-only height scan now covers a
   1.0x1.0 m area at 5 cm resolution (previously 1.2x0.6 m at 10 cm), giving
@@ -118,6 +129,17 @@ New Features & Tasks
 Model Updates
 ^^^^^^^^^^^^^
 
+- **Kangaroo 7-DoF arm joints 5 and 7 now turn about +z, as in PAL's URDF.**
+  The model had them about -z, so the same joint value turned the wrist the
+  other way than on the robot. Checked against the URDF chain: every arm link
+  and the tool link match within 0.001 mm.
+- **Gripper collisions** for the wrist and the fingers of the 7-DoF model, with
+  ``arm_*_tip_link`` frames at the wrist.
+- **The hands model's Seed Robotics wrist is actuated.** Palm roll and palm pitch
+  get the wrist servo's estimated actuator values (``SEED_WRIST``). Arm 5's
+  range and the right wrist roll's axis follow the robot's URDF. The hand gets
+  collision shapes.
+
 - Updated the Kangaroo 7-DoF and hands MuJoCo models with proper masses
   and inertias.
   (`#107 <https://github.com/pal-robotics/pal_mjlab/pull/107>`_)
@@ -194,6 +216,13 @@ dependency issue, check which of these bumps might be relevant first.
 
 Breaking Changes
 ^^^^^^^^^^^^^^^^
+
+- **Policies of the Kangaroo Grippers and Hands tasks trained before these model
+  updates do not transfer.**
+
+  - On the 7-DoF model, arm joints 5 and 7 turn the other way.
+  - The Hands velocity, reaching and tracking tasks gain two actuated wrist
+    joints (two more actions and observed joints).
 
 - **Removed the base linear acceleration observation from the Kangaroo
   velocity tasks.** The ``base_lin_acc`` actor observation term (IMU

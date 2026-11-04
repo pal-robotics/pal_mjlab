@@ -95,6 +95,18 @@ Evaluate.
 uv run play Mjlab-Tracking-Flat-Pal-Kangaroo --wandb-run-path your-org/mjlab/run-id
 ```
 
+## SuperMimic
+
+One policy tracks any motion of a large motion library, trained through a world model learned online
+([arXiv 2610.28480](https://arxiv.org/abs/2610.28480)), for the Kangaroo with grippers and with hands.
+
+```bash
+uv sync --extra cu128 --group supermimic
+uv run train Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers --env.commands.motion.library-path <library>
+```
+
+See [docs/supermimic/README.md](docs/supermimic/README.md).
+
 ## Results
 
 <video src="https://github.com/user-attachments/assets/32c0e534-ead9-400e-afe5-42174a6b739b" controls muted loop playsinline style="width:100%;"></video>

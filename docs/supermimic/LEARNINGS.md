@@ -1,0 +1,460 @@
+# SuperMimic on Kangaroo: learnings
+
+Facts and measurements, newest at the bottom of each section. Decisions that follow from them are in
+DECISIONS.md (Dn). This is a record: older sections name tasks and scripts as they were then. Those, and the reports
+`m0/`–`m5/` cited here, are not part of this repository (D52).
+
+## Paper (arXiv 2610.28480, read in full)
+
+**No code is released.** The browser demo runs the world model (WM), but its license forbids reverse
+engineering, so we implement from the text only (D19).
+
+**What the paper pins down.**
+- The loop (Alg. A.1):
+  - collect with action noise N(0, 0.1²) into a FIFO replay of 1000 steps per env;
+  - fit the WM on k=8 autoregressive windows (Eq. 1);
+  - BPTT through the frozen WM over H=32 steps from replay states and their ξ, with survival weight
+    c_{t+1} = c_t(1 − d̂);
+  - critic on λ-returns (λ 0.95, γ 0.99, 5 epochs × 4 minibatches, no target net).
+- Networks:
+  - WM MLP 2048×3;
+  - encoder 2048-1024-512-256 on K=10 future frames;
+  - decoder 2048-1024-512-256 on (z, 10 obs);
+  - z 32-d with tanh;
+  - critic 256-128.
+- Optimization:
+  - Adam, lr 2e-4, with β = (0.9, 0.95) for the policy;
+  - gradient clipping: global norm 1, then element-wise 0.1;
+  - cosine decay to 0.03× over 250k iterations, 320k in total;
+  - 4096 envs, 4096 imagined rollouts, "10 batches of 2048 windows", UTD 0.4.
+- Observations: q−q0, q̇, IMU angular velocity, projected gravity, a_{t−1}, with a 10-frame history and no
+  base linear velocity.
+- Reward: BeyondMimic's, minus self-collision, with the joint limit at −2 and every term × dt.
+- Termination: |e_z| > 0.25 m or tilt > 0.8.
+- DR: friction, ±0.01 rad calibration, torso CoM. No pushes, because the deterministic WM can't model them.
+- Sim: 5 ms × 4.
+
+**Left open, decided by us (D4–D10):** the WM state layout and normalization, deltas vs absolute
+prediction, which heads are learned, the goal-frame content, clip-end handling, and how to read UTD and
+"10 batches".
+
+**Compute sanity check.** Paper-size nets cost about 23 TFLOP per iteration (BPTT 4096×32 plus a 10×2048×8
+WM fit). At ~200 TFLOPS TF32 that is ~9 it/s on an H100, consistent with 320k iterations in ~9.8 h. With
+UTD 0.4 = 2.5 vector steps per iteration, it implies ~93k sim steps/s per GPU.
+
+## Robot and data
+
+- **The BONES retarget matches `kangaroo_grippers.xml`.** nq 39 / nv 38, the same 32 joints in the same
+  order: 28 actuated, plus 4 passive (femur/knee) closed by `<connect>`.
+- **Arm axis (D3).** With arm 5/7 at +z, FK equals the GMR model to 0.0 m on real clips
+  (`tests/supermimic/test_kinematics.py`, fixture `bones_3clips.npz`; the test fails with the old −z axis,
+  0.165 m off).
+- **Joint ranges.** In 800 random clips (323k frames), 0% of actuated-joint frames are outside the hard
+  range (passive femur 0.05%). But many are outside the 0.9× soft limits: arm_7 27%, pelvis_1 20%,
+  leg_1/2 10–15%, arm_3 8–11%, ankles 9%. So joint-limit penalties use the hard limits (D12).
+- **Kinematic structure.** The femur/knee branch is a sibling under `leg_*_3_link`. The tracked bodies sit
+  on the serial chain through the `leg_*_length_joint` slide, so their FK doesn't need the passive joints.
+  The IMU is on `pelvis_2_link`, after the two waist joints; the anchor is `base_link`.
+- **XML quirks.**
+  - The PAL XMLs exclude contacts with the scene's `terrain` body, so they only compile inside an mjlab
+    scene.
+  - `kangaroo_grippers.xml` has two `<exclude>`s naming geoms (`leg_*_ankle_bar_collision`) as bodies. The
+    mjlab scene still compiles.
+  - For standalone kinematics, `compile_kinematic_model()` drops all excludes.
+- **Hands variant (D42).** `kangaroo_hands.xml` has the same legs, torso and arm joints 1–5 as
+  `kangaroo_grippers.xml` and the same 32-joint layout (28 actuated). The Seed wrist's two joints take
+  the place of arm joints 6–7.
+  - GMR's model is generated from `kangaroo_7dof.xml`, so GMR's two models share legs and arms 1–5 exactly.
+    Against pal_mjlab, every shared body frame, joint axis and the joint order are equal.
+  - GMR's files (both variants) keep 0 as the lower limit of the slide and the passive femur/knee (pal:
+    0.13 m, 0.17 and 0.35 rad). The IK clamps the slide to its actuator range, and the femur/knee
+    limits are the linkage at that slide limit. In 2,000 7-DoF clips and the 5-DoF test clips no frame
+    is below pal's limits.
+  - Two problems in PAL's hands file, fixed: arm 5 had ±1.57 rad instead of the 7-DoF's −3.665..1.571,
+    and it had no collision geometry below the elbow (the hands went through the body).
+  - Pre-existing on this branch, unrelated: `Mjlab-Reaching-Flat-Pal-Kangaroo-Hands` fails at env
+    construction on the installed mjlab (`UniformPoseCommand._update_command` must take `env_ids`).
+- **Clip lengths.** Median 5.7 s, p95 15.7 s, max 180 s; 1,499 clips are under 2 s. The manifest's
+  `g1_n_frames` equals the Kangaroo clip length (checked on 300 clips).
+- **Packed library.** Converting from the pickles is fast: `smoke` (141 clips, 0.25 h) and `dev`
+  (1,296 clips, 2.56 h, stratified by category) each build in about 2 s.
+
+## WBC pipeline (MAC/WBC): what carries over
+
+- **Reuse:**
+  - the multi-clip `MotionLoader` segment logic and the per-clip 1 s bins (`_build_adaptive_bins`);
+  - the Kangaroo actuator config and action scales;
+  - later, for hardware: the convex-hull half-spaces (`velocity/mdp/rewards.py:71`, differentiable).
+- **Don't reuse:**
+  - the per-body library layout (~1 KB/frame, so 44 GB for the full set; D11);
+  - the ONNX export that embeds the library;
+  - the failure-count sampling (the paper's is return-based);
+  - the sparse WBC actor obs (D2).
+
+## mjlab 1.6.0 internals that matter
+
+- **Step order:** actions → decimation physics → terminations → rewards → interval events → auto-reset →
+  forward → command update → observations. Rewards see body poses one substep stale.
+- **Auto-reset loses the terminal state.** Use `auto_reset=False` in our runner (D9).
+- **The WBC `MotionCommand` teleports to a new clip at clip end** with no done flag. That is non-physical
+  for a world model (D8).
+- **ξ readback works.**
+  - Friction: `sim.model.geom_friction[:, ids, 0]`.
+  - CoM: `sim.model.body_ipos − sim.get_default_field("body_ipos")`.
+  - Calibration: `robot.data.encoder_bias`, which is applied to both obs and actions.
+- **Raw `sim.data` arrays are zero-copy views** reused by CUDA graphs, so clone before storing.
+- **A custom runner plugs in via `register_mjlab_task(..., runner_cls=...)`.** rsl_rl's rollouts run under
+  `inference_mode`, so they are not usable for BPTT.
+- **No world-model code exists anywhere**, and mujoco_warp has `enable_backward=False`.
+- **Import order.** Importing `pal_mjlab.robots` before `mjlab` triggers a circular import while mjlab
+  registers tasks (only a warning, but the tasks don't register). Import `mjlab` first in scripts.
+- **Dependencies.** Running `uv add` or a plain `uv sync` without `--extra cu128 --group supermimic` drops
+  CUDA torch and pyarrow.
+
+## M0 measurements (RTX 5060 Ti 16 GB, shared; 2026-10-22)
+
+**Sim** (`m0/bench_sim.json`). Raw MuJoCo Warp, Kangaroo grippers, 4096 envs replaying `smoke` clips with
+the PD and a pinned root. This excludes env-manager overhead.
+
+| setting | envs | control steps/s | ms / vector step | loop residual mean / max | NaN envs |
+|---|---|---|---|---|---|
+| paper 5 ms × 4 | 1024 | 137k | 7.5 | 0.17 / 3.2 mm | 0 |
+| paper 5 ms × 4 | 2048 | 178k | 11.5 | 0.17 / 3.2 mm | 0 |
+| paper 5 ms × 4 | 4096 | 201k | 20.3 | 0.17 / 3.2 mm | 0 |
+| WBC 2 ms × 10 | 4096 | 84k | 48.6 | 0.015 / 0.39 mm | 0 |
+
+- 5 ms × 4 is 2.4× faster than 2 ms × 10.
+- The clamped four-bar solref is fine: a 3 mm worst-case loop error is below the retarget's own loop
+  residual (up to 11 mm).
+- Sim memory is about 1.5–3 GB at 4096 envs (measured by device free-memory delta, so approximate).
+- Paper collection costs 2.5 vector steps per iteration, i.e. about 50 ms of raw physics per iteration at
+  4096 envs.
+
+**Learning updates** (`m0/bench_bptt_*.json`). One iteration's learning work with random data and the
+planned shapes:
+- policy update: BPTT, H=32, through a frozen WM, with the FK reward (14 bodies + IMU) every step and a
+  critic bootstrap;
+- WM fit: 10 optimizer steps × 2048 windows × k=8;
+- critic fit: 5 × 4 minibatches.
+
+| nets | precision | batch | FK | policy update | WM fit | critic | peak mem |
+|---|---|---|---|---|---|---|---|
+| paper | fp32 | 4096 | eager | 5.38 s | 0.73 s | 0.09 s | 13.1 GB |
+| paper | bf16 | 4096 | eager | 3.14 s | 0.27 s | 0.05 s | 8.0 GB |
+| dev (½ width) | bf16 | 4096 | eager | 3.17 s | 0.09 s | 0.05 s | 4.5 GB |
+| paper | bf16 | 4096 | none | 0.34 s | 0.27 s | 0.05 s | 7.3 GB |
+| paper | bf16 | 4096 | `torch.compile` | **0.41 s** | 0.27 s | 0.05 s | **7.7 GB** |
+| paper | bf16 | 2048 | `torch.compile` | 0.37 s | 0.27 s | 0.03 s | 4.3 GB |
+| paper | tf32 | 4096 | `torch.compile` | 0.67 s | 0.49 s | 0.07 s | 12.7 GB |
+
+- **Eager FK is launch-bound.** It costs 3–5 s per update whatever the batch (1k–4k) or network size. With
+  `torch.compile` it adds only ~20% over no FK, so the analytic reward and obs heads (D5) are affordable,
+  as long as the FK (or the whole imagination step) is compiled.
+- **The paper's network sizes and batch fit locally in bf16 (7.7 GB).** TF32, the paper's precision, needs
+  12.7 GB, which doesn't fit next to the sim (~2–3 GB), the replay and the resident services on a 16 GB
+  card. So locally we run the paper nets in bf16 (D16).
+- **Local iteration estimate: ~0.8 s.** That is 0.74 s of learning plus ~0.05 s of raw physics for
+  2.5 vector steps, before env-manager overhead (to measure in M1). That gives ~4.5k it/h, so the paper's
+  320k iterations would take ~70 h here versus ~10 h on an H100 (~8×).
+- **Conclusion:** dev-subset studies (M1–M4) run locally; full-scale runs (M5) go to Lambda.
+
+The compiled-FK rows above were measured before the `torch.compile` fix below. The buggy graph skipped
+the root joint, about one body out of ~40, so the timings stand.
+
+## M1: SuperMimic env + PPO-Sim (RTX 5060 Ti, `dev` library, 8192 envs)
+
+| setting | ms / env step | device memory |
+|---|---|---|
+| paper DR every episode (CoM at reset), `nconmax` 100 | 235 | 10.8 GB |
+| CoM offset at startup, `nconmax` 100 | 72 | 10.8 GB |
+| CoM offset at startup, `nconmax` 40 | 72 | 5.2 GB |
+| FK not compiled (CoM at reset) | 283 | 10.8 GB |
+
+- **CoM DR at reset was the bottleneck.** `dr.body_com_offset` triggers `set_const` over all worlds
+  whenever any env resets, which with 8192 envs is every step. Hence CoM at startup (D14).
+- **Memory scales with `nconmax`, not `njmax`.** mujoco_warp's contact and CCD scratch buffers scale with
+  the contact pool (nconmax × worlds). About 15 contacts per world are in use. `njmax` is a hard
+  per-world cap that fallen robots push to about 280, so it stays at 300 (D23).
+- **PPO-Sim at paper size:** 4.98 s per iteration (2.0 s collection of 196k steps, 2.9 s learning), about
+  720 iterations per hour. Peak device memory is 14.4 GB of 16.3, which fits only while nav-infer is
+  stopped.
+- **Bug found and fixed: `torch.compile` with mujoco enums.** Inside a compiled function, `int_kind ==
+  mujoco.mjtJoint.mjJNT_FREE` (a pybind11 enum) evaluated False. The compiled FK silently skipped the free
+  joint and put every robot at the default root pose, so falls were never detected and the reward
+  compared the reference with itself. Fixed by comparing plain ints and building constants once in
+  `__init__`, plus a compiled-vs-eager test. It's the same family as GMR's int-vs-`mjtEq` set lookup bug.
+- **Tests must step the robot off the reference.** The first FK-parity test ran at reset, where robot and
+  reference coincide, so it couldn't catch that bug. The env tests now step random actions and check
+  that falls terminate.
+- **Name clash:** `CommandTerm.time_left` is mjlab's resampling timer; don't shadow it.
+- **Robot specs are prefixed in the scene.** Entity specs attached to the scene have names prefixed
+  `<entity>/`, so the FK model built from `robot.spec.copy()` uses prefixed body names.
+
+## Audit of inherited assumptions (2026-10-22)
+
+**Kangaroo geometry.**
+- The serial leg is hip, then a slide, then the ankle: `leg_*_length_link`, `leg_*_4_link` and
+  `leg_*_5_link` share one point, the ankle.
+- The physical knee exists only in the passive four-bar (`leg_*_knee_link`).
+- `arm_*_tip_link` coincides with `arm_*_7_link` in pal_mjlab, but GMR's model rotates it 45° in yaw.
+
+**The retarget's IK table** (`smplx/g1_to_kangaroo_7dof.json`).
+- It maps G1's knee to `leg_*_4_link` and the wrist to `arm_*_tip_link`, with rotation weights only.
+  Position weights are 0, except for the feet.
+- WBC's tracked bodies were copied from this table, which is how the ankle ended up tracked twice. See
+  D25.
+
+**Gains.**
+- MAC/WBC lowered the arm and waist natural frequency to 1 Hz in experimental commits for its own task.
+- PAL main and the paper's method (BeyondMimic) use one frequency for all joints. See D26.
+
+**Goal and DR.**
+- Reference root velocity and height in the goal came from WBC's sparse interface. BeyondMimic's
+  command, which the paper uses, has only reference q and q̇ plus root orientation. See D6.
+- The calibration-offset DR defaulted to all 32 joints, including the four passive ones, which have no
+  encoder. It is now restricted to the 28 actuated joints. See D14.
+
+**Check after the changes** (8192 envs): 76 ms per step, 6.4 GB, finite observations.
+
+## Gains vs action parameterization (D27, `m1/gain_ab.md`)
+
+- **The setpoint parameterization makes PD stiffness a property of the action space.** With
+  q_sp = q₀ + α·a and α = 0.25·τ_max/Kp, one unit is 25% effort. But holding a joint away from q₀ costs
+  4·(Kp/τ_max) units per rad, and moving it costs 4·(Kd/τ_max) per rad/s. BeyondMimic's "low gains"
+  mean Kp/τ_max ≈ 0.5–0.7 per rad, where the setpoint really is a torque proxy.
+- **Kangaroo's arms and waist are not in that regime at 3.5 Hz.** Their Kp/τ_max is 4–6 per rad (about
+  100× G1's reflected inertia for 1–2× its effort). At 1 Hz they're back near 0.4.
+- **Measured** (PPO-Sim, `dev`, 1,000 iterations): 1 Hz arms and waist beat 3.5 Hz on 90% of clips for
+  arm error (21 → 15 cm) and 95% for leg error (11 → 9 cm) and tracking return (0.53 → 0.62). It also
+  had fewer failures and less torque saturation.
+- **What 3.5 Hz does instead.** Its policy lets arm tracking degrade during training while its arm
+  torque rate falls: the action-rate penalty, which is in action units, makes arm motion expensive.
+- **Takeaway.** When transferring BeyondMimic or SuperMimic to a new robot, check Kp/τ_max per joint,
+  not the natural frequency. Or anchor the setpoint on the reference, which is untested.
+
+## PPO-Sim baseline (`m1/ppo_sim_baseline.md`)
+
+- **12 h local run** (8,800 iterations, 1 Hz arms/waist) on all 1,296 `dev` clips: 25 failures (1.9%),
+  tracking return 0.742, body error legs 6.4 / arms 10.8 / torso 2.4 cm. Still improving slowly at the
+  end.
+- **Failures are mostly jumps** (16 of 25) and squat transitions (3). Arms remain the largest error.
+- **Run-to-run noise.** Same config and seed retrained gives failures 144 vs 169 at ~1,000 iterations,
+  while mean errors and return match to ~0.1 cm / 0.001. So judge comparisons on mean or paired errors,
+  not small differences in failure counts.
+
+## M2: offline world model (`m2/world_model.md`, `m2/report.pdf`)
+
+**Data and cost.**
+- Collecting 6.1M transitions (3 checkpoints × 4096 envs × 500 steps) takes 2 min.
+- Training the paper-size model (8.9M params, k = 8, 50k × 2048 windows) takes 43 min locally.
+- Failures are rare in PPO data: 0.05% of transitions.
+
+**Accuracy.**
+- **The reward needs no learning.** The analytic reward on logged states matches the env's to 1.6e-5, so
+  imagined-reward error is pure state error.
+- **Error grows smoothly up to 32 steps:** 0.15, 0.86, 1.7 and 3.8 cm body error at 1, 8, 16 and 32
+  steps, against 0.7, 5.5, 10 and 17 cm for no-change.
+- **It accelerates after that:** 15 cm at 64 steps, where the model is only 1.8× better than no-change.
+- **Arms dominate the error.** At 32 steps the root-relative error is 4.4 cm for the arms, 2.1 for the
+  legs and 0.24 for the torso, the same ranking as PPO-Sim's tracking error.
+
+**Training choices.**
+- **Multi-step training is not optional.** k = 1 matches k = 8 after one step (0.19 vs 0.15 cm) but
+  diverges at 32 steps. Its 32-step held-out loss explodes while its 8-step loss keeps improving, so
+  watch the long-horizon validation, not the training horizon's.
+- **Return error hides divergence:** about 3% for the diverged k = 1, because the exp-kernel reward
+  saturates at 0.
+- **Predict deltas:** absolute targets are 3× worse at 1 step and 2× worse at 32.
+
+**Gradients.**
+- **The direction is right:** steps along ∂J/∂a improve the simulated return from 97–100% of starts.
+- **The size is optimistic at H = 32:** +32% at δ = 0.05 and +57% at δ = 0.1, with correlation 0.6–0.7.
+  Up to H = 16 it is within 10%.
+- **Gradient norms fall near-linearly with the number of remaining rewards,** so neither explosion nor
+  vanishing.
+
+**Termination.**
+- **The learned head is weak.** BCE on 0.05% positives learns a confident "no": AUC 0.94, and 0.87 on an
+  unseen policy.
+- **The env's rule works on predicted states:** AUC 0.995, catching 81% of failures at the exact step
+  with 0.02% false alarms.
+
+**Tools.**
+- **gpu-run's shell is zsh, which doesn't word-split `$VAR`.** A variable holding several paths arrives
+  as one argument (job 78), and a variable holding a command fails with exit 127 (jobs 39 and 40). Write
+  the paths out in full.
+
+## M3: imagination and the policy update (`m3/imagination.md`, `m3/report.pdf`)
+
+**Imagination fidelity.**
+- **Closed loop reproduces the sim.** From the same starts and observation history, the PPO-Sim actor's
+  imagined 32-step return is within 0.9% of the sim's (correlation 0.995), and its body positions
+  within 2.1 cm. So the analytic heads, the observation history, the goal and the termination match
+  what the sim computes, not just the dynamics.
+- **It also tracks a changing policy.** In all four update runs the imagined and simulated closed-loop
+  returns stayed within 1%, except at one transient trough (−25%).
+
+**Frozen-model updates (the paper never does this).**
+- **The gradient improves what it optimizes.** Without the critic, 300 updates raise the real 32-step
+  return by 7% and lower arm error, but 829 of 1296 whole clips then fail. The H-step objective is
+  myopic, as the paper says.
+- **With the critic** (paper learning rate) 406–415 clips fail; with lr 2e-5 (PPO-Sim's final rate),
+  83. The critic's long-horizon judgement comes from imagination of old-policy states, and nothing
+  from the sim corrects it.
+- **A frozen learned head is blind to the new policy's falls:** 0.4% predicted vs 8.3% in the sim. Falls
+  then cost nothing in imagination, the critic's values inflate (5.1 → 7.9), and the 32-step return
+  dips. The env's rule tracked the real failure rate (8.8%).
+- **32-step checks miss later falls.** Judge policies on the whole-clip benchmark.
+
+**Online (smoke run, 60 iterations from scratch).**
+- The learned head's AUC on fresh failures rose from 0.42 to 0.81; the rule's stayed at 1.0.
+- The imagined vs sim 32-step return was already within −5…+2%.
+
+**Cost (RTX 5060 Ti, `dev`).**
+- An iteration takes 1.57 s (collect 0.15, world model 0.31, policy and critic 1.11), about 2,300 per
+  hour.
+- 11.3 GB in bf16 with replay 500. The paper's TF32 and replay 1000 run out of memory locally.
+
+**Tools.**
+- **mjlab CLI syntax:** tuples are comma-separated (`--x 1024,1024`, one element `256,`), booleans
+  `--flag False`. `eval.py` takes `--task`.
+- **mjlab's action buffers are updated in place** (`action_manager.action`): clone them before keeping
+  them across steps.
+- **PPO-Sim's adaptive schedule ended at lr 2.25e-5**, 10× below SuperMimic's 2e-4.
+
+## M4: online loop on `dev` (`m4/online_loop.md`, `m4/report.pdf`)
+
+**Against PPO-Sim** (same env and 12 h local-GPU budget):
+- SuperMimic's best checkpoint fails 3 of 1296 clips (PPO-Sim: 25), with tracking return 0.832
+  (0.742) and legs/arms/torso errors of 5.0/7.3/1.7 cm (6.4/10.8/2.4).
+- It reached PPO-Sim's 12 h level at 5.7 h, with about 6× fewer simulator steps (0.28 B vs 1.7 B).
+- Iteration counts are not comparable: a PPO iteration is 24 × 8192 sim steps and 20 gradient steps;
+  a SuperMimic iteration is about 2.5 × 4096 sim steps and 1 BPTT step.
+
+**Training stability.**
+- **The training is unstable.** The policy collapses every 1.3–2 h, from 16 failures to all 1296 within
+  1000 iterations, then recovers to a higher peak.
+- **The critic leads each collapse.**
+  1. Its value jumps 3–5× in about 30 iterations while the sim's reward is still normal. The λ-return
+     targets follow, since they bootstrap on it.
+  2. The policy gradient goes from about 1 to 30.
+  3. The imagined reward and then the sim's reward collapse.
+  It is an overestimation loop with no target network, as in the paper, which nevertheless reports
+  stable training.
+- **The last checkpoint is often not the best:** 0.684 vs 0.832 here. Benchmark checkpoints and keep
+  the best.
+
+**What works online.**
+- Imagination matches the sim within a few percent most of the time, even as the policy changes.
+- The world-model loss settles at about 0.01 and spikes when the policy shifts.
+- The learned failure head reaches AUC 0.999–1.0 within about 1.5 h of online refits (0.42 at the
+  start). Online refitting removes M3's frozen-head blindness.
+
+**Training-time signals mislead.** The joint and root errors logged at episode end, and the sampler
+return, mix failures and sampled starts. Judge runs on the whole-clip benchmark.
+
+## Cluster: Leonardo booster (A100 64 GB, 2026-10-24)
+
+- **Old drivers disable CUDA graphs.** The nodes run driver 535 (CUDA 12.2). Below 12.4, mjlab prints
+  `CUDA Graphs disabled` and MuJoCo Warp launches its kernels one by one.
+- **Fix:** put the CUDA ≥ 12.4 forward-compatibility libcuda on the library path. On Leonardo that is
+  `export LD_LIBRARY_PATH=$CUDA_HOME/compat:$LD_LIBRARY_PATH` after `module load cuda/12.6`.
+- **Measured** (same code and node type, per iteration):
+
+  | | no graphs | graphs | local RTX 5060 Ti |
+  |---|---|---|---|
+  | PPO-Sim | 13.5 s (collect 12.8 s) | 2.26 s (collect 1.57 s, 87k steps/s) | 4.9 s (40k steps/s) |
+  | SuperMimic, TF32 | collect 0.41 s | collect 0.16 s | collect 0.15 s (bf16) |
+
+  The SuperMimic policy update is about 1.3 s on TF32, for about 1.8 s per iteration.
+
+**24 h dev runs with the paper's settings** (`m4/cluster_runs.md`, `m4/cluster_report.pdf`):
+- **SuperMimic's iteration is bound by the BPTT update, not the simulator.** 1.78 s on the A100 (policy
+  1.37, WM 0.25, collect 0.16) vs 1.56 s locally with bf16. PPO-Sim gains 2.2× from the A100, SuperMimic
+  nothing. Per GPU we are 8× slower than the paper; about 3× is the H100.
+- **TF32 and replay 1000 don't stop the oscillation.** Over iterations 5,000–27,000 the cluster run has
+  20 failure spikes, the local one 11. The critic's value rose first in 13 of 24 (cluster) and 7 of 11 (local).
+  The spikes thin out later (14, 6, 2, 2 per ~11k iterations), but the benchmark still shows collapses
+  at 18,000 (1287 fails), 25,000, 29,000 and 44,000.
+- **A late failure mode:** after 27,000 a few imagined rollouts get enormous penalties (batch-mean
+  imagined reward down to −18,700 per step) and the critic loss reaches 10^14. Only the action-rate and
+  joint-limit terms are unbounded. The local run never got that far.
+- **The best checkpoints keep improving with time:** 0.83–0.87 tracking return and 2–5 failures from
+  about 13 h on (best 0.872, 2 fails, at 22.3 h).
+- **PPO-Sim plateaus on `dev`:** 0.745 at 6.2 h, 0.770 (15 fails) at 24 h, arms about 10.7 cm. SuperMimic
+  passes its 24 h result at 9.3 h. 25 of its 31 later checkpoints have a higher return, and it uses 15×
+  fewer sim steps.
+
+## M4 stability study (`m4/stability.md`, `m4/stability_report.pdf`)
+
+- **The oscillation follows from an early critic blow-up.**
+  - In the first 2000 iterations, the 256×256 learned failure head ranks falls worse than chance, so
+    imagined falls keep their survival weight.
+  - The world model's post-fall extrapolation (joint-limit penalty down to −10^6 per step) then floods
+    the policy objective and the critic's targets.
+  - The critic value falls to −175…−396 and its loss reaches 10^6–10^8. Runs that go through this spike
+    for tens of thousands of iterations afterwards; runs that avoid it never spike.
+- **Two fixes, each sufficient on its own:** a failure head on the rule's two errors (A2′), and a critic
+  loss weighted by the survival ĉ_t (A5). Both are now the default (D39).
+- **Without the blow-up**, `dev` training is stable and reaches tracking return 0.890–0.894 with 2–4
+  failures (of 1296) by about 30,000 iterations, with no collapse at any checkpoint. The old baseline's 24 h best was 0.872.
+- **The critic helps tracking:** with no critic, training is stable but fails 16–20 clips.
+- **The seed matters a lot early.** The same code with seed 43 avoided the blow-up; seed 42 did not.
+  Compare configurations on more than one seed, or on mechanisms that remove the failure mode.
+- **TF32 plus the 32-step backward pass** makes actor gradients differ 3–12% between equivalent
+  computations. The equations match to 10^-6 in FP32.
+- **The return-based sampler concentrates** about half of the starts on about 1% of the bins once the
+  policy is good. One clip got up to 42% of all starts.
+- **Local GPU queue:** `gpuq`'s game check matched the `pgrep` of concurrent `gpuq status` calls, so
+  polling the queue preempted running jobs. Fixed in gpuq since: no game detection, `gpuq pause`.
+
+## M5: the 24 h runs (`m5/runs.md`)
+
+- **`dev` for 24 h:** no collapse, and it kept improving to the end: 0 failed clips (of 1,294) from 46,000
+  iterations on (one checkpoint with 1), tracking return 0.906 at 70,000; arms 5.4, legs 3.6, torso 1.4 cm.
+- **`full` on `dev`** follows `dev` to about 16,000 iterations, levels off at 0.87–0.88, then climbs slowly
+  after the resume to 0.894 at 110,000 (0 failures). On `dev`'s own clips `dev` stays ahead (0.906).
+- **Data scale buys coverage:** on a second 2.5 h sample of `full` (1,242 clips, 14 in `dev`), `dev`'s final
+  policy fails 23 (0.851); every `full` checkpoint fails 1 (0.862–0.878), as on `dev`.
+- **Infeasible references attract the hard sampler.** Before `full`'s dip at 82,700 (world model, then
+  policy; recovered by itself), four kneeling clips held 14% of all starts; their retargeted knee is 17.7 cm
+  in the floor in every frame. Clips that can never be tracked keep their bins hard forever. The dataset
+  QA checked link origins only (paper E); it now drops clips with any collision shape > 5 cm in the floor.
+- **The last checkpoint is not the best while the learning rate is high:** both runs ended at 54–82% of the
+  initial rate (decay over 250k iterations); `full` 121,000 fails 3 where 120,000 fails none.
+- **The sampler state is in every checkpoint** (`sampler`: returns, visits, past weight per bin): where the
+  starts went can be reconstructed afterwards.
+- **The constraint buffer matters on `full`:** with `njmax` 300, MuJoCo Warp dropped contact rows about 250
+  times per 100 iterations (up to 636 requested); the run went NaN at 44,600 (D44). `dev` overflowed 263
+  times in 24 h. With 1024: no overflow. The benchmark then ran about 4× slower per checkpoint (pure
+  simulation; likely the larger buffer), training speed did not change visibly.
+- **Training failure on `full` is the sampler's, not the policy's:** it rose from 1% to about 35% once
+  all 965k bins had been visited (about 28,000), while bin returns kept rising (0.766 → 0.791 at the end).
+  The mean bin return and the benchmark measure progress on `full`; training return does not.
+- **The training logger drops NaN values,** so a NaN run shows as missing losses, not as NaN.
+- **Clean data did not remove the collapses.** On the re-retargeted 7-DoF data (D47) `full` trained stably to
+  85,500, then collapsed twice (world-model loss first, then the policy) and went NaN at ~102,000 without any
+  buffer overflow; normalizers and weights showed no blow-up at 1,000-iteration resolution. Before the first
+  collapse the 23 flip clips (360° somersaults) held 17% of all training starts: extreme clips the robot cannot do
+  attract the hard sampler as the impossible ones did (`kangaroo_bones_seed/data/variants/sampler/`).
+
+## Tight tracking and the action scale (`tight/report.md`, D53, D55, D57)
+
+The tight reward was rolled back (D57). These are the measurements, all with the 5-DoF hands.
+
+- Halving the tracking stds and tracking the feet on their own halves the leg error (3.5 → 1.8 cm) and cuts
+  the root drift while standing still by 29 %. Simulated foot slide is unchanged (~2.3 cm/s).
+- D27's 1 Hz arm and waist gains helped through the action scale, not the servo. The robot's 3.5 Hz gains with
+  the 1 Hz α track as well or better (tracking return 0.811 vs 0.785, arm joint error 0.059 vs 0.070 rad). They
+  cost ~5× the arm torque rate and 0.75 % saturation.
+- Score a policy only in the task it trained with. A 3.5 Hz policy in a 1 Hz play config sees 12× softer servos:
+  10 cm of arm error, an artefact.
+
+## Repo state found on MAC/WBC (not caused by us)
+
+- `tests/test_kangaroo_velocity_task_launch.py`: all 12 velocity tasks fail at env construction on GPU.
+  The new `joint_torques_magnitude` metric (`velocity/mdp/metrics.py:28`, commits dea1381/ea69429) maps
+  every joint to an actuator, including the passive femur/knee. This is unrelated to SuperMimic and left
+  as is.
+- These launch tests need CUDA; on CPU they fail earlier with "no CUDA-capable device". The other 46 tests
+  pass on CPU.
