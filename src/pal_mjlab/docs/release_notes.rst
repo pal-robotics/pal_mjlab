@@ -220,6 +220,11 @@ Breaking Changes
 
 Documentation & CI
 ^^^^^^^^^^^^^^^^^^
+- Added a **Training and Playing Tasks** guide. It covers the ``train`` and
+  ``play`` commands for every task family, the common options, where
+  checkpoints are saved, how to resume, and the motion file workflow for
+  tracking tasks.
+  (`#130 <https://github.com/pal-robotics/pal_mjlab/pull/130>`_)
 - Brought the documentation up to date with the code. All registered
   tasks are now listed. New pages cover the Kangaroo Hands model, the
   Kangaroo reaching task, TALOS and TIAGo Pro. Stale values are fixed:
