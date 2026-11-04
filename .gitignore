@@ -24,4 +24,5 @@ docs_build/
 # Data
 artifacts/
 *.npz
+!tests/supermimic/fixtures/*.npz
 motion.mp4
