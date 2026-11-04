@@ -24,8 +24,10 @@ from mjlab.managers import CommandTerm, CommandTermCfg
 from mjlab.utils.lab_api.math import quat_from_euler_xyz, sample_uniform
 
 from ..kinematics import (
+  Layout,
   TorchKinematics,
   compile_kinematic_model,
+  joints_on_path,
   quat_mul,
   quat_rotate,
 )
@@ -51,7 +53,27 @@ class MotionLibraryCommand(CommandTerm):
   def __init__(self, cfg: MotionLibraryCommandCfg, env: ManagerBasedRlEnv):
     super().__init__(cfg, env)
     self.robot: Entity = env.scene[cfg.entity_name]
-    self.library = MotionLibrary(cfg.library_path, device=self.device, clips=cfg.clips)
+    # FK on the robot exactly as simulated: its spec as attached to the scene, where the
+    # scene prefixes entity names with "<entity_name>/".
+    model = compile_kinematic_model(self.robot.spec.copy())
+    prefixed = [f"{cfg.entity_name}/{name}" for name in cfg.body_names]
+    goal_ids, self.goal_joint_names = self.robot.find_joints(
+      cfg.goal_joint_names, preserve_order=True
+    )
+    self._state_joints = list(range(self.robot.num_joints))
+    if cfg.reduced_state:
+      prefix = f"{cfg.entity_name}/"
+      on_path = {n.removeprefix(prefix) for n in joints_on_path(model, prefixed)}
+      self._state_joints = sorted(
+        set(goal_ids)
+        | {i for i, n in enumerate(self.robot.joint_names) if n in on_path}
+      )
+    self.library = MotionLibrary(
+      cfg.library_path,
+      device=self.device,
+      clips=cfg.clips,
+      joints=self._state_joints if cfg.reduced_state else None,
+    )
     if self.library.joint_names != tuple(self.robot.joint_names):
       raise ValueError("Motion library joint order differs from the robot's joints.")
     if abs(self.library.fps * env.step_dt - 1.0) > 1e-6:
@@ -59,21 +81,26 @@ class MotionLibraryCommand(CommandTerm):
         f"Library is {self.library.fps} Hz, env steps at {1 / env.step_dt} Hz."
       )
 
-    # FK on the robot exactly as simulated: its spec as attached to the scene, where the
-    # scene prefixes entity names with "<entity_name>/".
-    model = compile_kinematic_model(self.robot.spec.copy())
-    prefixed = [f"{cfg.entity_name}/{name}" for name in cfg.body_names]
-    self._fk = TorchKinematics(model, prefixed, device=self.device)
+    self._fk = TorchKinematics(
+      model, prefixed, device=self.device, layout=self.kinematics_layout(model)
+    )
     self._fk_fn = (
       torch.compile(self._fk.forward) if cfg.compile_kinematics else self._fk.forward
     )
     idx = self.robot.indexing
-    self._q_adr = torch.cat([idx.free_joint_q_adr, idx.joint_q_adr]).long()
-    self._v_adr = torch.cat([idx.free_joint_v_adr, idx.joint_v_adr]).long()
-    goal_ids, self.goal_joint_names = self.robot.find_joints(
-      cfg.goal_joint_names, preserve_order=True
-    )
-    self._goal_joint_ids = torch.tensor(goal_ids, device=self.device)
+    state = torch.tensor(self._state_joints, device=self.device)
+    self._full_q_adr = torch.cat([idx.free_joint_q_adr, idx.joint_q_adr]).long()
+    self._q_adr = torch.cat([idx.free_joint_q_adr, idx.joint_q_adr[state]]).long()
+    self._v_adr = torch.cat([idx.free_joint_v_adr, idx.joint_v_adr[state]]).long()
+    # The goal joints in the state and library tensors, and among the robot's joints.
+    self._goal_joint_ids = self.state_index(goal_ids)
+    self._goal_joint_full_ids = torch.tensor(goal_ids, device=self.device)
+    noisy = goal_ids
+    if cfg.reset_noise_joint_names is not None:
+      noisy = self.robot.find_joints(cfg.reset_noise_joint_names, preserve_order=True)[
+        0
+      ]
+    self._reset_noise_joint_ids = torch.tensor(noisy, device=self.device)
 
     lib = self.library
     frames_per_bin = max(1, round(cfg.bin_seconds / env.step_dt))
@@ -109,6 +136,24 @@ class MotionLibraryCommand(CommandTerm):
     ):
       self.metrics[name] = torch.zeros(n, device=self.device)
     self._ghost_model = None
+
+  # Layout of the state ----------------------------------------------------------
+
+  def state_index(self, joint_ids) -> torch.Tensor:
+    """Where these joints of the robot are in ``robot_qpos[:, 7:]`` and the library's."""
+    column = {j: k for k, j in enumerate(self._state_joints)}
+    return torch.tensor([column[int(j)] for j in joint_ids], device=self.device)
+
+  def kinematics_layout(self, model) -> Layout | None:
+    """For a ``TorchKinematics`` on this state; None when it holds every joint."""
+    if not self.cfg.reduced_state:
+      return None
+    qpos, qvel = dict(enumerate(range(7))), dict(enumerate(range(6)))
+    for k, j in enumerate(self._state_joints):
+      joint = model.joint(f"{self.cfg.entity_name}/{self.robot.joint_names[j]}")
+      qpos[int(joint.qposadr[0])] = 7 + k
+      qvel[int(joint.dofadr[0])] = 6 + k
+    return Layout(qpos, qvel)
 
   # Commanded goal ---------------------------------------------------------------
 
@@ -291,10 +336,7 @@ class MotionLibraryCommand(CommandTerm):
   def _write_reference_state(self, env_ids: torch.Tensor) -> None:
     """Reference state at the start frame, with BeyondMimic's reset noise (RSI)."""
     n, cfg = len(env_ids), self.cfg
-    qp, qv = (
-      self.library.qpos[self.frame[env_ids]],
-      self.library.qvel[self.frame[env_ids]],
-    )
+    qp, qv = self.library.full_state(self.frame[env_ids])
     pose = self._uniform(cfg.pose_range, n)
     vel = self._uniform(cfg.velocity_range, n)
     root_pos = qp[:, :3] + self._env.scene.env_origins[env_ids] + pose[:, :3]
@@ -305,7 +347,7 @@ class MotionLibraryCommand(CommandTerm):
     ang_vel = quat_rotate(qp[:, 3:7], qv[:, 3:6]) + vel[:, 3:]  # world frame
 
     joint_pos = qp[:, 7:].clone()
-    ids = self._goal_joint_ids
+    ids = self._reset_noise_joint_ids
     joint_pos[:, ids] += sample_uniform(
       *cfg.joint_position_range, (n, len(ids)), self.device
     )
@@ -336,8 +378,10 @@ class MotionLibraryCommand(CommandTerm):
           m.geom_rgba[g, 3] = 0
         else:
           m.geom_rgba[g] = np.array(self.cfg.viz.ghost_color, dtype=np.float32)
-    q_adr = self._q_adr.cpu().numpy()
-    ref = self.ref_qpos.cpu().numpy()
+    q_adr = self._full_q_adr.cpu().numpy()
+    ref = self.library.full_state(self.frame)[0].clone()
+    ref[:, :3] += self._env.scene.env_origins
+    ref = ref.cpu().numpy()
     for env in env_indices:
       qpos = np.zeros(self._env.sim.mj_model.nq)
       qpos[q_adr] = ref[env]
@@ -359,6 +403,12 @@ class MotionLibraryCommandCfg(CommandTermCfg):
   entity_name: str = "robot"
   goal_joint_names: tuple[str, ...] = (".*",)
   """Joints whose reference positions/velocities go into the goal (the actuated ones)."""
+  reset_noise_joint_names: tuple[str, ...] | None = None
+  """Joints that get ``joint_position_range`` at reset; None: the goal joints."""
+  reduced_state: bool = False
+  """Keep only the goal joints and those on the way to the tracked bodies in the state, and in
+  the library on the device. For closed-chain legs, where the rest of the linkage follows from
+  them (D59); resets still read every joint from the library's files."""
 
   num_future_frames: int = 10
   """K reference frames in the goal (paper Appendix A)."""

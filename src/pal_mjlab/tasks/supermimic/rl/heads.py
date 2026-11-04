@@ -74,7 +74,7 @@ class AnalyticHeads:
     group = cfg.observations["proprio"]
     self.obs_terms: list[str] = list(group.terms)
     self.history = group.history_length or 0
-    self.noise: dict[str, tuple[float, float]] = {}
+    self.noise: dict[str, tuple] = {}
     imu_sensors = []
     for name, term in group.terms.items():
       func = term.func
@@ -86,11 +86,16 @@ class AnalyticHeads:
         raise NotImplementedError(f"observation term {name!r} has no analytic head")
       if group.enable_corruption and term.noise is not None:
         assert isinstance(term.noise, UniformNoiseCfg) and term.noise.operation == "add"
-        self.noise[name] = (float(term.noise.n_min), float(term.noise.n_max))
+        self.noise[name] = (
+          self._bound(term.noise.n_min),
+          self._bound(term.noise.n_max),
+        )
     for name in ("joint_pos", "joint_vel"):
       ids = om.get_term_cfg("proprio", name).params["asset_cfg"].joint_ids
-      assert torch.equal(torch.as_tensor(ids, device=self.device), self.goal_joints)
-    self.q0 = robot.data.default_joint_pos[0, self.goal_joints]
+      assert torch.equal(
+        torch.as_tensor(ids, device=self.device), cmd._goal_joint_full_ids
+      )
+    self.q0 = robot.data.default_joint_pos[0, cmd._goal_joint_full_ids]
     term_dims = dict(
       zip(om.active_terms["proprio"], om.group_obs_term_dim["proprio"], strict=True)
     )
@@ -104,7 +109,13 @@ class AnalyticHeads:
     assert len(sites) == 1, f"IMU sensors on different sites: {sites}"
     model = compile_kinematic_model(robot.spec.copy())
     bodies = [f"{cmd.cfg.entity_name}/{b}" for b in cmd.cfg.body_names]
-    self.fk = TorchKinematics(model, bodies, sorted(sites), device=self.device)
+    self.fk = TorchKinematics(
+      model,
+      bodies,
+      sorted(sites),
+      device=self.device,
+      layout=cmd.kinematics_layout(model),
+    )
     self._fk = torch.compile(self.fk.forward) if compile_fk else self.fk.forward
 
     # Reward (Table A.2), with the env's weights, stds and dt scaling.
@@ -122,8 +133,10 @@ class AnalyticHeads:
       elif term.func is sm_rewards.joint_pos_limits_hard:
         self.limit_weight = term.weight
         ids = env.reward_manager.get_term_cfg(name).params["asset_cfg"].joint_ids
-        self.limit_joints = torch.as_tensor(ids, device=self.device)
-        self.limits = robot.data.joint_pos_limits[0, self.limit_joints]
+        self.limit_joints = cmd.state_index(ids)
+        self.limits = robot.data.joint_pos_limits[
+          0, torch.as_tensor(ids, device=self.device)
+        ]
       else:
         raise NotImplementedError(f"reward term {name!r} has no analytic head")
     self.reward_scale = env.step_dt if cfg.scale_rewards_by_dt else 1.0
@@ -133,6 +146,12 @@ class AnalyticHeads:
     expected = ["heading_state", "motion_goal", "sim_context", "root_pose_error",
                 "time_left"]  # fmt: skip
     assert self.critic_terms == expected, self.critic_terms
+
+  def _bound(self, value):
+    """A noise bound: a float, or a tensor when it is per joint."""
+    if isinstance(value, (int, float)):
+      return float(value)
+    return torch.tensor(value, device=self.device, dtype=torch.float32)
 
   # Kinematics -------------------------------------------------------------------
 

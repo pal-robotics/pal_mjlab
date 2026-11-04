@@ -15,17 +15,22 @@ import torch
 
 
 def _load(
-  file: Path, device: str | torch.device, rows: np.ndarray | None = None
+  file: Path,
+  device: str | torch.device,
+  rows: np.ndarray | None = None,
+  columns: np.ndarray | None = None,
 ) -> torch.Tensor:
-  """Copy a (frames, dim) array, or its ``rows``, to the device in chunks: the full library
-  is ~14 GB, more than the free host RAM of some machines."""
+  """Copy a (frames, dim) array, or its ``rows`` and ``columns``, to the device in chunks: the
+  full library is ~14 GB, more than the free host RAM of some machines."""
   arr = np.load(file, mmap_mode="r")
   if rows is not None:
     arr = arr[rows]  # reads only those rows of the memmap
-  out = torch.empty(arr.shape, dtype=torch.float32, device=device)
+  dim = arr.shape[1] if columns is None else len(columns)
+  out = torch.empty((len(arr), dim), dtype=torch.float32, device=device)
   chunk = 1 << 22
   for i in range(0, len(arr), chunk):
-    out[i : i + chunk] = torch.from_numpy(np.array(arr[i : i + chunk]))
+    part = np.array(arr[i : i + chunk])
+    out[i : i + chunk] = torch.from_numpy(part if columns is None else part[:, columns])
   return out
 
 
@@ -35,9 +40,11 @@ class MotionLibrary:
     path: str | Path,
     device: str | torch.device = "cpu",
     clips: tuple[str, ...] = (),
+    joints: list[int] | None = None,
   ) -> None:
     """``clips``: only these clips of the library, by name (e.g. to play chosen motions of a
-    downloaded library); empty for all of them."""
+    downloaded library); empty for all of them. ``joints``: only these joints in ``qpos`` and
+    ``qvel`` (indices into ``joint_names``); ``full_state`` reads the others from the files."""
     path = Path(path).expanduser()
     if not (path / "clips.json").is_file():
       raise FileNotFoundError(
@@ -67,8 +74,19 @@ class MotionLibrary:
     self.categories: tuple[str, ...] = tuple(sorted({c["category"] for c in clips}))
     cat_index = {c: i for i, c in enumerate(self.categories)}
 
-    self.qpos = _load(path / "qpos.npy", device, rows)
-    self.qvel = _load(path / "qvel.npy", device, rows)
+    self._rows, self._device = rows, device
+    self._full_files = None
+    qpos_columns = qvel_columns = None
+    if joints is not None:
+      kept = np.asarray(joints)
+      qpos_columns = np.concatenate([np.arange(7), 7 + kept])
+      qvel_columns = np.concatenate([np.arange(6), 6 + kept])
+      self._full_files = (
+        np.load(path / "qpos.npy", mmap_mode="r"),
+        np.load(path / "qvel.npy", mmap_mode="r"),
+      )
+    self.qpos = _load(path / "qpos.npy", device, rows, qpos_columns)
+    self.qvel = _load(path / "qvel.npy", device, rows, qvel_columns)
     self.clip_start = torch.tensor([c["start"] for c in clips], device=device)
     self.clip_length = torch.tensor([c["length"] for c in clips], device=device)
     self.clip_end = self.clip_start + self.clip_length  # exclusive
@@ -76,6 +94,18 @@ class MotionLibrary:
       [cat_index[c["category"]] for c in clips], device=device
     )
     assert self.qpos.shape[0] == int(self.clip_length.sum())
+
+  def full_state(self, frames: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    """qpos and qvel of every joint at these frames, also the joints left out of ``qpos``."""
+    if self._full_files is None:
+      return self.qpos[frames], self.qvel[frames]
+    rows = frames.cpu().numpy()
+    if self._rows is not None:
+      rows = self._rows[rows]
+    qpos, qvel = (
+      torch.from_numpy(np.array(f[rows])).to(self._device) for f in self._full_files
+    )
+    return qpos, qvel
 
   @property
   def num_clips(self) -> int:

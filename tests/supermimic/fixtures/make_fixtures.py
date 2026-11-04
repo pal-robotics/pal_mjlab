@@ -25,6 +25,9 @@ from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
   get_kangaroo_grippers_spec,
   get_kangaroo_hands_spec,
 )
+from pal_mjlab.robots.pal_kangaroo_full.kangaroo_full_constants import (
+  get_kangaroo_full_grippers_spec,
+)
 from pal_mjlab.scripts.bones_to_library import clip_qpos_qvel
 from pal_mjlab.tasks.supermimic.kinematics import compile_kinematic_model
 
@@ -36,11 +39,12 @@ CLIPS = {
 VARIANTS = {
   "grippers": ("", get_kangaroo_grippers_spec),
   "hands": ("_hands", get_kangaroo_hands_spec),
+  "full_grippers": ("_full", get_kangaroo_full_grippers_spec),
 }
 FPS, LIBRARY_FRAMES, STRIDE = 50, 100, 4
 
 
-def main(variant: str, motions: Path, gmr_xml: Path) -> None:
+def main(variant: str, motions: Path, gmr_xml: Path | None = None) -> None:
   suffix, spec_fn = VARIANTS[variant]
   out = Path(__file__).parent
   clips = {c: pickle.load(open(motions.expanduser() / f"{c}.pkl", "rb")) for c in CLIPS}
@@ -78,6 +82,9 @@ def main(variant: str, motions: Path, gmr_xml: Path) -> None:
     ],
   }
   (lib / "clips.json").write_text(json.dumps(meta, indent=1))
+  if gmr_xml is None:  # the closed-chain legs have no GMR model to compare with
+    print(f"{variant}: {lib.name}/")
+    return
 
   # GMR body positions
   gmr = mujoco.MjModel.from_xml_path(str(gmr_xml.expanduser()))

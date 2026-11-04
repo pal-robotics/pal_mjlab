@@ -32,6 +32,35 @@ def compile_kinematic_model(spec: mujoco.MjSpec) -> mujoco.MjModel:
   return spec.compile()
 
 
+class Layout(NamedTuple):
+  """Where a model's qpos and qvel addresses are in tensors that leave some joints out."""
+
+  qpos: dict[int, int]
+  qvel: dict[int, int]
+
+
+def joints_on_path(
+  model: mujoco.MjModel, body_names: Sequence[str], site_names: Sequence[str] = ()
+) -> list[str]:
+  """Names of the joints between the root and these bodies and sites: what their FK reads."""
+  bodies = [_require(model, mujoco.mjtObj.mjOBJ_BODY, n) for n in body_names]
+  bodies += [
+    int(model.site_bodyid[_require(model, mujoco.mjtObj.mjOBJ_SITE, n)])
+    for n in site_names
+  ]
+  needed: set[int] = set()
+  for b in bodies:
+    while b > 0:
+      needed.add(b)
+      b = int(model.body_parentid[b])
+  return [
+    model.joint(j).name
+    for b in sorted(needed)
+    for j in range(model.body_jntadr[b], model.body_jntadr[b] + model.body_jntnum[b])
+    if model.jnt_type[j] != mujoco.mjtJoint.mjJNT_FREE
+  ]
+
+
 def quat_mul(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
   aw, ax, ay, az = a.unbind(-1)
   bw, bx, by, bz = b.unbind(-1)
@@ -201,7 +230,9 @@ class TorchKinematics:
     site_names: Sequence[str] = (),
     device: torch.device | str = "cpu",
     dtype: torch.dtype = torch.float32,
+    layout: Layout | None = None,
   ) -> None:
+    """``layout``: for ``forward`` on tensors holding only some joints (those on the path)."""
     self.device, self.dtype = torch.device(device), dtype
     body_ids = [_require(model, mujoco.mjtObj.mjOBJ_BODY, n) for n in body_names]
     site_ids = [_require(model, mujoco.mjtObj.mjOBJ_SITE, n) for n in site_names]
@@ -223,11 +254,12 @@ class TorchKinematics:
         if kind == _FREE and model.body_parentid[b] != 0:
           raise NotImplementedError("free joints only on children of the world")
         qadr = int(model.jnt_qposadr[j])
+        dadr = int(model.jnt_dofadr[j])
         joints.append(
           _Joint(
             kind=kind,
-            qadr=qadr,
-            dadr=int(model.jnt_dofadr[j]),
+            qadr=layout.qpos[qadr] if layout else qadr,
+            dadr=layout.qvel[dadr] if layout else dadr,
             axis=self._t(model.jnt_axis[j]),
             pos=self._t(model.jnt_pos[j]),
             qpos0=float(model.qpos0[qadr]),

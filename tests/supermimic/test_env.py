@@ -16,6 +16,7 @@ from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import (
   action_scales,
   kangaroo_robot_cfg,
   kangaroo_supermimic_env_cfg,
+  pal_kangaroo_full_grippers_supermimic_env_cfg,
   pal_kangaroo_grippers_supermimic_env_cfg,
   pal_kangaroo_hands_supermimic_env_cfg,
 )
@@ -25,6 +26,13 @@ FIXTURES = Path(__file__).parent / "fixtures"
 VARIANTS = {  # env, library, joints (all, actuated)
   "grippers": (pal_kangaroo_grippers_supermimic_env_cfg, "library_tiny", 32, 28),
   "hands": (pal_kangaroo_hands_supermimic_env_cfg, "library_tiny_hands", 32, 28),
+  # 42 of its 84 joints in the state (D59): the 28 actuated and 14 on the way to the feet
+  "full_grippers": (
+    pal_kangaroo_full_grippers_supermimic_env_cfg,
+    "library_tiny_full",
+    42,
+    28,
+  ),
 }
 NUM_ENVS = 3
 CLIP_LENGTH = 100
@@ -100,6 +108,49 @@ def test_torch_kinematics_match_the_simulator(env):
   )
 
 
+@pytest.mark.parametrize("variant", ["full_grippers"], indirect=True)
+def test_closed_chain_resets_and_steps_with_its_loops_closed(env):
+  """A reset writes every linkage joint from the library, so the 24 loops start closed, and
+  stay within what the 2 ms step holds under random actions."""
+
+  def loop_error() -> float:
+    m = env.sim.mj_model
+    sites = env.sim.data.site_xpos
+    a, b = m.eq_obj1id[m.eq_type == 0], m.eq_obj2id[m.eq_type == 0]
+    return float((sites[:, a] - sites[:, b]).norm(dim=-1).max())
+
+  env.reset()
+  env.sim.forward()
+  assert loop_error() < 1e-3
+  gen = torch.Generator(device=env.device).manual_seed(0)
+  for _ in range(25):
+    env.step(
+      torch.randn(
+        NUM_ENVS, env.action_manager.total_action_dim, device=env.device, generator=gen
+      )
+    )
+  assert loop_error() < 5e-3
+
+
+@pytest.mark.parametrize("variant", ["full_grippers"], indirect=True)
+def test_closed_chain_noise_is_in_screw_units(env):
+  """The screws get the paper's noise over their ratio; arms and waist the paper's own."""
+  robot = env.scene["robot"]
+  terms = env.cfg.observations["proprio"].terms
+  ids = (
+    env.observation_manager.get_term_cfg("proprio", "joint_pos")
+    .params["asset_cfg"]
+    .joint_ids
+  )
+  names = [robot.joint_names[i] for i in ids]
+  for term, value in (("joint_pos", 0.01), ("joint_vel", 0.5)):
+    bounds = dict(zip(names, terms[term].noise.n_max, strict=True))
+    assert bounds["arm_left_7_joint"] == bounds["pelvis_1_joint"] == value
+    assert bounds["leg_left_1_actuator"] == pytest.approx(value / 25.031)
+    assert bounds["leg_right_5_actuator"] == pytest.approx(value / (14.292 + 25.287))
+    assert bounds["leg_left_length_actuator"] == pytest.approx(value / 3.7734)
+
+
 @pytest.mark.parametrize("variant", ["hands"], indirect=True)
 def test_hand_does_not_collide_with_its_elbow(env):
   """D46: the elbow capsule (arm_*_4_collision, copied from the 7-DoF forearm) reaches the Seed palm when
@@ -142,17 +193,20 @@ def test_sim_context_ranges(env, variant):
   start = (13 + 2 * nj) + 10 * (na + na + 6)
   xi = env.observation_manager.compute_group("critic")[:, start : start + 1 + na + 3]
   assert ((xi[:, 0] >= 0.3) & (xi[:, 0] <= 1.2)).all()  # foot friction
-  assert (
-    xi[:, 1 : 1 + na].abs() <= 0.01 + 1e-6
-  ).all()  # calibration offsets, actuated joints
+  # Calibration offsets, actuated joints: the paper's on joints, over their ratio on screws
+  assert (xi[:, 1 : 1 + na].abs() <= 0.01 + 1e-6).all()
   com = xi[:, 1 + na :]
   assert (com[:, 0].abs() <= 0.025 + 1e-6).all() and (
     com[:, 1:].abs() <= 0.05 + 1e-6
   ).all()
-  # Passive four-bar joints are not measured: no calibration offset.
+  # Passive joints (the four-bar, the linkage) are not measured: no calibration offset.
   robot = env.scene["robot"]
-  passive = robot.find_joints((".*_femur_joint", ".*_knee_joint"))[0]
+  measured = env.observation_manager.get_term_cfg("proprio", "joint_pos").params[
+    "asset_cfg"
+  ]
+  passive = [i for i in range(robot.num_joints) if i not in measured.joint_ids]
   assert (robot.data.encoder_bias[:, passive] == 0).all()
+  assert robot.data.encoder_bias[:, measured.joint_ids].abs().sum() > 0
 
 
 @pytest.mark.parametrize("variant", VARIANTS)

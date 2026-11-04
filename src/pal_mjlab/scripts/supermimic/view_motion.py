@@ -22,13 +22,20 @@ from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
   get_kangaroo_grippers_spec,
   get_kangaroo_hands_spec,
 )
+from pal_mjlab.robots.pal_kangaroo_full.kangaroo_full_constants import (
+  get_kangaroo_full_grippers_spec,
+)
 from pal_mjlab.tasks.supermimic.kinematics import compile_kinematic_model
 from pal_mjlab.tasks.supermimic.library import MotionLibrary
 
 
 def robot_model(joint_names: Sequence[str]) -> mujoco.MjModel:
   """The Kangaroo variant with these joints (after the free joint), on a floor."""
-  for spec_fn in (get_kangaroo_grippers_spec, get_kangaroo_hands_spec):
+  for spec_fn in (
+    get_kangaroo_grippers_spec,
+    get_kangaroo_hands_spec,
+    get_kangaroo_full_grippers_spec,
+  ):
     spec = spec_fn()
     spec.worldbody.add_geom(
       type=mujoco.mjtGeom.mjGEOM_PLANE, size=(0, 0, 0.05), rgba=(0.6, 0.6, 0.6, 1)
@@ -44,7 +51,7 @@ def main(library: tyro.conf.Positional[Path], clips: tuple[str, ...] = ()) -> No
   lib = MotionLibrary(library, clips=clips)
   model = robot_model(lib.joint_names)
   data = mujoco.MjData(model)
-  qpos = lib.qpos.numpy()
+  qpos = lib.qpos.numpy()  # every joint: this library loads them all
   spans = list(
     zip(lib.clip_names, lib.clip_start.tolist(), lib.clip_length.tolist(), strict=True)
   )

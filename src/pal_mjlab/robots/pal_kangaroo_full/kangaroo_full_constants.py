@@ -998,18 +998,46 @@ def actuated_joint_noise(noise: float) -> tuple[float, ...]:
   the rule behind the encoder bias groups of the velocity task. Taken as it is, +/-0.01
   would be +/-10 mm on a screw with 40 mm of travel. Arms and pelvis are identity-mapped.
   """
-  bounds = []
-  for name in _JOINT_ARMATURES:
-    if not any(re.match(expr, name) for expr in KANG_FULL_ACTUATOR_NAMES):
-      continue
-    screw = re.match(r"leg_(?:left|right)_(\d|length)_actuator$", name)
-    ratio = (
-      sum(abs(r) for r in KANG_FULL_TRANSMISSION_AT_HOME[screw.group(1)].values())
-      if screw
-      else 1.0
-    )
-    bounds.append(noise / ratio)
-  return tuple(bounds)
+  return tuple(
+    noise / _screw_ratio(name)
+    for name in _JOINT_ARMATURES
+    if any(re.match(expr, name) for expr in KANG_FULL_ACTUATOR_NAMES)
+  )
+
+
+def _screw_ratio(joint: str) -> float:
+  """Total transmission ratio of a ball screw to its joints; 1 for any other joint."""
+  screw = re.match(r"leg_(?:left|right)_(\d|length)_actuator$", joint)
+  if screw is None:
+    return 1.0
+  return sum(abs(r) for r in KANG_FULL_TRANSMISSION_AT_HOME[screw.group(1)].values())
+
+
+# The screws grouped by what drives them, with their ratio: for a bias in joint units.
+KANG_FULL_SCREW_GROUPS = {
+  "hip_z": (r"^leg_(left|right)_1_actuator$", _screw_ratio("leg_left_1_actuator")),
+  "hip_xy": (r"^leg_(left|right)_[23]_actuator$", _screw_ratio("leg_left_2_actuator")),
+  "ankle_xy": (
+    r"^leg_(left|right)_[45]_actuator$",
+    _screw_ratio("leg_left_4_actuator"),
+  ),
+  "leg_length": (
+    r"^leg_(left|right)_length_actuator$",
+    _screw_ratio("leg_left_length_actuator"),
+  ),
+}
+
+
+def full_grippers_joint_noise(noise: float) -> tuple[float, ...]:
+  """``actuated_joint_noise`` for the robot with 7-DoF arms: waist, arms, then the screws."""
+  arms = (f"arm_{side}_{k}_joint" for side in ("left", "right") for k in range(1, 8))
+  names = (
+    "pelvis_1_joint",
+    "pelvis_2_joint",
+    *arms,
+    *(n for n in _JOINT_ARMATURES if re.match(r"leg_.*_actuator$", n)),
+  )
+  return tuple(noise / _screw_ratio(name) for name in names)
 
 
 if __name__ == "__main__":

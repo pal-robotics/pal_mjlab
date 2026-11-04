@@ -24,8 +24,19 @@ FIXTURES = Path(__file__).parent / "fixtures"
 TASKS = {
   "Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers": ("supermimic", "grippers"),
   "Mjlab-SuperMimic-Flat-Pal-Kangaroo-Hands": ("supermimic", "hands"),
+  "Mjlab-SuperMimic-Flat-Pal-Kangaroo-Full-Grippers": ("supermimic", "full-grippers"),
   "Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers": ("supermimic_ppo", "grippers"),
   "Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Hands": ("supermimic_ppo", "hands"),
+  "Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Full-Grippers": (
+    "supermimic_ppo",
+    "full-grippers",
+  ),
+}
+
+LIBRARIES = {
+  "grippers": "library_tiny",
+  "hands": "library_tiny_hands",
+  "full-grippers": "library_tiny_full",
 }
 
 
@@ -61,8 +72,7 @@ class StepOnlyViewer:
 
 def _tiny(cfg: TrainConfig, task: str) -> TrainConfig:
   """CPU-sized: few envs, the tiny library, small networks, one iteration."""
-  robot = TASKS[task][1]
-  library = FIXTURES / ("library_tiny" if robot == "grippers" else "library_tiny_hands")
+  library = FIXTURES / LIBRARIES[TASKS[task][1]]
   cfg.env.scene.num_envs = 4
   motion = cfg.env.commands["motion"]
   motion.library_path = str(library)
@@ -98,9 +108,7 @@ def test_train_launches(task, tmp_path, monkeypatch):
 def test_play_launches(task, monkeypatch):
   """``uv run play <task>``: the registered play config (default library) with a dummy agent."""
   monkeypatch.setattr("mjlab.scripts.play.NativeMujocoViewer", StepOnlyViewer)
-  library = FIXTURES / (
-    "library_tiny" if TASKS[task][1] == "grippers" else "library_tiny_hands"
-  )
+  library = FIXTURES / LIBRARIES[TASKS[task][1]]
   play_cfg = registry._REGISTRY[task].play_env_cfg
   motion = play_cfg.commands["motion"]
   saved = motion.library_path, motion.compile_kinematics

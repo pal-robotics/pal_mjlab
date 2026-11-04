@@ -3,6 +3,7 @@ from mjlab.tasks.registry import register_mjlab_task
 from pal_mjlab.tasks.supermimic.rl.runner import SuperMimicRunner
 
 from .env_cfgs import (
+  pal_kangaroo_full_grippers_supermimic_env_cfg,
   pal_kangaroo_grippers_supermimic_env_cfg,
   pal_kangaroo_hands_supermimic_env_cfg,
 )
@@ -14,11 +15,12 @@ from .rl_cfg import (
 )
 
 # Task name, env config and robot name per Kangaroo variant: 7-DoF arms with grippers, 5-DoF arms with Seed
-# Robotics hands. Both log to one folder per algorithm (supermimic, supermimic_ppo); the default run name is
+# Robotics hands, and the 7-DoF arms on the closed-chain legs. All log to one folder per algorithm (supermimic, supermimic_ppo); the default run name is
 # the robot's (D49, D52).
 VARIANTS = (
   ("Grippers", pal_kangaroo_grippers_supermimic_env_cfg, "grippers"),
   ("Hands", pal_kangaroo_hands_supermimic_env_cfg, "hands"),
+  ("Full-Grippers", pal_kangaroo_full_grippers_supermimic_env_cfg, "full-grippers"),
 )
 
 

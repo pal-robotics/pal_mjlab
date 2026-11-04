@@ -15,16 +15,24 @@ from dataclasses import replace
 from mjlab.entity import EntityCfg
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
+from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
 from pal_mjlab.robots import (
   REGEX_ALL_ACTUATED_JOINTS,
+  REGEX_FULL_ACTUATED_JOINTS,
+  get_kangaroo_full_grippers_robot_cfg,
   get_kangaroo_grippers_robot_cfg,
   get_kangaroo_hands_robot_cfg,
 )
 from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
   DAMPING_RATIO,
   _build_action_scales,
+)
+from pal_mjlab.robots.pal_kangaroo_full.kangaroo_full_constants import (
+  KANG_FULL_SCREW_GROUPS,
+  full_grippers_joint_noise,
 )
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommandCfg
 from pal_mjlab.tasks.supermimic.supermimic_env_cfg import make_supermimic_env_cfg
@@ -34,6 +42,7 @@ from pal_mjlab.tasks.supermimic.supermimic_env_cfg import make_supermimic_env_cf
 # --env.commands.motion.library-path <folder>
 GRIPPERS_LIBRARY = "artifacts/kangaroo_bones_seed/dataset/libraries/dev"
 HANDS_LIBRARY = "artifacts/kangaroo_bones_seed/dataset_5dof/libraries/dev"
+FULL_GRIPPERS_LIBRARY = "artifacts/kangaroo_bones_seed/dataset_full_dcmr/libraries/dev"
 
 # Arm and waist actuators of both robots: the natural frequency of their gains (None: kangaroo_constants' 3.5 Hz,
 # the robot's) and the one their action scales are computed at (None: the gains'). The robot's gains with the 1 Hz
@@ -80,16 +89,36 @@ HANDS_TRACKED_BODIES = tuple(
   for b in TRACKED_BODIES
 )
 
+# On the closed-chain legs the same bodies have the mechanism's names: the serial model's hip roll
+# link and four-bar knee are 0.3 mm from these (D58). Feet, torso and arms keep theirs.
+FULL_GRIPPERS_TRACKED_BODIES = tuple(
+  {
+    "leg_left_3_link": "left_hip_xy",
+    "leg_right_3_link": "right_hip_xy",
+    "leg_left_knee_link": "left_tibia",
+    "leg_right_knee_link": "right_tibia",
+  }.get(b, b)
+  for b in TRACKED_BODIES
+)
+
 # Per variant: robot, tracked bodies, default motion library.
 VARIANTS = {
   "grippers": (get_kangaroo_grippers_robot_cfg, TRACKED_BODIES, GRIPPERS_LIBRARY),
   "hands": (get_kangaroo_hands_robot_cfg, HANDS_TRACKED_BODIES, HANDS_LIBRARY),
+  "full_grippers": (
+    get_kangaroo_full_grippers_robot_cfg,
+    FULL_GRIPPERS_TRACKED_BODIES,
+    FULL_GRIPPERS_LIBRARY,
+  ),
 }
 
 FOOT_GEOMS = tuple(
   f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(0, 12, 2)
 )
 TORSO_BODY = "pelvis_2_link"
+# The closed-chain model keeps the torso's mass on the body fixed to that link.
+FULL_TORSO_BODY = "torso_link"
+FULL_ARMS_AND_WAIST = r"^(pelvis_[12]_joint|arm_(left|right)_[1-7]_joint)$"
 
 
 def kangaroo_robot_cfg(
@@ -137,6 +166,43 @@ def pal_kangaroo_hands_supermimic_env_cfg(play: bool = False) -> ManagerBasedRlE
   return kangaroo_supermimic_env_cfg("hands", play)
 
 
+def pal_kangaroo_full_grippers_supermimic_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """The closed-chain legs with 7-DoF arms and grippers, on the same data lifted onto them (D58)."""
+  return kangaroo_supermimic_env_cfg("full_grippers", play)
+
+
+def _on_the_closed_chain(cfg: ManagerBasedRlEnvCfg, motion_cmd) -> None:
+  """What the ball screws change in the paper's settings (D58): each keeps its physical size."""
+  # 2 ms x 10 substeps, as this model's velocity task: the 24 loops open about 5x less than at 5 ms.
+  cfg.sim.mujoco.timestep = 0.002
+  cfg.decimation = 10
+
+  # Sensor noise and calibration offsets on a screw: the paper's values in rad over its ratio.
+  proprio = cfg.observations["proprio"].terms
+  for term, noise in (("joint_pos", 0.01), ("joint_vel", 0.5)):
+    bounds = full_grippers_joint_noise(noise)
+    proprio[term].noise = Unoise(n_min=tuple(-b for b in bounds), n_max=bounds)
+  cfg.events["encoder_bias"].params["asset_cfg"] = SceneEntityCfg(
+    "robot", joint_names=(FULL_ARMS_AND_WAIST,)
+  )
+  low, high = cfg.events["encoder_bias"].params["bias_range"]
+  for name, (regex, ratio) in KANG_FULL_SCREW_GROUPS.items():
+    cfg.events[f"{name}_encoder_bias"] = EventTermCfg(
+      mode=cfg.events["encoder_bias"].mode,
+      func=cfg.events["encoder_bias"].func,
+      params={
+        "asset_cfg": SceneEntityCfg("robot", joint_names=(regex,)),
+        "bias_range": (low / ratio, high / ratio),
+      },
+    )
+
+  # A joint offset at reset would open the loops: only arms and waist get it.
+  motion_cmd.reset_noise_joint_names = (FULL_ARMS_AND_WAIST,)
+  motion_cmd.reduced_state = True
+
+
 def kangaroo_supermimic_env_cfg(
   variant: str,
   play: bool = False,
@@ -168,10 +234,15 @@ def kangaroo_supermimic_env_cfg(
   assert isinstance(motion_cmd, MotionLibraryCommandCfg)
   motion_cmd.library_path = library
   motion_cmd.body_names = tracked_bodies
-  motion_cmd.goal_joint_names = (REGEX_ALL_ACTUATED_JOINTS,)
+  closed_chain = variant == "full_grippers"
+  actuated_joints = (
+    REGEX_FULL_ACTUATED_JOINTS if closed_chain else REGEX_ALL_ACTUATED_JOINTS
+  )
+  torso = FULL_TORSO_BODY if closed_chain else TORSO_BODY
+  motion_cmd.goal_joint_names = (actuated_joints,)
 
   # Measured joints: the actuated ones (proprioception, calibration offsets, limits).
-  actuated = SceneEntityCfg("robot", joint_names=(REGEX_ALL_ACTUATED_JOINTS,))
+  actuated = SceneEntityCfg("robot", joint_names=(actuated_joints,))
   proprio = cfg.observations["proprio"].terms
   proprio["joint_pos"].params["asset_cfg"] = actuated
   proprio["joint_vel"].params["asset_cfg"] = actuated
@@ -182,10 +253,12 @@ def kangaroo_supermimic_env_cfg(
   context = cfg.observations["critic"].terms["sim_context"].params
   context["friction_asset_cfg"] = SceneEntityCfg("robot", geom_names=FOOT_GEOMS)
   context["bias_asset_cfg"] = actuated
-  context["com_asset_cfg"] = SceneEntityCfg("robot", body_names=(TORSO_BODY,))
+  context["com_asset_cfg"] = SceneEntityCfg("robot", body_names=(torso,))
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = FOOT_GEOMS
   cfg.events["encoder_bias"].params["asset_cfg"] = actuated
-  cfg.events["torso_com"].params["asset_cfg"].body_names = (TORSO_BODY,)
+  cfg.events["torso_com"].params["asset_cfg"].body_names = (torso,)
+  if closed_chain:
+    _on_the_closed_chain(cfg, motion_cmd)
 
   if play:
     # Evaluation setting of the paper (F.1): every clip from its first frame, foot
@@ -196,7 +269,8 @@ def kangaroo_supermimic_env_cfg(
     motion_cmd.pose_range = {}
     motion_cmd.velocity_range = {}
     motion_cmd.joint_position_range = (0.0, 0.0)
-    cfg.events.pop("encoder_bias")
+    for name in [n for n in cfg.events if n.endswith("encoder_bias")]:
+      cfg.events.pop(name)
     cfg.events.pop("torso_com")
     friction = cfg.events["foot_friction"]
     friction.mode = "startup"
