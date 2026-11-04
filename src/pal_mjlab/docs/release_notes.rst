@@ -145,7 +145,7 @@ Bug Fixes & Reliability
   The density of the whole capsule class needs to be zero to avoid
   generating the inertial properties due to the ``inertiafromgeom``
   property of the compiler
-  (`#116 <https://github.com/pal-robotics/pal_mjlab/pull/117>`_)
+  (`#117 <https://github.com/pal-robotics/pal_mjlab/pull/117>`_)
 
 - **Reduced GPU memory usage and fixed hfield contact overflow in the
   Kangaroo rough velocity task.** ``ccd_iterations`` is now capped at 100
