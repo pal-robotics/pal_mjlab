@@ -28,7 +28,9 @@ def test_every_registered_pal_task_is_documented():
 def test_docs_do_not_reference_unregistered_pal_tasks():
   registered = set(list_tasks())
   documented = set(
-    re.findall(r"Mjlab-[A-Za-z]+-[A-Za-z]+-Pal-[A-Za-z0-9_-]+", _docs_text(include_history=False))
+    re.findall(
+      r"Mjlab-[A-Za-z]+-[A-Za-z]+-Pal-[A-Za-z0-9_-]+", _docs_text(include_history=False)
+    )
   )
   stale = sorted(documented - registered)
   assert not stale, f"docs reference unregistered tasks: {stale}"
