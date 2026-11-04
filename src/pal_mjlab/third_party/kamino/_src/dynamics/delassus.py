@@ -1,0 +1,2120 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 The Newton Developers
+# SPDX-License-Identifier: Apache-2.0
+
+"""
+Provides containers to represent and operate Delassus operators.
+
+A Delassus operator is a symmetric semi-positive-definite matrix that
+represents the apparent inertia within the space defined by the set of
+active constraints imposed on a constrained rigid multi-body system.
+
+This module thus provides building-blocks to realize Delassus operators across multiple
+worlds contained in a :class:`ModelKamino`. The :class:`DelassusOperator` class provides a
+high-level interface to encapsulate both the data representation as well as the
+relevant operations. It provides methods to allocate the necessary data arrays, build
+the Delassus matrix given the current state of the model and the active constraints,
+add diagonal regularization, and solve linear systems of the form `D @ x = v` given
+arrays holding the right-hand-side (rhs) vectors v. Moreover, it supports the use of
+different linear solvers as a back-end for performing the aforementioned linear system
+solve. Construction of the Delassus operator is realized using a set of Warp kernels
+that parallelize the computation using various strategies.
+
+Typical usage example:
+    # Create a model builder and add bodies, joints, geoms, etc.
+    builder = ModelBuilder()
+    ...
+
+    # Create a model from the builder and construct additional
+    # containers to hold joint-limits, contacts, Jacobians
+    model = ModelKamino.from_newton(builder.finalize())
+    data = model.data()
+    limits = LimitsKamino(model)
+    contacts = ContactsKamino(model)
+    jacobians = DenseSystemJacobians(model, limits, contacts)
+
+    # Define a linear solver type to use as a back-end for the
+    # Delassus operator computations such as factorization and
+    # solving the linear system when a rhs vector is provided
+    linear_solver = LLTBlockedSolver
+    ...
+
+    # Build the Jacobians for the model and active limits and contacts
+    jacobians.build(model, data, limits, contacts)
+    ...
+
+    # Create a Delassus operator and build it using the current model data
+    # and active unilateral constraints (i.e. for limits and contacts).
+    delassus = DelassusOperator(model, limits, contacts, linear_solver)
+    delassus.build(model, data, jacobians)
+
+    # Add diagonal regularization the Delassus matrix
+    eta = ...
+    delassus.regularize(eta=eta)
+
+    # Factorize the Delassus matrix using the Cholesky factorization
+    delassus.compute()
+
+    # Solve a linear system using the Delassus operator
+    rhs = ...
+    solution = ...
+    delassus.solve(b=rhs, x=solution)
+"""
+
+from __future__ import annotations
+
+import copy
+import functools
+from typing import Any
+
+import numpy as np
+import warp as wp
+
+from ..core.data import DataKamino
+from ..core.model import ModelKamino
+from ..core.size import SizeKamino
+from ..core.types import FloatType, to_warp_int32_array, vec6f
+from ..geometry.contacts import ContactsKamino
+from ..kinematics.constraints import get_max_constraints_per_world
+from ..kinematics.jacobians import ColMajorSparseConstraintJacobians, DenseSystemJacobians, SparseSystemJacobians
+from ..kinematics.limits import LimitsKamino
+from ..linalg import DenseLinearOperatorData, DenseSquareMultiLinearInfo, LinearSolverType
+from ..linalg.linear import IterativeSolver
+from ..linalg.sparse_matrix import BlockDType, BlockSparseMatrices
+from ..linalg.sparse_operator import BlockSparseLinearOperators
+
+###
+# Module interface
+###
+
+__all__ = [
+    "BlockSparseMatrixFreeDelassusOperator",
+    "DelassusOperator",
+]
+
+
+###
+# Module configs
+###
+
+wp.set_module_options({"enable_backward": False, "default_grid_stride": False})
+
+
+###
+# Helpers
+###
+
+
+@wp.func
+def upper_triangular_indices_from_index(index: int, mat_size: int):
+    """
+    Maps a single index to a pair of indices of the upper triangular part of a
+    quadratic matrix.
+
+    Args:
+        index: Single index.
+        mat_size: Size of the matrix (number of rows or columns).
+
+    Returns:
+        Pair of matrix indices for the upper triangular part of the matrix, or
+        `-1, -1` if the input index is outside the valid range.
+    """
+    # Map input index to upper-triangular index (i, j):
+    #   Row i starts at flat position f(i) = i * mat_size - i * (i - 1) / 2
+    #   and contains (mat_size - i) elements.
+    # Total elements = mat_size * (mat_size + 1) / 2.
+
+    # Return invalid indices if index is outside of valid range.
+    if index < 0 or index >= mat_size * (mat_size + 1) // 2:
+        return -1, -1
+
+    # Recover row i: largest i such that f(i) <= index (integer binary search; avoids wp.float32 sqrt)
+    lo = wp.int32(0)
+    hi = mat_size - wp.int32(1)
+    i = wp.int32(0)
+    while lo <= hi:
+        mid = lo + (hi - lo) // 2
+        fi = mid * mat_size - mid * (mid - 1) // 2
+        if fi <= index:
+            i = mid
+            lo = mid + 1
+        else:
+            hi = mid - 1
+
+    # Recover column j: offset within row i, shifted by i (upper triangle starts at diagonal)
+    j = index - i * mat_size + i * (i + 1) // 2
+
+    return i, j
+
+
+###
+# Kernels
+###
+
+
+@wp.kernel
+def _build_delassus_elementwise_dense(
+    # Inputs:
+    model_info_bodies_offset: wp.array[wp.int32],
+    model_bodies_inv_m_i: wp.array[wp.float32],
+    data_bodies_inv_I_i: wp.array[wp.mat33f],
+    jacobians_cts_offset: wp.array[wp.int32],
+    jacobians_cts_data: wp.array[wp.float32],
+    delassus_dim: wp.array[wp.int32],
+    delassus_mio: wp.array[wp.int32],
+    # Outputs:
+    delassus_D: wp.array[wp.float32],
+):
+    # Retrieve the thread index as the world index and upper-triangle element index
+    wid, tid = wp.tid()
+
+    # Retrieve the world dimensions
+    bio = model_info_bodies_offset[wid]
+    nb = model_info_bodies_offset[wid + 1] - bio
+
+    # Retrieve the problem dimensions
+    ncts = delassus_dim[wid]
+
+    # Skip if world has no constraints
+    if ncts == 0:
+        return
+
+    # The Delassus matrix is symmetric, so we only compute the upper triangle (i <= j).
+    # Recover matrix indices from tid.
+    i, j = upper_triangular_indices_from_index(tid, ncts)
+    if i < 0 or i >= ncts or j < i or j >= ncts:
+        return
+
+    # Retrieve the world's matrix offsets
+    dmio = delassus_mio[wid]
+    cjmio = jacobians_cts_offset[wid]
+
+    # Compute the number of body DoFs of the world
+    nbd = 6 * nb
+
+    # Buffers
+    Jv_i = wp.vec3f(0.0)
+    Jv_j = wp.vec3f(0.0)
+    Jw_i = wp.vec3f(0.0)
+    Jw_j = wp.vec3f(0.0)
+    D_ij = wp.float32(0.0)
+
+    # Loop over rigid body blocks
+    # NOTE: k is the body index w.r.t the world
+    for k in range(nb):
+        # Body index (bid) of body k w.r.t the model
+        bid_k = bio + k
+        # DoF index offset (dio) of body k in the flattened Jacobian matrix
+        # NOTE: Equivalent to the column index in the matrix-form of the Jacobian matrix
+        dio_k = 6 * k
+        # Jacobian index offsets
+        jio_ik = cjmio + nbd * i + dio_k
+        jio_jk = cjmio + nbd * j + dio_k
+
+        # Load the Jacobian blocks of body k
+        for d in range(3):
+            # Load the i-th row block
+            Jv_i[d] = jacobians_cts_data[jio_ik + d]
+            Jw_i[d] = jacobians_cts_data[jio_ik + d + 3]
+            # Load the j-th row block
+            Jv_j[d] = jacobians_cts_data[jio_jk + d]
+            Jw_j[d] = jacobians_cts_data[jio_jk + d + 3]
+
+        # Linear term: inv_m_k * dot(Jv_i, Jv_j)
+        # Angular term: dot(Jw_i, inv_I_k @ Jw_j)
+        inv_m_k = model_bodies_inv_m_i[bid_k]
+        inv_I_k = data_bodies_inv_I_i[bid_k]
+        D_ij += inv_m_k * wp.dot(Jv_i, Jv_j) + wp.dot(Jw_i, inv_I_k @ Jw_j)
+
+    # Write upper triangle and mirror to lower
+    delassus_D[dmio + ncts * i + j] = D_ij
+    if i != j:
+        delassus_D[dmio + ncts * j + i] = D_ij
+
+
+@wp.kernel
+def _build_delassus_elementwise_sparse(
+    # Inputs:
+    model_info_bodies_offset: wp.array[wp.int32],
+    model_bodies_inv_m_i: wp.array[wp.float32],
+    data_bodies_inv_I_i: wp.array[wp.mat33f],
+    jacobian_cts_num_nzb: wp.array[wp.int32],
+    jacobian_cts_nzb_start: wp.array[wp.int32],
+    jacobian_cts_nzb_coords: wp.array2d[wp.int32],
+    jacobian_cts_nzb_values: wp.array[vec6f],
+    delassus_dim: wp.array[wp.int32],
+    delassus_mio: wp.array[wp.int32],
+    # Outputs:
+    delassus_D: wp.array[wp.float32],
+):
+    # Retrieve the thread index as the world index and Jacobian block index pair
+    wid, tid = wp.tid()
+
+    # Retrieve the problem dimensions
+    ncts = delassus_dim[wid]
+
+    # Skip if world has no constraints
+    if ncts == 0:
+        return
+
+    # Retrieve the world dimensions
+    bio = model_info_bodies_offset[wid]
+
+    # Retrieve the number of non-zero blocks
+    num_nzb = jacobian_cts_num_nzb[wid]
+
+    # Process each unordered block pair once; the result is mirrored below.
+    block_id_i, block_id_j = upper_triangular_indices_from_index(tid, num_nzb)
+
+    # Skip if index exceeds problem size
+    if block_id_i < 0 or block_id_i >= num_nzb or block_id_j >= num_nzb:
+        return
+
+    nzb_start = jacobian_cts_nzb_start[wid]
+    global_block_id_i = nzb_start + block_id_i
+    global_block_id_j = nzb_start + block_id_j
+
+    # Get block coordinates
+    block_coords_i = jacobian_cts_nzb_coords[global_block_id_i]
+    block_coords_j = jacobian_cts_nzb_coords[global_block_id_j]
+
+    # Skip if blocks don't affect the same body
+    if block_coords_i[1] != block_coords_j[1]:
+        return
+
+    ct_i = block_coords_i[0]
+    ct_j = block_coords_j[0]
+
+    # Body index (bid) of body k w.r.t the model, from Jacobian block coords
+    bid_k = bio + block_coords_i[1] // 6
+
+    # Get block values
+    block_i = jacobian_cts_nzb_values[global_block_id_i]
+    block_j = jacobian_cts_nzb_values[global_block_id_j]
+
+    # Retrieve the world's matrix offsets
+    dmio = delassus_mio[wid]
+
+    # Load the Jacobian blocks components for body
+    Jv_i = wp.vec3f(block_i[0], block_i[1], block_i[2])
+    Jv_j = wp.vec3f(block_j[0], block_j[1], block_j[2])
+    Jw_i = wp.vec3f(block_i[3], block_i[4], block_i[5])
+    Jw_j = wp.vec3f(block_j[3], block_j[4], block_j[5])
+
+    # Linear term: inv_m_k * dot(Jv_i, Jv_j)
+    # Angular term: dot(Jw_i, inv_I_k @ Jw_j)
+    inv_m_k = model_bodies_inv_m_i[bid_k]
+    inv_I_k = data_bodies_inv_I_i[bid_k]
+    D_ij = inv_m_k * wp.dot(Jv_i, Jv_j) + wp.dot(Jw_i, inv_I_k @ Jw_j)
+
+    # Write upper triangle and mirror to lower
+    wp.atomic_add(delassus_D, dmio + ncts * ct_i + ct_j, D_ij)
+    if ct_i != ct_j:
+        wp.atomic_add(delassus_D, dmio + ncts * ct_j + ct_i, D_ij)
+
+
+@wp.kernel
+def _add_joint_armature_diagonal_regularization_dense(
+    # Inputs:
+    model_info_num_joint_dynamic_cts: wp.array[wp.int32],
+    model_info_joint_dynamic_cts_offset: wp.array[wp.int32],
+    model_joint_inv_m_j: wp.array[wp.float32],
+    delassus_dim: wp.array[wp.int32],
+    delassus_mio: wp.array[wp.int32],
+    # Outputs:
+    delassus_D: wp.array[wp.float32],
+):
+    # Retrieve the thread index as the world index and Delassus element index
+    wid, tid = wp.tid()
+
+    # Retrieve the world dimensions
+    num_joint_dyn_cts = model_info_num_joint_dynamic_cts[wid]
+
+    # Skip if world has no dynamic joint constraints or indices exceed the problem size
+    if num_joint_dyn_cts == 0 or tid >= num_joint_dyn_cts:
+        return
+
+    # Retrieve the world's Delassus matrix dimension and offset
+    ncts = delassus_dim[wid]
+    dmio = delassus_mio[wid]
+
+    # Retrieve the dynamic constraint index offset of the world
+    world_joint_dynamic_cts_offset = model_info_joint_dynamic_cts_offset[wid]
+
+    # Retrieve the joint's inverse mass for armature regularization
+    inv_m_j = model_joint_inv_m_j[world_joint_dynamic_cts_offset + tid]
+
+    # Add the armature regularization to the diagonal element of the Delassus matrix
+    delassus_D[dmio + ncts * tid + tid] += inv_m_j
+
+
+@wp.kernel
+def _add_joint_effort_diagonal_regularization_dense(
+    # Inputs:
+    model_info_num_effort_cts: wp.array[wp.int32],
+    model_info_joint_effort_cts_offset: wp.array[wp.int32],
+    model_info_bounded_cts_group_offset: wp.array[wp.int32],
+    model_info_num_friction_cts: wp.array[wp.int32],
+    model_joint_inv_m_a: wp.array[wp.float32],
+    delassus_dim: wp.array[wp.int32],
+    delassus_mio: wp.array[wp.int32],
+    # Outputs:
+    delassus_D: wp.array[wp.float32],
+):
+    wid, tid = wp.tid()
+
+    num_effort_cts = model_info_num_effort_cts[wid]
+    if num_effort_cts == 0 or tid >= num_effort_cts:
+        return
+
+    ncts = delassus_dim[wid]
+    dmio = delassus_mio[wid]
+    world_effort_cts_offset = model_info_joint_effort_cts_offset[wid]
+    row = model_info_bounded_cts_group_offset[wid] + model_info_num_friction_cts[wid] + tid
+    inv_m_a = model_joint_inv_m_a[world_effort_cts_offset + tid]
+    delassus_D[dmio + ncts * row + row] += inv_m_a
+
+
+@wp.kernel
+def _regularize_delassus_diagonal_dense(
+    # Inputs:
+    delassus_dim: wp.array[wp.int32],
+    delassus_vio: wp.array[wp.int32],
+    delassus_mio: wp.array[wp.int32],
+    eta: wp.array[wp.float32],
+    # Outputs:
+    delassus_D: wp.array[wp.float32],
+):
+    # Retrieve the thread index
+    wid, tid = wp.tid()
+
+    # Retrieve the problem dimensions and matrix block index offset
+    dim = delassus_dim[wid]
+    vio = delassus_vio[wid]
+    mio = delassus_mio[wid]
+
+    # Skip if row index exceed the problem size
+    if tid >= dim:
+        return
+
+    # Regularize the diagonal element
+    delassus_D[mio + dim * tid + tid] += eta[vio + tid]
+
+
+@wp.kernel
+def _merge_inv_mass_matrix_kernel(
+    model_info_bodies_offset: wp.array[wp.int32],
+    model_bodies_inv_m_i: wp.array[wp.float32],
+    data_bodies_inv_I_i: wp.array[wp.mat33f],
+    num_nzb: wp.array[wp.int32],
+    nzb_start: wp.array[wp.int32],
+    nzb_coords: wp.array2d[wp.int32],
+    jacobian_nzb_values: wp.array[vec6f],
+    mass_weighted_nzb_values: wp.array[vec6f],
+):
+    """
+    Kernel to merge the inverse mass matrix into an existing sparse matrix, so that the resulting
+    matrix is given as `A <- A @ M^-1`.
+    """
+    mat_id, block_idx = wp.tid()
+
+    # Check if block index is valid for this matrix.
+    if block_idx >= num_nzb[mat_id]:
+        return
+
+    global_block_idx = nzb_start[mat_id] + block_idx
+    block_coord = nzb_coords[global_block_idx]
+    block = jacobian_nzb_values[global_block_idx]
+
+    body_id = block_coord[1] // 6
+
+    # Index of body w.r.t the model
+    global_body_id = model_info_bodies_offset[mat_id] + body_id
+
+    # Load the inverse mass and inverse inertia for this body
+    inv_m = model_bodies_inv_m_i[global_body_id]
+    inv_I = data_bodies_inv_I_i[global_body_id]
+
+    # Apply inverse mass matrices to Jacobian block
+    v = inv_m * wp.vec3f(block[0], block[1], block[2])
+    w = inv_I @ wp.vec3f(block[3], block[4], block[5])
+
+    # Write back values
+    block[0] = v[0]
+    block[1] = v[1]
+    block[2] = v[2]
+    block[3] = w[0]
+    block[4] = w[1]
+    block[5] = w[2]
+    mass_weighted_nzb_values[global_block_idx] = block
+
+
+@functools.cache
+def _make_merge_preconditioner_kernel(block_type: BlockDType):
+    """
+    Generates a kernel to merge the (diagonal) preconditioning into a sparse matrix.
+    This effectively applies the preconditioning to the left (row-space) of the Jacobian.
+    """
+    # Determine (static) block size for kernel.
+    block_shape = block_type.shape
+    if isinstance(block_type.shape, int):
+        block_shape = (block_shape, block_shape)
+    elif len(block_shape) == 0:
+        block_shape = (1, 1)
+    elif len(block_shape) == 1:
+        block_shape = (1, block_shape[0])
+
+    @wp.kernel
+    def merge_preconditioner_kernel(
+        # Inputs:
+        num_nzb: wp.array[wp.int32],
+        nzb_start: wp.array[wp.int32],
+        nzb_coords: wp.array2d[wp.int32],
+        row_start: wp.array[wp.int32],
+        preconditioner: wp.array[wp.float32],
+        # Outputs:
+        nzb_values: wp.array[Any],  # wp.array[block_type.warp_type]
+    ):
+        mat_id, block_idx = wp.tid()
+
+        # Check if block index is valid for this matrix.
+        if block_idx >= num_nzb[mat_id]:
+            return
+
+        n_block_rows = wp.static(block_shape[0])
+        n_block_cols = wp.static(block_shape[1])
+
+        global_block_idx = nzb_start[mat_id] + block_idx
+        block_coord = nzb_coords[global_block_idx]
+        block = nzb_values[global_block_idx]
+
+        if wp.static(n_block_rows == 1):
+            vec_coord = block_coord[0] + row_start[mat_id]
+            p_value = preconditioner[vec_coord]
+            block = block * p_value
+
+        else:
+            vec_coord_start = block_coord[0] + row_start[mat_id]
+            for i in range(n_block_rows):
+                p_value = preconditioner[vec_coord_start + i]
+                for j in range(n_block_cols):
+                    block[i, j] = block[i, j] * p_value
+
+        nzb_values[global_block_idx] = block
+
+    return merge_preconditioner_kernel
+
+
+@wp.kernel
+def _add_armature_regularization_sparse(
+    # Inputs:
+    model_info_num_joint_dynamic_cts: wp.array[wp.int32],
+    model_info_joint_dynamic_cts_offset: wp.array[wp.int32],
+    row_start: wp.array[wp.int32],
+    model_joint_inv_m_j: wp.array[wp.float32],
+    # Outputs:
+    combined_regularization: wp.array[wp.float32],
+):
+    # Retrieve the thread index as the world index and joint dynamics index
+    wid, tid = wp.tid()
+
+    # Retrieve the world dimensions
+    num_joint_dyn_cts = model_info_num_joint_dynamic_cts[wid]
+
+    # Skip if world has no dynamic joint constraints or indices exceed the problem size
+    if num_joint_dyn_cts == 0 or tid >= num_joint_dyn_cts:
+        return
+
+    # Retrieve the dynamic constraint index offset of the world
+    world_joint_dynamic_cts_offset = model_info_joint_dynamic_cts_offset[wid]
+
+    # Retrieve the joint's inverse mass for armature regularization
+    inv_m_j = model_joint_inv_m_j[world_joint_dynamic_cts_offset + tid]
+
+    # Get the index into the regularization
+    vec_id = row_start[wid] + tid
+
+    # Add the armature regularization
+    combined_regularization[vec_id] += inv_m_j
+
+
+@wp.kernel
+def _add_effort_regularization_sparse(
+    # Inputs:
+    model_info_num_effort_cts: wp.array[wp.int32],
+    model_info_joint_effort_cts_offset: wp.array[wp.int32],
+    model_info_bounded_cts_group_offset: wp.array[wp.int32],
+    model_info_num_friction_cts: wp.array[wp.int32],
+    row_start: wp.array[wp.int32],
+    model_joint_inv_m_a: wp.array[wp.float32],
+    # Outputs:
+    combined_regularization: wp.array[wp.float32],
+):
+    wid, tid = wp.tid()
+
+    num_effort_cts = model_info_num_effort_cts[wid]
+    if num_effort_cts == 0 or tid >= num_effort_cts:
+        return
+
+    world_effort_cts_offset = model_info_joint_effort_cts_offset[wid]
+    inv_m_a = model_joint_inv_m_a[world_effort_cts_offset + tid]
+    row = model_info_bounded_cts_group_offset[wid] + model_info_num_friction_cts[wid] + tid
+    vec_id = row_start[wid] + row
+    combined_regularization[vec_id] += inv_m_a
+
+
+@wp.kernel
+def _add_armature_regularization_preconditioned_sparse(
+    # Inputs:
+    model_info_num_joint_dynamic_cts: wp.array[wp.int32],
+    model_info_joint_dynamic_cts_offset: wp.array[wp.int32],
+    model_joint_inv_m_j: wp.array[wp.float32],
+    row_start: wp.array[wp.int32],
+    preconditioner: wp.array[wp.float32],
+    # Outputs:
+    combined_regularization: wp.array[wp.float32],
+):
+    # Retrieve the thread index as the world index and joint dynamics index
+    wid, tid = wp.tid()
+
+    # Retrieve the world dimensions
+    num_joint_dyn_cts = model_info_num_joint_dynamic_cts[wid]
+
+    # Skip if world has no dynamic joint constraints or indices exceed the problem size
+    if num_joint_dyn_cts == 0 or tid >= num_joint_dyn_cts:
+        return
+
+    # Retrieve the dynamic constraint index offset of the world
+    world_joint_dynamic_cts_offset = model_info_joint_dynamic_cts_offset[wid]
+
+    # Retrieve the joint's inverse mass for armature regularization
+    inv_m_j = model_joint_inv_m_j[world_joint_dynamic_cts_offset + tid]
+
+    # Get the index into the preconditioner and regularization
+    vec_id = row_start[wid] + tid
+
+    # Retrieve preconditioner value
+    p = preconditioner[vec_id]
+
+    # Add the armature regularization
+    combined_regularization[vec_id] += p * p * inv_m_j
+
+
+@wp.kernel
+def _add_effort_regularization_preconditioned_sparse(
+    # Inputs:
+    model_info_num_effort_cts: wp.array[wp.int32],
+    model_info_joint_effort_cts_offset: wp.array[wp.int32],
+    model_info_bounded_cts_group_offset: wp.array[wp.int32],
+    model_info_num_friction_cts: wp.array[wp.int32],
+    model_joint_inv_m_a: wp.array[wp.float32],
+    row_start: wp.array[wp.int32],
+    preconditioner: wp.array[wp.float32],
+    # Outputs:
+    combined_regularization: wp.array[wp.float32],
+):
+    wid, tid = wp.tid()
+
+    num_effort_cts = model_info_num_effort_cts[wid]
+    if num_effort_cts == 0 or tid >= num_effort_cts:
+        return
+
+    world_effort_cts_offset = model_info_joint_effort_cts_offset[wid]
+    inv_m_a = model_joint_inv_m_a[world_effort_cts_offset + tid]
+    row = model_info_bounded_cts_group_offset[wid] + model_info_num_friction_cts[wid] + tid
+    vec_id = row_start[wid] + row
+    p = preconditioner[vec_id]
+    combined_regularization[vec_id] += p * p * inv_m_a
+
+
+@wp.kernel
+def _compute_block_sparse_delassus_diagonal(
+    # Inputs:
+    model_info_bodies_offset: wp.array[wp.int32],
+    model_bodies_inv_m_i: wp.array[wp.float32],
+    data_bodies_inv_I_i: wp.array[wp.mat33f],
+    bsm_nzb_start: wp.array[wp.int32],
+    bsm_num_nzb: wp.array[wp.int32],
+    bsm_nzb_coords: wp.array2d[wp.int32],
+    bsm_nzb_values: wp.array[vec6f],
+    vec_start: wp.array[wp.int32],
+    # Outputs:
+    diag: wp.array[wp.float32],
+):
+    """
+    Computes the diagonal entries of the Delassus matrix by summing up the contributions of each
+    non-zero block of the Jacobian: D_ii = sum_k J_ik @ M_kk^-1 @ (J_ik)^T
+
+    This kernel processes one non-zero block per thread and accumulates all contributions.
+    """
+    # Retrieve the thread index as the world index and block index
+    world_id, block_idx_local = wp.tid()
+
+    # Skip if block index exceeds the number of non-zero blocks
+    if block_idx_local >= bsm_num_nzb[world_id]:
+        return
+
+    # Compute the global block index
+    block_idx = bsm_nzb_start[world_id] + block_idx_local
+
+    # Get the row and column for this block
+    row = bsm_nzb_coords[block_idx, 0]
+    col = bsm_nzb_coords[block_idx, 1]
+
+    # Get the body index offset for this world
+    body_index_offset = model_info_bodies_offset[world_id]
+
+    # Get the Jacobian block and extract linear and angular components
+    J_block = bsm_nzb_values[block_idx]
+    Jv = J_block[0:3]
+    Jw = J_block[3:6]
+
+    # Get the body index from the column
+    body_idx = col // 6
+    body_idx_global = body_index_offset + body_idx
+
+    # Load the inverse mass and inverse inertia for this body
+    inv_m = model_bodies_inv_m_i[body_idx_global]
+    inv_I = data_bodies_inv_I_i[body_idx_global]
+
+    # Compute linear contribution: Jv^T @ inv_m @ Jv
+    diag_kk = inv_m * wp.dot(Jv, Jv)
+
+    # Compute angular contribution: Jw^T @ inv_I @ Jw
+    diag_kk += wp.dot(Jw, inv_I @ Jw)
+
+    # Atomically add contribution to the diagonal element
+    wp.atomic_add(diag, vec_start[world_id] + row, diag_kk)
+
+
+@wp.kernel
+def _add_matrix_diag_product(
+    model_data_num_total_cts: wp.array[wp.int32],
+    row_start: wp.array[wp.int32],
+    d: wp.array[wp.float32],
+    x: wp.array[wp.float32],
+    y: wp.array[wp.float32],
+    alpha: float,
+    world_mask: wp.array[wp.bool],
+):
+    """
+    Adds the product of a vector with a diagonal matrix to another vector: y += alpha * diag(d) @ x
+    This is used to apply a regularization to the Delassus matrix-vector product.
+    """
+    # Retrieve the thread index as the world index and constraint index
+    world_id, ct_id = wp.tid()
+
+    # Terminate early if world or constraint is inactive
+    if not world_mask[world_id] or ct_id >= model_data_num_total_cts[world_id]:
+        return
+
+    idx = row_start[world_id] + ct_id
+    y[idx] += alpha * d[idx] * x[idx]
+
+
+@wp.kernel
+def _scale_row_vector_kernel(
+    # Matrix data:
+    matrix_dims: wp.array2d[wp.int32],
+    # Vector block offsets:
+    row_start: wp.array[wp.int32],
+    # Inputs:
+    x: wp.array[wp.float32],
+    beta: float,
+    # Mask:
+    matrix_mask: wp.array[wp.bool],
+):
+    """
+    Computes a vector scaling for all active entries: y = beta * y
+    """
+    mat_id, entry_id = wp.tid()
+
+    # Early exit if the matrix is flagged as inactive.
+    if matrix_mask[mat_id] == 0 or entry_id >= matrix_dims[mat_id, 0]:
+        return
+
+    idx = row_start[mat_id] + entry_id
+    x[idx] = beta * x[idx]
+
+
+@functools.cache
+def _make_block_sparse_gemv_regularization_kernel(alpha: wp.float32):
+    # Note: this kernel factory allows to optimize for the common case alpha = 1.0. In use cases where
+    # alpha changes over time, this would need to be revisited (to avoid multiple recompilations)
+    @wp.kernel
+    def _block_sparse_gemv_regularization_kernel(
+        # Matrix data:
+        dims: wp.array2d[wp.int32],
+        num_nzb: wp.array[wp.int32],
+        nzb_start: wp.array[wp.int32],
+        nzb_coords: wp.array2d[wp.int32],
+        nzb_values: wp.array[vec6f],
+        # Vector block offsets:
+        row_start: wp.array[wp.int32],
+        col_start: wp.array[wp.int32],
+        # Regularization:
+        eta: wp.array[wp.float32],
+        # Vector:
+        x: wp.array[wp.float32],
+        y: wp.array[wp.float32],
+        z: wp.array[wp.float32],
+        # Mask:
+        matrix_mask: wp.array[wp.bool],
+    ):
+        """
+        Computes a generalized matrix-vector product with an added diagonal regularization component:
+            y <- y + alpha * (M @ x) + alpha * (diag(eta) @ z)
+        """
+
+        mat_id, block_idx = wp.tid()
+
+        # Early exit if the matrix is flagged as inactive.
+        if matrix_mask[mat_id] == 0:
+            return
+
+        # Check if block index is valid for this matrix.
+        if block_idx >= num_nzb[mat_id]:
+            return
+
+        global_block_idx = nzb_start[mat_id] + block_idx
+        block_coord = nzb_coords[global_block_idx]
+        block = nzb_values[global_block_idx]
+
+        # Perform block matrix-vector multiplication: z += alpha * A_block @ x_block
+        x_idx_base = col_start[mat_id] + block_coord[1]
+        acc = wp.float32(0.0)
+
+        for j in range(6):
+            acc += block[j] * x[x_idx_base + j]
+        if wp.static(alpha != 1.0):
+            acc *= alpha
+
+        wp.atomic_add(y, row_start[mat_id] + block_coord[0], acc)
+
+        if block_idx < dims[mat_id][0]:
+            vec_idx = row_start[mat_id] + block_idx
+            if wp.static(alpha != 1.0):
+                vec_val = z[vec_idx] * alpha * eta[vec_idx]
+            else:
+                vec_val = z[vec_idx] * eta[vec_idx]
+            wp.atomic_add(y, vec_idx, vec_val)
+
+    return _block_sparse_gemv_regularization_kernel
+
+
+###
+# Interfaces
+###
+
+
+class DelassusOperator:
+    """
+    A container to represent the Delassus matrix operator.
+    """
+
+    def __init__(
+        self,
+        model: ModelKamino | None = None,
+        data: DataKamino | None = None,
+        limits: LimitsKamino | None = None,
+        contacts: ContactsKamino | None = None,
+        solver: LinearSolverType = None,
+        solver_kwargs: dict[str, Any] | None = None,
+    ):
+        """
+        Creates a Delassus operator for the given model, limits and contacts containers.
+
+        This class also supports deferred allocation, i.e. it can be initialized without
+        a model, limits, or contacts, and the allocation can be performed later using the
+        `allocate` method. This is useful for scenarios where the model or constraints are
+        not known at the time of Delassus operator creation, but will be available later.
+
+        The dimension of a Delassus matrix is defined as the sum over active
+        joint, limit, and contact constraints, and the maximum dimension is
+        the maximum number of constraints that can be active in each world.
+
+        Args:
+            model: The model container for which the Delassus operator is built.
+            data: The model data container holding the state info and data.
+            limits: The container holding the allocated joint-limit data.
+            contacts: The container holding the allocated contacts data.
+            solver: The solver type to use for linear systems defined by the Delassus operator.
+            solver_kwargs: Additional keyword arguments to pass to the solver constructor.
+        """
+        # Declare and initialize the host-side cache of the necessary memory allocations
+        self._num_worlds: int = 0
+        self._model_maxdims: int = 0
+        self._model_maxsize: int = 0
+        self._world_maxdims: list[int] = []
+        self._world_maxsize: list[int] = []
+        self._max_of_max_total_D_size: int = 0
+
+        # Declare the device cache
+        self._device: wp.DeviceLike = None
+
+        # Declare the model size cache
+        self._size: SizeKamino | None = None
+
+        # Initialize the Delassus data container
+        self._operator: DenseLinearOperatorData[wp.float32, wp.int32] | None = None
+
+        # Declare the optional Cholesky factorization
+        self._solver: LinearSolverType | None = None
+
+        # Allocate the Delassus operator data if at least the model is provided
+        if model is not None:
+            self.finalize(
+                model=model,
+                data=data,
+                limits=limits,
+                contacts=contacts,
+                solver=solver,
+                solver_kwargs=solver_kwargs,
+            )
+
+    @property
+    def num_worlds(self) -> int:
+        """
+        Returns the number of worlds represented by the Delassus operator.
+        This is equal to the number of matrix blocks contained in the flat array.
+        """
+        return self._num_worlds
+
+    @property
+    def num_maxdims(self) -> int:
+        """
+        Returns the maximum dimension of the Delassus matrix across all worlds.
+        This is the sum of per matrix block maximum dimensions.
+        """
+        return self._model_maxdims
+
+    @property
+    def num_maxsize(self) -> int:
+        """
+        Returns the maximum size of the Delassus matrix across all worlds.
+        This is the sum over the sizes of all matrix blocks.
+        """
+        return self._model_maxsize
+
+    @property
+    def operator(self) -> DenseLinearOperatorData[wp.float32, wp.int32]:
+        """
+        Returns a reference to the flat Delassus matrix array.
+        """
+        return self._operator
+
+    @property
+    def solver(self) -> LinearSolverType:
+        """
+        The linear solver object for the Delassus operator.
+        This is used to perform the factorization of the Delassus matrix.
+        """
+        return self._solver
+
+    @property
+    def info(self) -> DenseSquareMultiLinearInfo[wp.float32, wp.int32]:
+        """
+        Returns a reference to the flat Delassus matrix array.
+        """
+        return self._operator.info
+
+    @property
+    def D(self) -> wp.array[wp.float32]:
+        """
+        Returns a reference to the flat Delassus matrix array.
+        """
+        return self._operator.mat
+
+    def finalize(
+        self,
+        model: ModelKamino,
+        data: DataKamino,
+        limits: LimitsKamino | None = None,
+        contacts: ContactsKamino | None = None,
+        solver: LinearSolverType = None,
+        solver_kwargs: dict[str, Any] | None = None,
+    ):
+        """
+        Allocates the Delassus operator with the specified dimensions.
+
+        Args:
+            model: The model container for which the Delassus operator is built.
+            data: The model data container holding the state info and data.
+            limits: The container holding the allocated joint-limit data.
+            contacts: The container holding the allocated contacts data.
+            solver: The solver type to use for linear systems defined by the Delassus operator.
+            solver_kwargs: Additional keyword arguments to pass to the solver constructor.
+        """
+
+        # Ensure the model container is valid
+        if model is None:
+            raise ValueError(
+                "A model container of type `ModelKamino` must be provided to allocate the Delassus operator."
+            )
+        elif not isinstance(model, ModelKamino):
+            raise ValueError("Invalid model provided. Must be an instance of `ModelKamino`.")
+
+        # Ensure the data container is valid if provided
+        if data is None:
+            raise ValueError(
+                "A data container of type `DataKamino` must be provided to allocate the Delassus operator."
+            )
+        elif not isinstance(data, DataKamino):
+            raise ValueError("Invalid data container provided. Must be an instance of `DataKamino`.")
+
+        # Ensure the limits container is valid if provided
+        if limits is not None:
+            if not isinstance(limits, LimitsKamino):
+                raise ValueError("Invalid limits container provided. Must be an instance of `LimitsKamino`.")
+
+        # Ensure the contacts container is valid if provided
+        if contacts is not None:
+            if not isinstance(contacts, ContactsKamino):
+                raise ValueError("Invalid contacts container provided. Must be an instance of `ContactsKamino`.")
+
+        # Capture reference to the model size
+        self._size = model.size
+
+        # Extract required maximum number of constraints for each world
+        maxdims = get_max_constraints_per_world(model, limits, contacts)
+
+        # Update the allocation meta-data the specified constraint dimensions
+        self._num_worlds = model.size.num_worlds
+        self._world_maxdims = maxdims
+        self._world_maxsize = [maxdims[i] * maxdims[i] for i in range(self._num_worlds)]
+        self._model_maxdims = sum(self._world_maxdims)
+        self._model_maxsize = sum(self._world_maxsize)
+        self._max_of_max_total_D_size = max(self._world_maxsize) if self._world_maxsize else 0
+
+        # Use the model's device
+        self._device = model.device
+
+        # Construct the Delassus operator data structure
+        self._operator = DenseLinearOperatorData[wp.float32, wp.int32]()
+        self._operator.info = DenseSquareMultiLinearInfo[wp.float32, wp.int32]()
+        self._operator.mat = wp.zeros(shape=(self._model_maxsize,), dtype=wp.float32, device=self._device)
+        if (model.info is not None) and (data.info is not None):
+            mat_offsets = [0] + [sum(self._world_maxsize[:i]) for i in range(1, self._num_worlds + 1)]
+            self._operator.info.assign(
+                maxdim=model.info.max_total_cts,
+                dim=data.info.num_total_cts,
+                vio=model.info.total_cts_offset,
+                mio=to_warp_int32_array(mat_offsets[: self._num_worlds], device=self._device),
+                dtype=wp.float32,
+                device=self._device,
+            )
+        else:
+            self._operator.info.finalize(dimensions=maxdims, dtype=wp.float32, itype=wp.int32, device=self._device)
+
+        # Optionally initialize the linear system solver if one is specified
+        if solver is not None:
+            if not issubclass(solver, LinearSolverType):
+                raise ValueError("Invalid solver provided. Must be a subclass of `LinearSolverType`.")
+            solver_kwargs = solver_kwargs or {}
+            self._solver = solver(operator=self._operator, device=self._device, **solver_kwargs)
+
+    def zero(self):
+        """
+        Sets all values of the Delassus matrix to zero.
+        This is useful for resetting the operator before recomputing it.
+        """
+        self._operator.mat.zero_()
+
+    def build(
+        self,
+        model: ModelKamino,
+        data: DataKamino,
+        jacobians: DenseSystemJacobians | SparseSystemJacobians,
+        reset_to_zero: bool = True,
+    ):
+        """
+        Builds the Delassus matrix using the provided ModelKamino, DataKamino, and constraint Jacobians.
+
+        Args:
+            model: The model for which the Delassus operator is built.
+            data: The current data of the model.
+            jacobians: The current Jacobians of the model.
+            reset_to_zero: If True (default), resets the Delassus matrix to zero before building.
+
+        Raises:
+            ValueError: If the model, data, or Jacobians are not valid.
+            ValueError: If the Delassus matrix is not allocated.
+        """
+        # Ensure the model is valid
+        if model is None or not isinstance(model, ModelKamino):
+            raise ValueError("A valid model of type `ModelKamino` must be provided to build the Delassus operator.")
+
+        # Ensure the data is valid
+        if data is None or not isinstance(data, DataKamino):
+            raise ValueError("A valid model data of type `DataKamino` must be provided to build the Delassus operator.")
+
+        # Ensure the Jacobians are valid
+        if jacobians is None or not (
+            isinstance(jacobians, DenseSystemJacobians) or isinstance(jacobians, SparseSystemJacobians)
+        ):
+            raise ValueError(
+                "A valid Jacobians data container of type `DenseSystemJacobians` or "
+                "`SparseSystemJacobians` must be provided to build the Delassus operator."
+            )
+
+        # Ensure the Delassus matrix is allocated
+        if self._operator.mat is None:
+            raise ValueError("Delassus matrix is not allocated. Call finalize() first.")
+
+        # Initialize the Delassus matrix to zero
+        if reset_to_zero:
+            self.zero()
+
+        # Build the Delassus matrix parallelized over the upper triangle. Warp's
+        # CUDA kernels use 32-thread warps, so pad the work count to keep the
+        # final warp full. The padding is harmless on other devices because the
+        # kernels reject indices outside the upper triangle.
+        if isinstance(jacobians, DenseSystemJacobians):
+            max_ncts = max(self._world_maxdims) if self._world_maxdims else 0
+            upper_tri_size = max_ncts * (max_ncts + 1) // 2
+            warp_size = 32
+            upper_tri_size = ((upper_tri_size + warp_size - 1) // warp_size) * warp_size
+            wp.launch(
+                kernel=_build_delassus_elementwise_dense,
+                dim=(self._size.num_worlds, upper_tri_size),
+                inputs=[
+                    # Inputs:
+                    model.info.bodies_offset,
+                    model.bodies.inv_m_i,
+                    data.bodies.inv_I_i,
+                    jacobians.data.J_cts_offsets,
+                    jacobians.data.J_cts_data,
+                    self._operator.info.dim,
+                    self._operator.info.mio,
+                    # Outputs:
+                    self._operator.mat,
+                ],
+                device=self._device,
+            )
+        else:
+            jacobian_cts = jacobians._J_cts.bsm
+            upper_tri_size = jacobian_cts.max_of_num_nzb * (jacobian_cts.max_of_num_nzb + 1) // 2
+            warp_size = 32
+            upper_tri_size = ((upper_tri_size + warp_size - 1) // warp_size) * warp_size
+            wp.launch(
+                kernel=_build_delassus_elementwise_sparse,
+                dim=(self._size.num_worlds, upper_tri_size),
+                inputs=[
+                    # Inputs:
+                    model.info.bodies_offset,
+                    model.bodies.inv_m_i,
+                    data.bodies.inv_I_i,
+                    jacobian_cts.num_nzb,
+                    jacobian_cts.nzb_start,
+                    jacobian_cts.nzb_coords,
+                    jacobian_cts.nzb_values,
+                    self._operator.info.dim,
+                    self._operator.info.mio,
+                    # Outputs:
+                    self._operator.mat,
+                ],
+                device=self._device,
+            )
+
+        # Add armature regularization to the upper diagonal if dynamic joint constraints are present
+        if model.size.sum_of_num_dynamic_joints > 0:
+            wp.launch(
+                kernel=_add_joint_armature_diagonal_regularization_dense,
+                dim=(self._size.num_worlds, model.size.max_of_num_dynamic_joint_cts),
+                inputs=[
+                    # Inputs:
+                    model.info.num_joint_dynamic_cts,
+                    model.info.joint_dynamic_cts_offset,
+                    data.joints.inv_m_j,
+                    self._operator.info.dim,
+                    self._operator.info.mio,
+                    # Outputs:
+                    self._operator.mat,
+                ],
+                device=self._device,
+            )
+        if model.size.sum_of_num_effort_joint_cts > 0:
+            wp.launch(
+                kernel=_add_joint_effort_diagonal_regularization_dense,
+                dim=(self._size.num_worlds, model.size.max_of_num_effort_joint_cts),
+                inputs=[
+                    model.info.num_joint_effort_cts,
+                    model.info.joint_effort_cts_offset,
+                    model.info.joint_bounded_cts_group_offset,
+                    model.info.num_joint_friction_cts,
+                    data.joints.inv_m_a,
+                    self._operator.info.dim,
+                    self._operator.info.mio,
+                    self._operator.mat,
+                ],
+                device=self._device,
+            )
+
+    def regularize(self, eta: wp.array[wp.float32]):
+        """
+        Adds diagonal regularization to each matrix block of the Delassus operator.
+
+        Args:
+            eta: The regularization values to add to the diagonal of each matrix block.
+            Each value in `eta` corresponds to the regularization along each constraint.
+            Shape of ``(sum_of_max_total_cts,)``.
+        """
+        wp.launch(
+            kernel=_regularize_delassus_diagonal_dense,
+            dim=(self._size.num_worlds, self._size.max_of_max_total_cts),
+            inputs=[self._operator.info.dim, self._operator.info.vio, self._operator.info.mio, eta, self._operator.mat],
+            device=self._device,
+        )
+
+    def compute(self, reset_to_zero: bool = True):
+        """
+        Runs Delassus pre-computation operations in preparation for linear systems solves.
+
+        Depending on the configured solver type, this may perform different
+        pre-computation, e.g. Cholesky factorization for direct solvers.
+
+        Args:
+            reset_to_zero: If True, resets the Delassus matrix to zero.
+                This is useful for ensuring that the matrix is in a clean state before pre-computation.
+        """
+        # Ensure the Delassus matrix is allocated
+        if self._operator.mat is None:
+            raise ValueError("Delassus matrix is not allocated. Call finalize() first.")
+
+        # Ensure the solver is available if pre-computation is requested
+        if self._solver is None:
+            raise ValueError("A linear system solver is not available. Allocate with solver=LINEAR_SOLVER_TYPE.")
+
+        # Optionally initialize the factorization matrix before factorizing
+        if reset_to_zero:
+            self._solver.reset()
+
+        # Perform the Cholesky factorization
+        self._solver.compute(A=self._operator.mat)
+
+    def solve(self, v: wp.array[wp.float32], x: wp.array[wp.float32]):
+        """
+        Solves the linear system D * x = v using the Cholesky factorization.
+
+        Args:
+            v: The right-hand side vector of the linear system.
+            x: The array to hold the solution.
+
+        Raises:
+            ValueError: If the Delassus matrix is not allocated or the factorizer is not available.
+            ValueError: If a factorizer has not been configured set.
+        """
+        # Ensure the Delassus matrix is allocated
+        if self._operator.mat is None:
+            raise ValueError("Delassus matrix is not allocated. Call finalize() first.")
+
+        # Ensure the solver is available if solving is requested
+        if self._solver is None:
+            raise ValueError("A linear system solver is not available. Allocate with solver=LINEAR_SOLVER_TYPE.")
+
+        # Solve the linear system using the factorized matrix
+        return self._solver.solve(b=v, x=x)
+
+    def solve_inplace(self, x: wp.array[wp.float32]):
+        """
+        Solves the linear system D * x = v in-place.
+        This modifies the input array x to contain the solution assuming it is initialized as x=v.
+
+        Args:
+            x: The array to hold the solution. It should be initialized with the right-hand side vector v.
+
+        Raises:
+            ValueError: If the Delassus matrix is not allocated or the factorizer is not available.
+            ValueError: If a factorizer has not been configured set.
+        """
+        # Ensure the Delassus matrix is allocated
+        if self._operator.mat is None:
+            raise ValueError("Delassus matrix is not allocated. Call finalize() first.")
+
+        # Ensure the solvers is available if solving in-place is requested
+        if self._solver is None:
+            raise ValueError("A linear system solver is not available. Allocate with solver=LINEAR_SOLVER_TYPE.")
+
+        # Solve the linear system in-place
+        return self._solver.solve_inplace(x=x)
+
+
+class BlockSparseMatrixFreeDelassusOperator(BlockSparseLinearOperators[wp.float32, wp.int32]):
+    """
+    A matrix-free Delassus operator for representing and operating on multiple independent sparse
+    linear systems.
+
+    In contrast to the dense :class:`DelassusOperator`, this operator only provides functions to
+    compute matrix-vector products with the Delassus matrix, not solve linear systems.
+
+    The Delassus operator D is implicitly defined as D = J @ M^-1 @ J^T, where J is the constraint
+    Jacobian and M is the mass matrix. It supports diagonal regularization and diagonal
+    preconditioning.
+
+    For a given diagonal regularization matrix R and a diagonal preconditioning matrix P, the
+    final operator is defined by the matrix P @ D @ P + R.
+
+    Typical usage example:
+
+    .. code-block:: python
+
+        # Create a model builder and add bodies, joints, geoms, etc.
+        builder = ModelBuilder()
+        ...
+
+        # Create a model from the builder and construct additional
+        # containers to hold joint-limits, contacts, Jacobians
+        model = ModelKamino.from_newton(builder.finalize())
+        data = model.data()
+        limits = LimitsKamino(model)
+        contacts = ContactsKamino(model)
+        jacobians = SparseSystemJacobians(model, limits, contacts)
+
+        # Build the Jacobians for the model and active limits and contacts
+        jacobians.build(model, data, limits, contacts)
+        ...
+
+        # Create a Delassus operator from the model data and Jacobians
+        delassus = BlockSparseMatrixFreeDelassusOperator(model, data, jacobians)
+
+        # Add diagonal regularization to the Delassus operator
+        eta = ...
+        delassus.set_regularization(eta=eta)
+
+        # Add preconditioning to the Delassus operator
+        P = ...
+        delassus.set_preconditioner(preconditioner=P)
+
+        # Compute the matrix-vector product `y = D @ x` using the Delassus operator
+        x = ...
+        y = ...
+        world_mask = ...
+        delassus.matvec(x=x, y=y, world_mask=world_mask)
+    """
+
+    def __init__(
+        self,
+        model: ModelKamino | None = None,
+        data: DataKamino | None = None,
+        limits: LimitsKamino | None = None,
+        contacts: ContactsKamino | None = None,
+        jacobians: SparseSystemJacobians | None = None,
+        solver: LinearSolverType = None,
+        solver_kwargs: dict[str, Any] | None = None,
+    ):
+        """
+        Creates a Delassus operator for the given model.
+
+        This class also supports deferred allocation, i.e. it can be initialized without a model,
+        and the allocation can be performed later using the `finalize` method. This is useful for
+        scenarios where the model or constraints are not known at the time of Delassus operator
+        creation, but will be available later.
+
+        The dimension of a Delassus matrix is defined as the sum over active joint, limit, and
+        contact constraints, and the maximum dimension is the maximum number of constraints that can
+        be active in each world.
+
+        Args:
+            model: The model container for which the Delassus operator is built.
+            data: The model data container holding the state info and data.
+            limits: Limits data container for joint limit constraints.
+            contacts: Contacts data container for contact constraints.
+            jacobians: The sparse Jacobians container.
+            solver: The solver type to use for linear systems defined by the Delassus operator.
+                Must be a subclass of `IterativeSolver`.
+            solver_kwargs: Additional keyword arguments to pass to the solver constructor.
+        """
+        super().__init__()
+
+        # self.bsm represents the constraint Jacobian
+        self._model: ModelKamino | None = None
+        self._data: DataKamino | None = None
+        self._limits: LimitsKamino | None = None
+        self._contacts: ContactsKamino | None = None
+        self._preconditioner: wp.array[wp.float32] | None = None
+        self._eta: wp.array[wp.float32] | None = None
+
+        self._jacobians: SparseSystemJacobians | None = None
+
+        # Problem info object
+        # TODO: Create more general info object independent of dense matrix representation
+        self._info: DenseSquareMultiLinearInfo[wp.float32, wp.int32] | None = None
+
+        # Declare the device cache
+        self._device: wp.DeviceLike = None
+
+        # Declare the optional (iterative) solver
+        self._solver: LinearSolverType | None = None
+
+        # Flag to indicate that the operator needs an update to its data structure
+        self._needs_update: bool = False
+
+        # Flag indicating whether the row-major (P·J·M⁻¹) and column-major (P·J)ᵀ Jacobian copies
+        # are required. Set automatically in ``finalize()`` based on solver choice.
+        self._assemble_preconditioned_jacobians: bool = True
+
+        # Dirty flags for raw-Jacobian solvers (e.g. the fused CR), cleared by the solver once it
+        # has acted on them. ``_raw_jacobian_needs_update`` means the Jacobian *structure* changed
+        # and the per-step index structures (row index + segmented transpose sort) must be rebuilt.
+        # ``_regularization_needs_update`` means only the diagonal regularization (eta) changed --
+        # the sparsity is unchanged, so the solver refreshes its combined-regularization copy but
+        # skips the index rebuild. Keeping these separate avoids re-sorting on eta-only updates
+        # (adaptive penalty, or the transient set_regularization(None)/restore around info
+        # collection).
+        self._raw_jacobian_needs_update: bool = True
+        self._regularization_needs_update: bool = True
+
+        # Temporary vector to store results, sized to the number of body dofs in a model.
+        self._vec_temp_body_space: wp.array[wp.float32] | None = None
+
+        self._col_major_jacobian: ColMajorSparseConstraintJacobians | None = None
+        self._transpose_op_matrix: BlockSparseMatrices[wp.float32, wp.int32, Any] | None = None
+
+        # Combined regularization vector for implicit joint dynamics
+        self._combined_regularization: wp.array[wp.float32] | None = None
+
+        # Allocate the Delassus operator data if at least the model is provided
+        if model is not None:
+            self.finalize(
+                model=model,
+                data=data,
+                limits=limits,
+                contacts=contacts,
+                jacobians=jacobians,
+                solver=solver,
+                solver_kwargs=solver_kwargs,
+            )
+
+    def finalize(
+        self,
+        model: ModelKamino,
+        data: DataKamino,
+        jacobians: SparseSystemJacobians,
+        limits: LimitsKamino | None,
+        contacts: ContactsKamino | None,
+        solver: LinearSolverType = None,
+        solver_kwargs: dict[str, Any] | None = None,
+    ):
+        """
+        Allocates the Delassus operator with the specified dimensions and device.
+
+        Args:
+            model: The model container for which the Delassus operator is built.
+            data: The model data container holding the state info and data.
+            jacobians: The sparse Jacobians container.
+            limits: Limits data container for joint limit constraints.
+            contacts: Contacts data container for contact constraints.
+            solver: The solver type to use for linear systems defined by the Delassus operator.
+                Must be a subclass of `IterativeSolver`.
+            solver_kwargs: Additional keyword arguments to pass to the solver constructor.
+        """
+        # Ensure the model container is valid
+        if model is None:
+            raise ValueError(
+                "A model container of type `ModelKamino` must be provided to allocate the Delassus operator."
+            )
+        elif not isinstance(model, ModelKamino):
+            raise ValueError("Invalid model provided. Must be an instance of `ModelKamino`.")
+
+        # Ensure the data container is valid if provided
+        if data is None:
+            raise ValueError(
+                "A data container of type `DataKamino` must be provided to allocate the Delassus operator."
+            )
+        elif not isinstance(data, DataKamino):
+            raise ValueError("Invalid data container provided. Must be an instance of `DataKamino`.")
+
+        # Ensure the Jacobians are provided
+        if jacobians is None:
+            raise ValueError("The sparse system Jacobians must be provided to allocate the Delassus operator.")
+
+        # Ensure the solver is iterative if provided
+        if solver is not None and not issubclass(solver, IterativeSolver):
+            raise ValueError("Invalid solver provided. Must be a subclass of `IterativeSolver`.")
+
+        self._model = model
+        self._data = data
+        self._limits = limits
+        self._contacts = contacts
+
+        # Use the model's device
+        self._device = model.device
+
+        self._info = DenseSquareMultiLinearInfo[wp.float32, wp.int32]()
+        if model.info is not None and data.info is not None:
+            self._info.assign(
+                maxdim=model.info.max_total_cts,
+                dim=data.info.num_total_cts,
+                vio=model.info.total_cts_offset,
+                mio=wp.empty((self.num_matrices,), dtype=wp.int32, device=self._device),
+                dtype=wp.float32,
+                device=self._device,
+            )
+        else:
+            self._info.finalize(
+                dimensions=model.info.max_total_cts.numpy(),
+                dtype=wp.float32,
+                itype=wp.int32,
+                device=self._device,
+            )
+
+        self._active_rows = wp.array(
+            dtype=wp.int32,
+            shape=(self._model.size.num_worlds,),
+            ptr=self._data.info.num_total_cts.ptr,
+            copy=False,
+        )
+        self._active_cols = wp.array(
+            dtype=wp.int32,
+            shape=(self._model.size.num_worlds,),
+            ptr=self._data.info.num_total_cts.ptr,
+            copy=False,
+        )
+
+        # Initialize temporary memory
+        self._vec_temp_body_space = wp.empty(
+            (self._model.size.sum_of_num_body_dofs,), dtype=wp.float32, device=self._device
+        )
+
+        # Initialize memory for combined regularization, if necessary
+        if self._model.size.max_of_num_dynamic_joint_cts > 0 or self._model.size.max_of_num_effort_joint_cts > 0:
+            self._combined_regularization = wp.empty(
+                (self._model.size.sum_of_max_total_cts,), dtype=wp.float32, device=self._device
+            )
+
+        # Assign Jacobian
+        self._jacobians = jacobians
+
+        # Solvers that read the raw constraint Jacobian directly (e.g. the fused single-kernel CR)
+        # set ``uses_raw_jacobian = True``; for those we skip assembling the row-major P·J·M⁻¹ copy
+        # and the column-major transpose copy entirely, avoiding the matrix-value duplication.
+        self._assemble_preconditioned_jacobians = not bool(getattr(solver, "uses_raw_jacobian", False))
+
+        if self._assemble_preconditioned_jacobians:
+            # Check whether any of the maximum row dimensions of the Jacobians is smaller than six.
+            # If so, we avoid building the column-major Jacobian due to potential memory access issues.
+            min_of_max_rows = np.min(self._model.info.max_total_cts.numpy())
+
+            if min_of_max_rows >= 6:
+                self._col_major_jacobian = ColMajorSparseConstraintJacobians(
+                    model=self._model,
+                    limits=self._limits,
+                    contacts=self._contacts,
+                    jacobians=self._jacobians,
+                )
+                self._transpose_op_matrix = self._col_major_jacobian.bsm
+            else:
+                self._col_major_jacobian = None
+
+            # Create copy of constraint Jacobian with separate non-zero block values, so we can apply
+            # preconditioning directly to the Jacobian.
+            if self._col_major_jacobian is None and self._transpose_op_matrix is None:
+                self._transpose_op_matrix = copy.copy(jacobians._J_cts.bsm)
+                self._transpose_op_matrix.nzb_values = wp.empty_like(self.constraint_jacobian.nzb_values)
+
+            # Create a shallow copy of the constraint Jacobian, but with a separate array for non-zero block values.
+            # The resulting sparse matrix will reference the structure of the original Jacobian, but we can apply
+            # preconditioning and the inverse mass matrix to the non-zero blocks without affecting the original Jacobian.
+            if self.bsm is None:
+                self.bsm = copy.copy(jacobians._J_cts.bsm)
+                self.bsm.nzb_values = wp.empty_like(self.constraint_jacobian.nzb_values)
+
+        # Optionally initialize the iterative linear system solver if one is specified
+        if solver is not None:
+            solver_kwargs = solver_kwargs or {}
+            self._solver = solver(operator=self, device=self._device, **solver_kwargs)
+
+        self.set_needs_update()
+
+    def set_needs_update(self):
+        """
+        Flags the operator as needing to update its data structure.
+        """
+        self._needs_update = True
+        self._raw_jacobian_needs_update = True
+
+    def set_regularization_needs_update(self):
+        """Flag that the diagonal regularization (eta) changed, but not the Jacobian structure.
+
+        Used by the PADMM proximal/adaptive-penalty update: with sparsity unchanged, a raw-Jacobian
+        solver can avoid rebuilding its index structures + segmented sort.
+        """
+        # ``_needs_update`` is still set so the multi-launch assembled operator re-applies eta to its block diagonal.
+        self._needs_update = True
+        self._regularization_needs_update = True
+
+    def update(self):
+        """
+        Updates any internal data structures that depend on the model, limits, contacts, or system Jacobians.
+        """
+        if self._jacobians is None:
+            return
+
+        # When assembly is disabled (raw-Jacobian solver), there are no derived copies to refresh.
+        if not self._assemble_preconditioned_jacobians:
+            self._needs_update = False
+            return
+
+        # Update column-major constraint Jacobian based on current system Jacobian
+        if self._col_major_jacobian is None:
+            wp.copy(self._transpose_op_matrix.nzb_values, self.constraint_jacobian.nzb_values)
+        else:
+            self._col_major_jacobian.update(self._model, self._jacobians, self._limits, self._contacts)
+
+        # Apply inverse mass matrix while copying the current Jacobian values.
+        wp.launch(
+            kernel=_merge_inv_mass_matrix_kernel,
+            dim=(self.bsm.num_matrices, self.bsm.max_of_num_nzb),
+            inputs=[
+                # Inputs:
+                self._model.info.bodies_offset,
+                self._model.bodies.inv_m_i,
+                self._data.bodies.inv_I_i,
+                self.bsm.num_nzb,
+                self.bsm.nzb_start,
+                self.bsm.nzb_coords,
+                self.constraint_jacobian.nzb_values,
+                # Outputs:
+                self.bsm.nzb_values,
+            ],
+            device=self.bsm.device,
+        )
+
+        if self._preconditioner is not None:
+            # Apply preconditioner to (copy of) constraint Jacobian
+            wp.launch(
+                kernel=_make_merge_preconditioner_kernel(self.bsm.nzb_dtype),
+                dim=(self.bsm.num_matrices, self.bsm.max_of_num_nzb),
+                inputs=[
+                    # Inputs:
+                    self.bsm.num_nzb,
+                    self.bsm.nzb_start,
+                    self.bsm.nzb_coords,
+                    self.bsm.row_start,
+                    self._preconditioner,
+                    # Outputs:
+                    self.bsm.nzb_values,
+                ],
+                device=self.bsm.device,
+            )
+
+            # Apply preconditioner to column-major constraint Jacobian
+            wp.launch(
+                kernel=_make_merge_preconditioner_kernel(self._transpose_op_matrix.nzb_dtype),
+                dim=(self._transpose_op_matrix.num_matrices, self._transpose_op_matrix.max_of_num_nzb),
+                inputs=[
+                    # Inputs:
+                    self._transpose_op_matrix.num_nzb,
+                    self._transpose_op_matrix.nzb_start,
+                    self._transpose_op_matrix.nzb_coords,
+                    self._transpose_op_matrix.row_start,
+                    self._preconditioner,
+                    # Outputs:
+                    self._transpose_op_matrix.nzb_values,
+                ],
+                device=self._transpose_op_matrix.device,
+            )
+
+        # Update combined regularization term, which includes the regular regularization (eta) as
+        # well as the terms of the armature regularization. Since the armature regularization is
+        # applied to the original Delassus matrix, preconditioning has to be applied to it if
+        # present.
+        if self._combined_regularization is not None:
+            # Set the combined regularization to the regular regularization if present, otherwise
+            # initialize to zero.
+            if self._eta is not None:
+                wp.copy(self._combined_regularization, self._eta)
+            else:
+                self._combined_regularization.zero_()
+
+            if self._preconditioner is None:
+                # If there is no preconditioner, we add the armature regularization directly to the
+                # combined regularization term.
+                if self._model.size.sum_of_num_dynamic_joint_cts > 0:
+                    wp.launch(
+                        kernel=_add_armature_regularization_sparse,
+                        dim=(self.num_matrices, self._model.size.max_of_num_dynamic_joint_cts),
+                        inputs=[
+                            # Inputs:
+                            self._model.info.num_joint_dynamic_cts,
+                            self._model.info.joint_dynamic_cts_offset,
+                            self.bsm.row_start,
+                            self._data.joints.inv_m_j,
+                            # Outputs:
+                            self._combined_regularization,
+                        ],
+                        device=self._device,
+                    )
+                if self._model.size.sum_of_num_effort_joint_cts > 0:
+                    wp.launch(
+                        kernel=_add_effort_regularization_sparse,
+                        dim=(self.num_matrices, self._model.size.max_of_num_effort_joint_cts),
+                        inputs=[
+                            self._model.info.num_joint_effort_cts,
+                            self._model.info.joint_effort_cts_offset,
+                            self._model.info.joint_bounded_cts_group_offset,
+                            self._model.info.num_joint_friction_cts,
+                            self.bsm.row_start,
+                            self._data.joints.inv_m_a,
+                            self._combined_regularization,
+                        ],
+                        device=self._device,
+                    )
+            else:
+                # If there is a preconditioner, we need to scale the armature regularization with
+                # the preconditioner terms (the square of the preconditioner, to be exact) before
+                # adding it to the combined regularization term.
+                if self._model.size.sum_of_num_dynamic_joint_cts > 0:
+                    wp.launch(
+                        kernel=_add_armature_regularization_preconditioned_sparse,
+                        dim=(self.num_matrices, self._model.size.max_of_num_dynamic_joint_cts),
+                        inputs=[
+                            # Inputs:
+                            self._model.info.num_joint_dynamic_cts,
+                            self._model.info.joint_dynamic_cts_offset,
+                            self._data.joints.inv_m_j,
+                            self.bsm.row_start,
+                            self._preconditioner,
+                            # Outputs:
+                            self._combined_regularization,
+                        ],
+                        device=self._device,
+                    )
+                if self._model.size.sum_of_num_effort_joint_cts > 0:
+                    wp.launch(
+                        kernel=_add_effort_regularization_preconditioned_sparse,
+                        dim=(self.num_matrices, self._model.size.max_of_num_effort_joint_cts),
+                        inputs=[
+                            self._model.info.num_joint_effort_cts,
+                            self._model.info.joint_effort_cts_offset,
+                            self._model.info.joint_bounded_cts_group_offset,
+                            self._model.info.num_joint_friction_cts,
+                            self._data.joints.inv_m_a,
+                            self.bsm.row_start,
+                            self._preconditioner,
+                            self._combined_regularization,
+                        ],
+                        device=self._device,
+                    )
+
+        self._needs_update = False
+
+    def set_regularization(self, eta: wp.array[wp.float32] | None):
+        """
+        Adds diagonal regularization to each matrix block of the Delassus operator, replacing any
+        previously set regularization.
+
+        The regularized Delassus matrix is defined as D = J @ M^-1 @ J^T + diag(eta)
+
+        Args:
+            eta: The regularization values to add to the diagonal of each matrix block,
+                with each value corresponding to the regularization along a constraint.
+                or `None` if no regularization should be applied.
+                Shape of ``(sum_of_max_total_cts,)``.
+        """
+        self._eta = eta
+        # Flag required update for solvers that use preconditioned Jacobians
+        self._needs_update = True
+        # Flag sparsity-preserving update for solvers that use raw Jacobians
+        self._regularization_needs_update = True
+
+    def set_preconditioner(self, preconditioner: wp.array[wp.float32] | None):
+        """
+        Sets the diagonal preconditioner for the Delassus operator, replacing any previously set
+        preconditioner.
+
+        With preconditioning, the effective operator becomes P @ D @ P, where P = diag(preconditioner).
+
+        Args:
+            preconditioner: The diagonal preconditioner values to apply to the Delassus
+                operator, with each value corresponding to a constraint. This should be an array of
+                or `None` to disable preconditioning.
+                Shape of ``(sum_of_max_total_cts,)``.
+        """
+        self._preconditioner = preconditioner
+        self.set_needs_update()
+
+    def diagonal(self, diag: wp.array[wp.float32]):
+        """Stores the diagonal of the Delassus matrix in the given array.
+
+        Note:
+            Returns the diagonal of the pure Delassus matrix. Armature and
+            effort-compliance diagonal terms are included; proximal
+            regularization (``eta``) and preconditioning are not.
+
+        Args:
+            diag: Output vector for the Delassus matrix diagonal entries.
+                Shape of ``(sum_of_max_total_cts,)``.
+        """
+        if self._model is None or self._data is None:
+            raise RuntimeError("ModelKamino and data must be assigned before computing diagonal.")
+        if self._jacobians is None:
+            raise RuntimeError("Jacobian must be assigned before computing diagonal.")
+
+        diag.zero_()
+
+        # Launch kernel over all non-zero blocks (read from the raw constraint Jacobian, which is
+        # always present even when the assembled ``bsm`` copy is skipped).
+        wp.launch(
+            kernel=_compute_block_sparse_delassus_diagonal,
+            dim=(self._model.size.num_worlds, self.constraint_jacobian.max_of_num_nzb),
+            inputs=[
+                self._model.info.bodies_offset,
+                self._model.bodies.inv_m_i,
+                self._data.bodies.inv_I_i,
+                self.constraint_jacobian.nzb_start,
+                self.constraint_jacobian.num_nzb,
+                self.constraint_jacobian.nzb_coords,
+                self.constraint_jacobian.nzb_values,
+                self.constraint_jacobian.row_start,
+                diag,
+            ],
+            device=self._device,
+        )
+
+        # Add armature and effort regularization
+        if self._model.size.sum_of_num_dynamic_joint_cts > 0:
+            wp.launch(
+                kernel=_add_armature_regularization_sparse,
+                dim=(self.num_matrices, self._model.size.max_of_num_dynamic_joint_cts),
+                inputs=[
+                    # Inputs:
+                    self._model.info.num_joint_dynamic_cts,
+                    self._model.info.joint_dynamic_cts_offset,
+                    self.constraint_jacobian.row_start,
+                    self._data.joints.inv_m_j,
+                    # Outputs:
+                    diag,
+                ],
+                device=self._device,
+            )
+        if self._model.size.sum_of_num_effort_joint_cts > 0:
+            wp.launch(
+                kernel=_add_effort_regularization_sparse,
+                dim=(self.num_matrices, self._model.size.max_of_num_effort_joint_cts),
+                inputs=[
+                    self._model.info.num_joint_effort_cts,
+                    self._model.info.joint_effort_cts_offset,
+                    self._model.info.joint_bounded_cts_group_offset,
+                    self._model.info.num_joint_friction_cts,
+                    self.constraint_jacobian.row_start,
+                    self._data.joints.inv_m_a,
+                    diag,
+                ],
+                device=self._device,
+            )
+
+    def compute(self, reset_to_zero: bool = True):
+        """
+        Runs Delassus pre-computation operations in preparation for linear systems solves.
+
+        Depending on the configured solver type, this may perform different pre-computation.
+
+        Args:
+            reset_to_zero: If True, resets the Delassus matrix to zero.
+                This is useful for ensuring that the matrix is in a clean state before pre-computation.
+        """
+        # Ensure that `finalize()` was called
+        if self._info is None:
+            raise ValueError("Data structure is not allocated. Call finalize() first.")
+
+        # Ensure the Jacobian is set
+        if self._jacobians is None:
+            raise ValueError("Jacobian matrix is not set. Call assign() first.")
+
+        # Ensure the solver is available if pre-computation is requested
+        if self._solver is None:
+            raise ValueError("A linear system solver is not available. Allocate with solver=LINEAR_SOLVER_TYPE.")
+
+        # Update if data has changed
+        if self._needs_update:
+            self.update()
+
+        # Optionally initialize the solver
+        if reset_to_zero:
+            self._solver.reset()
+
+        # Perform the pre-computation
+        self._solver.compute()
+
+    def solve(self, v: wp.array[wp.float32], x: wp.array[wp.float32]):
+        """
+        Solves the linear system D * x = v using the assigned solver.
+
+        Args:
+            v: The right-hand side vector of the linear system.
+            x: The array to hold the solution.
+
+        Raises:
+            ValueError: If the Delassus matrix is not allocated or the solver is not available.
+        """
+        # Ensure that `finalize()` was called
+        if self._info is None:
+            raise ValueError("Data structure is not allocated. Call finalize() first.")
+
+        # Ensure the Jacobian is set
+        if self._jacobians is None:
+            raise ValueError("Jacobian matrix is not set. Call assign() first.")
+
+        # Ensure the solver is available
+        if self._solver is None:
+            raise ValueError("A linear system solver is not available. Allocate with solver=LINEAR_SOLVER_TYPE.")
+
+        # Update if data has changed
+        if self._needs_update:
+            self.update()
+
+        # Solve the linear system
+        return self._solver.solve(b=v, x=x)
+
+    def solve_inplace(self, x: wp.array[wp.float32]):
+        """
+        Solves the linear system D * x = v in-place.
+        This modifies the input array x to contain the solution assuming it is initialized as x=v.
+
+        Args:
+            x: The array to hold the solution. It should be initialized with the right-hand side vector v.
+
+        Raises:
+            ValueError: If the Delassus matrix is not allocated or the solver is not available.
+        """
+        # Ensure that `finalize()` was called
+        if self._info is None:
+            raise ValueError("Data structure is not allocated. Call finalize() first.")
+
+        # Ensure the Jacobian is set
+        if self._jacobians is None:
+            raise ValueError("Jacobian matrix is not set. Call assign() first.")
+
+        # Ensure the solver is available if pre-computation is requested
+        if self._solver is None:
+            raise ValueError("A linear system solver is not available. Allocate with solver=LINEAR_SOLVER_TYPE.")
+
+        # Update if data has changed
+        if self._needs_update:
+            self.update()
+
+        # Solve the linear system in-place
+        return self._solver.solve_inplace(x=x)
+
+    ###
+    # Properties
+    ###
+
+    @property
+    def info(self) -> DenseSquareMultiLinearInfo[wp.float32, wp.int32] | None:
+        """
+        Returns the info object for the Delassus problem dimensions and sizes.
+        """
+        return self._info
+
+    @property
+    def num_matrices(self) -> int:
+        """
+        Returns the number of matrices represented by the Delassus operator.
+        """
+        return self._model.size.num_worlds
+
+    @property
+    def max_of_max_dims(self) -> tuple[int, int]:
+        """
+        Returns the maximum dimension of any Delassus matrix across all worlds.
+        """
+        max_jac_rows = self._model.size.max_of_max_total_cts
+        return (max_jac_rows, max_jac_rows)
+
+    @property
+    def sum_of_max_dims(self) -> int:
+        """
+        Returns the sum of maximum dimensions of the Delassus matrix across all worlds.
+        """
+        return self._model.size.sum_of_max_total_cts
+
+    @property
+    def dtype(self) -> FloatType:
+        return self._info.dtype
+
+    @property
+    def device(self) -> wp.DeviceLike:
+        return self._model.device
+
+    @property
+    def constraint_jacobian(self) -> BlockSparseMatrices[wp.float32, wp.int32, vec6f]:
+        return self._jacobians._J_cts.bsm
+
+    @property
+    def regularization(self) -> wp.array[wp.float32]:
+        """Active diagonal regularization used by sparse matrix-vector products."""
+        regularization = self._combined_regularization
+        if regularization is None:
+            regularization = self._eta
+        if regularization is None:
+            raise RuntimeError("Sparse Delassus regularization has not been configured.")
+        return regularization
+
+    ###
+    # Operations
+    ###
+
+    def _require_assembled(self, op_name: str):
+        # Matrix-free (uses_raw_jacobian) operators skip assembly -> bsm/_transpose_op_matrix are None.
+        if not self._assemble_preconditioned_jacobians:
+            raise RuntimeError(
+                f"{op_name} is unavailable on a matrix-free Delassus operator (uses_raw_jacobian "
+                "solver such as CRF): no assembled matrices were allocated."
+            )
+
+    def apply_jacobian_transpose(
+        self,
+        x: wp.array[wp.float32],
+        y: wp.array[wp.float32],
+        world_mask: wp.array[wp.bool],
+    ) -> None:
+        """Apply the current transposed constraint Jacobian to a vector."""
+        if self.ATy_op is None or self._transpose_op_matrix is None:
+            raise RuntimeError("Sparse Delassus transpose operator has not been assigned.")
+        if self._needs_update:
+            self.update()
+        self.ATy_op(self._transpose_op_matrix, x, y, world_mask)
+
+    def matvec(self, x: wp.array[wp.float32], y: wp.array[wp.float32], world_mask: wp.array[wp.bool]):
+        """
+        Performs the sparse matrix-vector product `y = D @ x`, applying regularization and
+        preconditioning if configured.
+        """
+        self._require_assembled("matvec")
+        if self.Ax_op is None:
+            raise RuntimeError("No `A@x` operator has been assigned.")
+        if self.ATy_op is None:
+            raise RuntimeError("No `A^T@y` operator has been assigned.")
+
+        # Update if data has changed
+        if self._needs_update:
+            self.update()
+
+        v = self._vec_temp_body_space
+        v.zero_()
+
+        # Compute first Jacobian matrix-vector product: v <- (P @ J)^T @ x
+        self.ATy_op(self._transpose_op_matrix, x, v, world_mask)
+
+        if self._eta is None and self._combined_regularization is None:
+            # Compute second Jacobian matrix-vector product: y <- (P @ J @ M^-1) @ v
+            self.Ax_op(self.bsm, v, y, world_mask)
+        else:
+            y.zero_()
+            # Compute y <- (P @ J @ M^-1) @ v + diag(eta) @ x
+            wp.launch(
+                kernel=_make_block_sparse_gemv_regularization_kernel(1.0),
+                dim=(self.bsm.num_matrices, self.bsm.max_of_num_nzb),
+                inputs=[
+                    self.bsm.dims,
+                    self.bsm.num_nzb,
+                    self.bsm.nzb_start,
+                    self.bsm.nzb_coords,
+                    self.bsm.nzb_values,
+                    self.bsm.row_start,
+                    self.bsm.col_start,
+                    self._eta if self._combined_regularization is None else self._combined_regularization,
+                    v,
+                    y,
+                    x,
+                    world_mask,
+                ],
+                device=self.device,
+            )
+
+    def matvec_transpose(self, y: wp.array[wp.float32], x: wp.array[wp.float32], world_mask: wp.array[wp.bool]):
+        """
+        Performs the sparse matrix-transpose-vector product `x = D^T @ y`.
+
+        Note:
+            Since the Delassus matrix is symmetric, this is equivalent to `matvec`.
+        """
+        # Update if data has changed
+        if self._needs_update:
+            self.update()
+
+        self.matvec(x, y, world_mask)
+
+    def gemv(
+        self,
+        x: wp.array[wp.float32],
+        y: wp.array[wp.float32],
+        world_mask: wp.array[wp.bool],
+        alpha: float = 1.0,
+        beta: float = 0.0,
+    ):
+        """
+        Performs a BLAS-like generalized sparse matrix-vector product `y = alpha * D @ x + beta * y`,
+        applying regularization and preconditioning if configured.
+        """
+        self._require_assembled("gemv")
+        if self.gemv_op is None:
+            raise RuntimeError("No BLAS-like `GEMV` operator has been assigned.")
+        if self.ATy_op is None:
+            raise RuntimeError("No `A^T@y` operator has been assigned.")
+
+        # Update if data has changed
+        if self._needs_update:
+            self.update()
+
+        v = self._vec_temp_body_space
+        v.zero_()
+
+        # Compute first Jacobian matrix-vector product: v <- (P @ J)^T @ x
+        self.ATy_op(self._transpose_op_matrix, x, v, world_mask)
+
+        if self._eta is None and self._combined_regularization is None:
+            # Compute second Jacobian matrix-vector product as general matrix-vector product:
+            #   y <- alpha * (P @ J @ M^-1) @ v + beta * y
+            self.gemv_op(self.bsm, v, y, alpha, beta, world_mask)
+        else:
+            # Scale y <- beta * y
+            wp.launch(
+                kernel=_scale_row_vector_kernel,
+                dim=(self.bsm.num_matrices, self.bsm.max_of_max_dims[0]),
+                inputs=[self.bsm.dims, self.bsm.row_start, y, beta, world_mask],
+                device=self.device,
+            )
+
+            # Compute y <- alpha * (P @ J @ M^-1) @ v + y + alpha * diag(eta) @ x
+            wp.launch(
+                kernel=_make_block_sparse_gemv_regularization_kernel(alpha),
+                dim=(self.bsm.num_matrices, self.bsm.max_of_num_nzb),
+                inputs=[
+                    self.bsm.dims,
+                    self.bsm.num_nzb,
+                    self.bsm.nzb_start,
+                    self.bsm.nzb_coords,
+                    self.bsm.nzb_values,
+                    self.bsm.row_start,
+                    self.bsm.col_start,
+                    self._eta if self._combined_regularization is None else self._combined_regularization,
+                    v,
+                    y,
+                    x,
+                    world_mask,
+                ],
+                device=self.device,
+            )
+
+    def gemv_transpose(
+        self,
+        y: wp.array[wp.float32],
+        x: wp.array[wp.float32],
+        world_mask: wp.array[wp.bool],
+        alpha: float = 1.0,
+        beta: float = 0.0,
+    ):
+        """
+        Performs a BLAS-like generalized sparse matrix-transpose-vector product
+        `x = alpha * D^T @ y + beta * x`.
+
+        Note:
+            Since the Delassus matrix is symmetric, this is equivalent to `gemv` with swapped arguments.
+        """
+        # Update if data has changed
+        if self._needs_update:
+            self.update()
+
+        self.gemv(y, x, world_mask, alpha, beta)

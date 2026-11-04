@@ -1,0 +1,640 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 The Newton Developers
+# SPDX-License-Identifier: Apache-2.0
+
+"""
+Provides mechanisms to define and manage constraints and their associated input/output data.
+"""
+
+from __future__ import annotations
+
+import warp as wp
+
+from ..core.data import DataKamino
+from ..core.model import ModelKamino
+from ..core.types import to_warp_int32_array
+from ..geometry.contacts import ContactMode, ContactsKamino
+from ..kinematics.limits import LimitsKamino
+
+###
+# Module interface
+###
+
+__all__ = [
+    "get_max_constraints_per_world",
+    "make_unilateral_constraints_info",
+    "unpack_constraint_solutions",
+    "update_constraints_info",
+]
+
+
+###
+# Module configs
+###
+
+wp.set_module_options({"enable_backward": False, "default_grid_stride": False})
+
+
+###
+# Functions
+###
+
+
+def get_max_constraints_per_world(
+    model: ModelKamino,
+    limits: LimitsKamino | None,
+    contacts: ContactsKamino | None,
+) -> list[int]:
+    """
+    Returns the maximum number of constraints for each world in the model.
+
+    Args:
+        model: The model for which to compute the maximum constraints.
+        limits: The container holding the allocated joint-limit data.
+        contacts: The container holding the allocated contacts data.
+
+    Returns:
+        A list of the maximum constraints for each world in the model.
+    """
+    # Ensure the model container is valid
+    if model is None:
+        raise ValueError("`model` is required but got `None`.")
+    else:
+        if not isinstance(model, ModelKamino):
+            raise TypeError(f"`model` is required to be of type `ModelKamino` but got {type(model)}.")
+
+    # Ensure the limits container is valid
+    if limits is not None:
+        if not isinstance(limits, LimitsKamino):
+            raise TypeError(f"`limits` is required to be of type `LimitsKamino` but got {type(limits)}.")
+
+    # Ensure the contacts container is valid
+    if contacts is not None:
+        if not isinstance(contacts, ContactsKamino):
+            raise TypeError(f"`contacts` is required to be of type `ContactsKamino` but got {type(contacts)}.")
+
+    # Compute the maximum number of constraints per world
+    nw = model.info.num_worlds
+    njc = model.info.num_joint_bilateral_cts.numpy()
+    maxnl = limits.world_max_limits_host if limits and limits.model_max_limits_host > 0 else [0] * nw
+    maxnc = contacts.world_max_contacts_host if contacts and contacts.model_max_contacts_host > 0 else [0] * nw
+    nbc = model.info.num_joint_bounded_cts.numpy()
+    maxncts = [njc[i] + nbc[i] + maxnl[i] + 3 * maxnc[i] for i in range(nw)]
+    return maxncts
+
+
+def make_unilateral_constraints_info(
+    model: ModelKamino,
+    data: DataKamino,
+    limits: LimitsKamino | None = None,
+    contacts: ContactsKamino | None = None,
+):
+    """
+    Constructs constraint layout info for unilateral constraints (limits and contacts).
+
+    Joint, bounded-multiplier, and friction constraints are fixed at model build
+    time; this function reserves max capacity and allocates counters, offsets, and
+    device arrays for limits and contacts whose active counts change each step.
+
+    Args:
+        model: The model container holding time-invariant data.
+        data: The solver container holding time-varying data.
+        limits: The limits container holding the joint-limit data.
+        contacts: The contacts container holding the contact data.
+    """
+
+    # Ensure the model is valid
+    if not isinstance(model, ModelKamino):
+        raise TypeError("`model` must be an instance of `ModelKamino`")
+
+    # Ensure the data is valid
+    if not isinstance(data, DataKamino):
+        raise TypeError("`data` must be an instance of `DataKamino`")
+
+    # Use the model's device
+    device = model.device
+
+    # Retrieve the number of worlds in the model
+    num_worlds = model.size.num_worlds
+
+    # Declare the lists of per-world maximum limits and contacts
+    # NOTE: These will either be captured by reference from the limits and contacts
+    # containers or initialized to zero if no limits or contacts are provided.
+    world_maxnl: list[int] = []
+    world_maxnc: list[int] = []
+
+    ###
+    #  Helper functions
+    ###
+
+    def _assign_model_limits_info():
+        nonlocal world_maxnl
+        world_maxnl = limits.world_max_limits_host
+        model.size.sum_of_max_limits = limits.model_max_limits_host
+        model.size.max_of_max_limits = max(limits.world_max_limits_host)
+        model.info.max_limits = limits.world_max_limits
+        data.info.num_limits = limits.world_active_limits
+
+    def _make_empty_model_limits_info():
+        nonlocal world_maxnl
+        world_maxnl = [0] * num_worlds
+        model.size.sum_of_max_limits = 0
+        model.size.max_of_max_limits = 0
+        with wp.ScopedDevice(device):
+            model.info.max_limits = wp.zeros(shape=(num_worlds,), dtype=wp.int32)
+            data.info.num_limits = wp.zeros(shape=(num_worlds,), dtype=wp.int32)
+
+    def _assign_model_contacts_info():
+        nonlocal world_maxnc
+        world_maxnc = contacts.world_max_contacts_host
+        model.size.sum_of_max_contacts = contacts.model_max_contacts_host
+        model.size.max_of_max_contacts = max(contacts.world_max_contacts_host)
+        model.info.max_contacts = contacts.world_max_contacts
+        data.info.num_contacts = contacts.world_active_contacts
+
+    def _make_empty_model_contacts_info():
+        nonlocal world_maxnc
+        world_maxnc = [0] * num_worlds
+        model.size.sum_of_max_contacts = 0
+        model.size.max_of_max_contacts = 0
+        with wp.ScopedDevice(device):
+            model.info.max_contacts = wp.zeros(shape=(num_worlds,), dtype=wp.int32)
+            data.info.num_contacts = wp.zeros(shape=(num_worlds,), dtype=wp.int32)
+
+    # If a limits container is provided, ensure it is valid
+    # and then assign the entity counters to the model info.
+    if limits is not None:
+        if not isinstance(limits, LimitsKamino):
+            raise TypeError("`limits` must be an instance of `LimitsKamino`")
+        if limits.data is not None and limits.model_max_limits_host > 0:
+            _assign_model_limits_info()
+        else:
+            _make_empty_model_limits_info()
+    else:
+        _make_empty_model_limits_info()
+
+    # If a contacts container is provided, ensure it is valid
+    # and then assign the entity counters to the model info.
+    if contacts is not None:
+        if not isinstance(contacts, ContactsKamino):
+            raise TypeError("`contacts` must be an instance of `ContactsKamino`")
+        if contacts.data is not None and contacts.model_max_contacts_host > 0:
+            _assign_model_contacts_info()
+        else:
+            _make_empty_model_contacts_info()
+    else:
+        _make_empty_model_contacts_info()
+
+    # Compute the maximum number of inequality entities (bounded-multiplier, limits, and contacts) per world
+    world_nbc = model.info.num_joint_bounded_cts.numpy().tolist()
+    world_nfc = model.info.num_joint_friction_cts.numpy().tolist()
+    world_max_inequalities: list[int] = [
+        nbc + nl + nc for nbc, nl, nc in zip(world_nbc, world_maxnl, world_maxnc, strict=True)
+    ]
+    model.size.sum_of_max_inequalities = sum(world_max_inequalities)
+    model.size.max_of_max_inequalities = max(world_max_inequalities)
+
+    # Compute the maximum number of constraints per world: limits, contacts, and total
+    world_maxnlc: list[int] = list(world_maxnl)
+    world_maxncc: list[int] = [3 * maxnc for maxnc in world_maxnc]
+    world_njc = model.info.num_joint_bilateral_cts.numpy().tolist()
+    world_njdc = model.info.num_joint_dynamic_cts.numpy().tolist()
+    world_njkc = model.info.num_joint_kinematic_cts.numpy().tolist()
+    joints_world = model.joints.wid.numpy().tolist()
+    world_maxncts = [
+        njc + nbc + maxnl + maxnc
+        for njc, nbc, maxnl, maxnc in zip(world_njc, world_nbc, world_maxnlc, world_maxncc, strict=True)
+    ]
+    model.size.sum_of_max_total_cts = sum(world_maxncts)
+    model.size.max_of_max_total_cts = max(world_maxncts)
+
+    # Compute inequality entity offsets. Inequalities concatenate bounded-multiplier,
+    # joint-position-limit, and contact entities.
+    world_lio = [0] + [sum(world_maxnl[:i]) for i in range(1, num_worlds + 1)]
+    world_cio = [0] + [sum(world_maxnc[:i]) for i in range(1, num_worlds + 1)]
+    world_iio = [0] + [
+        sum(world_nbc[:i]) + sum(world_maxnl[:i]) + sum(world_maxnc[:i]) for i in range(1, num_worlds + 1)
+    ]
+
+    # Compute the per-world absolute total constraint block offsets
+    # NOTE: These are the per-world start indices of arrays like the constraint multipliers `lambda`.
+    world_ctsio = [0] + [
+        sum(world_njc[:i]) + sum(world_nbc[:i]) + sum(world_maxnlc[:i]) + sum(world_maxncc[:i])
+        for i in range(1, num_worlds + 1)
+    ]
+
+    # Compute the initial values of the absolute constraint group
+    # offsets for joints (dynamic + kinematic), limits, contacts
+    # TODO: Consider using absolute start indices for each group
+    # world_jdcio = [world_ctsio[i] for i in range(num_worlds)]
+    world_jdcio = [0] * num_worlds
+    world_jkcio = [world_jdcio[i] + world_njdc[i] for i in range(num_worlds)]
+    world_bccio = [world_jkcio[i] + world_njkc[i] for i in range(num_worlds)]
+    world_jfcio = [world_bccio[i] for i in range(num_worlds)]
+    world_jecio = [world_jfcio[i] + world_nfc[i] for i in range(num_worlds)]
+    world_lcio = [world_bccio[i] + world_nbc[i] for i in range(num_worlds)]
+    world_ccio = [world_lcio[i] for i in range(num_worlds)]
+
+    # Compute per-joint total constraint vector offsets.
+    # These combine the per-world constraint offset, the within-world group offset,
+    # and the within-group joint offset.
+    joints_dynamic_cts_offset = model.joints.dynamic_cts_offset.numpy()
+    joints_kinematic_cts_offset = model.joints.kinematic_cts_offset.numpy()
+    joint_friction_cts_offset = model.joints.friction_cts_offset.numpy()
+    joint_effort_cts_offset = model.joints.effort_cts_offset.numpy()
+    joint_dynamic_cts_world_prefix = model.info.joint_dynamic_cts_offset.numpy()
+    joint_kinematic_cts_world_prefix = model.info.joint_kinematic_cts_offset.numpy()
+    joint_friction_cts_world_prefix = model.info.joint_friction_cts_offset.numpy()
+    joint_effort_cts_world_prefix = model.info.joint_effort_cts_offset.numpy()
+    num_joints = model.size.sum_of_num_joints
+    dynamic_cts_offset_total_cts = [0] * num_joints
+    kinematic_cts_offset_total_cts = [0] * num_joints
+    friction_cts_offset_total_cts = [0] * num_joints
+    effort_cts_offset_total_cts = [0] * num_joints
+    for jid in range(num_joints):
+        wid_j = joints_world[jid]
+        local_dyn = int(joints_dynamic_cts_offset[jid]) - int(joint_dynamic_cts_world_prefix[wid_j])
+        local_kin = int(joints_kinematic_cts_offset[jid]) - int(joint_kinematic_cts_world_prefix[wid_j])
+        local_friction = int(joint_friction_cts_offset[jid]) - int(joint_friction_cts_world_prefix[wid_j])
+        local_effort = int(joint_effort_cts_offset[jid]) - int(joint_effort_cts_world_prefix[wid_j])
+        dynamic_cts_offset_total_cts[jid] = world_ctsio[wid_j] + world_jdcio[wid_j] + local_dyn
+        kinematic_cts_offset_total_cts[jid] = world_ctsio[wid_j] + world_jkcio[wid_j] + local_kin
+        friction_cts_offset_total_cts[jid] = world_ctsio[wid_j] + world_jfcio[wid_j] + local_friction
+        effort_cts_offset_total_cts[jid] = world_ctsio[wid_j] + world_jecio[wid_j] + local_effort
+
+    # Allocate all constraint info arrays on the target device
+    with wp.ScopedDevice(device):
+        # Allocate the per-world max constraints count arrays
+        model.info.max_total_cts = to_warp_int32_array(world_maxncts)
+        model.info.max_limit_cts = to_warp_int32_array(world_maxnlc)
+        model.info.max_contact_cts = to_warp_int32_array(world_maxncc)
+
+        # Allocate the per-world active constraints count arrays
+        data.info.num_limit_cts = wp.zeros(shape=(num_worlds,), dtype=wp.int32)
+        data.info.num_contact_cts = wp.zeros(shape=(num_worlds,), dtype=wp.int32)
+
+        # Allocate the per-world entity start arrays
+        model.info.limits_offset = to_warp_int32_array(world_lio[:num_worlds])
+        model.info.contacts_offset = to_warp_int32_array(world_cio[:num_worlds])
+        model.info.inequalities_offset = to_warp_int32_array(world_iio[:num_worlds])
+
+        # Allocate the per-world constraint block/group arrays
+        model.info.total_cts_offset = to_warp_int32_array(world_ctsio[:num_worlds])
+        model.info.joint_dynamic_cts_group_offset = to_warp_int32_array(world_jdcio[:num_worlds])
+        model.info.joint_kinematic_cts_group_offset = to_warp_int32_array(world_jkcio[:num_worlds])
+        model.info.joint_bounded_cts_group_offset = to_warp_int32_array(world_bccio[:num_worlds])
+        model.info.joint_friction_cts_group_offset = to_warp_int32_array(world_jfcio[:num_worlds])
+        model.info.joint_effort_cts_group_offset = to_warp_int32_array(world_jecio[:num_worlds])
+        data.info.limit_cts_group_offset = to_warp_int32_array(world_lcio[:num_worlds])
+        data.info.contact_cts_group_offset = to_warp_int32_array(world_ccio[:num_worlds])
+
+        # Allocate per-joint total constraint vector offsets
+        model.joints.dynamic_cts_offset_total_cts = to_warp_int32_array(dynamic_cts_offset_total_cts)
+        model.joints.kinematic_cts_offset_total_cts = to_warp_int32_array(kinematic_cts_offset_total_cts)
+        model.joints.friction_cts_offset_total_cts = to_warp_int32_array(friction_cts_offset_total_cts)
+        model.joints.effort_cts_offset_total_cts = to_warp_int32_array(effort_cts_offset_total_cts)
+
+
+###
+# Kernels
+###
+
+
+@wp.kernel
+def _update_constraints_info(
+    # Inputs:
+    model_info_num_bilateral_joint_cts: wp.array[wp.int32],
+    model_info_num_bounded_joint_cts: wp.array[wp.int32],
+    data_info_num_limits: wp.array[wp.int32],
+    data_info_num_contacts: wp.array[wp.int32],
+    # Outputs:
+    data_info_num_total_cts: wp.array[wp.int32],
+    data_info_num_limit_cts: wp.array[wp.int32],
+    data_info_num_contact_cts: wp.array[wp.int32],
+    data_info_limit_cts_group_offset: wp.array[wp.int32],
+    data_info_contact_cts_group_offset: wp.array[wp.int32],
+):
+    # Retrieve the thread index as the world index
+    wid = wp.tid()
+
+    # Retrieve the number of bilateral joint constraints for this world
+    njc = model_info_num_bilateral_joint_cts[wid]
+
+    # Retrieve the number of inequality constraints for this world
+    nbc = model_info_num_bounded_joint_cts[wid]
+    nl = data_info_num_limits[wid]
+    nc = data_info_num_contacts[wid]
+
+    # Set the number of active constraints for each group and the total
+    nlc = nl  # NOTE: Each limit currently introduces only a single constraint
+    ncc = 3 * nc
+
+    # Set the constraint group offsets, i.e. the starting index
+    # of each group within the block allocated for each world
+    lcgo = njc + nbc
+    ccgo = lcgo + nlc
+    ncts = ccgo + ncc
+
+    # Store the state info for this world
+    data_info_num_total_cts[wid] = ncts
+    data_info_num_limit_cts[wid] = nlc
+    data_info_num_contact_cts[wid] = ncc
+    data_info_limit_cts_group_offset[wid] = lcgo
+    data_info_contact_cts_group_offset[wid] = ccgo
+
+
+@wp.kernel
+def _unpack_joint_constraint_solutions(
+    # Inputs:
+    model_time_inv_dt: wp.array[wp.float32],
+    model_joint_wid: wp.array[wp.int32],
+    model_joints_num_dynamic_cts: wp.array[wp.int32],
+    model_joints_num_kinematic_cts: wp.array[wp.int32],
+    model_joints_num_friction_cts: wp.array[wp.int32],
+    model_joints_num_effort_cts: wp.array[wp.int32],
+    model_joints_dynamic_cts_offset: wp.array[wp.int32],
+    model_joints_kinematic_cts_offset: wp.array[wp.int32],
+    model_joints_friction_cts_offset: wp.array[wp.int32],
+    model_joints_effort_cts_offset: wp.array[wp.int32],
+    model_joints_dynamic_cts_offset_total_cts: wp.array[wp.int32],
+    model_joints_kinematic_cts_offset_total_cts: wp.array[wp.int32],
+    model_joints_friction_cts_offset_total_cts: wp.array[wp.int32],
+    model_joints_effort_cts_offset_total_cts: wp.array[wp.int32],
+    lambdas: wp.array[wp.float32],
+    # Outputs:
+    joint_lambda_dyn_j: wp.array[wp.float32],
+    joint_lambda_kin_j: wp.array[wp.float32],
+    joint_lambda_f_j: wp.array[wp.float32],
+    joint_lambda_tau_j: wp.array[wp.float32],
+):
+    # Retrieve the thread index as the joint index
+    jid = wp.tid()
+
+    # Retrieve the joint-specific model info
+    wid = model_joint_wid[jid]
+    num_dyn_cts_j = model_joints_num_dynamic_cts[jid]
+    num_kin_cts_j = model_joints_num_kinematic_cts[jid]
+    num_friction_cts_j = model_joints_num_friction_cts[jid]
+    num_effort_cts_j = model_joints_num_effort_cts[jid]
+
+    # Retrieve block offsets within the reaction and total constraint arrays
+    joint_dyn_cts_start_j = model_joints_dynamic_cts_offset[jid]
+    joint_kin_cts_start_j = model_joints_kinematic_cts_offset[jid]
+    friction_cts_start_j = model_joints_friction_cts_offset[jid]
+    effort_cts_start_j = model_joints_effort_cts_offset[jid]
+    dyn_cts_row_start_j = model_joints_dynamic_cts_offset_total_cts[jid]
+    kin_cts_row_start_j = model_joints_kinematic_cts_offset_total_cts[jid]
+    friction_cts_row_start_j = model_joints_friction_cts_offset_total_cts[jid]
+    effort_cts_row_start_j = model_joints_effort_cts_offset_total_cts[jid]
+
+    # Retrieve the world-specific info
+    inv_dt = model_time_inv_dt[wid]
+
+    # Compute and store the joint-constraint reaction forces
+    for j in range(num_dyn_cts_j):
+        joint_lambda_dyn_j[joint_dyn_cts_start_j + j] = inv_dt * lambdas[dyn_cts_row_start_j + j]
+    for j in range(num_kin_cts_j):
+        joint_lambda_kin_j[joint_kin_cts_start_j + j] = inv_dt * lambdas[kin_cts_row_start_j + j]
+    for j in range(num_friction_cts_j):
+        joint_lambda_f_j[friction_cts_start_j + j] = inv_dt * lambdas[friction_cts_row_start_j + j]
+    for j in range(num_effort_cts_j):
+        joint_lambda_tau_j[effort_cts_start_j + j] = inv_dt * lambdas[effort_cts_row_start_j + j]
+
+
+@wp.kernel
+def _unpack_limit_constraint_solutions(
+    # Inputs:
+    model_time_inv_dt: wp.array[wp.float32],
+    model_info_total_cts_offset: wp.array[wp.int32],
+    data_info_limit_cts_group_offset: wp.array[wp.int32],
+    limit_model_num_limits: wp.array[wp.int32],
+    limit_wid: wp.array[wp.int32],
+    limit_lid: wp.array[wp.int32],
+    lambdas: wp.array[wp.float32],
+    v_plus: wp.array[wp.float32],
+    # Outputs:
+    limit_reaction: wp.array[wp.float32],
+    limit_velocity: wp.array[wp.float32],
+):
+    # Retrieve the thread index as the contact index
+    lid = wp.tid()
+
+    # Retrieve the number of limits active in the model
+    model_nl = limit_model_num_limits[0]
+
+    # Skip if lid is greater than the number of limits active in the model
+    if lid >= model_nl:
+        return
+
+    # Retrieve the world index and the world-relative limit index for this limit
+    wid = limit_wid[lid]
+    lid_l = limit_lid[lid]
+
+    # Retrieve the world-specific info
+    inv_dt = model_time_inv_dt[wid]
+    total_cts_offset = model_info_total_cts_offset[wid]
+    limit_cts_offset = data_info_limit_cts_group_offset[wid]
+
+    # Compute the global constraint index for this limit
+    limit_cts_idx = total_cts_offset + limit_cts_offset + lid_l
+
+    # Load the limit reaction and velocity from the global constraint arrays
+    lambda_l = lambdas[limit_cts_idx]
+    v_plus_l = v_plus[limit_cts_idx]
+
+    # Scale the contact reaction by the time step to convert from lagrange impulse to force
+    lambda_l = inv_dt * lambda_l
+
+    # Store the computed limit state
+    limit_reaction[lid] = lambda_l
+    limit_velocity[lid] = v_plus_l
+
+
+@wp.kernel
+def _unpack_contact_constraint_solutions(
+    # Inputs:
+    model_time_inv_dt: wp.array[wp.float32],
+    model_info_total_cts_offset: wp.array[wp.int32],
+    data_info_contact_cts_group_offset: wp.array[wp.int32],
+    contact_model_num_contacts: wp.array[wp.int32],
+    contact_wid: wp.array[wp.int32],
+    contact_cid: wp.array[wp.int32],
+    lambdas: wp.array[wp.float32],
+    v_plus: wp.array[wp.float32],
+    # Outputs:
+    contact_mode: wp.array[wp.int32],
+    contact_reaction: wp.array[wp.vec3f],
+    contact_velocity: wp.array[wp.vec3f],
+):
+    # Retrieve the thread index as the contact index
+    cid = wp.tid()
+
+    # Retrieve the number of contacts active in the model
+    model_nc = contact_model_num_contacts[0]
+
+    # Skip if cid is greater than the number of contacts active in the model
+    if cid >= model_nc:
+        return
+
+    # Retrieve the world index and the world-relative contact index for this contact
+    wid = contact_wid[cid]
+    cid_k = contact_cid[cid]
+
+    # Retrieve the world-specific info
+    inv_dt = model_time_inv_dt[wid]
+    total_cts_offset = model_info_total_cts_offset[wid]
+    contact_cts_offset = data_info_contact_cts_group_offset[wid]
+
+    # Compute block offsets of the contact constraints within
+    # the contact-only constraints and total constraints arrays
+    contact_cts_start = total_cts_offset + contact_cts_offset + 3 * cid_k
+
+    # Load the contact reaction and velocity from the global constraint arrays
+    lambda_k = wp.vec3f(0.0)
+    v_plus_k = wp.vec3f(0.0)
+    for k in range(3):
+        lambda_k[k] = lambdas[contact_cts_start + k]
+        v_plus_k[k] = v_plus[contact_cts_start + k]
+
+    # Scale the contact reaction by the time step to convert from lagrange impulse to force
+    lambda_k = inv_dt * lambda_k
+
+    # Compute the discrete contact mode based on the reaction magnitude and velocity
+    mode_k = wp.static(ContactMode.make_compute_mode_func())(v_plus_k)
+
+    # Store the computed contact state
+    contact_mode[cid] = mode_k
+    contact_reaction[cid] = lambda_k
+    contact_velocity[cid] = v_plus_k
+
+
+###
+# Launchers
+###
+
+
+def update_constraints_info(
+    model: ModelKamino,
+    data: DataKamino,
+):
+    """
+    Updates the active constraints info for the given model and current data.
+
+    Args:
+        model: The model container holding time-invariant data.
+        data: The solver container holding time-varying data.
+    """
+    wp.launch(
+        _update_constraints_info,
+        dim=model.info.num_worlds,
+        inputs=[
+            # Inputs:
+            model.info.num_joint_bilateral_cts,
+            model.info.num_joint_bounded_cts,
+            data.info.num_limits,
+            data.info.num_contacts,
+            # Outputs:
+            data.info.num_total_cts,
+            data.info.num_limit_cts,
+            data.info.num_contact_cts,
+            data.info.limit_cts_group_offset,
+            data.info.contact_cts_group_offset,
+        ],
+        device=model.device,
+    )
+
+
+def unpack_constraint_solutions(
+    lambdas: wp.array[wp.float32],
+    v_plus: wp.array[wp.float32],
+    model: ModelKamino,
+    data: DataKamino,
+    limits: LimitsKamino | None = None,
+    contacts: ContactsKamino | None = None,
+):
+    """
+    Unpacks the constraint reactions and velocities into respective data containers.
+
+    Args:
+        lambdas: The array of constraint reactions (i.e. lagrange multipliers).
+        v_plus: The array of post-event constraint velocities.
+        data: The solver container holding time-varying data.
+        limits: The limits container holding the joint-limit data.
+            If None, limits will be skipped.
+        contacts: The contacts container holding the contact data.
+            If None, contacts will be skipped.
+    """
+    # Unpack joint constraint multipliers if the model has joints
+    if model.size.sum_of_num_joints > 0:
+        wp.launch(
+            kernel=_unpack_joint_constraint_solutions,
+            dim=model.size.sum_of_num_joints,
+            inputs=[
+                # Inputs:
+                model.time.inv_dt,
+                model.joints.wid,
+                model.joints.num_dynamic_cts,
+                model.joints.num_kinematic_cts,
+                model.joints.num_friction_cts,
+                model.joints.num_effort_cts,
+                model.joints.dynamic_cts_offset,
+                model.joints.kinematic_cts_offset,
+                model.joints.friction_cts_offset,
+                model.joints.effort_cts_offset,
+                model.joints.dynamic_cts_offset_total_cts,
+                model.joints.kinematic_cts_offset_total_cts,
+                model.joints.friction_cts_offset_total_cts,
+                model.joints.effort_cts_offset_total_cts,
+                lambdas,
+                # Outputs:
+                data.joints.lambda_dyn_j,
+                data.joints.lambda_kin_j,
+                data.joints.lambda_f_j,
+                data.joints.lambda_tau_j,
+            ],
+            device=model.device,
+        )
+
+    # Unpack limit constraint multipliers if a limits container is provided
+    if limits is not None:
+        wp.launch(
+            kernel=_unpack_limit_constraint_solutions,
+            dim=limits.model_max_limits_host,
+            inputs=[
+                # Inputs:
+                model.time.inv_dt,
+                model.info.total_cts_offset,
+                data.info.limit_cts_group_offset,
+                limits.model_active_limits,
+                limits.wid,
+                limits.lid,
+                lambdas,
+                v_plus,
+                # Outputs:
+                limits.reaction,
+                limits.velocity,
+            ],
+            device=model.device,
+        )
+
+    # Unpack contact constraint multipliers if a contacts container is provided
+    if contacts is not None:
+        wp.launch(
+            kernel=_unpack_contact_constraint_solutions,
+            dim=contacts.model_max_contacts_host,
+            inputs=[
+                # Inputs:
+                model.time.inv_dt,
+                model.info.total_cts_offset,
+                data.info.contact_cts_group_offset,
+                contacts.model_active_contacts,
+                contacts.wid,
+                contacts.cid,
+                lambdas,
+                v_plus,
+                # Outputs:
+                contacts.mode,
+                contacts.reaction,
+                contacts.velocity,
+            ],
+            device=model.device,
+        )
