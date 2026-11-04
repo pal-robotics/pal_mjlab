@@ -25,6 +25,20 @@ pal_mjlab Documentation
    kangaroo/kangaroo_overview
    kangaroo/models/kangaroo_simple
    kangaroo/models/kangaroo_lower_body
+   kangaroo/models/kangaroo_hands
    kangaroo/models/kangaroo_grippers
    kangaroo/tasks/task_velocity
    kangaroo/tasks/task_imitation
+   kangaroo/tasks/task_reaching
+
+.. toctree::
+   :maxdepth: 1
+   :caption: PAL TALOS
+
+   talos/talos_overview
+
+.. toctree::
+   :maxdepth: 1
+   :caption: PAL TIAGo Pro
+
+   tiago_pro/tiago_pro_overview
