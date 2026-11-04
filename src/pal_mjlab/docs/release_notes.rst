@@ -220,6 +220,12 @@ Breaking Changes
 
 Documentation & CI
 ^^^^^^^^^^^^^^^^^^
+- The documentation is now published to GitHub Pages at
+  https://pal-robotics.github.io/pal_mjlab/ by a new ``Docs`` workflow. The
+  workflow builds the docs on pull requests, treating warnings as errors,
+  and deploys them on every push to ``main``. Use ``make docs`` to build
+  them locally.
+  (`#128 <https://github.com/pal-robotics/pal_mjlab/pull/128>`_)
 - Updated the documentation for Kangaroo in ``pal_mjlab``. Added
   notes for rough terrain in the velocity task, and added documentation
   for Kangaroo grippers model (7-DoF + gripper).
