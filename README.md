@@ -44,6 +44,11 @@ uv run play Mjlab-Velocity-Flat-Pal-Kangaroo --agent random  # send random actio
 ```
 
 
+For every task family (velocity, motion tracking, reaching), the
+[Training and Playing Tasks](src/pal_mjlab/docs/usage/train_and_play.rst) guide covers:
+the train and play commands, the common options, where checkpoints are
+saved, and how to resume.
+
 ## Velocity Tracking
 
 Train a locomotion policy.
@@ -76,8 +81,12 @@ uv run -m pal_mjlab.scripts.csv_to_npz \
     --input-fps 30 \
     --output-fps 50 \
     --robot-name kangaroo \
-    --render True
+    --render True \
+    --upload-to-wandb True
 ```
+
+The motion is written to `/tmp/motion.npz`. With `--upload-to-wandb True`, it is also uploaded to wandb, which the `--registry-name` below relies on.
+To use a local file instead, pass `--env.commands.motion.motion-file <path>.npz` to `train` and `--motion-file <path>.npz` to `play`.
 
 ### Training and evaluation
 
