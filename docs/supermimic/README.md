@@ -1,11 +1,12 @@
 # SuperMimic on Kangaroo
 
 SuperMimic (arXiv 2610.28480) on PAL Kangaroo, trained on BONES-SEED retargeted to the robot
-([kangaroo-bones-seed](https://github.com/OscarMrZ/kangaroo-bones-seed): the retarget pipeline and dataset). Two
-robots, each with its own tasks and retarget: 7-DoF arms with grippers, and 5-DoF arms with Seed Robotics hands
-(their 2-DoF wrist in the place of arm joints 6–7, fingers fixed; D42).
+([kangaroo-bones-seed](https://github.com/OscarMrZ/kangaroo-bones-seed): the retarget pipeline and dataset). Three
+robots, each with its own tasks and retarget: 7-DoF arms with grippers, 5-DoF arms with Seed Robotics hands
+(their 2-DoF wrist in the place of arm joints 6–7, fingers fixed; D42), and the 7-DoF arms on the closed-chain legs
+([below](#the-closed-chain-robot), D58).
 
-- [DECISIONS.md](DECISIONS.md): what we chose, why, and when to revisit (D0–D57)
+- [DECISIONS.md](DECISIONS.md): what we chose, why, and when to revisit (D0–D59)
 - [LEARNINGS.md](LEARNINGS.md): facts and measurements
 - `audit/`: the robot models against PAL's URDF
 - `tight/report.md`: the record of the tight tracking runs (D53, rolled back by D57) and of the robot's gains with
@@ -97,10 +98,31 @@ Key TensorBoard scalars: `episode/return`, `eval/return_gap_head` (imagined vs s
 `termination/head_auc`, `world_model/loss`, `policy/objective`,
 `time/*`, `memory/max_allocated_gb`.
 
+## The closed-chain robot
+
+`Mjlab-SuperMimic-Flat-Pal-Kangaroo-Full-Grippers`, branch `feat/supermimic-full`: the legs with their whole linkage, 24 loops and 12
+ball screws, and the 7-DoF arms (D58). Everything above applies, with these differences:
+
+- **Library:** its own, `?dataset=full_dcmr` in the motion browser: `qpos.npy` has 91 columns, `qvel.npy` 90 (84 joints). The
+  full library's files take about 34 GB on disk and about 18 GB on the GPU (D59). Keep the three files in one folder: resets read
+  every joint from them, so the folder has to stay available while training.
+- **Actions and proprioception** are in the screws' metres for the legs (`leg_*_{1..5,length}_actuator`), radians for waist and arms.
+- **Gains:** legs 5 Hz gains and action scales; arms and waist as the 7-DoF robot (D55).
+- **Sim:** 2 ms × 10 substeps, so about 2.5× the simulation time of the other robots per step.
+
+```bash
+git clone -b feat/supermimic-full git@github.com:pal-robotics/pal_mjlab.git && cd pal_mjlab
+uv sync --extra cu128 --group supermimic
+curl -C - -H 'Authorization: Bearer <token>' -o <library>/qpos.npy '<motion browser>/download/library/full/qpos?dataset=full_dcmr'  # also clips, qvel
+uv run train Mjlab-SuperMimic-Flat-Pal-Kangaroo-Full-Grippers --env.commands.motion.library-path <library> \
+  --agent.run-name full-grippers-<name>
+#    a 32 GB GPU with the full library: add --agent.algorithm.precision bf16 --agent.replay-steps 500
+```
+
 ## Configuration
 
-- **Tasks** (D52): `Mjlab-SuperMimic-Flat-Pal-Kangaroo-{Grippers,Hands}` and the PPO-Sim baseline
-  `Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-{Grippers,Hands}` (logs: `logs/rsl_rl/supermimic_ppo`).
+- **Tasks** (D52): `Mjlab-SuperMimic-Flat-Pal-Kangaroo-{Grippers,Hands,Full-Grippers}` and the PPO-Sim baseline
+  `Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-{Grippers,Hands,Full-Grippers}` (logs: `logs/rsl_rl/supermimic_ppo`).
 - **Paper settings:** `tasks/supermimic/supermimic_env_cfg.py` (env, reward: Table A.2, D57) and
   `rl/supermimic.py` (algorithm, Table A.5).
 - **Kangaroo:** `tasks/supermimic/kangaroo/env_cfgs.py` (tracked bodies, joints, sensors). The arm and waist

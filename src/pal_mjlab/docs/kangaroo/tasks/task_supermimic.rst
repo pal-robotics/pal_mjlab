@@ -16,17 +16,21 @@ BONES-SEED motions retargeted to Kangaroo (about 119,000 motions, 233 h).
 Tasks
 -----
 
-+-------------------------------------------------+------------------------------------------+
-| Task                                            | Robot                                    |
-+=================================================+==========================================+
-| Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers     | 7-DoF arms with grippers                 |
-+-------------------------------------------------+------------------------------------------+
-| Mjlab-SuperMimic-Flat-Pal-Kangaroo-Hands        | 5-DoF arms with Seed Robotics hands      |
-+-------------------------------------------------+------------------------------------------+
-| Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers | the same env trained with PPO (baseline) |
-+-------------------------------------------------+------------------------------------------+
-| Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Hands    | the same env trained with PPO (baseline) |
-+-------------------------------------------------+------------------------------------------+
++------------------------------------------------------+------------------------------------------+
+| Task                                                 | Robot                                    |
++======================================================+==========================================+
+| Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers          | 7-DoF arms with grippers                 |
++------------------------------------------------------+------------------------------------------+
+| Mjlab-SuperMimic-Flat-Pal-Kangaroo-Hands             | 5-DoF arms with Seed Robotics hands      |
++------------------------------------------------------+------------------------------------------+
+| Mjlab-SuperMimic-Flat-Pal-Kangaroo-Full-Grippers     | 7-DoF arms on the closed-chain legs      |
++------------------------------------------------------+------------------------------------------+
+| Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Grippers      | the same env trained with PPO (baseline) |
++------------------------------------------------------+------------------------------------------+
+| Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Hands         | the same env trained with PPO (baseline) |
++------------------------------------------------------+------------------------------------------+
+| Mjlab-SuperMimic-PPO-Flat-Pal-Kangaroo-Full-Grippers | the same env trained with PPO (baseline) |
++------------------------------------------------------+------------------------------------------+
 
 Motion library
 --------------

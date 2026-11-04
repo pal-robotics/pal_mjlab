@@ -450,6 +450,19 @@ The tight reward was rolled back (D57). These are the measurements, all with the
 - Score a policy only in the task it trained with. A 3.5 Hz policy in a 1 Hz play config sees 12× softer servos:
   10 cm of arm error, an artefact.
 
+## The closed-chain robot (D58, D59)
+
+- **Serial and closed-chain legs are the same legs:** hip_xy vs leg_3, tibia vs knee, femur vs femur 0.3 mm apart, feet in the same
+  frame. Hip yaw and roll have opposite signs, pitch the same; femur and tibia map with offsets; ankle pitch depends on leg length.
+- **A lift from the serial model** takes about 1 ms per frame and 3 Newton iterations, closure under 0.0001 mm. Warm-started only
+  from the last frame it diverges on 2 % of frames; a guess from the joint maps doesn't.
+- **The joint box is not the mechanism's range.** On DCMR's 5-DoF set (made without limits), 23 % of frames are past a screw by over
+  3 mm. On GMR's, which hold the box, 12 % of frames are outside the hip hull and 4.5 % outside the ankle hull.
+- **The ankle hinge's range is measured from the tibia,** the serial joint's of the same name from the hip-ankle line. Past it, a
+  reset clamps the hinge and opens a loop by 16 mm. References have to hold it too.
+- **At reset** from the lifted references the loops are closed to 0.001 mm; driving 64 envs to their references open loop for 150 steps
+  they stay under 1.7 mm, with no NaN and at most 204 constraint rows of the 1024 allowed (CPU).
+
 ## Repo state found on MAC/WBC (not caused by us)
 
 - `tests/test_kangaroo_velocity_task_launch.py`: all 12 velocity tasks fail at env construction on GPU.

@@ -821,3 +821,53 @@ its own branch.
   the report, which are on D53's reward. Failures, body errors and foot metrics compare across all of them.
 - **Check:** the tasks are bit-identical to the code with D53's reward when its stds are set by hand to these and its
   feet terms to weight 0, on both robots: rewards, the networks after 6 training iterations and the sampler state.
+
+**D58. A third robot: the closed-chain legs with the 7-DoF arms and grippers (user, 2026-11-04; branch `feat/supermimic-full`).**
+- **Why (user):** train on the true mechanism. The serial robots fold the legs' linkage into a slide and two passive
+  joints; `robots/pal_kangaroo_full` has it all: 24 `<connect>` loops, 12 ball screws, 84 joints with the arms below.
+- **Robot** (`get_kangaroo_full_grippers_robot_cfg`): KangarooFullEnv's model with the fixes of `omm/kangaroo_full_fixes`
+  (the generator's values, on load: pelvis armature, hip and ankle screw ranges, a hip cross, four crosses welded).
+  - **The arms are `kangaroo_grippers.xml`'s, whole, from joint 1 down.** PAL's 4-DoF xacro turns `arm_4_joint`'s origin half
+    a turn about the link's z, so joints 5-7 on the generated arm 4 would put the wrist 180° off (D3, D54). Checked
+    against `kangaroo_grippers` over 3,000 poses within 0.001 mm and 0.001°, and against PAL's xacro chain (`audit/`).
+  - **Gains (user):** legs 5 Hz gains and 5 Hz action scales. Arms and waist as `kangaroo_grippers` in everything: armature,
+    damping, friction, 3.5 Hz gains, 1 Hz action scales (D55), so what was learned there carries over.
+- **Task:** the paper's settings, with each thing the screws change kept at its physical size:
+  - Goal, proprioception and actions are the 28 actuated joints: screws, waist, arms. Passive joints stay out (D28).
+  - Sensor noise and calibration offsets: the paper's value over the screw's total transmission ratio. As they were they
+    meant ±10 mm on a screw of 40 mm stroke.
+  - No joint-position noise on the leg screws at reset: it opens the loops. Root noise, and arms and waist, stay.
+  - 2 ms × 10 substeps as this model's velocity task, not the paper's 5 ms × 4: the Kamino session measured 5× less loop
+    error (mean 0.077 mm, max 0.78 against 0.42, 5.7; CPU, 8 worlds). `--env.sim.mujoco.timestep 0.005 --env.decimation 4`
+    goes back.
+  - Torso CoM randomization on `torso_link`, which holds the mass here. `pelvis_2_link` is 0.44 kg on this model.
+  - Tracked bodies: `*_hip_xy` and `*_tibia` for the serial `leg_*_3_link` and `leg_*_knee_link`, 0.3 mm from them.
+- **Data:** `dataset_full_dcmr` of the retarget repository.
+  - DCMR on the serial robot, then an exact lift: the two legs agree to 0.3 mm, so a serial pose has one pose on the chain.
+    Solving on the chain directly is about 5× per state, soft on its 72 loop rows, and has no benefit.
+  - The serial joint box is wider than what the screws reach, and these stops are physical here. So the serial solve holds
+    the screw strokes and the ankle hinge's range (measured from the tibia), through polynomials fit on the chain (0.2 mm).
+    Without it, the lift leaves the feet 18 mm off on the median clip (GMR's 7-DoF set: 65 mm); with it, 0.
+  - DCMR over GMR, on 112 clips, both lifted: clips over 1 cm into the floor 8 % against 67 %, jerk p95 325 against 5,614,
+    leg direction 6.1° against 12.5°, no arm jumps against 34. GMR keeps foot contacts (F1 0.962 against 0.928) and the
+    forearm (5.3° against 10.2°, p95 10° against 23.5°).
+  - DCMR needed two fixes: on the lock file's versions it applied no joint limit at all, and it finite-differenced its
+    posture Jacobian. Past a limit by over 5° on 20.7 % of frames before, none after.
+- **Untested:** no long run. The paper's reward with these gains has no benchmark (D57), and the arms' 0.78 wrist scale has
+  never been trained. At 5 Hz the legs' action scales are about half the serial robot's per radian, the pattern D27 saw on
+  the arms: watch leg tracking and the action-rate cost.
+- **Revisit:** the screw travel. The ankle's ±0.02437 m reaches pitch 0.52 of the hinge's 0.66, and the hip hull needs a bit more
+  than the hip screws' range. Which is right is a question for PAL's xacro; the data follows the model.
+
+**D59. A reduced state for closed-chain legs: 42 of the 84 joints (2026-11-04).**
+- **Why:** D4's state and D11's library hold every joint. Here 42 of them only close the loops: screws' motors, brackets,
+  rods and bars. The world model would spend its loss on them (state 181 against 77 on the serial robots), and the full
+  library would take 34 GB of GPU memory.
+- **Now:** `MotionLibraryCommandCfg.reduced_state`: the goal joints plus those on the way to the tracked bodies (42), so the state
+  is 97 and the library about 18 GB. FK reads through a remapped address and no other code sees the difference. Resets
+  read every joint from the library's files on the host, a few rows per step. D4's Markov argument holds: the rest follows
+  from these on the loops.
+- **Off by default,** and the serial tasks are bit-identical to eac6c8e: observations, rewards and checkpoints after 3 iterations,
+  both robots.
+- **Revisit:** if the world model's error on the path joints stays high, or a privileged input needs the linkage.
+
