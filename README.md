@@ -1,5 +1,6 @@
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![mjlab](https://img.shields.io/badge/mjlab-1.6.0-76B900.svg)](https://mujocolab.github.io/mjlab/v1.6.0/index.html)
+[![docs](https://img.shields.io/badge/docs-pal__mjlab-blue.svg)](https://pal-robotics.github.io/pal_mjlab/)
 
 # PAL Robotics in mjlab
 
@@ -98,6 +99,18 @@ uv run play Mjlab-Tracking-Flat-Pal-Kangaroo --wandb-run-path your-org/mjlab/run
 ## Results
 
 <video src="https://github.com/user-attachments/assets/32c0e534-ead9-400e-afe5-42174a6b739b" controls muted loop playsinline style="width:100%;"></video>
+
+## Documentation
+
+The full documentation is published at <https://pal-robotics.github.io/pal_mjlab/>.
+It is rebuilt and deployed by the `Docs` GitHub Actions workflow on every push to `main`
+that touches `src/pal_mjlab/docs/`, and is built (without deploying) on pull requests.
+
+Build it locally with:
+
+```bash
+make docs  # output in _build/html
+```
 
 ## Contributing
 
