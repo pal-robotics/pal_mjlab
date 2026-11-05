@@ -1,10 +1,10 @@
 # Kamino against mujoco_warp on kangaroo_full
 
-The closed-chain Kangaroo (4-DoF arms, 24 loops, actuators on the ball screws) on the flat velocity task, 2 ms timestep, decimation 10, measured through the full `ManagerBasedRlEnv.step`. Measured on 2026-11-05 on one GPU, shared with a resident inference service. Rollouts have no noise or randomization unless stated. Tables at the end come from `scripts/bench_kamino.py`.
+The closed-chain Kangaroo (4-DoF arms, 24 loops, actuators on the ball screws) on the flat velocity task, 2 ms timestep, decimation 10, measured through the full `ManagerBasedRlEnv.step`. Measured on 2026-11-05 on one GPU, shared with a resident inference service. Rollouts have no noise or randomization unless stated. Tables at the end come from `scripts/bench_kamino.py`. Numbers before the "Blow-ups under exploration" section were measured before the error bounds it describes.
 
 ## Result
 
-**Recommendation: stay on mujoco_warp for training.** At settings fast enough for RL, Kamino is about 54 times slower, cuts typical loop error by about half, and blows up under exploration noise, so its 3 h run didn't learn. mujoco_warp's soft loops already stay within about 1.3 mm while walking.
+**Recommendation: stay on mujoco_warp for training.** At settings fast enough for RL, Kamino is about 54 times slower and cuts typical loop error by about half. Its 3 h run blew up under exploration noise and didn't learn. Bounding the error correction later cut those blow-ups about 35 times, but no full training run has used it. mujoco_warp's soft loops already stay within about 1.3 mm while walking.
 
 | | mujoco_warp | Kamino, CRF 60 (default) | Kamino, dense LLT |
 |---|---|---|---|
@@ -82,9 +82,60 @@ The likely cause is blow-ups during exploration. In the logs, `foot_slip` averag
 | Max loop error (mm) | 2.53 | 679 |
 | Worst single-step reward | -0.6 | -270 |
 
-There were no NaNs in training, so the `nan` termination never fired. What triggers the blow-ups isn't known yet. This run can't separate random actions from randomization, and the bridge isn't ruled out.
+There were no NaNs in training, so the `nan` termination never fired. The next section covers what triggers the blow-ups.
 
 Even with that fixed, the budget is the limit. The baseline reached reward 40 and 849-step episodes at iteration 300 (29.5 M samples, 27 min). At Kamino's 344 samples/s, the same samples take about 24 h.
+
+## Blow-ups under exploration
+
+Blow-ups need random actions and ground contact together. These are one-off runs of the training environment, one per case, at 256 worlds and 200 env steps, before the bounds below. An event is a world where a body passes 10 m/s.
+
+| Case | Events | Top body speed (m/s) |
+|---|---|---|
+| Random actions, randomization, pushes | 20 | 70.9 |
+| Random actions only | 15 | 142 |
+| Pushes only, zero action | 1 | 44.1 |
+| Randomization only, zero action | 0 | 4.3 |
+| Random actions, no ground or gravity | 0 | 2.3 |
+| mujoco_warp, random actions, randomization, pushes | 0 | 6.7 |
+
+The evidence fits this sequence: PADMM falls behind at foot contact, a loop opens, and Kamino's Baumgarte correction, which grows with the gap, feeds energy in. At events the foot has sunk 1-6 cm and ankle roll reads 2.2-5.3 rad against a +/-0.471 rad limit. Solver budget alone doesn't fix it: dense LLT with 200 iterations still had 15 events.
+
+`max_joint_error` (0.02 m or rad) and `max_limit_error` (0.05) now bound the error the correction acts on. Below them nothing changes. Pushes also keep the solver's warm start, since they only write velocities.
+
+| Random actions, randomization, pushes | Without bounds, 4 runs | With bounds, 6 runs |
+|---|---|---|
+| Events | 94 | 4 |
+| Top body speed (m/s) | 93-180 | 4.7-30 |
+| World-substeps with a body over 10 m/s, per run | 445-988 | 0-92 |
+| Loops over 20 mm, share of world-substeps | 1.2-1.4% | 0.32-0.52% |
+| Loops over 100 mm, world-substeps per run | 185-290 | 0-58 |
+
+Both columns keep the warm start through pushes. GPU runs don't repeat at a fixed seed: with bounds, seed 1 gave 0, 1 and 1 events. So single runs in this section only support large differences.
+
+The bounds have a cost in normal motion. Typical error is unchanged, but rare gaps get larger:
+
+| Normal motion | Without bounds | With bounds |
+|---|---|---|
+| Walking 20 s, loop mean / p95 / max (mm) | 0.054 / 0.554 / 21.0 | 0.055 / 0.555 / 65.2 |
+| Walking 20 s, loop velocity max (mm/s) | 2,500 | 7,411 |
+| Zero action 5 s, loop mean / p95 / max (mm) | 0.031 / 0.130 / 17.4 | 0.036 / 0.130 / 58.8 |
+| Walking 10 s, worst loop error (mm) | 10.0 | 41.5 |
+| Walking 10 s, world-steps over 5 mm after 0.5 s | 0 | 25 |
+| Walking 10 s, world-steps with a body over 10 m/s | 673 | 649 |
+| Walking 10 s, fastest body (m/s) | 38 | 12.3 |
+| Env-steps/s at 1024 worlds | 340 | 348 |
+
+Neither walking run has a fall. In the worst world of the 10 s run, Kamino's own bodies close the gap in about 60 ms while the gap from `qpos` stays near 41 mm. The error seems to sit in tree joints, which the bound may close slowly. That isn't tested.
+
+Whether Kamino now trains is unknown. An 18-iteration probe at 1024 worlds with a tighter 5 mm joint bound had a worst value loss of 4.27 (650,568 without bounds, 0.40 on the baseline), and episode length tracked the baseline. But the learning rate stayed between 1e-5 and 2.3e-5, where the baseline reaches 2.2e-3. At the event rate above, a 1024-world run would still see roughly one blow-up every 3 iterations, an estimate from pure random actions.
+
+These didn't help, in one-off runs:
+
+- Fewer iterations, even with bounds: 30 PADMM iterations had 731 events, and 15 inner iterations ran 1.75 times faster with 19 events. 25 inner iterations has no result.
+- A lower preconditioner cap had 617 events, and rho 0.01 on CRF had 6,606.
+- Small model changes barely move convergence. On dense LLT on CPU (4 worlds, 15 env steps, 114 iterations unchanged), inertia floors gave 112-118, soft contacts 111-113, and two sole capsules per foot 100.
+- By a matrix estimate, raising every light body to 0.2 kg adds 3.77 kg for about 22% fewer iterations.
 
 ## Caveats
 
@@ -94,6 +145,7 @@ Even with that fixed, the budget is the limit. The baseline reached reward 40 an
 - Metrics are read after resets, so the state a world ends in isn't measured on either simulator.
 - The working solver settings came from a sweep on this model: CRF, 30 inner and 60 PADMM iterations, rho 0.05, tolerance 1e-3. Other solvers or tuning could do better. Kamino's own RL setting (9 inner iterations) diverged on foot contact.
 - Both simulators use the on-load model fixes in `kangaroo_full_constants.py`. These belong upstream in `kangaroo_simulation`.
+- `ankle_tibia_bar_l2` on both legs has 40% less inertia than its three sibling 380 mm bars. It doesn't affect convergence, is left unchanged and should also be fixed upstream. Left and right masses otherwise match within 2%.
 
 ## Open question
 
@@ -101,7 +153,7 @@ Is +/-0.02437 m the real ankle screw travel? It stops pure ankle pitch at +0.52 
 
 ## Benchmark tables
 
-`stand_*` is zero action for 5 s and `walk_*` is a 1 m/s command for 20 s, both at 256 worlds. `policy_mjw` and `policy_kam` are the baseline and Kamino policies. "Falls per world" counts every terminated episode.
+`stand_*` is zero action for 5 s and `walk_*` is a 1 m/s command for 20 s, both at 256 worlds. `policy_mjw` and `policy_kam` are the baseline and Kamino policies. "Falls per world" counts every terminated episode. Only `*_bounds` rows use the error bounds.
 
 | Case | Env-steps/s | Physics substeps/s |
 |---|---|---|
@@ -117,6 +169,7 @@ Is +/-0.02437 m the real ankle screw travel? It stops pure ankle pitch at +0.52 
 | speed_kamino_1024_rl_warmstart | 341 | 3428 |
 | speed_mjwarp_1024_walk | 17535 | 247248 |
 | speed_kamino_1024_walk | 343 | 3446 |
+| speed_kamino_1024_bounds | 348 | 3499 |
 
 | Case | Loop mm mean | p95 | max | Kamino bodies mm max | Loop mm/s mean | Tree mm or mrad max | PADMM iterations | Converged | Falls per world | NaN |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -130,6 +183,8 @@ Is +/-0.02437 m the real ankle screw travel? It stops pure ankle pitch at +0.52 
 | stand_kamino | 0.031 | 0.130 | 17.440 | 65.403 | 0.43 | 828.148 | 58.1 | 0.05 | 1.00 | 0.000 |
 | walk_kamino_policy_mjw | 0.054 | 0.554 | 20.975 | 84.822 | 1.93 | 926.831 | 60.0 | 0.00 | 0.00 | 0.000 |
 | walk_kamino_policy_kam | 0.053 | 0.609 | 2.106 | 3.041 | 2.18 | 23.137 | 57.3 | 0.10 | 57.17 | 0.000 |
+| stand_kamino_bounds | 0.036 | 0.130 | 58.823 | 68.203 | 0.43 | 840.652 | 58.1 | 0.05 | 1.00 | 0.000 |
+| walk_kamino_policy_mjw_bounds | 0.055 | 0.555 | 65.239 | 87.977 | 1.95 | 929.065 | 60.0 | 0.00 | 0.00 | 0.000 |
 
 | Training run | Iterations | Hours | Mean reward | Mean episode length |
 |---|---|---|---|---|
