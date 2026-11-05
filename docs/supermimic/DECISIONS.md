@@ -863,6 +863,11 @@ its own branch.
 
 **D58. The velocity head holds its arms and hands near the default pose (user's report, 2026-11-05).** Not in the paper:
 Table A.6 has no arm term.
+- **Status (user, playing `model_45000`):** the arms are dead with this term. It stops the jumbling but it is not the
+  answer; the paper's own two methods are next.
+- **Main issue:** the velocity reward never asks for an arm pose, and the only link to the motion policy, the latent
+  alignment, is too weak to act as one. So the encoder picks whatever latent tracks the command best, and the arms go
+  wherever that latent puts them. The legs walk well because the reward rewards that; the arms were simply unconstrained.
 - **Why (user, playing `model_44000`):** the arms were not in a walking position and were jumbling, while the legs walked.
 - **Cause, measured on `model_44000`:**
   - Nothing in the reward holds the arms. The action rate penalizes change, not a held offset.
@@ -890,10 +895,12 @@ Table A.6 has no arm term.
 | forearm on the torso, % of env-steps | 5.1 | 0 | 1.8 (right) |
 | palm on the thigh, % of env-steps, right / left | 0 / 0 | 17.0 / 6.1 (up to 4.9 mm) | 8.5 / 6.6 (up to 12.8 mm) |
 
-- **What it doesn't give:** a natural arm swing. The arms now move with the gait but only slightly, 0.017 rad against B's 0.046
-  in the 1–5 Hz band. Swing would need its own term. The palms brush the thighs as they do at the default pose (18 % and 10 %
+- **What it doesn't give:** an arm swing. The arms now move with the gait but only slightly, 0.017 rad against B's 0.046
+  in the 1–5 Hz band. The palms brush the thighs as they do at the default pose (18 % and 10 %
   with arm targets held there), so that comes from the pose, not the term.
-- **Not tried:** a larger `align_weight`. It would have to rise about 150 times to match the return's gradient, and it only
-  acts on reference-command rollouts.
+- **Not tested yet:** the paper's own two methods as a way to natural arms: distillation (the velocity encoder on the
+  motion-tracking reward), and the RL encoder with the alignment summed over the rollout like the return. The paper doesn't
+  say whether its 0.1 weights a mean or a sum, and this code's mean is 151 times weaker than the return in gradient. Until
+  those are measured, this term is a stopgap, not the conclusion.
 - **Motion tasks:** untouched, only the velocity task's reward changed.
 

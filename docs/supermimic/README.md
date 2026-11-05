@@ -127,7 +127,9 @@ uv run train Mjlab-SuperMimic-Velocity-Flat-Pal-Kangaroo-Hands --agent.motion-ch
   --env.commands.motion.library-path <dataset_5dof>/libraries/locomotion --agent.run-name hands-<name>
 #    local 16 GB GPU: add --agent.algorithm.precision bf16 --agent.replay-steps 500 and the smoke library's path
 #    other command ranges: --env.commands.velocity.ranges.lin-vel-x -1.0,1.5 (and lin-vel-y, ang-vel-z)
-uv run play Mjlab-SuperMimic-Velocity-Flat-Pal-Kangaroo-Hands --checkpoint-file <run>/model_N.pt
+uv run -m pal_mjlab.scripts.supermimic.play Mjlab-SuperMimic-Velocity-Flat-Pal-Kangaroo-Hands \
+  --checkpoint-file <run>/model_N.pt --library <dataset_5dof>/libraries/locomotion
+#    the same without --library: uv run play <task> --checkpoint-file ..., which reads the task's default artifacts/ path
 ```
 
 Each env draws a command source at every reset and every 5 s: half the time the reference clip's own velocity
