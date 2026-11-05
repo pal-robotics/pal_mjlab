@@ -252,6 +252,7 @@ class KaminoSimulation(Simulation):
     self._qpos_last, self._qvel_last = like(d.qpos), like(d.qvel)
     self._rows_used = wp.zeros(self.num_envs, dtype=int, device=dev)
     self._mask = wp.ones(self.num_envs, dtype=wp.bool, device=dev)
+    self._cold = wp.ones(self.num_envs, dtype=wp.bool, device=dev)
     self._resync()
     if self.use_cuda_graph:
       self._capture_step()
@@ -336,7 +337,7 @@ class KaminoSimulation(Simulation):
     )
     reset_joints_state_from_bodies_state(self.kamino, self.state_n, self._mask)
     reset_body_wrenches(self.kamino, self.state_n, self._mask)
-    self._solver._reset_solver_data(world_mask=self._mask)
+    self._solver._reset_solver_data(world_mask=self._cold)
     wp.copy(self._qpos_last, d.qpos)
     wp.copy(self._qvel_last, d.qvel)
 
@@ -348,14 +349,14 @@ class KaminoSimulation(Simulation):
         self._forward()
       # All of mjlab's state writes (resets, pushes) land before forward().
       if self._solver is not None:
-        written = (wp.to_torch(self.wp_data.qpos) != wp.to_torch(self._qpos_last)).any(
-          1
-        )
-        written |= (wp.to_torch(self.wp_data.qvel) != wp.to_torch(self._qvel_last)).any(
-          1
-        )
+        moved = (wp.to_torch(self.wp_data.qpos) != wp.to_torch(self._qpos_last)).any(1)
+        written = moved | (
+          wp.to_torch(self.wp_data.qvel) != wp.to_torch(self._qvel_last)
+        ).any(1)
         if written.any():
           wp.to_torch(self._mask).copy_(written)
+          # A push only writes velocities, so its contact forces still warm start well.
+          wp.to_torch(self._cold).copy_(moved)
           self._resync()
 
   def step(self) -> None:
