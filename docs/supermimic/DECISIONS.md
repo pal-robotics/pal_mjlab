@@ -862,7 +862,7 @@ its own branch.
     forearm (5.3° against 10.2°, p95 10° against 23.5°).
   - DCMR needed two fixes: on the lock file's versions it applied no joint limit at all, and it finite-differenced its
     posture Jacobian. Past a limit by over 5° on 20.7 % of frames before, none after. Both are in
-    [DCMR PR #4](https://github.com/ManuelActisCassa/DCMR/pull/4), not merged yet. The motions record commit `ff099a8`, the same code as the PR's `9f0ed5b`.
+    [DCMR PR #4](https://github.com/ManuelActisCassa/DCMR/pull/4), merged as `a681da0`. The motions record commit `ff099a8`, the same code.
 - **Untested:** no long run. The paper's reward with these gains has no benchmark (D57), and the arms' 0.78 wrist scale has
   never been trained. At 5 Hz the legs' action scales are about half the serial robot's per radian, the pattern D27 saw on
   the arms: watch leg tracking and the action-rate cost.
