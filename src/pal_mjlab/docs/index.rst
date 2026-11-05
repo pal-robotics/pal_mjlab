@@ -28,3 +28,4 @@ pal_mjlab Documentation
    kangaroo/models/kangaroo_grippers
    kangaroo/tasks/task_velocity
    kangaroo/tasks/task_imitation
+   kangaroo/tasks/task_box_lifting
