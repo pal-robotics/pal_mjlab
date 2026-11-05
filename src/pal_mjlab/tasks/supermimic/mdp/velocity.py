@@ -27,6 +27,7 @@ from .tracking import BodyState, projected_gravity_z
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
+  from mjlab.managers.scene_entity_config import SceneEntityCfg
 
 __all__ = [
   "VelocityCommand",
@@ -36,6 +37,7 @@ __all__ = [
   "track_yaw_rate_exp",
   "torso_lean_l2",
   "torso_rate_l2",
+  "joint_deviation_l2",
   "fall",
 ]
 
@@ -96,6 +98,11 @@ def torso_lean(bodies: BodyState, command: torch.Tensor, torso: int) -> torch.Te
 def torso_rate(bodies: BodyState, command: torch.Tensor, torso: int) -> torch.Tensor:
   """The torso's squared roll and pitch rates in the heading frame."""
   return _in_heading(bodies, bodies.ang_vel[:, torso])[:, :2].square().sum(-1)
+
+
+def joint_deviation(q: torch.Tensor, default: torch.Tensor) -> torch.Tensor:
+  """Sum over joints of the squared distance from the default pose."""
+  return (q - default).square().sum(-1)
 
 
 def root_fall(bodies: BodyState, min_height: float, max_tilt: float) -> torch.Tensor:
@@ -233,6 +240,14 @@ def torso_rate_l2(
 ) -> torch.Tensor:
   c = _velocity(env, command_name)
   return torso_rate(c.robot_bodies, c.command, c.body_index(body_name))
+
+
+def joint_deviation_l2(
+  env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg
+) -> torch.Tensor:
+  data = env.scene[asset_cfg.name].data
+  ids = asset_cfg.joint_ids
+  return joint_deviation(data.joint_pos[:, ids], data.default_joint_pos[:, ids])
 
 
 def fall(

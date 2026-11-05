@@ -285,12 +285,16 @@ def make_supermimic_env_cfg() -> ManagerBasedRlEnvCfg:
 
 
 def make_velocity_env_cfg(
-  cfg: ManagerBasedRlEnvCfg, torso: str, min_root_height: float
+  cfg: ManagerBasedRlEnvCfg,
+  torso: str,
+  min_root_height: float,
+  rest_joints: tuple[str, ...],
 ) -> ManagerBasedRlEnvCfg:
   """The velocity interface's env (Appendix G, Table A.6, D56) on a tracking env ``cfg``: the
   same robot, proprioception, DR and reference starts, with a base twist command, the
   velocity-tracking reward and a fall-only termination. ``torso``: a tracked body;
-  ``min_root_height``: the fall height.
+  ``min_root_height``: the fall height; ``rest_joints``: the joints the rest-pose term holds
+  near their default (D58), which Table A.6 leaves free.
 
   Every env runs the velocity interface: the motion policy is frozen during post-training.
   The motion goal stays an observation group (the frozen actor's input and the latent
@@ -336,6 +340,11 @@ def make_velocity_env_cfg(
     ),
     "torso_rate": RewardTermCfg(
       func=mdp.torso_rate_l2, weight=-0.05, params={**velocity, "body_name": torso}
+    ),
+    "rest_pose": RewardTermCfg(
+      func=mdp.joint_deviation_l2,
+      weight=-0.5,
+      params={"asset_cfg": SceneEntityCfg("robot", joint_names=rest_joints)},
     ),
   }
 

@@ -85,7 +85,9 @@ Hands policy, whose checkpoint it takes (the paper's Appendix B and G):
      --env.commands.motion.library-path <library> --agent.run-name hands-<name>
 
 Its runs log to ``logs/rsl_rl/supermimic_velocity/``; its ``model_N.onnx`` takes
-the command, then the same 10 steps of proprioception.
+the command, then the same 10 steps of proprioception. A rest-pose reward holds the
+arms and hands near the default pose, so they stay quiet rather than swing with the
+gait.
 
 Configuration
 -------------

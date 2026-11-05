@@ -7,8 +7,9 @@ of a frozen motion-tracking policy, whose decoder acts:
             hold the command source (held command, reference flag)
   fit       the world model, loaded from the motion run, keeps fitting online (Eq. 1)
   improve   the encoder by BPTT through the frozen world model and decoder on the
-            velocity-tracking reward (Eq. 2, Table A.6), plus 0.1 x the latent alignment to the
-            motion encoder on reference commands (Appendix G); then the velocity critic (Eq. 3)
+            velocity-tracking reward (Eq. 2, Table A.6, and D58's rest pose), plus 0.1 x the latent
+            alignment to the motion encoder on reference commands (Appendix G); then the velocity
+            critic (Eq. 3)
 
 The velocity reward never updates the decoder (paper Section 6), so this is the paper's joint
 training without the motion half.
@@ -61,7 +62,7 @@ class VelocityHeads(AnalyticHeads):
   CRITIC_TERMS = ["heading_state", "velocity_command", "sim_context"]
 
   def __init__(self, env: ManagerBasedRlEnv, compile_fk: bool = True) -> None:
-    self.velocity_terms = []
+    self.velocity_terms, self.rest_weight = [], 0.0
     super().__init__(env, compile_fk)
     cmd = cast(vel.VelocityCommand, env.command_manager.get_term("velocity"))
     self.reference_command = cmd.reference
@@ -70,6 +71,13 @@ class VelocityHeads(AnalyticHeads):
     self.upright = torch.tensor([float(height), -1.0], device=self.device)
 
   def _add_reward_term(self, env: ManagerBasedRlEnv, name: str, term) -> None:
+    if term.func is vel.joint_deviation_l2:
+      asset_cfg = env.reward_manager.get_term_cfg(name).params["asset_cfg"]
+      self.rest_weight = term.weight
+      self.rest_joints = torch.as_tensor(asset_cfg.joint_ids, device=self.device)
+      default = env.scene[asset_cfg.name].data.default_joint_pos
+      self.rest_pose = default[0, self.rest_joints]
+      return None
     if term.func not in _VELOCITY:
       return super()._add_reward_term(env, name, term)
     params = {k: v for k, v in term.params.items() if k != "command_name"}
@@ -91,9 +99,14 @@ class VelocityHeads(AnalyticHeads):
   def reward_terms(
     self, state, kin, ref, action, prev_action
   ) -> dict[str, torch.Tensor]:
-    """Table A.6 for the command ``ref``: ``tracking`` holds the task and torso terms."""
+    """Table A.6 for the command ``ref``, plus the rest pose (D58): ``tracking`` holds the
+    task, torso and rest terms."""
     terms = super().reward_terms(state, kin, ref, action, prev_action)
     task = sum(w * f(kin.bodies, ref) for w, f in self.velocity_terms)
+    if self.rest_weight:
+      nj = (state.shape[-1] - 13) // 2
+      q = state[:, 13 : 13 + nj][:, self.rest_joints]
+      task = task + self.rest_weight * vel.joint_deviation(q, self.rest_pose)
     terms["tracking"] = task * self.reward_scale
     return terms
 

@@ -158,7 +158,9 @@ def pal_kangaroo_hands_velocity_env_cfg(play: bool = False) -> ManagerBasedRlEnv
   motion_cmd = cfg.commands["motion"]
   assert isinstance(motion_cmd, MotionLibraryCommandCfg)
   motion_cmd.library_path = HANDS_LOCOMOTION_LIBRARY
-  return make_velocity_env_cfg(cfg, torso=TORSO_BODY, min_root_height=0.4)
+  return make_velocity_env_cfg(
+    cfg, torso=TORSO_BODY, min_root_height=0.4, rest_joints=("arm_.*", "hand_.*")
+  )
 
 
 def kangaroo_supermimic_env_cfg(

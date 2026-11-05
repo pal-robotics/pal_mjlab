@@ -134,8 +134,8 @@ Each env draws a command source at every reset and every 5 s: half the time the 
 (a centered 25-frame mean), otherwise a held command uniform over vx [−1.5, 2], vy ±1.32 m/s and ωz ±3.35 rad/s,
 zero 10 % of the time. `model_N.onnx` takes `obs = [velocity_command (3), proprio]`. The task pins the frozen
 policy's actuators (run B's): a policy trained with other gains needs them in
-`pal_kangaroo_hands_velocity_env_cfg`. TensorBoard: `env/Episode_Reward/track_lin_vel`, `track_yaw_rate`,
-`policy/align`.
+`pal_kangaroo_hands_velocity_env_cfg`. On top of the paper's reward, a `rest_pose` term holds the arms and hands near
+the default pose (D58). TensorBoard: `env/Episode_Reward/track_lin_vel`, `track_yaw_rate`, `rest_pose`, `policy/align`.
 
 ## Commands
 

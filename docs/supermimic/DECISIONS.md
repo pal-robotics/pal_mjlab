@@ -860,3 +860,40 @@ its own branch.
   the report, which are on D53's reward. Failures, body errors and foot metrics compare across all of them.
 - **Check:** the tasks are bit-identical to the code with D53's reward when its stds are set by hand to these and its
   feet terms to weight 0, on both robots: rewards, the networks after 6 training iterations and the sampler state.
+
+**D58. The velocity head holds its arms and hands near the default pose (user's report, 2026-11-05).** Not in the paper:
+Table A.6 has no arm term.
+- **Why (user, playing `model_44000`):** the arms were not in a walking position and were jumbling, while the legs walked.
+- **Cause, measured on `model_44000`:**
+  - Nothing in the reward holds the arms. The action rate penalizes change, not a held offset.
+  - The latent alignment can't: on the encoder the return's gradient is 151 times the gradient of 0.1 × align. Its error
+    stays at 0.22, worse than an untrained encoder's 0.13.
+  - So the encoder settles on a latent offset, which the decoder reads as an arm pose. Removing that offset in closed loop
+    brings the arms from 0.71 to 0.20 rad of B's mean pose, with 0/80 falls and the twist error going 0.05 → 0.14.
+  - The pose depends on the command (0.38–1.10 rad from B's), so the arms move to another one at each command change.
+    It is also left-right asymmetric and rests the left forearm on the torso.
+  - Soft gains are not the cause: arm targets held at default stay still, and B tracks arms on the same gains.
+- **Now:** a `rest_pose` reward, −0.5 · Σ(q − q_default)² × dt, over `arm_.*` and `hand_.*` (14 joints), in the env and in
+  imagination. The default pose is within 0.33 rad of B's mean walking pose on every arm joint (0.18 on average). The arms
+  cost 1.4 per second at B's walking pose and 9.6 at `model_44000`'s, against at most 4 for velocity tracking.
+- **Result:** `model_45000`, `model_44000` fine-tuned for 1,000 iterations (31 min on the local GPU, bf16, replay 500), on 9
+  held commands × 16 envs for 9.6 s:
+
+| | `model_44000` | `model_45000` | B on the clips |
+|---|---:|---:|---:|
+| falls | 0/144 | 0/144, 1/144 on a second pass | 0/144 |
+| twist error vx, vy, ωz | 0.063, 0.041, 0.070 | 0.056, 0.039, 0.064 | |
+| arms from B's mean pose, after 4 s, on 5 of the commands | 0.71 rad | 0.18 rad | |
+| the same, by command | 0.38–1.10 rad | 0.16–0.20 rad | |
+| arm motion by band, 0–1 / 1–5 / ≥5 Hz | 0.109 / 0.038 / 0.013 rad | 0.012 / 0.017 / 0.001 rad | 0.103 / 0.046 / 0.008 rad |
+| left vs mirrored right, arm joints 3 and 4 | −2.01 / −0.58, 2.30 / 0.30 | 1.54 / 1.62, 0.79 / 0.78 | 1.70 / 1.91, 1.15 / 1.08 |
+| forearm on the torso, % of env-steps | 5.1 | 0 | 1.8 (right) |
+| palm on the thigh, % of env-steps, right / left | 0 / 0 | 17.0 / 6.1 (up to 4.9 mm) | 8.5 / 6.6 (up to 12.8 mm) |
+
+- **What it doesn't give:** a natural arm swing. The arms now move with the gait but only slightly, 0.017 rad against B's 0.046
+  in the 1–5 Hz band. Swing would need its own term. The palms brush the thighs as they do at the default pose (18 % and 10 %
+  with arm targets held there), so that comes from the pose, not the term.
+- **Not tried:** a larger `align_weight`. It would have to rise about 150 times to match the return's gradient, and it only
+  acts on reference-command rollouts.
+- **Motion tasks:** untouched, only the velocity task's reward changed.
+

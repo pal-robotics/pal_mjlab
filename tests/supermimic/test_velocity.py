@@ -100,6 +100,9 @@ def test_heads_match_the_env():
   cfg.observations["proprio"].enable_corruption = False
   env = ManagerBasedRlEnv(cfg=cfg, device=get_test_device())
   heads = VelocityHeads(env, compile_fk=False)
+  robot = env.scene["robot"]
+  rest = [robot.joint_names[i] for i in heads.rest_joints.tolist()]
+  assert len(rest) == 14 and all(n.startswith(("arm_", "hand_")) for n in rest)
   motion = env.command_manager.get_term("motion")
   velocity = env.command_manager.get_term("velocity")
   context_cfg = env.observation_manager.get_term_cfg("critic", "sim_context")
