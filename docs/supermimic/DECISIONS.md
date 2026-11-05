@@ -852,8 +852,10 @@ its own branch.
     set; loops 0.03 mm on the median everyday clip's worst frame and 2.9 mm at worst, against 0.001 mm; worst floor penetration 23 mm against
     42 mm, because it sees the chain's own collision geoms; feet 2.5 mm further from their targets on everyday clips and 8 mm on hard ones;
     hands and elbows the same. Its mass is also the true one (68.3 kg against the serial model's 64.5), which momentum matching would use; that
-    effect was not measured. Close to a tie, so this set keeps the lift, which was nearly done. The next one goes direct (user): more iterations
-    or a smaller dt can close the loops better, and the retarget stays in one place, without the lift, even at 2-3× the solve time.
+    effect was not measured. Close to a tie, so this set keeps the lift, which was nearly done. The next one goes direct (user), and the retarget
+    stays in one place, without the lift, even at 2-3× the solve time. Tested since, in [DCMR PR #5](https://github.com/ManuelActisCassa/DCMR/pull/5)
+    (open): more iterations don't close the loops, which sit at the balance of a soft weight; a closing step after the solve does, to under 0.0001 mm,
+    at 1.94× per frame. On 112 clips against the lift: feet 2.4 mm further on the median clip, floor and hands as good or better, up to 1.3 mm past a screw.
   - The serial joint box is wider than what the screws reach, and these stops are physical here. So the serial solve holds
     the screw strokes and the ankle hinge's range (measured from the tibia), through polynomials fit on the chain (0.2 mm).
     Without it, the lift leaves the feet 18 mm off on the median clip (GMR's 7-DoF set: 65 mm); with it, 0.
