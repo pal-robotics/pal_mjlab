@@ -107,6 +107,10 @@ class DualProblemConfigStruct:
     """Baumgarte stabilization parameter for unilateral contact constraints."""
     delta: wp.float32
     """Contact penetration margin used for unilateral contact constraints"""
+    max_joint_error: wp.float32
+    """Largest joint residual the Baumgarte term acts on."""
+    max_limit_error: wp.float32
+    """Largest joint-limit violation the Baumgarte term acts on."""
     preconditioning: wp.bool
     """Flag to enable preconditioning of the dual problem."""
 
@@ -607,7 +611,9 @@ def _build_free_velocity_bias_joint_kinematics(
 
     # Compute the free-velocity bias for the joint
     for j in range(num_kin_cts_j):
-        problem_v_b[cts_row_start_j + j] = c_b * data_joints_r_j[res_row_start_j + j]
+        problem_v_b[cts_row_start_j + j] = c_b * wp.clamp(
+            data_joints_r_j[res_row_start_j + j], -config.max_joint_error, config.max_joint_error
+        )
 
 
 @wp.kernel
@@ -728,7 +734,7 @@ def _build_free_velocity_bias_limits(
     lcio_l = vio + lcio + lid
 
     # Compute the contact constraint stabilization bias
-    problem_v_b[lcio_l] = config.beta * inv_dt * wp.min(0.0, r_q)
+    problem_v_b[lcio_l] = config.beta * inv_dt * wp.max(wp.min(0.0, r_q), -config.max_limit_error)
 
 
 @wp.kernel
@@ -1186,6 +1192,8 @@ class DualProblem:
             config_struct.beta = wp.float32(self.constraints.beta)
             config_struct.gamma = wp.float32(self.constraints.gamma)
             config_struct.delta = wp.float32(self.constraints.delta)
+            config_struct.max_joint_error = wp.float32(self.constraints.max_joint_error)
+            config_struct.max_limit_error = wp.float32(self.constraints.max_limit_error)
             config_struct.preconditioning = wp.bool(self.dynamics.preconditioning)
             return config_struct
 

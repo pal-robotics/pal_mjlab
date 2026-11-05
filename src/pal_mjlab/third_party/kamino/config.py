@@ -259,6 +259,20 @@ class ConstraintStabilizationConfig(ConfigBase):
     Defaults to `1.0e-6`.
     """
 
+    max_joint_error: float = 1.0e6
+    """
+    Largest joint residual the Baumgarte term acts on, in m or rad.\n
+    Must be positive.\n
+    Defaults to `1.0e6`, effectively no bound.
+    """
+
+    max_limit_error: float = 1.0e6
+    """
+    Largest joint-limit violation the Baumgarte term acts on, in m or rad.\n
+    Must be positive.\n
+    Defaults to `1.0e6`, effectively no bound.
+    """
+
     @override
     @staticmethod
     def register_custom_attributes(builder: ModelBuilder) -> None:
@@ -350,6 +364,10 @@ class ConstraintStabilizationConfig(ConfigBase):
             raise ValueError(f"Invalid gamma: {self.gamma}. Must be in range [0, 1.0].")
         if self.delta < 0.0:
             raise ValueError(f"Invalid delta: {self.delta}. Must be non-negative.")
+        if self.max_joint_error <= 0.0:
+            raise ValueError(f"Invalid max_joint_error: {self.max_joint_error}. Must be positive.")
+        if self.max_limit_error <= 0.0:
+            raise ValueError(f"Invalid max_limit_error: {self.max_limit_error}. Must be positive.")
 
     @override
     def __post_init__(self):

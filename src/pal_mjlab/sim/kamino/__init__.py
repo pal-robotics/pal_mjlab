@@ -17,6 +17,11 @@ class KaminoSimulationCfg(SimulationCfg):
 
   alpha: float = 0.1
   """Baumgarte factor on joint constraints."""
+  max_joint_error: float = 0.02
+  """Largest joint or loop error the Baumgarte term corrects for, in m or rad. Unbounded,
+  a loop opened at foot contact gets a correction that grows with the gap and blows up."""
+  max_limit_error: float = 0.05
+  """The same for joint limit violations, which reach several rad once a loop has opened."""
   rho_0: float = 0.05
   """PADMM penalty."""
   tolerance: float = 1e-3

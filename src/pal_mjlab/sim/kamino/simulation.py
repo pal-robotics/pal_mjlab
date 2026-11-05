@@ -217,7 +217,11 @@ class KaminoSimulation(Simulation):
       SolverKaminoConfig(
         sparse_jacobian=True,
         sparse_dynamics=is_crf,
-        constraints=ConstraintStabilizationConfig(alpha=cfg.alpha),
+        constraints=ConstraintStabilizationConfig(
+          alpha=cfg.alpha,
+          max_joint_error=cfg.max_joint_error,
+          max_limit_error=cfg.max_limit_error,
+        ),
         dynamics=ConstrainedDynamicsConfig(
           linear_solver_type=cfg.linear_solver,
           linear_solver_kwargs={"maxiter": cfg.crf_iterations} if is_crf else {},
