@@ -456,12 +456,30 @@ The tight reward was rolled back (D57). These are the measurements, all with the
   frame. Hip yaw and roll have opposite signs, pitch the same; femur and tibia map with offsets; ankle pitch depends on leg length.
 - **A lift from the serial model** takes about 1 ms per frame and 3 Newton iterations, closure under 0.0001 mm. Warm-started only
   from the last frame it diverges on 2 % of frames; a guess from the joint maps doesn't.
+- **DCMR on the chain directly is about 1.9× per frame, not the 5× a state evaluation suggests** (24 clips, single process, next to other jobs).
+  Its `JointLimits` weight of 10 is 20× softer on the screws' metres than on radians: 2.7 mm past a screw on the first clip, under 0.3 mm with
+  ScrewStroke's weight of 200. Scripts and per-clip numbers: `data/variants/full/direct_test/` of the retarget repository.
 - **The joint box is not the mechanism's range.** On DCMR's 5-DoF set (made without limits), 23 % of frames are past a screw by over
   3 mm. On GMR's, which hold the box, 12 % of frames are outside the hip hull and 4.5 % outside the ankle hull.
 - **The ankle hinge's range is measured from the tibia,** the serial joint's of the same name from the hip-ankle line. Past it, a
   reset clamps the hinge and opens a loop by 16 mm. References have to hold it too.
 - **At reset** from the lifted references the loops are closed to 0.001 mm; driving 64 envs to their references open loop for 150 steps
   they stay under 1.7 mm, with no NaN and at most 204 constraint rows of the 1024 allowed (CPU).
+- **On the GPU** (RTX 5060 Ti, 4096 worlds, bf16, replay 500, 115 clips, 200 iterations; job of 2026-11-05):
+  - 4096 imagined rollouts run out of memory in the first policy update, next to the resident services (1.6 GB). The FK evaluates
+    40 bodies against the serial robot's 33, and that robot already peaks at 11.3 GB.
+  - With 2048: 2.1 s per iteration (collect 0.61, world model 0.34, policy and critic 1.13), 8.07 GB in torch and about 2.1 GB in Warp.
+    Collection takes about 4× the serial robot's. The first policy update takes 43 s to compile.
+  - No constraint overflow in training. Driving 4096 envs to their references open loop for 200 steps, falls included: at most 268 rows of
+    the 1024 allowed, about 15 contacts per world, worst loop in a world 0.43 mm on average, 3.2 mm at most.
+  - World model after 200 iterations: state 0.166, pose 0.83, termination 0.018. The failure head's AUC stays at 0.2-0.4 to iteration
+    130, then reaches 0.84-0.91. 200 iterations say nothing about tracking.
+  - On the final `dev` library (1,278 clips, 60 iterations, the GPU otherwise idle): 1.5 s per iteration (0.58, 0.28, 0.67), 8.2 GB in torch, no overflow, at most 253 rows, loops 0.016 mm
+    after reset and 3.2 mm at most with the falls. World model after 60 iterations: state 0.125, pose 0.48, termination 0.021.
+
+- **A joint type comparison breaks from mujoco 3.12 on** (Linux, 2026-11-05). `mjtJoint.mjJNT_HINGE == np.int32(3)` is False there, so `model.jnt_type[j] in (mjJNT_HINGE, ...)`
+  is False too, while the reverse order is True. It comes from pybind11 3.1.0 ([pybind11#6192](https://github.com/pybind/pybind11/issues/6192), fixed on its master, unreleased), and it
+  emptied DCMR's `JointLimits`. pal_mjlab's lock pins mujoco 3.11.0, where it still works: compare with `int(...)` before upgrading.
 
 ## Repo state found on MAC/WBC (not caused by us)
 

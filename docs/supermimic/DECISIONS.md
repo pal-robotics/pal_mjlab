@@ -842,9 +842,18 @@ its own branch.
     goes back.
   - Torso CoM randomization on `torso_link`, which holds the mass here. `pelvis_2_link` is 0.44 kg on this model.
   - Tracked bodies: `*_hip_xy` and `*_tibia` for the serial `leg_*_3_link` and `leg_*_knee_link`, 0.3 mm from them.
-- **Data:** `dataset_full_dcmr` of the retarget repository.
+- **Data:** `dataset_full_dcmr` of the retarget repository: 127,593 clips, 258.0 h (`dev`: 1,278 clips, 2.55 h).
+  - Solving took 12 h on 8 workers and the lift 3.4 h (2.1 ms per frame), with no failures. The lift check is loops under 1 mm, screws under 1 mm
+    past their stroke, the ankle hinge under 1° and the feet under 5 mm: the last one removes 192 clips (worst 152 mm), the others none.
+  - Over the whole library: screws at most 0.02 mm past their stroke, loops 0.003 mm at worst on 2,000 clips by FK. Arm joints go up to 6° past their
+    range on 250 frames of crawls, because DCMR's limits are soft; they are on no loop.
   - DCMR on the serial robot, then an exact lift: the two legs agree to 0.3 mm, so a serial pose has one pose on the chain.
-    Solving on the chain directly is about 5× per state, soft on its 72 loop rows, and has no benefit.
+    Solving on the chain directly works too. On 24 clips, against the same targets: 1.9× per frame, about 23 h against 15.5 h for the whole
+    set; loops 0.03 mm on the median everyday clip's worst frame and 2.9 mm at worst, against 0.001 mm; worst floor penetration 23 mm against
+    42 mm, because it sees the chain's own collision geoms; feet 2.5 mm further from their targets on everyday clips and 8 mm on hard ones;
+    hands and elbows the same. Its mass is also the true one (68.3 kg against the serial model's 64.5), which momentum matching would use; that
+    effect was not measured. Close to a tie, so this set keeps the lift, which was nearly done. The next one goes direct (user): more iterations
+    or a smaller dt can close the loops better, and the retarget stays in one place, without the lift, even at 2-3× the solve time.
   - The serial joint box is wider than what the screws reach, and these stops are physical here. So the serial solve holds
     the screw strokes and the ankle hinge's range (measured from the tibia), through polynomials fit on the chain (0.2 mm).
     Without it, the lift leaves the feet 18 mm off on the median clip (GMR's 7-DoF set: 65 mm); with it, 0.
@@ -852,7 +861,8 @@ its own branch.
     leg direction 6.1° against 12.5°, no arm jumps against 34. GMR keeps foot contacts (F1 0.962 against 0.928) and the
     forearm (5.3° against 10.2°, p95 10° against 23.5°).
   - DCMR needed two fixes: on the lock file's versions it applied no joint limit at all, and it finite-differenced its
-    posture Jacobian. Past a limit by over 5° on 20.7 % of frames before, none after.
+    posture Jacobian. Past a limit by over 5° on 20.7 % of frames before, none after. Both are in
+    [DCMR PR #4](https://github.com/ManuelActisCassa/DCMR/pull/4), not merged yet. The motions record commit `ff099a8`, the same code as the PR's `9f0ed5b`.
 - **Untested:** no long run. The paper's reward with these gains has no benchmark (D57), and the arms' 0.78 wrist scale has
   never been trained. At 5 Hz the legs' action scales are about half the serial robot's per radian, the pattern D27 saw on
   the arms: watch leg tracking and the action-rate cost.

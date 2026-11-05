@@ -103,12 +103,12 @@ Key TensorBoard scalars: `episode/return`, `eval/return_gap_head` (imagined vs s
 `Mjlab-SuperMimic-Flat-Pal-Kangaroo-Full-Grippers`, branch `feat/supermimic-full`: the legs with their whole linkage, 24 loops and 12
 ball screws, and the 7-DoF arms (D58). Everything above applies, with these differences:
 
-- **Library:** its own, `?dataset=full_dcmr` in the motion browser: `qpos.npy` has 91 columns, `qvel.npy` 90 (84 joints). The
-  full library's files take about 34 GB on disk and about 18 GB on the GPU (D59). Keep the three files in one folder: resets read
+- **Library:** its own, `?dataset=full_dcmr` in the motion browser: `qpos.npy` has 91 columns, `qvel.npy` 90 (84 joints). `dev` has
+  1,278 clips (2.55 h), `full` 127,593 (258.0 h). The full library's files take 33.6 GB on disk and about 18 GB on the GPU (D59). Keep the three files in one folder: resets read
   every joint from them, so the folder has to stay available while training.
 - **Actions and proprioception** are in the screws' metres for the legs (`leg_*_{1..5,length}_actuator`), radians for waist and arms.
 - **Gains:** legs 5 Hz gains and action scales; arms and waist as the 7-DoF robot (D55).
-- **Sim:** 2 ms × 10 substeps, so about 2.5× the simulation time of the other robots per step.
+- **Sim:** 2 ms × 10 substeps, so collection takes about 4× the serial robot's: 0.61 s per iteration against 0.15 s on an RTX 5060 Ti.
 
 ```bash
 git clone -b feat/supermimic-full git@github.com:pal-robotics/pal_mjlab.git && cd pal_mjlab
@@ -116,8 +116,17 @@ uv sync --extra cu128 --group supermimic
 curl -C - -H 'Authorization: Bearer <token>' -o <library>/qpos.npy '<motion browser>/download/library/full/qpos?dataset=full_dcmr'  # also clips, qvel
 uv run train Mjlab-SuperMimic-Flat-Pal-Kangaroo-Full-Grippers --env.commands.motion.library-path <library> \
   --agent.run-name full-grippers-<name>
-#    a 32 GB GPU with the full library: add --agent.algorithm.precision bf16 --agent.replay-steps 500
 ```
+
+**GPU memory.** Scaled from a run with bf16, replay 500 and 2048 imagined rollouts on a 16 GB RTX 5060 Ti (8.1 GB in torch, about 2.1 GB in the
+simulator, 2.1 s per iteration), so these are estimates. At the paper's 4096 rollouts that card ran out of memory next to its services.
+
+| Settings | With `dev` | With `full` |
+|---|---:|---:|
+| `--agent.algorithm.precision bf16 --agent.replay-steps 500` | about 16 GB | about 34 GB |
+| The paper's, TF32 and replay 1000 | about 25 GB | about 43 GB |
+
+`--agent.algorithm.policy.num-rollouts 2048` saves about 6 GB in bf16, at the price of leaving the paper's batch.
 
 ## Configuration
 
