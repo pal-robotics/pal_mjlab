@@ -461,8 +461,8 @@ The tight reward was rolled back (D57). These are the measurements, all with the
   ScrewStroke's weight of 200. Scripts and per-clip numbers: `data/variants/full/direct_test/` of the retarget repository.
 - **More iterations don't close a soft constraint.** ClosedChains stays open by what pulls on it: 2.9 mm at 10 iterations, 3.0 mm at 100 with tol 1e-8.
   A higher weight closes it, but the solver then crawls along the chain and stops early (a plain walk's feet 67 mm off at weight 300, 16 mm at 100).
-  Solving at the low weight and then closing the chain with a few Gauss-Newton steps gets both. Terms summed over joints also change meaning on a
-  linkage: over all 84 joints, posture and smoothness weigh a leg about 4×.
+  Solving at the low weight and then again at the stiff one, from that solution, gets both, with no step after the solve. Terms summed over joints also
+  change meaning on a linkage: over all 84 joints, posture and smoothness weigh a leg about 4×.
 - **The joint box is not the mechanism's range.** On DCMR's 5-DoF set (made without limits), 23 % of frames are past a screw by over
   3 mm. On GMR's, which hold the box, 12 % of frames are outside the hip hull and 4.5 % outside the ankle hull.
 - **The ankle hinge's range is measured from the tibia,** the serial joint's of the same name from the hip-ankle line. Past it, a

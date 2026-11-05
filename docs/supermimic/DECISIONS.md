@@ -854,8 +854,8 @@ its own branch.
     hands and elbows the same. Its mass is also the true one (68.3 kg against the serial model's 64.5), which momentum matching would use; that
     effect was not measured. Close to a tie, so this set keeps the lift, which was nearly done. The next one goes direct (user), and the retarget
     stays in one place, without the lift, even at 2-3× the solve time. Tested since, in [DCMR PR #5](https://github.com/ManuelActisCassa/DCMR/pull/5)
-    (open): more iterations don't close the loops, which sit at the balance of a soft weight; a closing step after the solve does, to under 0.0001 mm,
-    at 1.94× per frame. On 112 clips against the lift: feet 2.4 mm further on the median clip, floor and hands as good or better, up to 1.3 mm past a screw.
+    (open): more iterations don't close the loops, which sit at the balance of a soft weight; solving each window again at a stiffer weight does, inside the solver, to 0.058 mm at
+    worst, at 2.65× the serial solve. On 112 clips against the lift: feet 2.3 mm further on the median clip, 37 mm at worst; floor and jerk as good or better; up to 0.3 mm past a screw.
   - The serial joint box is wider than what the screws reach, and these stops are physical here. So the serial solve holds
     the screw strokes and the ankle hinge's range (measured from the tibia), through polynomials fit on the chain (0.2 mm).
     Without it, the lift leaves the feet 18 mm off on the median clip (GMR's 7-DoF set: 65 mm); with it, 0.
