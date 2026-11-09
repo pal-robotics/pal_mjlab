@@ -21,6 +21,18 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
+- **New stairs velocity task for the Kangaroo.** Adds
+  ``Mjlab-Velocity-Stairs-Pal-Kangaroo`` on top of the rough task, with a
+  terrain mix focused on stairs of different tread widths and risers up to
+  20 cm. It includes a new ``BoxStraightStairsTerrainCfg`` sub-terrain, a
+  straight staircase with open sides where stepping off sideways means
+  falling to the floor; robots spawn facing the flight through the new
+  ``reset_root_state_terrain_yaw`` event. Since the blind policy feels the
+  risers with its shins, shin contacts are now penalized instead of ending
+  the episode. The swing height target is raised to 0.25 m, more envs get
+  forward-only commands and the heading command is disabled.
+  (`#124 <https://github.com/pal-robotics/pal_mjlab/pull/124>`_)
+
 - **Denser, square height scan and wider lateral commands in the Kangaroo
   rough velocity task.** The critic-only height scan now covers a
   1.0x1.0 m area at 5 cm resolution (previously 1.2x0.6 m at 10 cm), giving
@@ -134,6 +146,13 @@ Model Updates
 
 Bug Fixes & Reliability
 ^^^^^^^^^^^^^^^^^^^^^^^^
+- **Fixed swapped ``stairs_up``/``stairs_down`` names in the Kangaroo rough
+  terrain.** The pyramid stairs (spawn on top, walk down) were named
+  ``stairs_up`` and the inverted pyramid (spawn at the bottom, walk up)
+  ``stairs_down``. The names now match what the robot does; the generated
+  terrain is unchanged.
+  (`#124 <https://github.com/pal-robotics/pal_mjlab/pull/124>`_)
+
 - **Excluded knee/tibia vs. foot collisions on the other Kangaroo models.**
   The lower-body, hands and grippers models now exclude contacts between the
   ankle bar and knee links and the foot collision-avoidance capsule on both
