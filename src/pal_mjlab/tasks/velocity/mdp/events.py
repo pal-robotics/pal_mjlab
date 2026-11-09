@@ -13,7 +13,7 @@ def reset_root_state_terrain_yaw(
   env_ids: torch.Tensor | None,
   pose_range: dict[str, tuple[float, float]],
   terrain_yaw: dict[str, tuple[float, ...]],
-  yaw_sampling_range: tuple[float, float] = (0.0, 0.0),
+  yaw_offset_range: tuple[float, float] = (0.0, 0.0),
   velocity_range: dict[str, tuple[float, float]] | None = None,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> None:
@@ -21,7 +21,7 @@ def reset_root_state_terrain_yaw(
 
   Envs on the sub-terrains named in ``terrain_yaw`` (curriculum generator only)
   spawn facing one of the given base yaws (picked uniformly), with the yaw
-  sampled uniformly from ``(yaw + yaw_sampling_range[0], yaw + yaw_sampling_range[1])``,
+  sampled uniformly from ``(yaw + yaw_offset_range[0], yaw + yaw_offset_range[1])``,
   e.g. facing a straight staircase. Every other env uses ``pose_range`` as is.
   """
   # Validate the names first, so a typo fails on the first reset (at env
@@ -55,6 +55,6 @@ def reset_root_state_terrain_yaw(
         continue
       sub_pose_range = {
         **pose_range,
-        "yaw": (yaw + yaw_sampling_range[0], yaw + yaw_sampling_range[1]),
+        "yaw": (yaw + yaw_offset_range[0], yaw + yaw_offset_range[1]),
       }
       reset_root_state_uniform(env, sub_ids, sub_pose_range, velocity_range, asset_cfg)

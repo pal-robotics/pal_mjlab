@@ -63,7 +63,7 @@ def test_yaw_is_overridden_only_on_named_terrains(uniform_calls):
     env_ids,
     pose_range,
     terrain_yaw,
-    yaw_sampling_range=(-0.3, 0.3),
+    yaw_offset_range=(-0.3, 0.3),
   )
 
   # Every env being reset first gets the plain pose_range.
