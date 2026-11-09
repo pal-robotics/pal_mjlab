@@ -153,6 +153,26 @@ def pal_kangaroo_flat_wbc_env_cfg(
     },
   )
 
+  # ZMP must stay inside the (shrunken) support polygon for clips in which the
+  # reference never lifts a foot. The outer foot capsules span the foot sole.
+  cfg.rewards["zmp_support_polygon"] = RewardTermCfg(
+    func=mdp.zmp_support_polygon_penalty,
+    weight=-50.0,
+    params={
+      "command_name": "motion",
+      "foot_body_names": ("leg_left_5_link", "leg_right_5_link"),
+      "foot_geom_names": (
+        "left_foot0_collision",
+        "left_foot10_collision",
+        "right_foot0_collision",
+        "right_foot10_collision",
+      ),
+      "margin": 0.04,
+      "lift_threshold": 0.03,
+      "contact_height": 0.01,
+    },
+  )
+
   cfg.events["foot_friction"].params["asset_cfg"].geom_names = geom_names
   cfg.events["body_friction"] = EventTermCfg(
     mode="startup",
