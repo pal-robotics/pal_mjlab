@@ -22,19 +22,15 @@ New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
 - **New stairs velocity task for the Kangaroo.** Adds
-  ``Mjlab-Velocity-Stairs-Pal-Kangaroo``, built on the rough task with a
-  stairs-heavy terrain mix: pyramid stairs up and down at 0.28/0.35/0.45 m
-  treads with risers up to 20 cm, irregular stairs, open-riser stairs and a
-  new ``BoxStraightStairsTerrainCfg`` sub-terrain. The latter is a
-  limited-width straight staircase with open sides, so stepping off sideways
-  means falling to the floor, like real stairs without railings. Robots on
-  straight staircases spawn facing the flight, through the new
-  ``reset_root_state_terrain_yaw`` reset event (unknown sub-terrain names in
-  its config fail at startup). Shin contact with the terrain is now a mild
-  ``shin_contacts`` penalty instead of a termination, as the blind policy
-  feels risers with its shins; femur contacts still terminate. The swing
-  height target is raised to 0.25 m, more envs get forward-only commands and
-  the heading command is disabled.
+  ``Mjlab-Velocity-Stairs-Pal-Kangaroo`` on top of the rough task, with a
+  terrain mix focused on stairs of different tread widths and risers up to
+  20 cm. It includes a new ``BoxStraightStairsTerrainCfg`` sub-terrain, a
+  straight staircase with open sides where stepping off sideways means
+  falling to the floor; robots spawn facing the flight through the new
+  ``reset_root_state_terrain_yaw`` event. Since the blind policy feels the
+  risers with its shins, shin contacts are now penalized instead of ending
+  the episode. The swing height target is raised to 0.25 m, more envs get
+  forward-only commands and the heading command is disabled.
   (`#124 <https://github.com/pal-robotics/pal_mjlab/pull/124>`_)
 
 - **Denser, square height scan and wider lateral commands in the Kangaroo
