@@ -93,22 +93,26 @@ def ref_gravity_b(
 def ref_joint_pos(
   env: ManagerBasedRlEnv,
   command_name: str,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
+  """Reference joint positions, restricted to ``asset_cfg.joint_names``.
+
+  The motion library stores joints in the same order as the robot entity
+  (qpos order), so the entity's resolved joint_ids index it directly.
+  Default (no joint_names) returns all joints.
+  """
   command = env.command_manager.get_term(command_name)
+  return command.joint_pos[:, asset_cfg.joint_ids]
 
-  joint_pos = command.joint_pos
-
-  return joint_pos
 
 def ref_joint_vel(
   env: ManagerBasedRlEnv,
   command_name: str,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
+  """Reference joint velocities, restricted to ``asset_cfg.joint_names``."""
   command = env.command_manager.get_term(command_name)
-
-  joint_vel = command.joint_vel
-
-  return joint_vel
+  return command.joint_vel[:, asset_cfg.joint_ids]
 
 def _body_lin_vel_in_anchor_frame(
   anchor_quat_w: torch.Tensor,
@@ -204,4 +208,3 @@ def ref_body_ori_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[
   )
   mat = matrix_from_quat(ori_b)
   return mat[..., :2].reshape(mat.shape[0], -1)
-

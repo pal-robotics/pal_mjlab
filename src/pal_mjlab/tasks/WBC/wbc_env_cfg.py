@@ -37,6 +37,12 @@ VELOCITY_RANGE = {
   "yaw": (-0.78, 0.78),
 }
 
+# Joints exposed to the actor as reference commands. Legs are left out: their
+# motion is already implied by the base/body references, and they are hard to
+# command at deployment. Regex = every joint whose name does not contain "leg".
+# Override per robot if the leg joints are named differently (hip/knee/ankle...).
+UPPER_BODY_JOINT_NAMES: tuple[str, ...] = (r"^(?!.*leg).*$",)
+
 
 def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   """Create base tracking task configuration."""
@@ -68,12 +74,18 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "ref_joint_pos": ObservationTermCfg(
       func=mdp.ref_joint_pos,
-      params={"command_name": "motion"},
+      params={
+        "command_name": "motion",
+        "asset_cfg": SceneEntityCfg("robot", joint_names=UPPER_BODY_JOINT_NAMES),
+      },
       noise=Unoise(n_min=-0.05, n_max=0.05),
     ),
     "ref_joint_vel": ObservationTermCfg(
       func=mdp.ref_joint_vel,
-      params={"command_name": "motion"},
+      params={
+        "command_name": "motion",
+        "asset_cfg": SceneEntityCfg("robot", joint_names=UPPER_BODY_JOINT_NAMES),
+      },
       noise=Unoise(n_min=-0.25, n_max=0.25),
     ),
     "base_ang_vel": ObservationTermCfg(
@@ -140,6 +152,10 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
     "motion_body_ang_vel": ObservationTermCfg(
       func=mdp.motion_body_ang_vel, params={"command_name": "motion"}
+    ),
+    # Critic keeps full-body joint references (privileged).
+    "ref_joint_pos": ObservationTermCfg(
+      func=mdp.ref_joint_pos, params={"command_name": "motion"}
     ),
     "ref_joint_vel": ObservationTermCfg(
       func=mdp.ref_joint_vel, params={"command_name": "motion"}
