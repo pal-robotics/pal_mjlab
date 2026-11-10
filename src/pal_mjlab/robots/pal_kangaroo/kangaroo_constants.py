@@ -360,6 +360,40 @@ def get_kangaroo_grippers_robot_cfg() -> EntityCfg:
   return _make_robot_cfg("grippers")
 
 
+##
+# Closed-chain leg
+##
+
+# The knee is a passive closed chain on the hip-ankle slide (leg_*_length_joint): the femur
+# (hip to knee) and the tibia (knee to ankle) are both this long, so they close an isosceles
+# triangle on the slide and their joint angles follow from the leg length alone.
+KANGAROO_LEG_LINK_LENGTH = 0.38  # [m]
+
+
+def kangaroo_passive_leg_joints(
+  joint_pos: dict[str, torch.Tensor], joint_vel: dict[str, torch.Tensor]
+) -> dict[str, tuple[torch.Tensor, torch.Tensor]]:
+  """Position and velocity of the passive femur and knee joints that close the leg.
+
+  Args:
+    joint_pos: Joint positions by joint name; holds both ``leg_*_length_joint``.
+    joint_vel: Joint velocities by joint name, likewise.
+
+  Returns:
+    (position, velocity) of each ``leg_*_femur_joint`` and ``leg_*_knee_joint``, by name.
+  """
+  state = {}
+  for side in ("left", "right"):
+    length = joint_pos[f"leg_{side}_length_joint"]
+    rate = joint_vel[f"leg_{side}_length_joint"]
+    sin = (length / (2.0 * KANGAROO_LEG_LINK_LENGTH)).clamp(0.0, 0.999)
+    femur = torch.asin(sin)
+    femur_vel = rate / (2.0 * KANGAROO_LEG_LINK_LENGTH * torch.sqrt(1.0 - sin * sin))
+    state[f"leg_{side}_femur_joint"] = (femur, femur_vel)
+    state[f"leg_{side}_knee_joint"] = (2.0 * femur, 2.0 * femur_vel)
+  return state
+
+
 _EXCLUDED_JOINTS = {
   "leg_left_knee_joint",
   "leg_right_knee_joint",
