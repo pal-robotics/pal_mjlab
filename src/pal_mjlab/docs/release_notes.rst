@@ -21,6 +21,15 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
+- **SuperMimic motion tracking for the Kangaroo with grippers.** Adds
+  ``Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers``: one policy tracks any motion
+  of a motion library, trained by backpropagating the tracking reward through
+  a world model learned online (arXiv 2610.28480). The library holds the 28
+  actuated joints; the passive knee linkage follows from the leg length.
+  Training writes an ONNX policy for the robot next to every checkpoint, and
+  the task comes with scripts to replay, benchmark and view motions. See
+  :ref:`Kangaroo task_supermimic`.
+
 - **New stairs velocity task for the Kangaroo.** Adds
   ``Mjlab-Velocity-Stairs-Pal-Kangaroo`` on top of the rough task, with a
   terrain mix focused on stairs of different tread widths and risers up to
@@ -130,6 +139,9 @@ New Features & Tasks
 Model Updates
 ^^^^^^^^^^^^^
 
+- **Wrist and finger collisions on the Kangaroo grippers model.** A capsule on
+  each wrist and mesh collisions on the gripper fingers and fingertips. The
+  Velocity and Reaching tasks on this model get the new contacts.
 - Updated the Kangaroo 7-DoF and hands MuJoCo models with proper masses
   and inertias.
   (`#107 <https://github.com/pal-robotics/pal_mjlab/pull/107>`_)
