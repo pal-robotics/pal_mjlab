@@ -90,6 +90,32 @@ def motion_anchor_angular_velocity_body_error_exp(
 
   return torch.exp(-kappa * error / std**2)
 
+@torch.no_grad()
+def _library_body_z(motion, body_idx: list[int]) -> torch.Tensor:
+  """World z of the given bodies (indices into cfg.body_names) for every frame of
+  the motion library, shape (T_total, len(body_idx)).
+
+  Works with the offline MotionLoader (precomputed ``body_pos_w``) and with the
+  online CSV loader (``OnlineMotion``), where body poses are produced on demand;
+  in that case the library is swept in chunks and only the requested z's are kept.
+  """
+  if hasattr(motion, "body_pos_w"):
+    return motion.body_pos_w[:, body_idx, 2]
+
+  source = motion.source
+  total = motion.joint_pos.shape[0]
+  B = source.batch_size
+  idx_t = torch.as_tensor(body_idx, dtype=torch.long, device=source.device)
+  out = torch.empty(total, len(body_idx), device=source.device)
+  for s in range(0, total, B):
+    idx = torch.arange(s, min(s + B, total), device=source.device)
+    k = idx.numel()
+    if k < B:  # keep the world count fixed
+      idx = torch.cat([idx, idx[-1:].expand(B - k)])
+    out[s : s + k] = source._retarget_batch(idx)["body_pos_w"][:k, idx_t, 2]
+  return out
+
+
 class zmp_support_polygon_penalty:
   """Keep the Zero Moment Point inside the support polygon for static motions.
 
@@ -126,7 +152,7 @@ class zmp_support_polygon_penalty:
     # --- 1. Static / dynamic classification of every clip in the library. ---
     foot_body_names = params["foot_body_names"]
     foot_idx = [command.cfg.body_names.index(n) for n in foot_body_names]
-    foot_z = command.motion.body_pos_w[:, foot_idx, 2]  # (T_total, F)
+    foot_z = _library_body_z(command.motion, foot_idx)  # (T_total, F)
     lift_threshold = params.get("lift_threshold", 0.03)
     clip_lifts_foot = torch.zeros(
       command.motion.num_trajectories, dtype=torch.bool, device=self.device
