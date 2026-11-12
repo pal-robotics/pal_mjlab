@@ -7,7 +7,7 @@ import mjlab.terrains as terrain_gen
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
-from mjlab.managers import MetricsTermCfg
+from mjlab.managers import CurriculumTermCfg, MetricsTermCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.observation_manager import ObservationTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
@@ -436,22 +436,32 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   ### COMMANDS
 
-  # Delete the speed curriculum altogether
-  del cfg.curriculum["command_vel"]
-
-  # Easier velocity task: no need for high velocities in rough terrain
+  # Easy starting velocity
   twist_cmd = cfg.commands["twist"]
   assert isinstance(twist_cmd, mdp.UniformVelocityCommandCfg)
   twist_cmd.ranges.lin_vel_x = (-0.5, 0.5)
   twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
   twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
 
+  # Delete the speed curriculum altogether
+  # del cfg.curriculum["command_vel"]
+  command_vel_curriculum = cfg.curriculum["command_vel"]
+  assert isinstance(command_vel_curriculum, CurriculumTermCfg)
+  command_vel_curriculum.params["velocity_stages"] = [
+    {"step": 0, "lin_vel_x": (-0.5, 0.5), "lin_vel_y": (-0.5, 0.5), "ang_vel_z": (-1.0, 1.0)},
+    {"step": 5000 * 24, "lin_vel_x": (-1.0, 1.0), "lin_vel_y": (-1.0, 1.0)},
+    {"step": 10000 * 24, "lin_vel_x": (-2.0, 2.0)},
+    {"step": 15000 * 24, "lin_vel_x": (-2.0, 3.0)},
+    {"step": 20000 * 24, "lin_vel_x": (-2.0, 4.0)},
+    {"step": 25000 * 24, "lin_vel_x": (-2.0, 5.0)},
+  ]
+
   ### REWARDS
 
   # More human-like air time and stronger, specially important with obstacles
   cfg.rewards["air_time"].weight = 1.0
-  cfg.rewards["air_time"].params["threshold_min"] = 0.2
-  cfg.rewards["air_time"].params["threshold_max"] = 0.45
+  cfg.rewards["air_time"].params["threshold_min"] = 0.1
+  cfg.rewards["air_time"].params["threshold_max"] = 0.4
   cfg.rewards["air_time"].params["command_threshold"] = 0.1
 
   # Reduce upright std, to have torso stance more stable
@@ -488,10 +498,10 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     curriculum=True,  # one column per sub-terrain; num_cols is ignored
     add_lights=False,
     sub_terrains={
-      "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.1),
+      "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.2),
       # Fine gravel-like ground: many tiny boxes scattered over a floor.
       "pebbles": terrain_gen.BoxRandomSpreadTerrainCfg(
-        proportion=0.1,
+        proportion=0.2,
         num_boxes=350,
         box_width_range=(0.02, 0.05),
         box_length_range=(0.02, 0.05),
@@ -503,7 +513,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
       # Sparse medium obstacles to step over / around.
       "random_boxes": terrain_gen.BoxRandomSpreadTerrainCfg(
-        proportion=0.1,
+        proportion=0.2,
         num_boxes=30,
         box_width_range=(0.2, 0.6),
         box_length_range=(0.2, 0.6),
@@ -515,7 +525,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
       # Fine uneven ground: small cells, low relief.
       "random_grid_fine": terrain_gen.BoxRandomGridTerrainCfg(
-        proportion=0.15,
+        proportion=0.1,
         grid_width=0.25,
         grid_height_range=(0.01, 0.04),
         platform_width=0.6,
@@ -526,7 +536,7 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
       # Coarse uneven ground: foot-sized cells, larger steps between them.
       "random_grid_coarse": terrain_gen.BoxRandomGridTerrainCfg(
-        proportion=0.15,
+        proportion=0.1,
         grid_width=0.5,
         grid_height_range=(0.01, 0.07),
         platform_width=0.6,
@@ -554,20 +564,20 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       ),
       # Basic stairs, one descending + one ascending.
       # Pyramid: spawn on top platform, walk down. Inverted: spawn at bottom, walk up.
-      "stairs_down": terrain_gen.BoxPyramidStairsTerrainCfg(
-        proportion=0.1,
-        step_height_range=(0.02, 0.1),
-        step_width=0.35,
-        platform_width=0.6,
-        border_width=0.1,
-      ),
-      "stairs_up": terrain_gen.BoxInvertedPyramidStairsTerrainCfg(
-        proportion=0.1,
-        step_height_range=(0.02, 0.1),
-        step_width=0.35,
-        platform_width=0.6,
-        border_width=0.1,
-      ),
+      # "stairs_down": terrain_gen.BoxPyramidStairsTerrainCfg(
+      #   proportion=0.1,
+      #   step_height_range=(0.02, 0.1),
+      #   step_width=0.35,
+      #   platform_width=0.6,
+      #   border_width=0.1,
+      # ),
+      # "stairs_up": terrain_gen.BoxInvertedPyramidStairsTerrainCfg(
+      #   proportion=0.1,
+      #   step_height_range=(0.02, 0.1),
+      #   step_width=0.35,
+      #   platform_width=0.6,
+      #   border_width=0.1,
+      # ),
     },
   )
 
