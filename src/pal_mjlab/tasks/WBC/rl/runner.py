@@ -4,7 +4,6 @@ from typing import cast
 import torch
 import wandb
 from rsl_rl.env.vec_env import VecEnv
-from torch import nn
 
 from mjlab.rl import RslRlVecEnvWrapper
 from mjlab.rl.exporter_utils import (
@@ -13,27 +12,6 @@ from mjlab.rl.exporter_utils import (
 )
 from mjlab.rl.runner import MjlabOnPolicyRunner
 from mjlab.tasks.tracking.mdp import MotionCommand
-
-
-class _OnnxMotionModel(nn.Module):
-  """ONNX-exportable model that wraps the policy and bundles motion reference data."""
-
-  def __init__(self, actor, motion):
-    super().__init__()
-    self.policy = actor.as_onnx(verbose=False)
-    self.register_buffer("joint_pos", motion.joint_pos.to("cpu"))
-    self.register_buffer("joint_vel", motion.joint_vel.to("cpu"))
-    self.time_step_total: int = self.joint_pos.shape[0]  # type: ignore[index]
-
-  def forward(self, x, time_step):
-    time_step_clamped = torch.clamp(
-      time_step.long().squeeze(-1), max=self.time_step_total - 1
-    )
-    return (
-      self.policy(x),
-      self.joint_pos[time_step_clamped],  # type: ignore[index]
-      self.joint_vel[time_step_clamped],  # type: ignore[index]
-    )
 
 
 class WBCMotionTrackingOnPolicyRunner(MjlabOnPolicyRunner):
@@ -54,25 +32,19 @@ class WBCMotionTrackingOnPolicyRunner(MjlabOnPolicyRunner):
     self, path: str, filename: str = "policy.onnx", verbose: bool = False
   ) -> None:
     os.makedirs(path, exist_ok=True)
-    cmd = cast(MotionCommand, self.env.unwrapped.command_manager.get_term("motion"))
-    model = _OnnxMotionModel(self.alg.get_policy(), cmd.motion)
-    model.to("cpu")
-    model.eval()
-    obs = torch.zeros(1, model.policy.input_size)
-    time_step = torch.zeros(1, 1)
+    policy = self.alg.get_policy().as_onnx(verbose=False)
+    policy.to("cpu")
+    policy.eval()
+    obs = torch.zeros(1, policy.input_size)
     torch.onnx.export(
-      model,
-      (obs, time_step),
+      policy,
+      obs,
       os.path.join(path, filename),
       export_params=True,
       opset_version=18,
       verbose=verbose,
-      input_names=["obs", "time_step"],
-      output_names=[
-        "actions",
-        "joint_pos",
-        "joint_vel",
-      ],
+      input_names=["obs"],
+      output_names=["actions"],
       dynamic_axes={},
       dynamo=False,
     )
