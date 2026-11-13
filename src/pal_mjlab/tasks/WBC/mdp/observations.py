@@ -208,3 +208,16 @@ def ref_body_ori_b(env: ManagerBasedRlEnv, command_name: str, body_names: tuple[
   )
   mat = matrix_from_quat(ori_b)
   return mat[..., :2].reshape(mat.shape[0], -1)
+
+
+def ref_CoP_vs_CoM(env, command_name: str, body_names: tuple[str, ...]) -> torch.Tensor:
+  if not body_names:
+    raise ValueError("ref_CoP_vs_CoM needs the feet body names (set per robot).")
+  
+  command = cast(MotionCommand, env.command_manager.get_term(command_name))
+
+  indexes = body_indexes_from_names(env, command_name, body_names)
+  CoP = command.body_pos_w[:, indexes, :2].mean(dim=-2)   # (N, 2)
+  CoM = command.CoM_w[:, :2]                              # (N, 2)
+
+  return torch.norm(CoM - CoP, dim=-1, keepdim=True)      # (N, 1)

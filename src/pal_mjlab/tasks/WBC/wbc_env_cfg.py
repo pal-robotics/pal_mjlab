@@ -88,6 +88,14 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
       },
       noise=Unoise(n_min=-0.25, n_max=0.25),
     ),
+    "ref_cop_vs_com": ObservationTermCfg(
+      func=mdp.ref_CoP_vs_CoM,
+      params={
+        "command_name": "motion",
+        "body_names": (),  # Set per-robot: the feet, e.g. ("leg_left_6_link", "leg_right_6_link").
+      },
+      noise=Unoise(n_min=-0.01, n_max=0.01),
+    ),
     "base_ang_vel": ObservationTermCfg(
       func=mdp.builtin_sensor,
       params={"sensor_name": "robot/imu_ang_vel"},

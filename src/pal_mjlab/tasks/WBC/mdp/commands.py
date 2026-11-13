@@ -67,6 +67,14 @@ ROBOT_XML_DICT = {
 }
 
 
+def _com_from_bodies(pos, quat, mass, ipos):
+  """pos (T,nb,3), quat (T,nb,4) wxyz, mass (nb,), ipos (nb,3) -> (T,3)."""
+  T, nb, _ = pos.shape
+  ipos_w = quat_apply(
+    quat.reshape(-1, 4), ipos[None].expand(T, nb, 3).reshape(-1, 3)
+  ).view(T, nb, 3)
+  return ((pos + ipos_w) * mass[None, :, None]).sum(1) / mass.sum()
+
 def _parse_precision(precision: str) -> torch.dtype:
   key = precision.strip().lower().removeprefix("torch.")
   if key not in _PRECISIONS:
@@ -254,6 +262,8 @@ class MotionLoader:
         body_indexes: torch.Tensor,
         anchor_body_index: int,
         step_dt,
+        body_mass: torch.Tensor, 
+        body_ipos: torch.Tensor,
         device: str = "cpu",
     ) -> None:
 
@@ -279,6 +289,7 @@ class MotionLoader:
         body_quat_list = []
         body_lin_vel_list = []
         body_ang_vel_list = []
+        com_list = []
 
         segment_start = []
         segment_length = []
@@ -292,33 +303,44 @@ class MotionLoader:
 
             with np.load(path) as data:
 
-                joint_pos = np.asarray(data["joint_pos"], dtype=np.float32)
-                joint_vel = np.asarray(data["joint_vel"], dtype=np.float32)
+              joint_pos = np.asarray(data["joint_pos"], dtype=np.float32)
+              joint_vel = np.asarray(data["joint_vel"], dtype=np.float32)
 
-                body_pos_w = np.asarray(
-                    data["body_pos_w"][:, body_idx],
-                    dtype=np.float32,
-                )
+              body_pos_w = np.asarray(
+                data["body_pos_w"][:, body_idx],
+                dtype=np.float32,
+              )
 
-                body_quat_w = np.asarray(
-                    data["body_quat_w"][:, body_idx],
-                    dtype=np.float32,
-                )
+              body_quat_w = np.asarray(
+                data["body_quat_w"][:, body_idx],
+                dtype=np.float32,
+              )
 
-                body_lin_vel_w = np.asarray(
-                    data["body_lin_vel_w"][:, body_idx],
-                    dtype=np.float32,
-                )
+              body_lin_vel_w = np.asarray(
+                data["body_lin_vel_w"][:, body_idx],
+                dtype=np.float32,
+              )
 
-                body_ang_vel_w = np.asarray(
-                    data["body_ang_vel_w"][:, body_idx],
-                    dtype=np.float32,
+              body_ang_vel_w = np.asarray(
+                data["body_ang_vel_w"][:, body_idx],
+                dtype=np.float32,
+              )
+
+              if "com_pos_w" in data:           # use it if your npz already has it
+                com_w = np.asarray(data["com_pos_w"], dtype=np.float32)
+              else:
+                all_pos = torch.from_numpy(np.asarray(data["body_pos_w"], dtype=np.float32))
+                all_quat = torch.from_numpy(np.asarray(data["body_quat_w"], dtype=np.float32))
+                assert all_pos.shape[1] == body_mass.shape[0], (
+                  f"{path.name}: {all_pos.shape[1]} bodies in npz, "
+                  f"{body_mass.shape[0]} in robot"
                 )
+                com_w = _com_from_bodies(all_pos, all_quat, body_mass, body_ipos).numpy()
 
             num_frames = joint_pos.shape[0]
 
             if num_frames == 0:
-                continue
+              continue
 
             # Save trajectory metadata.
             segment_start.append(current_start)
@@ -332,6 +354,8 @@ class MotionLoader:
             body_quat_list.append(body_quat_w)
             body_lin_vel_list.append(body_lin_vel_w)
             body_ang_vel_list.append(body_ang_vel_w)
+
+            com_list.append(com_w)
 
             current_start += num_frames
 
@@ -378,6 +402,10 @@ class MotionLoader:
             np.concatenate(body_ang_vel_list, axis=0),
             dtype=torch.float32,
             device=device,
+        )
+
+        self.com_w = torch.as_tensor(
+            np.concatenate(com_list, axis=0), dtype=torch.float32, device=device
         )
 
         # ------------------------------------------------------------
@@ -605,6 +633,8 @@ class OnlineCsvToNpz:
     self.body_root_ids = torch.as_tensor(
       self.mjm.body_rootid[ids], dtype=torch.long, device=device
     )
+    # Root of the free-floating tree; its subtree_com is the whole-robot CoM.
+    self.robot_root_id = int(self.mjm.body_rootid[ids[0]])
 
     self.motion_csv = MotionLoaderCsv(
       motion_dir=motion_dir,
@@ -684,6 +714,7 @@ class OnlineCsvToNpz:
       "body_quat_w": body_quat.clone(),
       "body_lin_vel_w": lin,
       "body_ang_vel_w": ang.clone(),
+      "com_w": self._subtree_com[:, self.robot_root_id].clone(),   # (B, 3)
     }
 
 class MotionCommand(CommandTerm):
@@ -760,11 +791,15 @@ class MotionCommand(CommandTerm):
     self.moving_envs = torch.ones(self.num_envs, dtype=torch.bool ,device=self.device)
 
   def _load_motion(self):
+    model = self._env.sim.mj_model
+    ids = self.robot.indexing.body_ids.cpu().numpy()   # global ids of the robot's bodies
     return MotionLoader(
       self.cfg.motion_dir,
       self.body_indexes,
       self.motion_anchor_body_index,
       self._env.step_dt,
+      body_mass=torch.tensor(model.body_mass[ids], dtype=torch.float32),
+      body_ipos=torch.tensor(model.body_ipos[ids], dtype=torch.float32),
       device=self.device,
     )
 
@@ -895,6 +930,10 @@ class MotionCommand(CommandTerm):
   @property
   def anchor_ang_acc_w(self) -> torch.Tensor:
     return self.motion.anchor_ang_acc_w[self.time_steps]*self.moving_envs.unsqueeze(-1)
+
+  @property
+  def CoM_w(self) -> torch.Tensor:
+    return self.motion.com_w[self.time_steps] + self._env.scene.env_origins
 
   @property
   def robot_joint_pos(self) -> torch.Tensor:
@@ -1579,6 +1618,10 @@ class OnlineMotionCommand(MotionCommand):
       self._frame()["body_ang_vel_w"][:, self.motion_anchor_body_index]
       * self.moving_envs.unsqueeze(-1)
     )
+
+  @property
+  def CoM_w(self) -> torch.Tensor:
+    return self._frame()["com_w"] + self._env.scene.env_origins
 
 
 @dataclass(kw_only=True)

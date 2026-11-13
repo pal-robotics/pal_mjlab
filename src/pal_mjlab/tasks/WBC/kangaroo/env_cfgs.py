@@ -27,6 +27,9 @@ from pal_mjlab.robots import (
   get_kangaroo_grippers_robot_cfg,
 )
 
+FEET_BODY_NAMES = ("leg_right_5_link", "leg_left_5_link")
+
+
 def pal_kangaroo_flat_wbc_env_cfg(
   play: bool = False,
 ) -> ManagerBasedRlEnvCfg:
@@ -119,6 +122,7 @@ def pal_kangaroo_flat_wbc_env_cfg(
   #   },
   #   noise=Unoise(n_min=-0.02, n_max=0.02),
   # )
+  cfg.observations["actor"].terms["ref_cop_vs_com"].params["body_names"] = FEET_BODY_NAMES
 
 
   # The hull points should correspond to the respective joints defined in the joint_names_group order
