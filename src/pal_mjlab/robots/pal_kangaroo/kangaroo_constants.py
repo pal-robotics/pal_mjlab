@@ -1,5 +1,7 @@
 """Pal Robotics KANGAROO constants."""
 
+import re
+from dataclasses import replace
 from pathlib import Path
 
 import mujoco
@@ -170,6 +172,78 @@ def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
   return _load_spec(KANGAROO_GRIPPERS_XML)
 
 
+# Suffix of the link-mesh collision geoms of the fall model.
+FALL_COLLISION_MESH_SUFFIX = "_collision_mesh"
+
+# Visual meshes that do not become collision geoms in the fall model:
+# - arm_base_link is a degenerate 1 mm placeholder.
+# - leg_7_link / leg_7_link1 are the feet, which keep their sole and ankle
+#   capsules (the walking policy was trained on them; a foot mesh on top would
+#   support the foot twice).
+_FALL_MESH_SKIP = frozenset({"arm_base_link", "leg_7_link", "leg_7_link1"})
+
+# Capsules that stay in the fall model: the feet. Soles and ankles touch the
+# ground, the avoidance capsules keep the feet from passing through the legs.
+_FALL_SOLE_REGEX = r"(left|right)_foot\d+_collision$"
+_FALL_ANKLE_REGEX = r"leg_(left|right)_ankle(_bar)?_collision$"
+_FALL_FOOT_AVOIDANCE_REGEX = r"(left|right)_foot_avoidance_collision_\d+$"
+_FALL_KEPT_CAPSULES = re.compile(
+  "|".join((_FALL_SOLE_REGEX, _FALL_ANKLE_REGEX, _FALL_FOOT_AVOIDANCE_REGEX))
+)
+
+# Link pairs whose convex hulls overlap in every configuration because the
+# links are mechanically adjacent (hip housings around the pelvis, and the
+# shank where the closed knee linkage attaches). MuJoCo only filters direct
+# parent-child pairs automatically.
+_FALL_ADJACENT_LINK_PAIRS = (
+  ("leg_{side}_1_link", "leg_{side}_3_link"),
+  ("leg_{side}_1_link", "pelvis_1_link"),
+  ("leg_{side}_4_link", "leg_{side}_knee_link"),
+)
+
+
+def get_kangaroo_fall_spec() -> mujoco.MjSpec:
+  """KANGAROO (4-DoF arms) with mesh-accurate collision geometry.
+
+  Every visual link mesh is duplicated as a named collision geom
+  ``<body>__<mesh>_collision_mesh`` and the idealized capsules of those links
+  are removed. MuJoCo collides a mesh as its convex hull. Against flat ground
+  the hull is exactly the surface the plane can touch, so body-ground contact
+  follows the real link shells; between links the hull is a close outer bound.
+  Only the feet keep their capsules. ``FALL_COLLISION`` assigns the collision
+  layers.
+  """
+  spec = _load_spec(KANGAROO_XML)
+
+  mesh_type = mujoco.mjtGeom.mjGEOM_MESH
+  for body in spec.bodies:
+    for geom in list(body.geoms):
+      if geom.type == mesh_type:
+        if geom.name or geom.meshname in _FALL_MESH_SKIP:
+          continue  # Only the unnamed visual geoms are cloned.
+        body.add_geom(
+          name=f"{body.name}__{geom.meshname}{FALL_COLLISION_MESH_SUFFIX}",
+          type=mesh_type,
+          meshname=geom.meshname,
+          pos=geom.pos,
+          quat=geom.quat,
+          group=3,
+          density=0.0,
+          rgba=(1.0, 0.65, 0.0, 0.2),
+        )
+      elif geom.name.endswith("_collision") and not _FALL_KEPT_CAPSULES.match(
+        geom.name
+      ):
+        spec.delete(geom)  # Replaced by the link mesh.
+
+  for body1, body2 in _FALL_ADJACENT_LINK_PAIRS:
+    for side in ("left", "right"):
+      spec.add_exclude(
+        bodyname1=body1.format(side=side), bodyname2=body2.format(side=side)
+      )
+  return spec
+
+
 ##
 # Actuator Configs
 ##
@@ -291,6 +365,50 @@ FULL_COLLISION = CollisionCfg(
   friction={_FOOT_REGEX: (0.6,)},
 )
 
+# Fall model collision layers (contype/conaffinity bits):
+# - bit 1: robot against robot. Link meshes and the foot avoidance capsules.
+# - bit 2: robot against terrain. Link meshes, foot soles and ankle capsules.
+#   The terrain must be configured with FALL_TERRAIN_COLLISION.
+# A link mesh is in both layers; soles and ankles only touch the terrain and
+# the avoidance capsules only touch the robot, as in FULL_COLLISION.
+_FALL_MESH_REGEX = rf".*{FALL_COLLISION_MESH_SUFFIX}$"
+_FALL_GROUND_ONLY = (_FALL_SOLE_REGEX, _FALL_ANKLE_REGEX)
+
+FALL_BODY_GROUND_FRICTION = 0.5
+
+# Base height [m] at which the default pose has its soles on the ground
+# (they penetrate by about 5 mm; resets add a few millimetres of clearance).
+FALL_STANDING_HEIGHT = 0.9
+
+FALL_COLLISION = CollisionCfg(
+  geom_names_expr=(
+    _FALL_MESH_REGEX,
+    _FALL_SOLE_REGEX,
+    _FALL_ANKLE_REGEX,
+    _FALL_FOOT_AVOIDANCE_REGEX,
+  ),
+  contype={**{r: 0 for r in _FALL_GROUND_ONLY}, ".*": 1},
+  conaffinity={
+    _FALL_MESH_REGEX: 3,
+    **{r: 2 for r in _FALL_GROUND_ONLY},
+    _FALL_FOOT_AVOIDANCE_REGEX: 1,
+  },
+  condim={_FALL_FOOT_AVOIDANCE_REGEX: 1, ".*": 3},
+  priority={_FALL_FOOT_AVOIDANCE_REGEX: 0, ".*": 1},
+  friction={
+    _FALL_SOLE_REGEX: (0.6,),
+    _FALL_MESH_REGEX: (FALL_BODY_GROUND_FRICTION,),
+    _FALL_ANKLE_REGEX: (FALL_BODY_GROUND_FRICTION,),
+  },
+)
+FALL_TERRAIN_COLLISION = CollisionCfg(
+  geom_names_expr=(".*",),
+  contype=2,
+  conaffinity=0,
+  condim=3,
+  priority=0,
+)
+
 ##
 # Articulation Configs
 ##
@@ -343,6 +461,22 @@ def _make_robot_cfg(variant: str) -> EntityCfg:
 
 def get_kangaroo_robot_cfg() -> EntityCfg:
   return _make_robot_cfg("kangaroo")
+
+
+def get_kangaroo_fall_robot_cfg() -> EntityCfg:
+  """KANGAROO with mesh-accurate collisions, for the safe-fall task.
+
+  The scene's terrain must use FALL_TERRAIN_COLLISION, otherwise the robot
+  has nothing to stand on.
+  """
+  # Own copy of the initial state: INIT_STATE is shared between variants and
+  # get_kangaroo_lower_body_robot_cfg() raises its height in place.
+  return EntityCfg(
+    init_state=replace(INIT_STATE, pos=(0.0, 0.0, FALL_STANDING_HEIGHT)),
+    collisions=(FALL_COLLISION,),
+    spec_fn=get_kangaroo_fall_spec,
+    articulation=KANGAROO_ARTICULATION,
+  )
 
 
 def get_kangaroo_lower_body_robot_cfg() -> EntityCfg:
