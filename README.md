@@ -95,6 +95,20 @@ Evaluate.
 uv run play Mjlab-Tracking-Flat-Pal-Kangaroo --wandb-run-path your-org/mjlab/run-id
 ```
 
+## Stand-up
+
+Train a policy that gets KANGAROO back on its feet from any resting posture (lying, sitting, crouching).
+
+```bash
+uv run train Mjlab-StandUp-Flat-Pal-Kangaroo --env.scene.num-envs 4096
+```
+
+Evaluate.
+
+```bash
+uv run play Mjlab-StandUp-Flat-Pal-Kangaroo --checkpoint-file /path/to/model.pt --num-envs 16
+```
+
 ## Results
 
 <video src="https://github.com/user-attachments/assets/32c0e534-ead9-400e-afe5-42174a6b739b" controls muted loop playsinline style="width:100%;"></video>

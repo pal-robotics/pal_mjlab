@@ -21,6 +21,15 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
+- **New stand-up task for the Kangaroo.** Adds
+  ``Mjlab-StandUp-Flat-Pal-Kangaroo``: the robot starts at rest lying, sitting,
+  crouching or standing and has to get back on its feet without moving
+  violently. It uses a new Kangaroo model with mesh collisions
+  (``get_kangaroo_fall_robot_cfg``) and a larger action scale on the arms. A
+  curriculum first carries part of the robot's weight, removes that help, and
+  then raises the penalties on violent motion as far as the robot keeps
+  standing up. See :ref:`Kangaroo task_stand_up`.
+
 - **New stairs velocity task for the Kangaroo.** Adds
   ``Mjlab-Velocity-Stairs-Pal-Kangaroo`` on top of the rough task, with a
   terrain mix focused on stairs of different tread widths and risers up to
