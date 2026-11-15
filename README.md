@@ -95,6 +95,42 @@ Evaluate.
 uv run play Mjlab-Tracking-Flat-Pal-Kangaroo --wandb-run-path your-org/mjlab/run-id
 ```
 
+## Safe Fall (KANGAROO fallback controller)
+
+A fallback policy that a supervisor switches to when a fall or an actuator fault is detected. From the instant it takes over it must come to rest with the least damage: on its knees when it can, forward onto knees and forearms when it cannot, and never on the torso or the pelvis actuators.
+The damage objective follows [Ha & Liu, IROS 2015](https://faculty.cc.gatech.edu/~sha9/projects/ha2015mcs/index.html): the cost of a fall is its largest single impact, not the total.
+
+The task uses its own robot model, with the real link meshes as collision geometry instead of the idealized capsules. Its actor observations are the velocity task's plus one flag per actuator that is down, and its actions are the same, so it is trained starting from a walking policy. Failed actuators go limp but still report their state.
+
+Record start states from the walking policy: walking, a detection time after a foot was caught, and a detection time after an actuator went limp. Without this file every episode starts standing still.
+
+```bash
+uv run python -m pal_mjlab.scripts.record_walker_states --checkpoint /path/to/walker/model.pt
+```
+
+Train, starting from the walking policy's actor.
+
+```bash
+uv run train Mjlab-SafeFall-Flat-Pal-Kangaroo --env.scene.num-envs 4096 \
+    --agent.init-actor-checkpoint /path/to/walker/model.pt \
+    --agent.actor-freeze-iterations 20
+```
+
+Evaluate a controller and print the damage metrics by kick speed, by how the episode ends and by what failed. `zero` and `damping` are passive baselines; `policy` takes any actor checkpoint, including a walking policy.
+
+```bash
+uv run python -m pal_mjlab.scripts.eval_fall --controller damping
+uv run python -m pal_mjlab.scripts.eval_fall --controller policy --checkpoint /path/to/model.pt
+```
+
+Watch a trained policy. Failed actuators are marked in red.
+
+```bash
+uv run play Mjlab-SafeFall-Flat-Pal-Kangaroo --checkpoint-file /path/to/model.pt
+```
+
+The contact and constraint buffers (`nconmax`, `njmax`) are sized from measured peaks. After changing the collision model or the disturbances, re-measure them with `uv run python -m pal_mjlab.scripts.measure_fall_buffers`.
+
 ## Results
 
 <video src="https://github.com/user-attachments/assets/32c0e534-ead9-400e-afe5-42174a6b739b" controls muted loop playsinline style="width:100%;"></video>

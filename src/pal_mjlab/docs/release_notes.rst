@@ -21,6 +21,18 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
+- **New safe-fall task for the Kangaroo.** Adds
+  ``Mjlab-SafeFall-Flat-Pal-Kangaroo``, a fallback policy that a supervisor
+  switches to when a fall or an actuator fault is detected. It is rewarded
+  for keeping the largest single impact low and for coming to rest on the
+  knees, or forward on knees and forearms, with the torso and the pelvis
+  actuators off the ground. Episodes start standing or from states recorded
+  from a walking policy (walking, after a trip, or with an actuator down),
+  are kicked up to 10 m/s, and can have up to three actuators go limp; the
+  policy is told which ones are down. The task has its own robot model with
+  the link meshes as collision geometry, is trained starting from a walking
+  policy, and comes with ``record_walker_states`` and ``eval_fall`` scripts.
+
 - **New stairs velocity task for the Kangaroo.** Adds
   ``Mjlab-Velocity-Stairs-Pal-Kangaroo`` on top of the rough task, with a
   terrain mix focused on stairs of different tread widths and risers up to
