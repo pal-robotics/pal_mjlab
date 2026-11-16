@@ -1,9 +1,9 @@
 """Pal Robotics KANGAROO constants."""
 
+import math
 from pathlib import Path
 
 import mujoco
-import torch
 from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
 from mjlab.utils.spec_config import CollisionCfg
@@ -20,6 +20,9 @@ REGEX_ALL_ACTUATED_JOINTS = r"^(?!leg_.*_femur_joint$|leg_.*_knee_joint$).*$"
 REGEX_FEMUR_AND_KNEE_LINKS = (
   r"^(leg_left_femur_link|leg_right_femur_link|leg_left_knee_link|leg_right_knee_link)$"
 )
+# Exclude hip joints 2 and 3 and ankle joints 4 and 5 from the independent
+# joint-limit penalty: the envelope rewards already penalize their limits.
+REGEX_JOINTS_WITHOUT_ENVELOPE = r"^(?!leg_.*_[2-5]_joint$).*$"
 
 KANGAROO_PATH = PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo" / "xmls"
 KANGAROO_XML = KANGAROO_PATH / "kangaroo.xml"
@@ -43,66 +46,74 @@ for p in [
 NATURAL_FREQ = 3.5 * 2.0 * 3.1415926535  # 3.5Hz
 DAMPING_RATIO = 2.0
 
-HIP_XY_CONVEX_HULL_POINTS = torch.tensor(
-  [
-    [-0.742, 0.035],
-    [-0.742, -0.094],
-    [-0.742, -0.167],
-    [-0.707, -0.243],
-    [-0.655, -0.349],
-    [-0.61, -0.411],
-    [-0.344, -0.413],
-    [-0.061, -0.41],
-    [0.307, -0.404],
-    [0.486, -0.4],
-    [0.55, -0.354],
-    [0.638, -0.282],
-    [0.709, -0.186],
-    [0.72, -0.081],
-    [0.722, 0.054],
-    [0.708, 0.18],
-    [0.641, 0.301],
-    [0.531, 0.389],
-    [0.448, 0.45],
-    [0.171, 0.453],
-    [-0.164, 0.455],
-    [-0.434, 0.461],
-    [-0.605, 0.467],
-    [-0.659, 0.404],
-    [-0.713, 0.309],
-    [-0.742, 0.222],
-    [-0.742, 0.133],
-  ]
-)
+##
+# Leg joint envelopes for the hip_envelope_limits and ankle_envelope_limits rewards
+##
 
-ANKLE_XY_CONVEX_HULL_POINTS = torch.tensor(
-  [
-    [0.707, 0.005],
-    [0.648, 0.112],
-    [0.576, 0.23],
-    [0.484, 0.38],
-    [0.443, 0.439],
-    [0.266, 0.443],
-    [0.008, 0.441],
-    [-0.293, 0.45],
-    [-0.46, 0.448],
-    [-0.505, 0.379],
-    [-0.594, 0.244],
-    [-0.686, 0.098],
-    [-0.744, 0.001],
-    [-0.688, -0.099],
-    [-0.604, -0.231],
-    [-0.499, -0.394],
-    [-0.445, -0.472],
-    [-0.254, -0.469],
-    [0.005, -0.462],
-    [0.232, -0.456],
-    [0.429, -0.46],
-    [0.475, -0.382],
-    [0.583, -0.207],
-    [0.665, -0.071],
-  ]
-)
+# Tibia pitch at zero femur and knee angles [rad], measured relative to
+# leg_*_3_link (the hip frame). The MJCF body rotations contribute -70 degrees
+# at leg_*_femur_link and +140 degrees at leg_*_knee_link.
+#
+# With the model's joint-axis conventions:
+#   tibia_pitch = offset + femur - knee
+# The closed-chain geometry gives knee ~= 2 * femur, so the reward uses
+# tibia_pitch ~= offset - knee / 2. This assumes the chain constraint holds;
+# revalidate the approximation if the link geometry or joint axes change.
+KANGAROO_KNEE_TO_JOINT_4_OFFSET = math.radians(70.0)
+
+# Ankle fit shared by both legs. Coordinates are j4 = leg_*_4_joint and
+# j5 = leg_*_5_joint [rad], and leg_length = leg_*_length_joint [m]. Joint 4
+# is attached to the slider, whose orientation is fixed in the hip frame.
+# The envelope uses joint 4 normalized to the knee:
+#   j4_knee_rel = j4 - (KANGAROO_KNEE_TO_JOINT_4_OFFSET - knee / 2)
+# The subtracted term is the knee-dependent angular offset derived above.
+# This normalization preserves radians; it does not rescale the angle.
+#
+# Coefficients originate from the external ankle_envelope_planes.py fit
+# (ankle_envelope_planes.json, "Both-legs fit"). Bounds depend on abs(j5).
+# Parameter units: x_min and offset [rad], slope [rad/rad], z [rad/m].
+# x_min bounds joint 4 normalized to the knee (j4_knee_rel); z multiplies
+# leg_length in the crank bound.
+# Actuator offsets at j5 = 0 and joint 5 bounds are read from the MJCF ranges.
+KANGAROO_ANKLE_ENVELOPE_LIMITS = {
+  "joint_4_knee_relative": {"x_min": -0.998403},
+  "tibia_bars": {"slope": 0.729958, "offset": -1.095372},
+  "crank_collision_limits": {"slope": 0.532649, "z": 1.376978, "offset": 0.205134},
+  "actuator_min": {"slope": 0.577666},
+  "actuator_max": {"slope": 0.652103},
+}
+
+# Hip actuator fit from the external hip_affine_limits.py script.
+# For j2 = leg_*_2_joint and j3 = leg_*_3_joint [rad], actuator travel is:
+#   a2 = b0 + g2 * j2 + g3 * j3
+#   a3 = b0 + g2 * j2 - g3 * j3
+# b0 is the travel offset [m], g2 and g3 are gains [m/rad], and A is the
+# maximum travel magnitude [m]: both actuators must stay within [-A, A].
+_HIP_AFFINE = {
+  "b0": -0.000940062218,
+  "g2": 0.054716491464,
+  "g3": 0.033617940151,
+  "A": 0.04,
+}
+# Mirroring j3 swaps a2 and a3. Since both gains are positive, their travel
+# limits reduce to two joint-space bounds:
+#   actuator_min: j2 >= offset + slope * abs(j3)
+#   actuator_max: j2 <= offset - slope * abs(j3)
+# Here offset is in radians and slope is dimensionless.
+#
+# Joint 2 and 3 bounds come from the MJCF ranges. Joint 2 endpoints correspond
+# to actuator corners (-A, -A) and (+A, +A). The current joint 3 range uses
+# +/-0.43783 rad, the mean magnitude of fitted bounds -0.43994 and +0.43572.
+KANGAROO_HIP_ENVELOPE_LIMITS = {
+  "actuator_min": {
+    "slope": _HIP_AFFINE["g3"] / _HIP_AFFINE["g2"],
+    "offset": (-_HIP_AFFINE["A"] - _HIP_AFFINE["b0"]) / _HIP_AFFINE["g2"],
+  },
+  "actuator_max": {
+    "slope": _HIP_AFFINE["g3"] / _HIP_AFFINE["g2"],
+    "offset": (_HIP_AFFINE["A"] - _HIP_AFFINE["b0"]) / _HIP_AFFINE["g2"],
+  },
+}
 
 
 def _calc_actuator_params(

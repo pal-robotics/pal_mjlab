@@ -21,6 +21,16 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
+- **Fitted hip and ankle envelopes for Kangaroo joint-limit rewards.**
+  Velocity and motion-tracking tasks now use ``joint_envelope_hip`` and
+  ``joint_envelope_ankle`` instead of the convex-hull rewards. The ankle
+  envelope accounts for leg length and joint 4 normalized to the knee;
+  the hip envelope uses fitted actuator-travel constraints. Each reward
+  sums the squared largest positive constraint violation per leg.
+  The default ``shrink=0.02`` contracts the feasible region by 2% toward
+  its center. Hip joints 2 and 3 and ankle joints 4 and 5 are excluded
+  from the independent joint-limit penalty to avoid penalizing them twice.
+
 - **New stairs velocity task for the Kangaroo.** Adds
   ``Mjlab-Velocity-Stairs-Pal-Kangaroo`` on top of the rough task, with a
   terrain mix focused on stairs of different tread widths and risers up to
@@ -130,6 +140,10 @@ New Features & Tasks
 Model Updates
 ^^^^^^^^^^^^^
 
+- Updated Kangaroo hip and ankle joint ranges in the full-body, hands,
+  grippers and lower-body MJCF models to match the fitted envelope bounds.
+  The envelope rewards read these ranges directly from the model.
+
 - Updated the Kangaroo 7-DoF and hands MuJoCo models with proper masses
   and inertias.
   (`#107 <https://github.com/pal-robotics/pal_mjlab/pull/107>`_)
@@ -213,6 +227,19 @@ dependency issue, check which of these bumps might be relevant first.
 
 Breaking Changes
 ^^^^^^^^^^^^^^^^
+
+- **Replaced the convex-hull joint-limit API.** Custom reward configurations
+  must replace ``joint_limits_convex_hull`` with ``hip_envelope_limits`` or
+  ``ankle_envelope_limits``, and ``hull_points`` with ``limits`` using
+  ``KANGAROO_HIP_ENVELOPE_LIMITS`` or ``KANGAROO_ANKLE_ENVELOPE_LIMITS``.
+  The corresponding ``HIP_XY_CONVEX_HULL_POINTS`` and
+  ``ANKLE_XY_CONVEX_HULL_POINTS`` constants have been removed.
+  Hip joint groups remain ``[joint 2, joint 3]``; ankle groups must now
+  contain ``[joint 4, joint 5, leg length, knee]`` for each leg.
+  Replace the absolute ``margin`` with a fractional ``shrink``; the two
+  parameters are not numerically equivalent. Remove ``metrics_suffix``:
+  metrics are now logged as ``Metrics/joint_envelope_hip`` and
+  ``Metrics/joint_envelope_ankle``.
 
 - **Removed the base linear acceleration observation from the Kangaroo
   velocity tasks.** The ``base_lin_acc`` actor observation term (IMU

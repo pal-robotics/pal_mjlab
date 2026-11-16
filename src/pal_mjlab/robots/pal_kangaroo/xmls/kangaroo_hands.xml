@@ -325,11 +325,11 @@
         <geom name="leg_left1_1_collision" size="0.04" fromto="0.07 -0.035 -0.03   0.07 -0.035 -0.015" class="collision"/>
         <body name="leg_left_2_link" pos="0.015024 0 -0.1175">
           <inertial pos="-0.004242 -1.3e-05 9.1e-05" quat="0.5 0.5 0.5 0.5" mass="0.105669" diaginertia="9.9e-05 9.6e-05 8e-06"/>
-          <joint name="leg_left_2_joint" axis="0 1 0" range="-0.741765 0.663225" />
+          <joint name="leg_left_2_joint" axis="0 1 0" range="-0.712242 0.747401" />
           <geom class="visual" mesh="leg_left_2_link" />
           <body name="leg_left_3_link">
             <inertial pos="-0.048028 0.057205 -0.037679" quat="0.292316 0.631454 -0.269158 0.665861" mass="3.646" diaginertia="0.0207011 0.0160072 0.0109117"/>
-            <joint name="leg_left_3_joint" axis="1 0 0" range="-0.471239 0.471239" />
+            <joint name="leg_left_3_joint" axis="1 0 0" range="-0.437830 0.437830" />
             <geom class="visual" mesh="leg_left_3_link" />
             <body name="leg_left_length_link" pos="0 0.0669 -0.09" quat="0 0 1 0">
               <inertial mass="0.1" pos="0 0 0" diaginertia="8.58333e-05 8.58333e-05 5e-06" />
@@ -337,11 +337,11 @@
               <geom size="5e-05 0.291097" pos="0 0 -0.291097" type="cylinder" class="visual" />
               <body name="leg_left_4_link" quat="-0.173648 0 0.984808 0">
                 <inertial pos="-0.007727 0 0" quat="0 0.707107 0 0.707107" mass="0.086323" diaginertia="3.7e-05 3.5e-05 6e-06"/>
-                <joint name="leg_left_4_joint" axis="0 1 0" range="-0.741765 0.663225" />
+                <joint name="leg_left_4_joint" axis="0 1 0" range="-0.756443 0.724851" />
                 <geom quat="0.984808 0 -0.173648 0" class="visual" mesh="leg_6_link" />
                 <body name="leg_left_5_link">
                   <inertial pos="0.00560127 -5.98529e-06 -0.0297244" quat="-8.95501e-06 0.58162 -1.58775e-05 0.813461" mass="0.61563" diaginertia="0.0019868 0.00170803 0.000338695" />
-                  <joint name="leg_left_5_joint" axis="-1 0 0" range="-0.471239 0.471239" />
+                  <joint name="leg_left_5_joint" axis="-1 0 0" range="-0.424645 0.424645" />
                   <geom class="visual" mesh="leg_7_link" />
                   <site name="left_foot" pos="0.0145358561 0.0 -0.0399369364" size="0.015" quat="0.9848078 0 -0.1736482 0"/>
                   <body name="leg_left_foot_link" pos="0 0 -0.0345" quat="0.9848078 0 -0.1736482 0">
@@ -386,11 +386,11 @@
         <geom name="leg_right1_1_collision" size="0.04" fromto="0.07 0.035 -0.03   0.07 0.035 -0.015" class="collision"/>
         <body name="leg_right_2_link" pos="0.015024 0 -0.1175">
           <inertial pos="-0.004242 -1.3e-05 9.1e-05" quat="0.5 0.5 0.5 0.5" mass="0.105669" diaginertia="9.9e-05 9.6e-05 8e-06"/>
-          <joint name="leg_right_2_joint" axis="0 1 0" range="-0.741765 0.663225" />
+          <joint name="leg_right_2_joint" axis="0 1 0" range="-0.712242 0.747401" />
           <geom class="visual" mesh="leg_right_2_link" />
           <body name="leg_right_3_link">
             <inertial pos="-0.048028 -0.057205 -0.037679" quat="0.631454 0.292316 -0.665861 0.269158" mass="3.646" diaginertia="0.0207011 0.0160072 0.0109117"/>
-            <joint name="leg_right_3_joint" axis="1 0 0" range="-0.471239 0.471239" />
+            <joint name="leg_right_3_joint" axis="1 0 0" range="-0.437830 0.437830" />
             <geom class="visual" mesh="leg_right_3_link" />
             <body name="leg_right_length_link" pos="0 -0.0669 -0.09" quat="0 0 1 0">
               <inertial mass="0.1" pos="0 0 0" diaginertia="8.58333e-05 8.58333e-05 5e-06" />
@@ -398,11 +398,11 @@
               <geom size="5e-05 0.291097" pos="0 0 -0.291097" type="cylinder" class="visual" />
               <body name="leg_right_4_link" quat="-0.173648 0 0.984808 0">
                 <inertial pos="-0.007727 0 0" quat="0 0.707107 0 0.707107" mass="0.086323" diaginertia="3.7e-05 3.5e-05 6e-06"/>
-                <joint name="leg_right_4_joint" axis="0 1 0" range="-0.741765 0.663225" />
+                <joint name="leg_right_4_joint" axis="0 1 0" range="-0.756443 0.724851" />
                 <geom quat="0.984808 0 -0.173648 0" class="visual" mesh="leg_6_link" />
                 <body name="leg_right_5_link">
                   <inertial pos="0.00560127 -5.98529e-06 -0.0297244" quat="-8.95501e-06 0.58162 -1.58775e-05 0.813461" mass="0.61563" diaginertia="0.0019868 0.00170803 0.000338695" />
-                  <joint name="leg_right_5_joint" axis="-1 0 0" range="-0.471239 0.471239" />
+                  <joint name="leg_right_5_joint" axis="-1 0 0" range="-0.424645 0.424645" />
                   <geom class="visual" mesh="leg_7_link" />
                   <site name="right_foot" pos="0.0145358561 0.0 -0.0399369364" size="0.015" quat="0.9848078 0 -0.1736482 0"/>
                   <body name="leg_right_foot_link" pos="0 0 -0.0345" quat="0.9848078 0 -0.1736482 0">
