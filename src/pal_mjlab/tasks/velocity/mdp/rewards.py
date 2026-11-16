@@ -355,7 +355,11 @@ class joint_limits_convex_hull:
     margin: float,
     joint_names_group: list[list[str]],
     hull_points: torch.Tensor,
+    source: str = "position",
+    squared: bool = True,
   ) -> torch.Tensor:
+    """``source``: "position" (measured) or "target" (position controller
+    target). ``squared``: squared distance outside the hull, else linear."""
     penalty = torch.zeros(env.num_envs, device=env.device, dtype=torch.float32)
     metrics_violation_dist = torch.zeros(
       env.num_envs, device=env.device, dtype=torch.float32
@@ -365,7 +369,10 @@ class joint_limits_convex_hull:
       target_ids, target_names = asset.find_joints(joint_group)
       # print("Target joint names:", target_names)
       # print("Target joint ids:", target_ids)
-      joint_pos = asset.data.joint_pos[:, target_ids]
+      if source == "target":
+        joint_pos = asset.data.joint_pos_target[:, target_ids]
+      else:
+        joint_pos = asset.data.joint_pos[:, target_ids]
 
       # Calculate distance using A*x + b
       # equation_coeff_A has shape (K, N), joint_pos has shape (M, N)
@@ -376,7 +383,7 @@ class joint_limits_convex_hull:
       )
       # For those that are within the polygon return 0.0, but for others return the squared distance to the polygon
       violation_dist = torch.clamp(dot_product_res, min=0.0).max(dim=1)[0]
-      penalty += torch.square(violation_dist)
+      penalty += torch.square(violation_dist) if squared else violation_dist
       metrics_violation_dist += violation_dist
 
     env.extras["log"][f"Metrics/joint_limits_hull_{metrics_suffix}"] = torch.mean(

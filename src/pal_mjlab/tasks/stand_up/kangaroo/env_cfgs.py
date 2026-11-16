@@ -1,5 +1,6 @@
 """PAL Robotics KANGAROO stand-up environment configuration."""
 
+import copy
 import math
 
 from mjlab.envs import ManagerBasedRlEnvCfg
@@ -55,6 +56,9 @@ ARM_ACTION_SCALE_NATURAL_FREQ_HZ = 1.0
 ASSIST_LEVEL = 1.0
 ASSIST_STEP = 0.1
 
+# Margin [rad] inside the hip and ankle hulls.
+HULL_MARGIN = 0.05
+
 # Rewards that penalize violent motion and the factor each weight is raised
 # by at most during training. The ones that measure what exceeds a limit go
 # furthest.
@@ -103,7 +107,10 @@ def pal_kangaroo_stand_up_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.sim.njmax = 400
   cfg.sim.contact_sensor_maxmatch = 64
 
-  cfg.episode_length_s = 10.0
+  # Long enough that most of an episode is spent standing. Play keeps the
+  # velocity task's endless episodes.
+  if not play:
+    cfg.episode_length_s = 20.0
   cfg.viewer.body_name = TORSO_BODY
 
   # -- Actions
@@ -180,7 +187,6 @@ def pal_kangaroo_stand_up_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   critic_terms["torso_tilt_cos"] = ObservationTermCfg(
     func=mdp.torso_tilt_cos, params={"stand_cfg": stand_cfg}
   )
-  critic_terms["episode_time_left"] = ObservationTermCfg(func=mdp.episode_time_left)
 
   # -- Events
 
@@ -210,7 +216,7 @@ def pal_kangaroo_stand_up_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     mode="reset",
     params={
       "start_cfg": start_cfg,
-      "standing_fraction": 0.1,
+      "standing_fraction": 0.3,
       "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_ROTARY_JOINTS,)),
     },
   )
@@ -223,11 +229,11 @@ def pal_kangaroo_stand_up_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.events["push_robot"] = EventTermCfg(
       func=mdp.push_by_setting_velocity,
       mode="interval",
-      interval_range_s=(4.0, 8.0),
+      interval_range_s=(3.0, 6.0),
       params={
         "velocity_range": {
-          "x": (-0.3, 0.3),
-          "y": (-0.3, 0.3),
+          "x": (-0.5, 0.5),
+          "y": (-0.5, 0.5),
           "roll": (-0.3, 0.3),
           "pitch": (-0.3, 0.3),
           "yaw": (-0.3, 0.3),
@@ -311,10 +317,22 @@ def pal_kangaroo_stand_up_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     ),
     # Limits, as in the velocity task.
     "dof_pos_limits": walking_rewards["dof_pos_limits"],
-    "convex_hull_joint_limits_hip": walking_rewards["convex_hull_joint_limits_hip"],
-    "convex_hull_joint_limits_ankle": walking_rewards["convex_hull_joint_limits_ankle"],
     "joint_vel_limits": walking_rewards["joint_vel_limits"],
   }
+  # The hip and ankle hulls: the real transmission has no solution outside
+  # them. Linear in the distance, so the pull back does not fade near the
+  # edge, with a margin for the tracking error of the real robot. The
+  # targets lead the positions out, so they are penalized too.
+  for joint in ("hip", "ankle"):
+    hull = walking_rewards[f"convex_hull_joint_limits_{joint}"]
+    for source, weight in (("position", -20.0), ("target", -5.0)):
+      term = copy.deepcopy(hull)
+      term.weight = weight
+      term.params["margin"] = HULL_MARGIN
+      term.params["source"] = source
+      term.params["squared"] = False
+      term.params["metrics_suffix"] += f"_{source}"
+      cfg.rewards[f"{joint}_hull_{source}"] = term
 
   # -- Curriculum
 
@@ -340,6 +358,12 @@ def pal_kangaroo_stand_up_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.terminations = {
     "time_out": TerminationTermCfg(func=mdp.time_out, time_out=True),
   }
+  if not play:
+    # Falling once up costs every reward the rest of the episode would bring.
+    # Play lets the robot get up again, as the deployment would.
+    cfg.terminations["fell_after_standing"] = TerminationTermCfg(
+      func=mdp.fell_after_standing, params={"stand_cfg": stand_cfg}
+    )
 
   # -- Metrics
 

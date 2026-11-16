@@ -45,9 +45,3 @@ def base_height_above_ground(
 
 def torso_tilt_cos(env: ManagerBasedRlEnv, stand_cfg: StandCfg) -> torch.Tensor:
   return torso_up(env, stand_cfg).unsqueeze(-1)
-
-
-def episode_time_left(env: ManagerBasedRlEnv) -> torch.Tensor:
-  """[B, 1] remaining fraction of the episode."""
-  left = 1.0 - env.episode_length_buf.float() / env.max_episode_length
-  return left.clamp(0.0, 1.0).unsqueeze(-1)

@@ -192,3 +192,20 @@ def test_lift_assist_carries_a_robot_on_the_ground_only(env):
   lift = env.sim.data.xfrc_applied[..., 2].sum(dim=-1)
   assert bool((lift < 0.1 * weight).all())
   params["level"] = 0.0
+
+
+def test_start_states_keep_the_hips_and_ankles_inside_their_hulls(env):
+  params = env.event_manager.get_term_cfg("reset_to_start_state").params
+  library = mdp.get_start_state_library(env, params["start_cfg"])
+  assert len(library) > 0
+  joint_pos = library.joint_pos[:, library._act_ids]
+  assert bool(library._inside_hulls(joint_pos).all())
+
+
+def test_training_ends_falls_after_standing_and_play_runs_on():
+  train_cfg = load_env_cfg(TASK)
+  assert train_cfg.episode_length_s == 20.0
+  assert "fell_after_standing" in train_cfg.terminations
+  play_cfg = load_env_cfg(TASK, play=True)
+  assert play_cfg.episode_length_s > 3600.0
+  assert set(play_cfg.terminations) == {"time_out"}

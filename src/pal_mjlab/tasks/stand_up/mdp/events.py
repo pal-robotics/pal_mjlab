@@ -54,7 +54,8 @@ class StartStateCfg:
   default_pose_fraction: float = 0.15
   """Share of drops that keep the default joint pose."""
   joint_hulls: tuple[tuple[tuple[str, str], torch.Tensor], ...] = ()
-  """Joint pairs whose random targets must lie inside a convex hull."""
+  """Joint pairs whose targets and resting positions must lie inside a convex
+  hull."""
   drop_clearance: float = 0.02
   ramp_time_s: float = 1.0
   """Time over which the joint targets move to the random ones."""
@@ -120,18 +121,14 @@ class StartStateLibrary:
   def __len__(self) -> int:
     return len(self.root_height)
 
-  def _sample_joint_targets(self, n: int, device: str) -> torch.Tensor:
-    """Random targets within the soft limits and the hulls."""
-    asset = self._asset
-    limits = asset.data.soft_joint_pos_limits[:n][:, self._act_ids]
-    middle = 0.5 * (limits[..., 0] + limits[..., 1])
-    half = 0.5 * (limits[..., 1] - limits[..., 0])
-    target = middle + half * sample_uniform(-1.0, 1.0, middle.shape, device)
+  def _pull_inside_hulls(self, target: torch.Tensor) -> torch.Tensor:
+    """[n, actuated joints] with every hull pair pulled towards the origin
+    until it is inside its hull."""
+    target = target.clone()
     for first, second, normals, offsets in self._hulls:
       for id_1, id_2 in zip(first, second, strict=True):
         point = torch.stack([target[:, id_1], target[:, id_2]], dim=-1)
-        # Inside the hull: normals @ p + offsets <= 0. A point outside is
-        # pulled towards the origin until it is on the edge.
+        # Inside the hull: normals @ p + offsets <= 0.
         along = point @ normals.T
         scale = torch.where(
           along > 0, -offsets / along.clamp(min=1e-9), torch.ones_like(along)
@@ -139,6 +136,26 @@ class StartStateLibrary:
         scale = scale.min(dim=-1).values.clamp(max=1.0)
         target[:, id_1] = point[:, 0] * scale
         target[:, id_2] = point[:, 1] * scale
+    return target
+
+  def _inside_hulls(self, joint_pos: torch.Tensor) -> torch.Tensor:
+    """[n] whether every hull pair of ``joint_pos`` [n, actuated joints] is
+    inside its hull."""
+    inside = torch.ones(len(joint_pos), dtype=torch.bool, device=joint_pos.device)
+    for first, second, normals, offsets in self._hulls:
+      for id_1, id_2 in zip(first, second, strict=True):
+        point = torch.stack([joint_pos[:, id_1], joint_pos[:, id_2]], dim=-1)
+        inside &= (point @ normals.T + offsets <= 0.0).all(dim=-1)
+    return inside
+
+  def _sample_joint_targets(self, n: int, device: str) -> torch.Tensor:
+    """Random targets within the soft limits and the hulls."""
+    asset = self._asset
+    limits = asset.data.soft_joint_pos_limits[:n][:, self._act_ids]
+    middle = 0.5 * (limits[..., 0] + limits[..., 1])
+    half = 0.5 * (limits[..., 1] - limits[..., 0])
+    target = middle + half * sample_uniform(-1.0, 1.0, middle.shape, device)
+    target = self._pull_inside_hulls(target)
     default = asset.data.default_joint_pos[:n][:, self._act_ids]
     keep_default = torch.rand(n, device=device) < self.cfg.default_pose_fraction
     return torch.where(keep_default.unsqueeze(-1), default, target)
@@ -159,7 +176,7 @@ class StartStateLibrary:
     )
     target[:, self._leg_length_ids] = length + difference
     limits = asset.data.soft_joint_pos_limits[:n][:, self._act_ids]
-    return target.clamp(limits[..., 0], limits[..., 1])
+    return self._pull_inside_hulls(target.clamp(limits[..., 0], limits[..., 1]))
 
   def _generate(
     self, env: ManagerBasedRlEnv
@@ -244,6 +261,8 @@ class StartStateLibrary:
       & (joint_speed < cfg.max_joint_speed)
       & (root_speed < cfg.max_root_speed)
       & (height > 0.0)
+      # Contacts can push a joint pair out of reach of the real transmission.
+      & self._inside_hulls(joint_pos[:, self._act_ids])
     )
     return height[valid], root_quat[valid], joint_pos[valid]
 

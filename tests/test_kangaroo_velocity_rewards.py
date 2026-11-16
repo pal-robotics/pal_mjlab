@@ -1213,3 +1213,42 @@ def test_body_ang_vel_xy_l2_penalty(mock_env, mock_asset_cfg):
   test_name = "Body angular velocity xy penalty (zero rates)"
 
   assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
+
+
+def test_convex_hull_joint_limits_linear_on_targets(mock_env, mock_asset_cfg):
+  """``squared=False`` gives the distance outside the hull; ``source="target"``
+  measures the position controller targets instead of the joint positions."""
+  env = mock_env
+  env.extras = {"log": {}}
+  mock_asset_cfg.joint_ids = [0, 1, 2, 3]
+  asset = env.scene[mock_asset_cfg.name]
+  groups = [[r"joint_left_1", r"joint_left_2"], [r"joint_right_1", r"joint_right_2"]]
+  asset.find_joints = lambda names: ([0, 2] if names == groups[0] else [1, 3], names)
+  cfg = RewardTermCfg(
+    func=None,
+    weight=1.0,
+    params={
+      "asset_cfg": mock_asset_cfg,
+      "metrics_suffix": "dummy_suffix_linear",
+      "joint_names_group": groups,
+      "margin": 0.0,
+      "hull_points": torch.tensor(
+        [[2.3, 7.1], [5.8, 1.4], [9.2, 6.5], [1.0, 3.8], [6.4, 9.7]]
+      ),
+    },
+  )
+  inside = torch.full((env.num_envs, 4), 5.0, device=env.device)
+  origin = torch.zeros(env.num_envs, 4, device=env.device)
+  # Both groups at the origin, 3.8460369213 outside the hull each.
+  asset.data.joint_pos = origin
+  asset.data.joint_pos_target = inside
+  reward_term = pal_mjlab_r.joint_limits_convex_hull(cfg, env, mock_asset_cfg)
+  linear = reward_term(env, **cfg.params, squared=False)
+  assert linear[0] == pytest.approx(2 * 3.8460369213, abs=1e-4)
+  assert reward_term(env, **cfg.params, squared=False, source="target")[0] == 0.0
+
+  asset.data.joint_pos = inside
+  asset.data.joint_pos_target = origin
+  assert reward_term(env, **cfg.params, squared=False)[0] == 0.0
+  on_targets = reward_term(env, **cfg.params, squared=False, source="target")
+  assert on_targets[0] == pytest.approx(2 * 3.8460369213, abs=1e-4)

@@ -231,6 +231,33 @@ def _run_curriculum(env, term, params, standing: bool, updates: int = 1) -> None
     term(env, torch.arange(NUM_ENVS), **params)
 
 
+def test_fell_after_standing_only_ends_episodes_that_stood_long_enough():
+  env, _ = _make_env(ON_FEET * NUM_ENVS)
+  env.step_dt = 0.1
+  params = {"stand_cfg": STAND_CFG, "min_standing_s": 0.5}
+  term = mdp.fell_after_standing(Mock(), env)
+
+  def step(rows) -> torch.Tensor:
+    env.common_step_counter += 1
+    env.scene["ground"].data.force_history = _forces(rows)
+    return term(env, **params)
+
+  # Standing for less than the minimum, then down: not a failure yet.
+  for _ in range(3):
+    assert not step(ON_FEET * NUM_ENVS).any()
+  assert not step(LYING * NUM_ENVS).any()
+
+  # Standing long enough, then down on the base.
+  for _ in range(6):
+    assert not step(ON_FEET * NUM_ENVS).any()
+  assert step(STANDING_LYING_AIRBORNE).tolist() == [False, True, False]
+
+  # A reset forgets that the robot stood.
+  term.reset(torch.tensor([1]))
+  assert step(STANDING_LYING_AIRBORNE).tolist() == [False, False, False]
+  assert step(LYING * NUM_ENVS).tolist() == [True, False, True]
+
+
 def test_curriculum_removes_the_lift_then_raises_the_care_rewards():
   env, _ = _make_env(STANDING_LYING_AIRBORNE)
   term, params, rewards, lift = _make_curriculum(env)
