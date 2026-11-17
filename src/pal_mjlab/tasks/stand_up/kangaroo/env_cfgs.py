@@ -52,17 +52,22 @@ STAND_HEIGHT = 0.8
 ARM_ACTION_SCALE_NATURAL_FREQ_HZ = 1.0
 
 # Upward force [robot weights] on the torso of a robot on the ground at the
-# start of training, and the step it is lowered by.
+# start of training, and the step it is lowered by. Small: the long episodes
+# leave few attempts to get up between two steps.
 ASSIST_LEVEL = 1.0
-ASSIST_STEP = 0.1
+ASSIST_STEP = 0.05
 
 # Margin [rad] inside the hip and ankle hulls.
 HULL_MARGIN = 0.05
 
-# Rewards that penalize violent motion and the factor each weight is raised
-# by at most during training. The ones that measure what exceeds a limit go
-# furthest.
+# Rewards that penalize violent motion or leaving the hip and ankle hulls, and
+# the factor each weight is raised by at most during training. The ones that
+# measure what exceeds a limit go furthest.
 CARE_REWARDS = {
+  "hip_hull_position": 20.0,
+  "hip_hull_target": 20.0,
+  "ankle_hull_position": 20.0,
+  "ankle_hull_target": 20.0,
   "joint_speed": 50.0,
   "ground_force": 50.0,
   "base_acceleration": 50.0,
@@ -322,10 +327,12 @@ def pal_kangaroo_stand_up_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # The hip and ankle hulls: the real transmission has no solution outside
   # them. Linear in the distance, so the pull back does not fade near the
   # edge, with a margin for the tracking error of the real robot. The
-  # targets lead the positions out, so they are penalized too.
+  # targets lead the positions out, so they are penalized too. At full weight
+  # from the start they keep the robot from finding how to get up from lying:
+  # the curriculum raises them from 1/20 of it (see CARE_REWARDS).
   for joint in ("hip", "ankle"):
     hull = walking_rewards[f"convex_hull_joint_limits_{joint}"]
-    for source, weight in (("position", -20.0), ("target", -5.0)):
+    for source, weight in (("position", -1.0), ("target", -0.25)):
       term = copy.deepcopy(hull)
       term.weight = weight
       term.params["margin"] = HULL_MARGIN
@@ -346,7 +353,7 @@ def pal_kangaroo_stand_up_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
         "assist_event_name": "lift_assist",
         "assist_level": ASSIST_LEVEL,
         "assist_step": ASSIST_STEP,
-        "care_step_factor": 1.2,
+        "care_step_factor": 1.1,
         "raise_above": 0.95,
         "lower_below": 0.9,
         "update_interval": 25 * 24,  # 25 training iterations.

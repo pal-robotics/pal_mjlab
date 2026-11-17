@@ -279,12 +279,13 @@ def test_curriculum_removes_the_lift_then_raises_the_care_rewards():
   assert lift.params["level"] == 0.0
 
 
-def test_curriculum_waits_while_the_robots_fail_with_less_lift():
+def test_curriculum_gives_the_lift_back_while_the_robots_fail_without_it():
   env, _ = _make_env(STANDING_LYING_AIRBORNE)
   term, params, rewards, lift = _make_curriculum(env)
   _run_curriculum(env, term, params, standing=True)
-  _run_curriculum(env, term, params, standing=False, updates=3)
   assert lift.params["level"] == pytest.approx(0.1)
+  _run_curriculum(env, term, params, standing=False, updates=3)
+  assert lift.params["level"] == pytest.approx(0.2)
   assert rewards["a"].weight == -1.0
 
 

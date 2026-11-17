@@ -111,13 +111,13 @@ Rewards
 +--------------------------------+---------+----------------------+
 | joint_vel_limits               |   -10.0 | limits               |
 +--------------------------------+---------+----------------------+
-| hip_hull_position              |   -20.0 | limits               |
+| hip_hull_position              |    -1.0 | limits               |
 +--------------------------------+---------+----------------------+
-| hip_hull_target                |    -5.0 | limits               |
+| hip_hull_target                |   -0.25 | limits               |
 +--------------------------------+---------+----------------------+
-| ankle_hull_position            |   -20.0 | limits               |
+| ankle_hull_position            |    -1.0 | limits               |
 +--------------------------------+---------+----------------------+
-| ankle_hull_target              |    -5.0 | limits               |
+| ankle_hull_target              |   -0.25 | limits               |
 +--------------------------------+---------+----------------------+
 
 |
@@ -134,8 +134,9 @@ real transmission can reach): the distance outside a hull shrunk by 0.05 rad
 is penalized linearly, for the measured positions and, with a lower weight,
 for the joint targets, which lead the positions out.
 
-The care weights in the table are the initial ones; the curriculum raises
-them.
+The care and hull weights in the table are the initial ones; the curriculum
+raises them. At their final weights from the start, the hulls keep the policy
+from finding how to get up from lying.
 
 
 Curriculum
@@ -148,12 +149,19 @@ Without it the policy does not learn to get up from lying.
 ``stand_up_curriculum`` follows the share of episodes that end with the robot
 standing and, every 25 iterations:
 
-- lowers the lift by a tenth of the robot's weight while that share is above
-  95 %, until it is gone;
-- then multiplies the care weights by 1.2 while the share is above 95 % and
-  divides them by 1.2 when it is below 90 %. ``joint_speed``, ``ground_force``
-  and ``base_acceleration`` go up to 50 times their initial weight, the other
-  care terms up to 10 times.
+- lowers the lift by 5 % of the robot's weight while that share is above
+  95 %, until it is gone, and raises it again by as much when the share is
+  below 90 %;
+- then multiplies the care and hull weights by 1.1 while the share is above
+  95 % and divides them by 1.1 when it is below 90 %. ``joint_speed``,
+  ``ground_force`` and ``base_acceleration`` go up to 50 times their initial
+  weight, the hull terms up to 20 times (-20 on the positions, -5 on the
+  targets), the other care terms up to 10 times.
+
+The steps are small because the share follows them late: an episode counts
+when it ends, some 15 s after the robot got up, and few episodes start fallen.
+Larger steps take the lift or the hulls further than the policy can follow,
+and it forgets how to get up from lying.
 
 The curriculum state is saved with the checkpoints. The lift is off in play.
 

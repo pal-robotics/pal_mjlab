@@ -20,7 +20,9 @@ class stand_up_curriculum:
   average over about ``window`` episodes). Every ``update_interval`` steps:
 
   - While the lift of ``assist_event_name`` is on, it is lowered by
-    ``assist_step`` if that share is above ``raise_above``.
+    ``assist_step`` if that share is above ``raise_above`` and raised by it,
+    up to ``assist_level``, below ``lower_below``: the share follows the lift
+    with a delay, so a step can go too far before it shows.
   - Afterwards, the weights of ``care_rewards`` are scaled by a common factor
     that is multiplied by ``care_step_factor`` above ``raise_above`` and
     divided by it below ``lower_below``. Each reward follows the factor up to
@@ -38,6 +40,7 @@ class stand_up_curriculum:
     self._max_scales = list(care_rewards.values())
     self._assist = env.event_manager.get_term_cfg(params["assist_event_name"])
     self.assist_level = float(params["assist_level"])
+    self._max_assist_level = self.assist_level
     self.care_scale = 1.0
     self.success = 0.0
     self._last_update_step = 0
@@ -98,6 +101,10 @@ class stand_up_curriculum:
       if self.assist_level > 0.0:
         if self.success > raise_above:
           self.assist_level = max(0.0, round(self.assist_level - assist_step, 6))
+        elif self.success < lower_below:
+          self.assist_level = min(
+            self._max_assist_level, round(self.assist_level + assist_step, 6)
+          )
       elif self.success > raise_above:
         self.care_scale = min(max(self._max_scales), self.care_scale * care_step_factor)
       elif self.success < lower_below:
