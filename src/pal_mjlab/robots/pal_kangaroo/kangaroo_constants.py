@@ -47,72 +47,45 @@ NATURAL_FREQ = 3.5 * 2.0 * 3.1415926535  # 3.5Hz
 DAMPING_RATIO = 2.0
 
 ##
-# Leg joint envelopes for the hip_envelope_limits and ankle_envelope_limits rewards
+# Joint limits described as affine functions and planes
 ##
 
-# Tibia pitch at zero femur and knee angles [rad], measured relative to
-# leg_*_3_link (the hip frame). The MJCF body rotations contribute -70 degrees
-# at leg_*_femur_link and +140 degrees at leg_*_knee_link.
-#
-# With the model's joint-axis conventions:
-#   tibia_pitch = offset + femur - knee
-# The closed-chain geometry gives knee ~= 2 * femur, so the reward uses
-# tibia_pitch ~= offset - knee / 2. This assumes the chain constraint holds;
-# revalidate the approximation if the link geometry or joint axes change.
 KANGAROO_KNEE_TO_JOINT_4_OFFSET = math.radians(70.0)
 
-# Ankle fit shared by both legs. Coordinates are j4 = leg_*_4_joint and
-# j5 = leg_*_5_joint [rad], and leg_length = leg_*_length_joint [m]. Joint 4
-# is attached to the slider, whose orientation is fixed in the hip frame.
-# The envelope uses joint 4 normalized to the knee:
-#   j4_knee_rel = j4 - (KANGAROO_KNEE_TO_JOINT_4_OFFSET - knee / 2)
-# The subtracted term is the knee-dependent angular offset derived above.
-# This normalization preserves radians; it does not rescale the angle.
-#
-# Coefficients originate from the external ankle_envelope_planes.py fit
-# (ankle_envelope_planes.json, "Both-legs fit"). Bounds depend on abs(j5).
-# Parameter units: x_min and offset [rad], slope [rad/rad], z [rad/m].
-# x_min bounds joint 4 normalized to the knee (j4_knee_rel); z multiplies
-# leg_length in the crank bound.
-# Actuator offsets at j5 = 0 and joint 5 bounds are read from the MJCF ranges.
 KANGAROO_ANKLE_ENVELOPE_LIMITS = {
-  "joint_4_knee_relative": {"x_min": -0.998403},
-  "tibia_bars": {"slope": 0.729958, "offset": -1.095372},
-  "crank_collision_limits": {"slope": 0.532649, "z": 1.376978, "offset": 0.205134},
+  # Joint limit between foot and tibia. Requires change of coordinates of joint 4.
+  # Described as joint 4 limit in new coordinates and two symmetrical affine functions
+  # between joints 4 and 5.
+  "foot_tibia_collision": {
+    "j4_lim": -0.998403,
+    "slope": 0.729958,
+    "offset": -1.095372,
+  },
+  # Two joint 5-symmetrical planes in joint 4, joint 5, leg length space.
+  # They represent collision between tibia bars and cranks
+  "tibia_bars_crank_collision": {
+    "slope": 0.532649,
+    "ll": 1.376978,
+    "offset": 0.205134,
+  },
+  # Symmetrical affine functions approximating actuator limits
+  # in joint 4 - joint 5 space.
   "actuator_min": {"slope": 0.577666},
   "actuator_max": {"slope": 0.652103},
 }
 
-# Hip actuator fit from the external hip_affine_limits.py script.
-# For j2 = leg_*_2_joint and j3 = leg_*_3_joint [rad], actuator travel is:
-#   a2 = b0 + g2 * j2 + g3 * j3
-#   a3 = b0 + g2 * j2 - g3 * j3
-# b0 is the travel offset [m], g2 and g3 are gains [m/rad], and A is the
-# maximum travel magnitude [m]: both actuators must stay within [-A, A].
-_HIP_AFFINE = {
-  "b0": -0.000940062218,
-  "g2": 0.054716491464,
-  "g3": 0.033617940151,
-  "A": 0.04,
-}
-# Mirroring j3 swaps a2 and a3. Since both gains are positive, their travel
-# limits reduce to two joint-space bounds:
-#   actuator_min: j2 >= offset + slope * abs(j3)
-#   actuator_max: j2 <= offset - slope * abs(j3)
-# Here offset is in radians and slope is dimensionless.
-#
-# Joint 2 and 3 bounds come from the MJCF ranges. Joint 2 endpoints correspond
-# to actuator corners (-A, -A) and (+A, +A). The current joint 3 range uses
-# +/-0.43783 rad, the mean magnitude of fitted bounds -0.43994 and +0.43572.
+# Hip envelope is symmetrical alongside both joints 2 and 3
+# A = b0 + J @ [joint_2, joint_3]^T
 KANGAROO_HIP_ENVELOPE_LIMITS = {
-  "actuator_min": {
-    "slope": _HIP_AFFINE["g3"] / _HIP_AFFINE["g2"],
-    "offset": (-_HIP_AFFINE["A"] - _HIP_AFFINE["b0"]) / _HIP_AFFINE["g2"],
-  },
-  "actuator_max": {
-    "slope": _HIP_AFFINE["g3"] / _HIP_AFFINE["g2"],
-    "offset": (_HIP_AFFINE["A"] - _HIP_AFFINE["b0"]) / _HIP_AFFINE["g2"],
-  },
+  # Actuator offset at joint 2 = 0
+  "b0": -0.000940062218,
+  # Approximate actuator jacobian
+  "J": [
+    [0.054716491464, 0.033617940151],
+    [0.054716491464, -0.033617940151],
+  ],
+  # Actuator limit
+  "A": 0.04,
 }
 
 

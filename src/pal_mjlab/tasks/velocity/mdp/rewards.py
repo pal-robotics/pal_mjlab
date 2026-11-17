@@ -135,9 +135,8 @@ class ankle_envelope_limits:
   """
 
   _LIMIT_NAMES = (
-    "joint_4_knee_relative",
-    "tibia_bars",
-    "crank_collision_limits",
+    "foot_tibia_collision",
+    "tibia_bars_crank_collision",
     "actuator_min",
     "actuator_max",
   )
@@ -179,10 +178,9 @@ class ankle_envelope_limits:
     bounds conflict, the result is at least their positive gap.
     """
     limits = self._limits
-    j4_knee_rel_limit, tibia_bars, crank_collision = (
-      limits["joint_4_knee_relative"],
-      limits["tibia_bars"],
-      limits["crank_collision_limits"],
+    foot_tibia_collision, tibia_bars_crank_collision = (
+      limits["foot_tibia_collision"],
+      limits["tibia_bars_crank_collision"],
     )
     actuator_min, actuator_max, joint5 = (
       limits["actuator_min"],
@@ -193,22 +191,29 @@ class ankle_envelope_limits:
     abs_j5 = j5.abs()
     # Normalize joint 4 to the knee using the model's angular offset.
     j4_knee_rel = j4 - (KANGAROO_KNEE_TO_JOINT_4_OFFSET - 0.5 * knee)
-    crank_j4_max = crank_collision["offset"] + crank_collision["z"] * leg_length
+    crank_j4_max = (
+      tibia_bars_crank_collision["offset"]
+      + tibia_bars_crank_collision["ll"] * leg_length
+    )
 
     # Each residual is <= 0 inside; scale sloped residuals to boundary distances [rad].
     distances = torch.stack(
       [
         # Lower bound on joint 4 normalized to the knee.
-        j4_knee_rel_limit["x_min"] - j4_knee_rel,
+        foot_tibia_collision["j4_lim"] - j4_knee_rel,
         # Tibia bar clearance: lower bound on joint 4 normalized to the knee.
         (
-          (tibia_bars["offset"] + tibia_bars["slope"] * abs_j5 - j4_knee_rel)
-          * tibia_bars["distance_scale"]
+          (
+            foot_tibia_collision["offset"]
+            + foot_tibia_collision["slope"] * abs_j5
+            - j4_knee_rel
+          )
+          * foot_tibia_collision["distance_scale"]
         ),
         # Crank collision clearance: upper bound on joint 4 at this leg length.
         (
-          (j4 - crank_j4_max + crank_collision["slope"] * abs_j5)
-          * crank_collision["distance_scale"]
+          (j4 - crank_j4_max + tibia_bars_crank_collision["slope"] * abs_j5)
+          * tibia_bars_crank_collision["distance_scale"]
         ),
         # Minimum actuator travel: upper bound on joint 4.
         (
@@ -231,7 +236,8 @@ class ankle_envelope_limits:
     # At this knee angle and leg length, center the feasible j4 interval at j5 = 0.
     # Add back the knee-dependent offset to express normalized bounds in j4.
     low = torch.clamp(
-      max(j4_knee_rel_limit["x_min"], tibia_bars["offset"]) + (j4 - j4_knee_rel),
+      max(foot_tibia_collision["j4_lim"], foot_tibia_collision["offset"])
+      + (j4 - j4_knee_rel),
       min=actuator_max["offset"],
     )
     high = torch.clamp(crank_j4_max, max=actuator_min["offset"])
@@ -240,11 +246,12 @@ class ankle_envelope_limits:
     center_distances = torch.stack(
       [
         # Lower bound on joint 4 normalized to the knee, at the center.
-        j4_knee_rel_limit["x_min"] - j4_knee_rel_center,
+        foot_tibia_collision["j4_lim"] - j4_knee_rel_center,
         # Tibia bar clearance at joint 5 = 0.
-        (tibia_bars["offset"] - j4_knee_rel_center) * tibia_bars["distance_scale"],
+        (foot_tibia_collision["offset"] - j4_knee_rel_center)
+        * foot_tibia_collision["distance_scale"],
         # Crank collision clearance at joint 5 = 0.
-        (j4_center - crank_j4_max) * crank_collision["distance_scale"],
+        (j4_center - crank_j4_max) * tibia_bars_crank_collision["distance_scale"],
         # Minimum actuator travel at joint 5 = 0.
         (j4_center - actuator_min["offset"]) * actuator_min["distance_scale"],
         # Maximum actuator travel at joint 5 = 0.
@@ -284,128 +291,63 @@ class ankle_envelope_limits:
 
 
 class hip_envelope_limits:
-  r"""Penalize hip configurations outside the fitted envelope.
-
-  ``joint_names_group`` contains [joint 2, joint 3] per leg, both in radians.
-  Joint ranges come from the model, and actuator coefficients from ``limits``.
-  See ``KANGAROO_HIP_ENVELOPE_LIMITS`` for the actuator fit and its assumptions.
-
-  Feasible space with symmetric joint 3 bounds (schematic, not to scale)::
-
-                          j2 [rad]
-                             ^
-                     +-------+-------+  j2_max
-                    /                 \
-       actuator_max/                   \ actuator_max
-                  +                     +
-           j3_min |      feasible       | j3_max
-                  |          o center   |
-                  +                     +
-       actuator_min\                   / actuator_min
-                    \                 /
-                     +---------------+  j2_min
-                             0                  -> j3 [rad]
-
-  ``shrink`` is a fraction in [0, 1]: 0.02 retains 98% of the linear extent
-  about the fixed center at joint 3 = 0 and the midpoint of the feasible joint 2
-  interval. The joint 3 range must contain zero; its bounds may be asymmetric.
-
-  For each leg, square the largest positive constraint violation (zero inside).
-  Return the sum across legs [rad^2], with shape (num_envs,). The metric
-  ``Metrics/joint_envelope_hip`` averages the sum of unsquared violations across
-  environments [rad]. These violations are boundary distances, not the Euclidean
-  distance to the feasible region. Conflicting joint 2 bounds impose a minimum
-  violation equal to their positive gap.
-  """
-
-  _LIMIT_NAMES = ("actuator_min", "actuator_max")
-
   def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
     params = cfg.params
     asset: Entity = env.scene[params["asset_cfg"].name]
-    self._j2_ids, self._j3_ids = _split_joint_groups(
+    j2_ids, j3_ids = _split_joint_groups(
       asset, params["joint_names_group"], ("joint 2", "joint 3")
     )
-    self._limits = limits = _resolve_envelope_limits(
-      params["limits"], self._LIMIT_NAMES
+    self._joint_ids = torch.tensor(
+      list(zip(j2_ids, j3_ids, strict=True)),
+      dtype=torch.long,
+      device=asset.data.joint_pos.device,
     )
-    # Per-leg tensors from the model's joint ranges (MJCF `range`).
-    joint_limits = asset.data.default_joint_pos_limits[0]
-    self._j2_min, self._j2_max = joint_limits[self._j2_ids].unbind(-1)
-    self._j3_min, self._j3_max = joint_limits[self._j3_ids].unbind(-1)
+    affine = params["limits"]
+    self._jacobian = asset.data.joint_pos.new_tensor(affine["J"])
+    self._actuator_offset = self._jacobian.new_tensor(affine["b0"])
+    self._row_norms = torch.linalg.vector_norm(self._jacobian, dim=-1)
 
-    # The center is fixed: j3 = 0, j2 at the midpoint of its feasible interval.
-    actuator_min, actuator_max = limits["actuator_min"], limits["actuator_max"]
-    low = torch.clamp(self._j2_min, min=actuator_min["offset"])
-    high = torch.clamp(self._j2_max, max=actuator_max["offset"])
-    self._bound_gap = low - high  # > 0: the envelope is empty.
-    j2_center = 0.5 * (low + high)
-    self._center_distances = torch.stack(
-      [
-        # Joint 2 lower bound, evaluated at the center.
-        self._j2_min - j2_center,
-        # Joint 2 upper bound, evaluated at the center.
-        j2_center - self._j2_max,
-        # Minimum actuator travel at joint 3 = 0.
-        (actuator_min["offset"] - j2_center) * actuator_min["distance_scale"],
-        # Maximum actuator travel at joint 3 = 0.
-        (j2_center - actuator_max["offset"]) * actuator_max["distance_scale"],
-        # Joint 3 upper bound, evaluated at zero.
-        -self._j3_max,
-        # Joint 3 lower bound, evaluated at zero.
-        self._j3_min,
-      ],
-      dim=-1,
-    )  # (n_legs, 6)
+    if not torch.all(torch.isfinite(self._row_norms) & (self._row_norms > 0)):
+      raise ValueError("hip actuator Jacobian rows must be finite and nonzero")
+
+    shrink_vector = self._jacobian.new_tensor(params.get("shrink", 0.0)).expand(2)
+    if not torch.all(torch.isfinite(shrink_vector) & (shrink_vector >= 0)):
+      raise ValueError("hip shrink must be finite and nonnegative")
+
+    joint_limits = asset.data.default_joint_pos_limits[:, self._joint_ids]
+    self._joint_min = joint_limits[..., 0] + shrink_vector
+    self._joint_max = joint_limits[..., 1] - shrink_vector
+    self._actuator_max = affine["A"] - torch.linalg.vector_norm(
+      self._jacobian * shrink_vector, dim=-1
+    )
 
   def __call__(
     self,
     env: ManagerBasedRlEnv,
     asset_cfg: SceneEntityCfg,
     joint_names_group: list[list[str]],
-    limits: dict[str, dict[str, float]],
-    shrink: float = 0.0,
+    limits: dict[str, float | list[list[float]]],
+    shrink: float | tuple[float, float] = 0.0,
   ) -> torch.Tensor:
-    del joint_names_group, limits  # Resolved in __init__.
-    joint_pos = env.scene[asset_cfg.name].data.joint_pos
-    j2 = joint_pos[:, self._j2_ids]  # (num_envs, n_legs)
-    j3 = joint_pos[:, self._j3_ids]
-    abs_j3 = j3.abs()
-    actuator_min, actuator_max = (
-      self._limits["actuator_min"],
-      self._limits["actuator_max"],
+    del joint_names_group, limits, shrink  # Resolved in __init__.
+    asset: Entity = env.scene[asset_cfg.name]
+    joint_pos = asset.data.joint_pos[:, self._joint_ids]  # (num_envs, n_legs, 2)
+
+    # Stage one: clipped excess below/above the precomputed joint limits.
+    out_of_limits = -(joint_pos - self._joint_min).clip(max=0.0)
+    out_of_limits += (joint_pos - self._joint_max).clip(min=0.0)
+
+    # Check shrunken actuator limits in meters, then normalize to radians.
+    actuator_pos = joint_pos @ self._jacobian.T + self._actuator_offset
+    actuator_error = (actuator_pos.abs() - self._actuator_max).clip(min=0.0)
+    # Keep constraint magnitudes separate so violations cannot cancel.
+    out_of_limits = torch.cat((out_of_limits, actuator_error / self._row_norms), dim=-1)
+
+    out_of_limits = torch.linalg.vector_norm(out_of_limits, dim=-1)
+    env.extras["log"]["Metrics/joint_envelope_hip"] = torch.mean(
+      out_of_limits.sum(dim=1)
     )
-    # Mirroring j3 swaps the two actuators, so their bounds depend on abs(j3).
-    # Each residual is <= 0 inside; scale sloped residuals to boundary distances [rad].
-    distances = torch.stack(
-      [
-        # Joint 2 lower bound.
-        self._j2_min - j2,
-        # Joint 2 upper bound.
-        j2 - self._j2_max,
-        # Minimum actuator travel: lower bound on joint 2.
-        (
-          (actuator_min["offset"] + actuator_min["slope"] * abs_j3 - j2)
-          * actuator_min["distance_scale"]
-        ),
-        # Maximum actuator travel: upper bound on joint 2.
-        (
-          (j2 - actuator_max["offset"] + actuator_max["slope"] * abs_j3)
-          * actuator_max["distance_scale"]
-        ),
-        # Joint 3 upper bound.
-        j3 - self._j3_max,
-        # Joint 3 lower bound.
-        self._j3_min - j3,
-      ],
-      dim=-1,
-    )
-    # Move each boundary toward the center by shrink times its distance from it.
-    max_violation = (distances - shrink * self._center_distances.to(distances)).amax(-1)
-    max_violation = torch.maximum(max_violation, self._bound_gap.to(max_violation))
-    violation = torch.clamp(max_violation, min=0.0)
-    env.extras["log"]["Metrics/joint_envelope_hip"] = torch.mean(violation.sum(dim=1))
-    return torch.sum(torch.square(violation), dim=1)
+    return torch.sum(out_of_limits, dim=1)
 
 
 class joint_vel_limits:

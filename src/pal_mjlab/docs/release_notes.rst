@@ -25,10 +25,24 @@ New Features & Tasks
   Velocity and motion-tracking tasks now use ``joint_envelope_hip`` and
   ``joint_envelope_ankle`` instead of the convex-hull rewards. The ankle
   envelope accounts for leg length and joint 4 normalized to the knee;
-  the hip envelope uses fitted actuator-travel constraints. Each reward
-  sums the squared largest positive constraint violation per leg.
-  The default ``shrink=0.02`` contracts the feasible region by 2% toward
-  its center. Hip joints 2 and 3 and ankle joints 4 and 5 are excluded
+  the hip envelope uses fitted actuator-travel constraints. The ankle reward
+  sums the squared largest positive constraint violation per leg. The hip
+  reward sums per-leg L2 norms of joint-limit excess and normalized actuator
+  excess, keeping the contributions separate so violations cannot cancel.
+  The ankle's default ``shrink=0.02`` contracts its feasible region by 2%
+  toward its center. The hip's scalar ``shrink`` is instead a constant
+  perpendicular clearance in joint-space radians from every affine boundary.
+  Its cached joint bounds are ``lower + shrink`` and ``upper - shrink``;
+  actuator bounds are ``A - shrink * norm(J_i)`` for each actuator row.
+  Actuator excess is checked in meters and divided by ``norm(J_i)`` to obtain
+  joint-space boundary excess in radians; no inverse Jacobian is used.
+  A margin pair specifies elliptical clearance semiaxes in joint space,
+  giving actuator margins ``norm(J_i * [s2, s3])``. Equal semiaxes reproduce
+  the scalar margin. Margins must be finite and nonnegative.
+  Bounds are cached during initialization; the reward does not read soft joint
+  limits or recompute bounds at each call. The returned sum of norms is not
+  squared and is not generally the shortest distance to the feasible polygon.
+  Hip joints 2 and 3 and ankle joints 4 and 5 are excluded
   from the independent joint-limit penalty to avoid penalizing them twice.
 
 - **New stairs velocity task for the Kangaroo.** Adds
@@ -236,8 +250,9 @@ Breaking Changes
   ``ANKLE_XY_CONVEX_HULL_POINTS`` constants have been removed.
   Hip joint groups remain ``[joint 2, joint 3]``; ankle groups must now
   contain ``[joint 4, joint 5, leg length, knee]`` for each leg.
-  Replace the absolute ``margin`` with a fractional ``shrink``; the two
-  parameters are not numerically equivalent. Remove ``metrics_suffix``:
+  Replace ``margin`` with ``shrink``: the ankle uses a fractional contraction,
+  while the hip uses an angular margin in radians transformed by its Jacobian.
+  These parameters are not numerically equivalent. Remove ``metrics_suffix``:
   metrics are now logged as ``Metrics/joint_envelope_hip`` and
   ``Metrics/joint_envelope_ankle``.
 
