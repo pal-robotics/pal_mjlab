@@ -175,6 +175,10 @@ def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
 ##
 
 # Legs
+REGEX_HIP_ROLL_JOINTS = "leg_.*_3_joint"
+# Exposed so tasks can swap the hip roll actuator (e.g. for a backlash model).
+KANGAROO_HIP_ROLL_PARAMS = _calc_leg_params(139.0, 0.2, 2.34, 2.705)
+
 KANGAROO_LEG_ACTUATORS = (
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_1_joint",),
@@ -185,8 +189,8 @@ KANGAROO_LEG_ACTUATORS = (
     **_calc_leg_params(230.0, 0.5, 4.0, 6.49),
   ),
   BuiltinPositionActuatorCfg(
-    target_names_expr=("leg_.*_3_joint",),
-    **_calc_leg_params(139.0, 0.2, 2.34, 2.705),
+    target_names_expr=(REGEX_HIP_ROLL_JOINTS,),
+    **KANGAROO_HIP_ROLL_PARAMS,
   ),
   BuiltinPositionActuatorCfg(
     target_names_expr=("leg_.*_4_joint",),

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 # from mjlab.tests.test_runner import env
+import mujoco
 import torch
 from mjlab.entity import Entity
 from mjlab.managers.reward_manager import RewardTermCfg
@@ -520,3 +521,100 @@ def body_ang_vel_xy_l2_penalty(
   asset: Entity = env.scene[asset_cfg.name]
   ang_vel_b = asset.data.root_link_ang_vel_b  # body frame for consistency
   return torch.sum(torch.square(ang_vel_b[:, :2]), dim=1)
+
+
+def _segment_segment_distance(
+  p1: torch.Tensor, q1: torch.Tensor, p2: torch.Tensor, q2: torch.Tensor
+) -> torch.Tensor:
+  """Minimum distance between segments [p1, q1] and [p2, q2] (broadcast over leading dims).
+
+  Clamped closest-point computation (Ericson, Real-Time Collision Detection 5.1.9).
+  """
+  eps = 1e-9
+  d1 = q1 - p1
+  d2 = q2 - p2
+  r = p1 - p2
+  a = (d1 * d1).sum(-1)
+  e = (d2 * d2).sum(-1)
+  f = (d2 * r).sum(-1)
+  c = (d1 * r).sum(-1)
+  b = (d1 * d2).sum(-1)
+  denom = a * e - b * b
+  # Closest point on infinite line 1 to line 2 (0 if parallel), clamped to segment 1.
+  s = torch.where(
+    denom > eps, ((b * f - c * e) / denom.clamp(min=eps)).clamp(0.0, 1.0), 0.0
+  )
+  t = (b * s + f) / e.clamp(min=eps)
+  # If t falls outside [0, 1], clamp it and recompute s for that endpoint.
+  t_clamped = t.clamp(0.0, 1.0)
+  s = torch.where(
+    t != t_clamped, ((b * t_clamped - c) / a.clamp(min=eps)).clamp(0.0, 1.0), s
+  )
+  closest1 = p1 + d1 * s.unsqueeze(-1)
+  closest2 = p2 + d2 * t_clamped.unsqueeze(-1)
+  return torch.linalg.norm(closest1 - closest2, dim=-1)
+
+
+class feet_proximity:
+  """Penalize the two feet coming closer than a safety margin.
+
+  Computes the exact minimum surface distance between the capsule geoms of the
+  left and the right foot. The cost is ``relu(margin - clearance) / margin``:
+  0 while the feet are at least ``margin`` apart, 1 at contact, >1 when
+  penetrating. Unlike a contact count it is graded, so the policy gets a signal
+  before the feet touch and learns to keep a safety gap (e.g. to absorb hip-roll
+  backlash on the real robot).
+  """
+
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+    asset: Entity = env.scene[cfg.params.get("asset_cfg", _DEFAULT_ASSET_CFG).name]
+    mj_model = env.sim.mj_model
+
+    def _resolve(names) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+      local_ids, resolved = asset.find_geoms(names)
+      assert local_ids, f"feet_proximity: no geoms match {names}"
+      global_ids = asset.indexing.geom_ids[local_ids].cpu().numpy()
+      for gid, name in zip(global_ids, resolved, strict=True):
+        assert mj_model.geom_type[gid] == mujoco.mjtGeom.mjGEOM_CAPSULE, (
+          f"feet_proximity only supports capsules, '{name}' is not one."
+        )
+      size = torch.tensor(mj_model.geom_size[global_ids], device=env.device)
+      ids = torch.tensor(global_ids, device=env.device, dtype=torch.long)
+      return ids, size[:, 0].float(), size[:, 1].float()
+
+    self._left_ids, self._left_radius, self._left_half = _resolve(
+      cfg.params["left_geom_names"]
+    )
+    self._right_ids, self._right_radius, self._right_half = _resolve(
+      cfg.params["right_geom_names"]
+    )
+
+  def _segments(self, env: ManagerBasedRlEnv, ids: torch.Tensor, half: torch.Tensor):
+    pos = env.sim.data.geom_xpos[:, ids]  # [B, G, 3]
+    xmat = env.sim.data.geom_xmat[:, ids].reshape(pos.shape[0], -1, 3, 3)
+    axis = xmat[..., :, 2] * half.unsqueeze(-1)  # Capsule axis is the local z.
+    return pos - axis, pos + axis
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    left_geom_names,
+    right_geom_names,
+    margin: float,
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+  ) -> torch.Tensor:
+    del left_geom_names, right_geom_names, asset_cfg  # Resolved in __init__.
+    lp, lq = self._segments(env, self._left_ids, self._left_half)
+    rp, rq = self._segments(env, self._right_ids, self._right_half)
+    # All left/right pairs: [B, L, R].
+    dist = _segment_segment_distance(
+      lp.unsqueeze(2), lq.unsqueeze(2), rp.unsqueeze(1), rq.unsqueeze(1)
+    )
+    clearance = dist - self._left_radius[:, None] - self._right_radius[None, :]
+    min_clearance = clearance.flatten(1).min(dim=1).values  # [B]
+
+    log = env.extras.setdefault("log", {})
+    log["Metrics/feet_min_clearance_mean"] = min_clearance.mean().item()
+    log["Metrics/feet_min_clearance_min"] = min_clearance.min().item()
+
+    return torch.clamp(margin - min_clearance, min=0.0) / margin

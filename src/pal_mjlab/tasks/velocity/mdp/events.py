@@ -5,6 +5,8 @@ from mjlab.envs.manager_based_rl_env import ManagerBasedRlEnv
 from mjlab.envs.mdp.events import reset_root_state_uniform, resolve_env_ids
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 
+from pal_mjlab.actuators import BacklashPdActuator
+
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
 
@@ -58,3 +60,22 @@ def reset_root_state_terrain_yaw(
         "yaw": (yaw + yaw_offset_range[0], yaw + yaw_offset_range[1]),
       }
       reset_root_state_uniform(env, sub_ids, sub_pose_range, velocity_range, asset_cfg)
+
+
+def randomize_backlash(
+  env: ManagerBasedRlEnv,
+  env_ids: torch.Tensor | None,
+  backlash_range: tuple[float, float],
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> None:
+  """Sample a per-env, per-joint total backlash (rad) for every BacklashPdActuator."""
+  env_ids = resolve_env_ids(env, env_ids)
+  asset = env.scene[asset_cfg.name]
+  actuators = [a for a in asset.actuators if isinstance(a, BacklashPdActuator)]
+  assert actuators, "randomize_backlash: the asset has no BacklashPdActuator."
+  for act in actuators:
+    num_targets = act.target_ids.numel()
+    samples = torch.empty((len(env_ids), num_targets), device=env.device).uniform_(
+      *backlash_range
+    )
+    act.set_backlash(env_ids, samples)

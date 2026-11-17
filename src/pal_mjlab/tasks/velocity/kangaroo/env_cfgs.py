@@ -26,7 +26,9 @@ from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 from mjlab.terrains.terrain_generator import TerrainGeneratorCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
+from mjlab.utils.spec_config import CollisionCfg
 
+from pal_mjlab.actuators import BacklashPdActuatorCfg
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
   HIP_XY_CONVEX_HULL_POINTS,
@@ -36,10 +38,12 @@ from pal_mjlab.robots import (
   KANGAROO_GRIPPERS_ACTUATOR_NAMES,
   KANGAROO_HANDS_ACTION_SCALE,
   KANGAROO_HANDS_ACTUATOR_NAMES,
+  KANGAROO_HIP_ROLL_PARAMS,
   KANGAROO_LOWER_BODY_ACTION_SCALE,
   KANGAROO_LOWER_BODY_ACTUATOR_NAMES,
   REGEX_ALL_ACTUATED_JOINTS,
   REGEX_FEMUR_AND_KNEE_LINKS,
+  REGEX_HIP_ROLL_JOINTS,
   REGEX_LEG_LENGTH_JOINTS_ONLY,
   get_kangaroo_grippers_robot_cfg,
   get_kangaroo_hands_robot_cfg,
@@ -48,6 +52,93 @@ from pal_mjlab.robots import (
 )
 from pal_mjlab.tasks.velocity import mdp
 from pal_mjlab.terrains import BoxStraightStairsTerrainCfg
+
+# Hip roll backlash measured on the real robot: ~2 cm of free lateral foot motion
+# with the leg in the air in position control. With the ~0.74-0.80 m hip-roll-to-sole
+# lever arm that is ~0.025-0.027 rad of total play; the range goes up to ~3 cm at the
+# foot for robustness (and down to 0 so a tighter joint is also covered).
+HIP_ROLL_BACKLASH_RANGE = (0.0, 0.04)
+# Minimum surface distance (m) the policy is asked to keep between both feet.
+FEET_SAFETY_MARGIN = 0.04
+
+
+def _add_hip_roll_backlash(
+  cfg: ManagerBasedRlEnvCfg,
+  backlash_range: tuple[float, float] = HIP_ROLL_BACKLASH_RANGE,
+) -> None:
+  """Replace the hip roll actuators by an explicit PD with backlash (dead zone).
+
+  Must be called after the robot entity is set, since it edits its articulation.
+  """
+  robot_cfg = cfg.scene.entities["robot"]
+  assert robot_cfg.articulation is not None
+  actuators = []
+  replaced = 0
+  for act in robot_cfg.articulation.actuators:
+    if act.target_names_expr == (REGEX_HIP_ROLL_JOINTS,):
+      act = BacklashPdActuatorCfg(
+        target_names_expr=act.target_names_expr,
+        backlash=backlash_range[1],
+        **KANGAROO_HIP_ROLL_PARAMS,
+      )
+      replaced += 1
+    actuators.append(act)
+  assert replaced == 1, "Expected exactly one hip roll actuator config."
+  # Copy, the articulation config is shared between robot variants.
+  robot_cfg.articulation = replace(robot_cfg.articulation, actuators=tuple(actuators))
+
+  # Resampled every episode, independently per leg.
+  cfg.events["hip_roll_backlash"] = EventTermCfg(
+    mode="reset",
+    func=mdp.randomize_backlash,
+    params={
+      "asset_cfg": SceneEntityCfg("robot"),
+      "backlash_range": backlash_range,
+    },
+  )
+
+
+def _add_feet_safety_margin(
+  cfg: ManagerBasedRlEnvCfg, margin: float = FEET_SAFETY_MARGIN
+) -> None:
+  """Ask the policy to keep a safety gap between the real foot geometries.
+
+  The oversized foot "avoidance" capsules used to collide physically, acting as
+  bumpers that push the feet apart in sim but do not exist on the real robot. They
+  are made non-colliding and replaced by a graded distance penalty on the real
+  sole + ankle capsules. Real foot contacts are still penalized by
+  "self_collisions".
+
+  Must be called after the robot entity is set, since it edits its collisions.
+  """
+  robot_cfg = cfg.scene.entities["robot"]
+  robot_cfg.collisions = tuple(robot_cfg.collisions) + (
+    CollisionCfg(
+      geom_names_expr=(r".*_foot_avoidance_collision_\d+$",),
+      contype=0,
+      conaffinity=0,
+      condim=1,
+      priority=0,
+      disable_other_geoms=False,
+    ),
+  )
+
+  cfg.rewards["feet_proximity"] = RewardTermCfg(
+    func=mdp.feet_proximity,
+    weight=-2.0,
+    params={
+      "asset_cfg": SceneEntityCfg("robot"),
+      "left_geom_names": (
+        r"^left_foot\d+_collision$",
+        r"^leg_left_ankle_(bar_)?collision$",
+      ),
+      "right_geom_names": (
+        r"^right_foot\d+_collision$",
+        r"^leg_right_ankle_(bar_)?collision$",
+      ),
+      "margin": margin,
+    },
+  )
 
 
 def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -448,7 +539,12 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   command_vel_curriculum = cfg.curriculum["command_vel"]
   assert isinstance(command_vel_curriculum, CurriculumTermCfg)
   command_vel_curriculum.params["velocity_stages"] = [
-    {"step": 0, "lin_vel_x": (-0.5, 0.5), "lin_vel_y": (-0.5, 0.5), "ang_vel_z": (-1.0, 1.0)},
+    {
+      "step": 0,
+      "lin_vel_x": (-0.5, 0.5),
+      "lin_vel_y": (-0.5, 0.5),
+      "ang_vel_z": (-1.0, 1.0),
+    },
     {"step": 5000 * 24, "lin_vel_x": (-1.0, 1.0), "lin_vel_y": (-1.0, 1.0)},
     {"step": 10000 * 24, "lin_vel_x": (-2.0, 2.0)},
     {"step": 15000 * 24, "lin_vel_x": (-2.0, 3.0)},
@@ -470,6 +566,11 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # Tightened from default so the reward stays discriminative at low command speeds
   # instead of flattening into a dead-zone.
   cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(0.1)
+
+  # Sim2real: hip roll backlash + safety gap between the feet (feet collided on
+  # the real robot at ~3.5 m/s).
+  _add_hip_roll_backlash(cfg)
+  _add_feet_safety_margin(cfg)
 
   ### EVENTS
 
@@ -601,6 +702,9 @@ def pal_kangaroo_lower_body_rough_env_cfg(play: bool = False) -> ManagerBasedRlE
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_(?![14]_joint)\d+_joint"]
 
   cfg.scene.entities = {"robot": get_kangaroo_lower_body_robot_cfg()}
+  # The robot entity was replaced: re-apply the robot-level sim2real edits.
+  _add_hip_roll_backlash(cfg)
+  _add_feet_safety_margin(cfg)
 
   # Maintain base linear acceleration for the kangaroo lower body policies
   # TODO: Train and test a policy without the base linear acceleration term
