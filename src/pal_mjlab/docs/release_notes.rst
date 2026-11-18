@@ -20,10 +20,11 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
-- **Added new collisions meshes in kangaroo grippers.** ``kangaroo_grippers.xml``
+- **Reworked collisions meshes in kangaroo grippers.** ``kangaroo_grippers.xml``
   now has collisions meshes in the grippers and the wrist. This allows
   to manage this collisions in tasks using this robot. Collisions between
-  consecutive bodies are properly excluded.
+  consecutive bodies are properly excluded. Additionally, the forearm collisions
+  were slightly modified to match better the arm's shape.
   (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
 
 - **Added arm tip links in kangaroo grippers.** In ``kangaroo_grippers.xml``,

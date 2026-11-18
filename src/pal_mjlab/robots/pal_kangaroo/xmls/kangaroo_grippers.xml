@@ -87,7 +87,7 @@
                   <inertial pos="-0.0666639 0.0102985 -0.0351108" quat="0.0552758 0.727273 -0.0700841 0.68052" mass="1.80676" diaginertia="0.00263554 0.00245424 0.00145523" />
                   <joint name="arm_left_4_joint" range="-1.13446 2.44346"/>
                   <geom class="visual" mesh="arm4_link" />
-                  <geom name="arm_left_4_collision" size="0.07" fromto="-0.3 0 -0.05  0 0 -0.05" class="collision"/>
+                  <geom name="arm_left_4_collision" size="0.07" fromto="-0.325 0 -0.025  0 0 -0.05" class="collision"/>
                   <body name="arm_left_5_link" pos="-0.17011 0.02 -0.03711" quat="0.707105 0 -0.707108 0">
                     <inertial pos="0.0266059 -9.73534e-06 0.0673257" quat="0.989898 -7.96043e-05 0.141782 -0.000384017" mass="0.348015" diaginertia="0.0015535 0.0014601 0.000311872" />
                     <joint name="arm_left_5_joint" pos="0 0 0" axis="0 0 1" range="-3.66519 1.5708" />
@@ -100,7 +100,7 @@
                         <inertial pos="0.000145329 0.000246068 0.0490178" quat="0.99991 0.00738555 -0.00687251 0.00884821" mass="0.762485" diaginertia="0.00104577 0.00101366 0.000480656" />
                         <joint name="arm_left_7_joint" pos="0 0 0" axis="0 0 1" range="-2.61799 2.61799" />
                         <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.298039 0.298039 0.298039 1" mesh="arm7_link" />
-                        <geom name="arm_left_wrist_collision" size="0.035" fromto="0 0 0.02  0 0 0.06" class="collision"/>
+                        <geom name="arm_left_7_capsule" size="0.05" fromto="0 0 0  0 0 0.05" class="collision"/>
                         <geom pos="0 0 0.017" quat="0.707388 0 0 -0.706825" type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.298039 0.298039 0.298039 1" mesh="base_link_tc" />
                         <site name="ee_left" pos="0.0 0.0 0.0"/>
                         <body name="arm_left_tip_link"/>
@@ -161,7 +161,7 @@
                   <inertial pos="-0.0666639 0.0102985 -0.0351108" quat="0.0552758 0.727273 -0.0700841 0.68052" mass="1.80676" diaginertia="0.00263554 0.00245424 0.00145523" />
                   <joint name="arm_right_4_joint" range="-1.13446 2.44346"/>
                   <geom class="visual" mesh="arm4_link" />
-                  <geom name="arm_right_4_collision" size="0.07" fromto="-0.3 0 -0.05  0 0 -0.05" class="collision"/>
+                  <geom name="arm_right_4_collision" size="0.07" fromto="-0.325 0 -0.025  0 0 -0.05" class="collision"/>
                   <body name="arm_right_5_link" pos="-0.17011 0.02 -0.03711" quat="0.707105 0 -0.707108 0">
                     <inertial pos="0.0266059 -9.73534e-06 0.0673257" quat="0.989898 -7.96043e-05 0.141782 -0.000384017" mass="0.348015" diaginertia="0.0015535 0.0014601 0.000311872" />
                     <joint name="arm_right_5_joint" pos="0 0 0" axis="0 0 1" range="-1.5708 3.66519" />
@@ -174,7 +174,7 @@
                         <inertial pos="0.000145329 0.000246068 0.0490178" quat="0.99991 0.00738555 -0.00687251 0.00884821" mass="0.762485" diaginertia="0.00104577 0.00101366 0.000480656" />
                         <joint name="arm_right_7_joint" pos="0 0 0" axis="0 0 1" range="-2.61799 2.61799" />
                         <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.298039 0.298039 0.298039 1" mesh="arm7_link" />
-                        <geom name="arm_right_wrist_collision" size="0.035" fromto="0 0 0.02  0 0 0.06" class="collision"/>
+                        <geom name="arm_right_7_capsule" size="0.05" fromto="0 0 0  0 0 0.05" class="collision"/>
                         <geom pos="0 0 0.017" quat="0.707388 0 0 -0.706825" type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.298039 0.298039 0.298039 1" mesh="base_link_tc" />
                         <site name="ee_right" pos="0.0 0.0 0.0"/>
                         <body name="arm_right_tip_link"/>
