@@ -20,15 +20,15 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
-- **Added new collisions meshes in kangaroo grippers.** ``kangaroo_grippers.xml`` 
+- **Added new collisions meshes in kangaroo grippers.** ``kangaroo_grippers.xml``
   now has collisions meshes in the grippers and the wrist. This allows
   to manage this collisions in tasks using this robot. Collisions between
   consecutive bodies are properly excluded.
   (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
 
-- **Added arm tip links in kangaroo grippers.** In ``kangaroo_grippers.xml``, 
-  new body sitting at the end effector's position to ease body tracking in 
-  relevant tasks, like tracking or WBC. Names of the body match exactly their 
+- **Added arm tip links in kangaroo grippers.** In ``kangaroo_grippers.xml``,
+  new body sitting at the end effector's position to ease body tracking in
+  relevant tasks, like tracking or WBC. Names of the body match exactly their
   equivalent in ``kangaroo.xml``.
   (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
 
