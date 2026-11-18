@@ -584,15 +584,11 @@ class OnlineCsvToNpz:
 
     with wp.ScopedDevice(device):
       self.m = mjw.put_model(self.mjm)
-      self.d = mjw.put_data(self.mjm, self.mjd, nworld=batch_size)
-
-    # Zero-copy torch views of the warp buffers (shape: (B, ...)).
-    self._qpos = wp.to_torch(self.d.qpos)
-    self._qvel = wp.to_torch(self.d.qvel)
-    self._xpos = wp.to_torch(self.d.xpos)
-    self._xquat = wp.to_torch(self.d.xquat)
-    self._cvel = wp.to_torch(self.d.cvel)                 # (B, nbody, 6) [ang, lin]
-    self._subtree_com = wp.to_torch(self.d.subtree_com)
+    # One MJWarp data per batch size: `batch_size` for per-step queries, plus a
+    # larger one (created lazily) for one-time sweeps over the whole library, so
+    # startup does not scale with 1 / num_envs.
+    self._buffers: dict[int, dict] = {}
+    self._get_buffers(batch_size)
 
     # Resolve requested bodies to MuJoCo body ids.
     ids = []
@@ -641,8 +637,42 @@ class OnlineCsvToNpz:
 
     return {key: torch.cat([c[key] for c in chunks], dim=0) for key in chunks[0]}
 
+  SWEEP_BATCH_SIZE = 1024
+
+  def _get_buffers(self, n: int) -> dict:
+    """MJWarp data with `n` worlds and zero-copy torch views of its buffers."""
+    if n not in self._buffers:
+      with wp.ScopedDevice(self.device):
+        d = mjw.put_data(self.mjm, self.mjd, nworld=n)
+      self._buffers[n] = {
+        "d": d,
+        "qpos": wp.to_torch(d.qpos),
+        "qvel": wp.to_torch(d.qvel),
+        "xpos": wp.to_torch(d.xpos),
+        "xquat": wp.to_torch(d.xquat),
+        "cvel": wp.to_torch(d.cvel),                  # (B, nbody, 6) [ang, lin]
+        "subtree_com": wp.to_torch(d.subtree_com),
+      }
+    return self._buffers[n]
+
+  @torch.no_grad()
+  def sweep(self, total: int):
+    """Retarget global frames [0, total) in large batches (one-time library passes).
+
+    Yields (start, count, out) with `out` holding `count` valid rows.
+    """
+    B = max(self.batch_size, self.SWEEP_BATCH_SIZE)
+    for s in range(0, total, B):
+      idx = torch.arange(s, min(s + B, total), device=self.device)
+      k = idx.numel()
+      if k < B:  # keep the world count fixed
+        idx = torch.cat([idx, idx[-1:].expand(B - k)])
+      out = self._retarget_batch(idx)
+      yield s, k, {key: v[:k] for key, v in out.items()}
+
   def _retarget_batch(self, idx: torch.Tensor) -> dict[str, torch.Tensor]:
     mo = self.motion_csv
+    buf = self._get_buffers(idx.numel())
 
     root_pos = mo.root_pos[idx].float()                             # (B, 3)
     root_quat = mo.root_quat[idx].float()
@@ -656,22 +686,23 @@ class OnlineCsvToNpz:
     # MuJoCo free joint: linear vel in world frame, angular vel in body frame.
     root_ang_vel_b = quat_apply_inverse(root_quat, root_ang_vel_w)
 
-    self._qpos[:, 0:3] = root_pos
-    self._qpos[:, 3:7] = root_quat
-    self._qpos[:, 7:] = joint_pos
-    self._qvel[:, 0:3] = root_lin_vel
-    self._qvel[:, 3:6] = root_ang_vel_b
-    self._qvel[:, 6:] = joint_vel
+    qpos, qvel, d = buf["qpos"], buf["qvel"], buf["d"]
+    qpos[:, 0:3] = root_pos
+    qpos[:, 3:7] = root_quat
+    qpos[:, 7:] = joint_pos
+    qvel[:, 0:3] = root_lin_vel
+    qvel[:, 3:6] = root_ang_vel_b
+    qvel[:, 6:] = joint_vel
 
-    mjw.kinematics(self.m, self.d)
-    mjw.com_pos(self.m, self.d)
-    mjw.com_vel(self.m, self.d)
+    mjw.kinematics(self.m, d)
+    mjw.com_pos(self.m, d)
+    mjw.com_vel(self.m, d)
 
     ids = self.body_ids
-    body_pos = self._xpos[:, ids]                            # (B, nb, 3)
-    body_quat = self._xquat[:, ids]                          # (B, nb, 4) wxyz
-    cvel = self._cvel[:, ids]                                # (B, nb, 6)
-    com = self._subtree_com[:, self.body_root_ids]           # (B, nb, 3)
+    body_pos = buf["xpos"][:, ids]                           # (B, nb, 3)
+    body_quat = buf["xquat"][:, ids]                         # (B, nb, 4) wxyz
+    cvel = buf["cvel"][:, ids]                               # (B, nb, 6)
+    com = buf["subtree_com"][:, self.body_root_ids]          # (B, nb, 3)
 
     # cvel is referenced at the tree's subtree COM; shift to the body origin.
     ang = cvel[..., :3]
@@ -1481,17 +1512,10 @@ class OnlineMotion:
       # One-time pass to get anchor-body accelerations (same as MotionLoader).
       # Only the anchor is kept, so memory stays small.
       total = self.joint_pos.shape[0]
-      B = source.batch_size
       lin_v, ang_v = [], []
-      with torch.no_grad():
-        for s in range(0, total, B):
-          idx = torch.arange(s, min(s + B, total), device=source.device)
-          k = idx.numel()
-          if k < B:
-            idx = torch.cat([idx, idx[-1:].expand(B - k)])
-          out = source._retarget_batch(idx)
-          lin_v.append(out["body_lin_vel_w"][:k, anchor_index])
-          ang_v.append(out["body_ang_vel_w"][:k, anchor_index])
+      for _, _, out in source.sweep(total):
+        lin_v.append(out["body_lin_vel_w"][:, anchor_index])
+        ang_v.append(out["body_ang_vel_w"][:, anchor_index])
       lin_v = torch.cat(lin_v)
       ang_v = torch.cat(ang_v)
 

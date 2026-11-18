@@ -104,15 +104,10 @@ def _library_body_z(motion, body_idx: list[int]) -> torch.Tensor:
 
   source = motion.source
   total = motion.joint_pos.shape[0]
-  B = source.batch_size
   idx_t = torch.as_tensor(body_idx, dtype=torch.long, device=source.device)
   out = torch.empty(total, len(body_idx), device=source.device)
-  for s in range(0, total, B):
-    idx = torch.arange(s, min(s + B, total), device=source.device)
-    k = idx.numel()
-    if k < B:  # keep the world count fixed
-      idx = torch.cat([idx, idx[-1:].expand(B - k)])
-    out[s : s + k] = source._retarget_batch(idx)["body_pos_w"][:k, idx_t, 2]
+  for s, k, res in source.sweep(total):
+    out[s : s + k] = res["body_pos_w"][:, idx_t, 2]
   return out
 
 
