@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 # from mjlab.tests.test_runner import env
@@ -14,7 +13,7 @@ from mjlab.utils.lab_api.string import (
 )
 
 from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
-  KANGAROO_KNEE_TO_JOINT_4_OFFSET,
+  KANGAROO_TIBIA_PITCH_OFFSET,
 )
 
 if TYPE_CHECKING:
@@ -69,285 +68,239 @@ def stand_still_joint_deviation_l1(
   return penalty
 
 
-def _resolve_envelope_limits(
-  limits: dict[str, dict[str, float]],
-  required: tuple[str, ...],
-) -> dict[str, dict[str, float]]:
-  """Copy limit parameters, check required names, and add distance scales.
-
-  Parameter fields are not validated. For each sloped boundary, store
-  ``distance_scale = 1 / sqrt(1 + slope**2)``. Multiplying the signed constraint
-  residual by this factor gives its distance to the boundary line in the two
-  joint-angle coordinates [rad], with knee angle and leg length held fixed.
-  Negative values satisfy the constraint; positive values violate it.
-  """
-  missing = [name for name in required if name not in limits]
-  if missing:
-    raise KeyError(f"missing envelope limits {missing}; expected {list(required)}")
-  resolved = {name: dict(params) for name, params in limits.items()}
-  for params in resolved.values():
-    if "slope" in params:
-      params["distance_scale"] = 1.0 / math.hypot(1.0, params["slope"])
-  return resolved
-
-
-def _split_joint_groups(
-  asset: Entity, joint_names_group: list[list[str]], roles: tuple[str, ...]
-) -> list[list[int]]:
-  """Resolve per-leg joint names into one list of joint IDs per role.
-
-  Each input group contains one joint per role, in role order. The output
-  preserves leg order within each role: groups [[left_j2, left_j3],
-  [right_j2, right_j3]] produce IDs [[left_j2_id, right_j2_id],
-  [left_j3_id, right_j3_id]].
-  """
-  ids_per_role: list[list[int]] = [[] for _ in roles]
-  for group in joint_names_group:
-    if len(group) != len(roles):
-      raise ValueError(f"each joint group must be {list(roles)}, got {group}")
-    group_ids, _ = asset.find_joints(group, preserve_order=True)
-    for role_ids, joint_id in zip(ids_per_role, group_ids, strict=True):
-      role_ids.append(joint_id)
-  return ids_per_role
-
-
 class ankle_envelope_limits:
-  """Penalize ankle configurations outside the fitted envelope.
+  """Penalize ankle configurations outside the feasible joint space of the ankle.
 
-  ``joint_names_group`` contains [joint 4, joint 5, leg length, knee] per leg.
-  Joint angles are in radians; leg length is in meters. Joint ranges come from
-  the model, and fitted coefficients come from ``limits``. See
-  ``KANGAROO_ANKLE_ENVELOPE_LIMITS`` for geometry and coefficient conventions.
+  The space is bounded by the joint 5 range, the foot-tibia and crank-bar
+  collisions and the actuator strokes. The collisions and actuators are modelled
+  as affine lines, symmetric in joint 5. All limits are solved together as
+  ``A x <= b`` in x = (j4, j5, j4n, L), where j4n = j4 - (70 deg + femur - knee)
+  is the foot angle relative to the tibia instead of the hip. Joint limits come
+  from the model; the other limits are described by:
 
-  ``j4_knee_rel`` is joint 4 normalized to the knee by subtracting the
-  knee-dependent angular offset. It remains an angle in radians.
-
-  ``shrink`` is a fraction in [0, 1]: 0.02 retains 98% of the linear extent
-  about the center. The center is recomputed for each knee angle and leg length,
-  at joint 5 = 0 and the midpoint of the feasible joint 4 interval. The joint 5
-  range must contain zero.
-
-  For each leg, square the largest positive constraint violation (zero inside).
-  Return the sum across legs [rad^2], with shape (num_envs,). The metric
-  ``Metrics/joint_envelope_ankle`` averages the sum of unsquared violations
-  across environments [rad]. These violations are boundary distances, not the
-  Euclidean distance to the feasible region.
+    j4n_min: lowest foot angle relative to the tibia [rad].
+    ft_b0j5: j4n where the affine lines approximating the foot-tibia collision
+      meet, at j5 = 0 [rad].
+    ft_dj4ndj5: rate of change of j4n with respect to |j5|, the slope of the
+      foot-tibia collision [rad/rad].
+    act_b0j5: offset from the zero position of joint 5 that makes the actuator
+      lines symmetric [m].
+    act_dadj4, act_dadj5: rates of change of the actuator with respect to
+      joints 4 and 5 [m/rad].
+    min, max: actuator stroke limits [m].
+    cb_b0l: value of j4 at the crank-bar collision when L = 0, j5 = 0 [rad].
+    cb_dj4dl, cb_dj4dj5: rates of change of j4 with respect to leg length
+      [rad/m] and |j5| [rad/rad], approximating the reprojected crank-bar
+      collision with a plane.
   """
-
-  _LIMIT_NAMES = (
-    "foot_tibia_collision",
-    "tibia_bars_crank_collision",
-    "actuator_min",
-    "actuator_max",
-  )
 
   def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
     params = cfg.params
-    asset: Entity = env.scene[params["asset_cfg"].name]
-    self._j4_ids, self._j5_ids, self._leg_length_ids, self._knee_ids = (
-      _split_joint_groups(
-        asset, params["joint_names_group"], ("joint 4", "joint 5", "leg length", "knee")
+    asset_cfg: SceneEntityCfg = params["asset_cfg"]
+    asset: Entity = env.scene[asset_cfg.name]
+    device = asset.data.joint_pos.device
+
+    # Joint 5 range from the model, one value per leg.
+    joint_limits = asset.data.default_joint_pos_limits[0, asset_cfg.joint_ids]
+    n_joints = joint_limits.shape[0]
+    if n_joints == 0 or n_joints % 5:
+      raise ValueError(
+        "asset_cfg must select the same number of joints for each of the 5 roles "
+        "[joint 4, joint 5, leg length, femur, knee], "
+        f"got {n_joints}: {asset_cfg.joint_names}"
       )
-    )
-    self._limits = limits = _resolve_envelope_limits(
-      params["limits"], self._LIMIT_NAMES
-    )
-    # Per-leg tensors from the model's joint ranges (MJCF `range`).
-    joint_limits = asset.data.default_joint_pos_limits[0]
-    j4_min, j4_max = joint_limits[self._j4_ids].unbind(-1)
-    # Names refer to actuator travel: maximum travel bounds joint 4 from below;
-    # minimum travel bounds it from above. Offsets are evaluated at joint 5 = 0.
-    limits["actuator_max"]["offset"] = j4_min
-    limits["actuator_min"]["offset"] = j4_max
-    j5_min, j5_max = joint_limits[self._j5_ids].unbind(-1)
-    limits["joint5"] = {"j5_min": j5_min, "j5_max": j5_max}
+    joint_limits = joint_limits.to(torch.float32).view(5, -1, 2)  # (role, leg, 2)
+    j5_min, j5_max = joint_limits[1].unbind(-1)
 
-  def violation(
-    self,
-    j4: torch.Tensor,
-    j5: torch.Tensor,
-    knee: torch.Tensor,
-    leg_length: torch.Tensor,
-    shrink: float,
-  ) -> torch.Tensor:
-    """Return the largest signed constraint violation per leg [rad].
+    limits = params["limits"]
+    foot_tibia = limits["foot_tibia_collision"]
+    act = limits["actuator"]
+    crank = limits["crank_bar_collision"]
 
-    Inputs and output have shape (..., n_legs), preserving group order.
-    ``j4``, ``j5``, and ``knee`` are angles [rad]; ``leg_length`` is in meters.
-    Values <= 0 are feasible after shrinking. If the lower and upper joint 4
-    bounds conflict, the result is at least their positive gap.
-    """
-    limits = self._limits
-    foot_tibia_collision, tibia_bars_crank_collision = (
-      limits["foot_tibia_collision"],
-      limits["tibia_bars_crank_collision"],
-    )
-    actuator_min, actuator_max, joint5 = (
-      limits["actuator_min"],
-      limits["actuator_max"],
-      limits["joint5"],
-    )
+    shrink = params.get("shrink", {})
+    margin_joint = shrink.get("joint", 0.0)
+    margin_act = shrink.get("actuator", 0.0)
+    margin_crank = shrink.get("crank", 0.0)
 
-    abs_j5 = j5.abs()
-    # Normalize joint 4 to the knee using the model's angular offset.
-    j4_knee_rel = j4 - (KANGAROO_KNEE_TO_JOINT_4_OFFSET - 0.5 * knee)
-    crank_j4_max = (
-      tibia_bars_crank_collision["offset"]
-      + tibia_bars_crank_collision["ll"] * leg_length
-    )
+    j4n_min = foot_tibia["j4n_min"]
+    ft_b0j5, ft_dj4ndj5 = foot_tibia["b0j5"], foot_tibia["dj4ndj5"]
+    act_b0j5, act_dadj4, act_dadj5 = act["b0j5"], act["dadj4"], act["dadj5"]
+    cb_b0l, cb_dj4dl, cb_dj4dj5 = crank["b0l"], crank["dj4dl"], crank["dj4dj5"]
 
-    # Each residual is <= 0 inside; scale sloped residuals to boundary distances [rad].
-    distances = torch.stack(
-      [
-        # Lower bound on joint 4 normalized to the knee.
-        foot_tibia_collision["j4_lim"] - j4_knee_rel,
-        # Tibia bar clearance: lower bound on joint 4 normalized to the knee.
-        (
-          (
-            foot_tibia_collision["offset"]
-            + foot_tibia_collision["slope"] * abs_j5
-            - j4_knee_rel
-          )
-          * foot_tibia_collision["distance_scale"]
-        ),
-        # Crank collision clearance: upper bound on joint 4 at this leg length.
-        (
-          (j4 - crank_j4_max + tibia_bars_crank_collision["slope"] * abs_j5)
-          * tibia_bars_crank_collision["distance_scale"]
-        ),
-        # Minimum actuator travel: upper bound on joint 4.
-        (
-          (j4 - actuator_min["offset"] + actuator_min["slope"] * abs_j5)
-          * actuator_min["distance_scale"]
-        ),
-        # Maximum actuator travel: lower bound on joint 4.
-        (
-          (actuator_max["offset"] + actuator_max["slope"] * abs_j5 - j4)
-          * actuator_max["distance_scale"]
-        ),
-        # Joint 5 upper bound.
-        j5 - joint5["j5_max"],
-        # Joint 5 lower bound.
-        joint5["j5_min"] - j5,
-      ],
-      dim=-1,
-    )
+    # The collision lines are lines in joint space, so their margin in rad is a
+    # distance there: b - margin * |(a_j4, a_j5)| before normalising.
+    margin_ft = margin_joint * (1 + ft_dj4ndj5**2) ** 0.5
+    margin_cb = margin_crank * (1 + cb_dj4dj5**2) ** 0.5
+    act_min, act_max = act["min"] + margin_act, act["max"] - margin_act
 
-    # At this knee angle and leg length, center the feasible j4 interval at j5 = 0.
-    # Add back the knee-dependent offset to express normalized bounds in j4.
-    low = torch.clamp(
-      max(foot_tibia_collision["j4_lim"], foot_tibia_collision["offset"])
-      + (j4 - j4_knee_rel),
-      min=actuator_max["offset"],
-    )
-    high = torch.clamp(crank_j4_max, max=actuator_min["offset"])
-    j4_center = 0.5 * (low + high)
-    j4_knee_rel_center = j4_knee_rel + (j4_center - j4)
-    center_distances = torch.stack(
-      [
-        # Lower bound on joint 4 normalized to the knee, at the center.
-        foot_tibia_collision["j4_lim"] - j4_knee_rel_center,
-        # Tibia bar clearance at joint 5 = 0.
-        (foot_tibia_collision["offset"] - j4_knee_rel_center)
-        * foot_tibia_collision["distance_scale"],
-        # Crank collision clearance at joint 5 = 0.
-        (j4_center - crank_j4_max) * tibia_bars_crank_collision["distance_scale"],
-        # Minimum actuator travel at joint 5 = 0.
-        (j4_center - actuator_min["offset"]) * actuator_min["distance_scale"],
-        # Maximum actuator travel at joint 5 = 0.
-        (actuator_max["offset"] - j4_center) * actuator_max["distance_scale"],
-        # Joint 5 upper bound, evaluated at zero.
-        torch.zeros_like(j4_center) - joint5["j5_max"],
-        # Joint 5 lower bound, evaluated at zero.
-        torch.zeros_like(j4_center) + joint5["j5_min"],
-      ],
-      dim=-1,
-    )
+    # fmt: off
+    A = torch.tensor([
+      # j4           j5            j4n            L
+      [ 0.0,         0.0,         -1.0,           0.0       ],  #  0 j4n >= j4n_min
+      [ 0.0,         1.0,          0.0,           0.0       ],  #  1 j5 <= j5_max
+      [ 0.0,        -1.0,          0.0,           0.0       ],  #  2 j5 >= j5_min
+      [ 0.0,         ft_dj4ndj5,  -1.0,           0.0       ],  #  3 j4n >= ft_b0j5 + ft_dj4ndj5 j5
+      [ 0.0,        -ft_dj4ndj5,  -1.0,           0.0       ],  #  4 j4n >= ft_b0j5 - ft_dj4ndj5 j5
+      [ act_dadj4,   act_dadj5,    0.0,           0.0       ],  #  5 a4 <= act_max
+      [-act_dadj4,  -act_dadj5,    0.0,           0.0       ],  #  6 a4 >= act_min
+      [ act_dadj4,  -act_dadj5,    0.0,           0.0       ],  #  7 a5 <= act_max
+      [-act_dadj4,   act_dadj5,    0.0,           0.0       ],  #  8 a5 >= act_min
+      [ 1.0,         cb_dj4dj5,    0.0,          -cb_dj4dl  ],  #  9 j4 <= cb_b0l + cb_dj4dl L - cb_dj4dj5 j5
+      [ 1.0,        -cb_dj4dj5,    0.0,          -cb_dj4dl  ],  # 10 j4 <= cb_b0l + cb_dj4dl L + cb_dj4dj5 j5
+    ], dtype=torch.float32, device=device)
 
-    # Move each boundary toward the center by shrink times its distance from it.
-    # Preserve a positive penalty when the lower bound exceeds the upper bound.
-    return torch.maximum((distances - shrink * center_distances).amax(-1), low - high)
+    one = torch.ones_like(j5_min)
+    b = torch.stack([                       
+      -(j4n_min + margin_joint) * one,  #  0
+      j5_max - margin_joint,            #  1
+      -(j5_min + margin_joint),         #  2
+      (-ft_b0j5 - margin_ft) * one,     #  3
+      (-ft_b0j5 - margin_ft) * one,     #  4
+      (act_max - act_b0j5) * one,       #  5
+      (act_b0j5 - act_min) * one,       #  6
+      (act_max - act_b0j5) * one,       #  7
+      (act_b0j5 - act_min) * one,       #  8
+      (cb_b0l - margin_cb) * one,       #  9
+      (cb_b0l - margin_cb) * one,       # 10
+    ], dim=-1)
+    # fmt: on
+
+    # Normalise by dividing every row and its bound by the length of the row's
+    # gradient in the (j4, j5) plane, so that A @ x - b is the signed distance
+    # [rad]. j4 and j4n are collapsed into a single value (since they contribute to
+    # different constraints) so the norm is correct. Also skip leg length as it
+    # is not needed for the normalization.
+    n = torch.stack((A[:, 0] + A[:, 2], A[:, 1]), dim=-1).norm(dim=1)
+    self.A, self.b = A / n[:, None], b / n
+
+    # Penalty terms: rows that are limits of their own, and the |j5| pairs
+    # (foot-tibia, crank-bar) that count once each.
+    self._single = [0, 1, 2, 5, 6, 7, 8]
+    self._j5_positive = [3, 9]  # +j5 row of each pair
+    self._j5_negative = [4, 10]  # -j5 row of each pair
 
   def __call__(
     self,
     env: ManagerBasedRlEnv,
     asset_cfg: SceneEntityCfg,
-    joint_names_group: list[list[str]],
     limits: dict[str, dict[str, float]],
-    shrink: float = 0.0,
+    shrink: dict[str, float] | None = None,
   ) -> torch.Tensor:
-    del joint_names_group, limits  # Resolved in __init__.
-    joint_pos = env.scene[asset_cfg.name].data.joint_pos
-    max_violation = self.violation(
-      joint_pos[:, self._j4_ids],
-      joint_pos[:, self._j5_ids],
-      joint_pos[:, self._knee_ids],
-      joint_pos[:, self._leg_length_ids],
-      shrink,
-    )
-    violation = torch.clamp(max_violation, min=0.0)
-    env.extras["log"]["Metrics/joint_envelope_ankle"] = torch.mean(violation.sum(dim=1))
-    return torch.sum(torch.square(violation), dim=1)
+    del limits, shrink  # Resolved in __init__.
+    joint_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids]
+    joint_pos = joint_pos.view(joint_pos.shape[0], 5, -1)  # (num_envs, role, leg)
+    j4, j5, leg_length, femur, knee = joint_pos.unbind(1)  # each (num_envs, n_legs)
+
+    # Joint 4 position relative to the tibia, from the robot's geometry.
+    j4n = j4 - (KANGAROO_TIBIA_PITCH_OFFSET + femur - knee)
+    X = torch.stack((j4, j5, j4n, leg_length), dim=-1)  # (num_envs, n_legs, 4)
+
+    # Distance past every edge [rad], 0 where the edge is satisfied.
+    v = (X @ self.A.T - self.b).clamp(min=0.0)  # (num_envs, n_legs, 11)
+
+    violation = v.amax(dim=(1, 2))
+    env.extras["log"]["Metrics/joint_envelope_ankle_violation_mean"] = violation.mean()
+    env.extras["log"]["Metrics/joint_envelope_ankle_violation_max"] = violation.max()
+
+    # Sum the violations of the non-symmetric rows and the larger row of each
+    # symmetric pair.
+    return v[..., self._single].sum((1, 2)) + torch.maximum(
+      v[..., self._j5_positive], v[..., self._j5_negative]
+    ).sum((1, 2))
 
 
 class hip_envelope_limits:
+  """Penalize hip configurations outside the feasible joint space of hip xy.
+
+  The space is mostly bounded by the joint 3 range and the actuator strokes;
+  the actuators are modelled as affine lines, symmetric along both joints. All
+  limits are solved together as ``A x <= b`` in x = (j2, j3). Joint limits come
+  from the model; the actuators are described by:
+
+    b0j3: offset from the zero position of joint 3 that makes the actuator
+      lines symmetric [m].
+    dadj2, dadj3: rates of change of the actuator with respect to joints 2 and
+      3, representing linearized reprojections of the actuator limits onto joint
+      space [m/rad].
+    min, max: actuator stroke limits [m].
+  """
+
   def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
     params = cfg.params
-    asset: Entity = env.scene[params["asset_cfg"].name]
-    j2_ids, j3_ids = _split_joint_groups(
-      asset, params["joint_names_group"], ("joint 2", "joint 3")
-    )
-    self._joint_ids = torch.tensor(
-      list(zip(j2_ids, j3_ids, strict=True)),
-      dtype=torch.long,
-      device=asset.data.joint_pos.device,
-    )
-    affine = params["limits"]
-    self._jacobian = asset.data.joint_pos.new_tensor(affine["J"])
-    self._actuator_offset = self._jacobian.new_tensor(affine["b0"])
-    self._row_norms = torch.linalg.vector_norm(self._jacobian, dim=-1)
+    asset_cfg: SceneEntityCfg = params["asset_cfg"]
+    asset: Entity = env.scene[asset_cfg.name]
+    device = asset.data.joint_pos.device
 
-    if not torch.all(torch.isfinite(self._row_norms) & (self._row_norms > 0)):
-      raise ValueError("hip actuator Jacobian rows must be finite and nonzero")
+    # Joint 2 and joint 3 ranges from the model, one value per leg.
+    joint_limits = asset.data.default_joint_pos_limits[0, asset_cfg.joint_ids]
+    n_joints = joint_limits.shape[0]
+    if n_joints == 0 or n_joints % 2:
+      raise ValueError(
+        "asset_cfg must select the same number of joints for each of the 2 roles "
+        f"[joint 2, joint 3], got {n_joints}: {asset_cfg.joint_names}"
+      )
+    joint_limits = joint_limits.to(torch.float32).view(2, -1, 2)
+    j2_min, j2_max = joint_limits[0].unbind(-1)
+    j3_min, j3_max = joint_limits[1].unbind(-1)
+    one = torch.ones_like(j2_min)
 
-    shrink_vector = self._jacobian.new_tensor(params.get("shrink", 0.0)).expand(2)
-    if not torch.all(torch.isfinite(shrink_vector) & (shrink_vector >= 0)):
-      raise ValueError("hip shrink must be finite and nonnegative")
+    act = params["limits"]["actuator"]
 
-    joint_limits = asset.data.default_joint_pos_limits[:, self._joint_ids]
-    self._joint_min = joint_limits[..., 0] + shrink_vector
-    self._joint_max = joint_limits[..., 1] - shrink_vector
-    self._actuator_max = affine["A"] - torch.linalg.vector_norm(
-      self._jacobian * shrink_vector, dim=-1
-    )
+    shrink = params.get("shrink", {})
+    margin_joint = shrink.get("joint", 0.0)
+    margin_act = shrink.get("actuator", 0.0)
+
+    b0j3, dadj2, dadj3 = act["b0j3"], act["dadj2"], act["dadj3"]
+    act_min, act_max = act["min"] + margin_act, act["max"] - margin_act
+
+    # fmt: off
+    A = torch.tensor([
+      # j2       j3
+      [-1.0,     0.0   ],  # 0 j2 >= j2_min
+      [ 1.0,     0.0   ],  # 1 j2 <= j2_max
+      [ 0.0,     1.0   ],  # 2 j3 <= j3_max
+      [ 0.0,    -1.0   ],  # 3 j3 >= j3_min
+      [ dadj2,   dadj3 ],  # 4 a2 <= act_max
+      [-dadj2,  -dadj3 ],  # 5 a2 >= act_min
+      [ dadj2,  -dadj3 ],  # 6 a3 <= act_max
+      [-dadj2,   dadj3 ],  # 7 a3 >= act_min
+    ], dtype=torch.float32, device=device)
+    b = torch.stack([
+      -(j2_min + margin_joint),  # 0
+      j2_max - margin_joint,     # 1
+      j3_max - margin_joint,     # 2
+      -(j3_min + margin_joint),  # 3
+      (act_max - b0j3) * one,    # 4
+      (b0j3 - act_min) * one,    # 5
+      (act_max - b0j3) * one,    # 6
+      (b0j3 - act_min) * one,    # 7
+    ], dim=-1)
+    # fmt: on
+
+    # Normalise by dividing every row and its bound by the row's length, so that
+    # A @ x - b is the signed distance [rad] to the edge in the (j2, j3) plane.
+    n = A.norm(dim=1)
+    self.A, self.b = A / n[:, None], b / n
 
   def __call__(
     self,
     env: ManagerBasedRlEnv,
     asset_cfg: SceneEntityCfg,
-    joint_names_group: list[list[str]],
-    limits: dict[str, float | list[list[float]]],
-    shrink: float | tuple[float, float] = 0.0,
+    limits: dict[str, dict[str, float]],
+    shrink: dict[str, float] | None = None,
   ) -> torch.Tensor:
-    del joint_names_group, limits, shrink  # Resolved in __init__.
-    asset: Entity = env.scene[asset_cfg.name]
-    joint_pos = asset.data.joint_pos[:, self._joint_ids]  # (num_envs, n_legs, 2)
+    del limits, shrink  # Resolved in __init__.
+    joint_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids]
+    joint_pos = joint_pos.view(joint_pos.shape[0], 2, -1)  # (num_envs, role, leg)
+    j2, j3 = joint_pos.unbind(1)  # each (num_envs, n_legs)
+    X = torch.stack((j2, j3), dim=-1)  # (num_envs, n_legs, 2)
 
-    # Stage one: clipped excess below/above the precomputed joint limits.
-    out_of_limits = -(joint_pos - self._joint_min).clip(max=0.0)
-    out_of_limits += (joint_pos - self._joint_max).clip(min=0.0)
+    v = (X @ self.A.T - self.b).clamp(min=0.0)  # (num_envs, n_legs, 8)
 
-    # Check shrunken actuator limits in meters, then normalize to radians.
-    actuator_pos = joint_pos @ self._jacobian.T + self._actuator_offset
-    actuator_error = (actuator_pos.abs() - self._actuator_max).clip(min=0.0)
-    # Keep constraint magnitudes separate so violations cannot cancel.
-    out_of_limits = torch.cat((out_of_limits, actuator_error / self._row_norms), dim=-1)
-
-    out_of_limits = torch.linalg.vector_norm(out_of_limits, dim=-1)
-    env.extras["log"]["Metrics/joint_envelope_hip"] = torch.mean(
-      out_of_limits.sum(dim=1)
-    )
-    return torch.sum(out_of_limits, dim=1)
+    violation = v.amax(dim=(1, 2))
+    env.extras["log"]["Metrics/joint_envelope_hip_violation_mean"] = violation.mean()
+    env.extras["log"]["Metrics/joint_envelope_hip_violation_max"] = violation.max()
+    return v.sum(-1).sum(dim=1)
 
 
 class joint_vel_limits:

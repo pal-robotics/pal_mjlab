@@ -22,28 +22,16 @@ New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
 - **Fitted hip and ankle envelopes for Kangaroo joint-limit rewards.**
-  Velocity and motion-tracking tasks now use ``joint_envelope_hip`` and
-  ``joint_envelope_ankle`` instead of the convex-hull rewards. The ankle
-  envelope accounts for leg length and joint 4 normalized to the knee;
-  the hip envelope uses fitted actuator-travel constraints. The ankle reward
-  sums the squared largest positive constraint violation per leg. The hip
-  reward sums per-leg L2 norms of joint-limit excess and normalized actuator
-  excess, keeping the contributions separate so violations cannot cancel.
-  The ankle's default ``shrink=0.02`` contracts its feasible region by 2%
-  toward its center. The hip's scalar ``shrink`` is instead a constant
-  perpendicular clearance in joint-space radians from every affine boundary.
-  Its cached joint bounds are ``lower + shrink`` and ``upper - shrink``;
-  actuator bounds are ``A - shrink * norm(J_i)`` for each actuator row.
-  Actuator excess is checked in meters and divided by ``norm(J_i)`` to obtain
-  joint-space boundary excess in radians; no inverse Jacobian is used.
-  A margin pair specifies elliptical clearance semiaxes in joint space,
-  giving actuator margins ``norm(J_i * [s2, s3])``. Equal semiaxes reproduce
-  the scalar margin. Margins must be finite and nonnegative.
-  Bounds are cached during initialization; the reward does not read soft joint
-  limits or recompute bounds at each call. The returned sum of norms is not
-  squared and is not generally the shortest distance to the feasible polygon.
-  Hip joints 2 and 3 and ankle joints 4 and 5 are excluded
-  from the independent joint-limit penalty to avoid penalizing them twice.
+  ``joint_envelope_hip`` and ``joint_envelope_ankle`` replace the convex-hull
+  rewards in the velocity and tracking tasks. Each penalizes the distance
+  [rad] past a set of affine limits ``A x <= b``. Hip limits are represented
+  by joint 3 limits and linear approximations of actuator limits. Ankle
+  limits are linear approximations of joint 5 limits, actuator limits,
+  collisions between the feet and tibias, as well as collisions between the
+  cranks and femur bars. Values for the limits come from data recorded on the
+  robot and then fitted to the corresponding joints. The resulting values are
+  stored in ``KANGAROO_HIP_ENVELOPE_LIMITS`` and
+  ``KANGAROO_ANKLE_ENVELOPE_LIMITS``.
 
 - **New stairs velocity task for the Kangaroo.** Adds
   ``Mjlab-Velocity-Stairs-Pal-Kangaroo`` on top of the rough task, with a
@@ -242,19 +230,14 @@ dependency issue, check which of these bumps might be relevant first.
 Breaking Changes
 ^^^^^^^^^^^^^^^^
 
-- **Replaced the convex-hull joint-limit API.** Custom reward configurations
-  must replace ``joint_limits_convex_hull`` with ``hip_envelope_limits`` or
-  ``ankle_envelope_limits``, and ``hull_points`` with ``limits`` using
-  ``KANGAROO_HIP_ENVELOPE_LIMITS`` or ``KANGAROO_ANKLE_ENVELOPE_LIMITS``.
-  The corresponding ``HIP_XY_CONVEX_HULL_POINTS`` and
-  ``ANKLE_XY_CONVEX_HULL_POINTS`` constants have been removed.
-  Hip joint groups remain ``[joint 2, joint 3]``; ankle groups must now
-  contain ``[joint 4, joint 5, leg length, knee]`` for each leg.
-  Replace ``margin`` with ``shrink``: the ankle uses a fractional contraction,
-  while the hip uses an angular margin in radians transformed by its Jacobian.
-  These parameters are not numerically equivalent. Remove ``metrics_suffix``:
-  metrics are now logged as ``Metrics/joint_envelope_hip`` and
-  ``Metrics/joint_envelope_ankle``.
+- **Replaced the convex-hull joint-limit API.** Use ``hip_envelope_limits``
+  / ``ankle_envelope_limits`` with ``limits`` set to
+  ``KANGAROO_HIP_ENVELOPE_LIMITS`` / ``KANGAROO_ANKLE_ENVELOPE_LIMITS``; the
+  ``*_CONVEX_HULL_POINTS`` constants are removed. Joints are selected through
+  ``asset_cfg``, one pattern per role with ``preserve_order=True`` (the ankle
+  now needs the femur joint). ``shrink`` is a margin per limit group in its own
+  units (rad or m of stroke). Metrics are logged as
+  ``Metrics/joint_envelope_<hip|ankle>_violation_mean`` and ``..._max``.
 
 - **Removed the base linear acceleration observation from the Kangaroo
   velocity tasks.** The ``base_lin_acc`` actor observation term (IMU

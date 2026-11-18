@@ -125,13 +125,15 @@ def pal_kangaroo_flat_tracking_env_cfg(
     func=mdp.hip_envelope_limits,
     weight=-10.0,
     params={
-      "asset_cfg": SceneEntityCfg("robot"),
-      "joint_names_group": [
-        ["leg_left_2_joint", "leg_left_3_joint"],
-        ["leg_right_2_joint", "leg_right_3_joint"],
-      ],
+      # One pattern per role [joint 2, joint 3], each matching both legs.
+      "asset_cfg": SceneEntityCfg(
+        "robot",
+        joint_names=(r"leg_.*_2_joint", r"leg_.*_3_joint"),
+        preserve_order=True,
+      ),
       "limits": KANGAROO_HIP_ENVELOPE_LIMITS,
-      "shrink": 0.02,
+      # Margin per limit group, in that group's units: joint [rad], actuator [m].
+      "shrink": {"joint": 0.02, "actuator": 0.0015},
     },
   )
 
@@ -139,24 +141,23 @@ def pal_kangaroo_flat_tracking_env_cfg(
     func=mdp.ankle_envelope_limits,
     weight=-10.0,
     params={
-      "asset_cfg": SceneEntityCfg("robot"),
-      # Per leg: [joint 4, joint 5, leg length, knee].
-      "joint_names_group": [
-        [
-          "leg_left_4_joint",
-          "leg_left_5_joint",
-          "leg_left_length_joint",
-          "leg_left_knee_joint",
-        ],
-        [
-          "leg_right_4_joint",
-          "leg_right_5_joint",
-          "leg_right_length_joint",
-          "leg_right_knee_joint",
-        ],
-      ],
+      # One pattern per role [joint 4, joint 5, leg length, femur, knee], each
+      # matching both legs.
+      "asset_cfg": SceneEntityCfg(
+        "robot",
+        joint_names=(
+          r"leg_.*_4_joint",
+          r"leg_.*_5_joint",
+          r"leg_.*_length_joint",
+          r"leg_.*_femur_joint",
+          r"leg_.*_knee_joint",
+        ),
+        preserve_order=True,
+      ),
       "limits": KANGAROO_ANKLE_ENVELOPE_LIMITS,
-      "shrink": 0.02,
+      # Margin per limit group, in that group's units: joint and crank-bar
+      # collision [rad], actuator [m].
+      "shrink": {"joint": 0.02, "actuator": 0.0008, "crank": 0.02},
     },
   )
 

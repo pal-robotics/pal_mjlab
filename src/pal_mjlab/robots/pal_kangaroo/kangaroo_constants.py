@@ -20,8 +20,6 @@ REGEX_ALL_ACTUATED_JOINTS = r"^(?!leg_.*_femur_joint$|leg_.*_knee_joint$).*$"
 REGEX_FEMUR_AND_KNEE_LINKS = (
   r"^(leg_left_femur_link|leg_right_femur_link|leg_left_knee_link|leg_right_knee_link)$"
 )
-# Exclude hip joints 2 and 3 and ankle joints 4 and 5 from the independent
-# joint-limit penalty: the envelope rewards already penalize their limits.
 REGEX_JOINTS_WITHOUT_ENVELOPE = r"^(?!leg_.*_[2-5]_joint$).*$"
 
 KANGAROO_PATH = PAL_MJLAB_SRC_PATH / "robots" / "pal_kangaroo" / "xmls"
@@ -50,42 +48,35 @@ DAMPING_RATIO = 2.0
 # Joint limits described as affine functions and planes
 ##
 
-KANGAROO_KNEE_TO_JOINT_4_OFFSET = math.radians(70.0)
+KANGAROO_TIBIA_PITCH_OFFSET = math.radians(70.0)
 
 KANGAROO_ANKLE_ENVELOPE_LIMITS = {
-  # Joint limit between foot and tibia. Requires change of coordinates of joint 4.
-  # Described as joint 4 limit in new coordinates and two symmetrical affine functions
-  # between joints 4 and 5.
   "foot_tibia_collision": {
-    "j4_lim": -0.998403,
-    "slope": 0.729958,
-    "offset": -1.095372,
+    "b0j5": -1.095692,
+    "dj4ndj5": 0.730921,
+    "j4n_min": -0.998403,
   },
-  # Two joint 5-symmetrical planes in joint 4, joint 5, leg length space.
-  # They represent collision between tibia bars and cranks
-  "tibia_bars_crank_collision": {
-    "slope": 0.532649,
-    "ll": 1.376978,
-    "offset": 0.205134,
+  "actuator": {
+    "b0j5": 0.000963,
+    "dadj4": -0.031860,
+    "dadj5": -0.018999,
+    "min": -0.022294,
+    "max": 0.024684,
   },
-  # Symmetrical affine functions approximating actuator limits
-  # in joint 4 - joint 5 space.
-  "actuator_min": {"slope": 0.577666},
-  "actuator_max": {"slope": 0.652103},
+  "crank_bar_collision": {
+    "b0l": 0.207172,
+    "dj4dl": 1.378701,
+    "dj4dj5": 0.543604,
+  },
 }
-
-# Hip envelope is symmetrical alongside both joints 2 and 3
-# A = b0 + J @ [joint_2, joint_3]^T
 KANGAROO_HIP_ENVELOPE_LIMITS = {
-  # Actuator offset at joint 2 = 0
-  "b0": -0.000940062218,
-  # Approximate actuator jacobian
-  "J": [
-    [0.054716491464, 0.033617940151],
-    [0.054716491464, -0.033617940151],
-  ],
-  # Actuator limit
-  "A": 0.04,
+  "actuator": {
+    "b0j3": -0.000940,
+    "dadj2": 0.054716,
+    "dadj3": 0.033618,
+    "min": -0.04,
+    "max": 0.04,
+  },
 }
 
 

@@ -11,11 +11,13 @@ import torch
 from conftest import get_test_device
 from mjlab.envs.mdp import rewards as mjlab_r
 from mjlab.managers.reward_manager import RewardTermCfg
+from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.tasks.velocity.mdp import rewards as mjlab_vel_r
+from mjlab.utils.lab_api.string import resolve_matching_names
 from pal_mjlab.robots import (
   KANGAROO_ANKLE_ENVELOPE_LIMITS,
   KANGAROO_HIP_ENVELOPE_LIMITS,
-  KANGAROO_KNEE_TO_JOINT_4_OFFSET,
+  KANGAROO_TIBIA_PITCH_OFFSET,
 )
 from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
   KANGAROO_LOWER_BODY_XML,
@@ -963,27 +965,27 @@ def _mjcf_joint_ranges() -> dict[str, tuple[float, float]]:
 
 
 def _envelope_asset(env, joint_names: list[str], joint_pos: torch.Tensor):
+  """Mock asset with the given joints, resolving names like ``Entity.find_joints``."""
   asset = env.scene["robot"]
-  asset.find_joints = lambda names, preserve_order=False: (
-    [joint_names.index(n) for n in names],
-    list(names),
+  asset.joint_names = joint_names
+  asset.num_joints = len(joint_names)
+  asset.find_joints = lambda names, preserve_order=False: resolve_matching_names(
+    names, joint_names, preserve_order
   )
   asset.data.joint_pos = joint_pos
   ranges = _mjcf_joint_ranges()
   asset.data.default_joint_pos_limits = torch.tensor(
     [[ranges.get(n, (0.0, 0.0)) for n in joint_names]] * joint_pos.shape[0]
   )
-  asset.data.soft_joint_pos_limits = asset.data.default_joint_pos_limits.clone()
   return asset
 
 
 def test_mjcf_joint_ranges_hold_envelope_limits():
-  # Fitted envelope bounds stored as MJCF joint ranges (read by the envelope rewards).
+  # The envelope rewards read these ranges from the model; the fit assumed them.
   expected = {
-    "2": (-0.712242, 0.747401),  # hip joint 2 min / max
-    "3": (-0.437830, 0.437830),  # hip joint 3, symmetric
-    "4": (-0.756443, 0.724851),  # ankle j4 extent at j5 = 0 (actuator max / min)
-    "5": (-0.424645, 0.424645),  # ankle joint 5, symmetric
+    "2": (-0.712242, 0.747401),  # hip joint 2
+    "3": (-0.437830, 0.437830),  # hip joint 3
+    "5": (-0.424645, 0.424645),  # ankle joint 5
   }
   for path in KANGAROO_XML.parent.glob("kangaroo*.xml"):
     content = path.read_text()
@@ -995,437 +997,334 @@ def test_mjcf_joint_ranges_hold_envelope_limits():
         ), f"{path.name}: leg_{side}_{joint}_joint range != {low} {high}"
 
 
+# Ankle roles, in the order the reward expects them.
+_ANKLE_ROLES = ("4", "5", "length", "femur", "knee")
+_ANKLE_PATTERNS = tuple(rf"leg_.*_{role}_joint" for role in _ANKLE_ROLES)
+# Mock joints in model order: one leg after the other, as in the MJCF.
 _ANKLE_JOINTS = [
-  "leg_left_4_joint",
-  "leg_right_4_joint",
-  "leg_left_5_joint",
-  "leg_right_5_joint",
-  "leg_left_length_joint",
-  "leg_right_length_joint",
-  "leg_left_knee_joint",
-  "leg_right_knee_joint",
+  f"leg_{side}_{role}_joint" for side in ("left", "right") for role in _ANKLE_ROLES
 ]
+# Margins of the velocity and tracking tasks.
+_ANKLE_MARGIN = {"joint": 0.02, "actuator": 0.0008, "crank": 0.02}
+# (j4, j5, leg length, femur, knee) well inside the ankle envelope:
+# tibia = 70 deg + 0.7 - 1.6 = 0.32 rad, so j4n = -0.32 rad.
+_ANKLE_INSIDE = (0.0, 0.0, 0.4, 0.7, 1.6)
 
 
-def _knee_from_tibia(tibia_pitch: torch.Tensor) -> torch.Tensor:
-  """Invert tibia_pitch = offset - knee / 2; input and output are radians."""
-  return 2.0 * (KANGAROO_KNEE_TO_JOINT_4_OFFSET - tibia_pitch)
+class _AnkleReward:
+  """The ankle reward on a mock asset whose pose is set per call."""
 
-
-def _ankle_asset(env, j4, j5, tibia_pitch, leg_length):
-  """Build an ankle mock from per-leg tensors, each with shape (num_envs, 2)."""
-  knee = _knee_from_tibia(tibia_pitch)
-  return _envelope_asset(
-    env, _ANKLE_JOINTS, torch.cat([j4, j5, leg_length, knee], dim=1)
-  )
-
-
-def _ankle_cfg(mock_asset_cfg, shrink: float = 0.0) -> RewardTermCfg:
-  return RewardTermCfg(
-    func=pal_mjlab_r.ankle_envelope_limits,
-    weight=1.0,
-    params={
-      "asset_cfg": mock_asset_cfg,
-      # Per leg: [joint 4, joint 5, leg length, knee].
-      "joint_names_group": [
-        [
-          "leg_left_4_joint",
-          "leg_left_5_joint",
-          "leg_left_length_joint",
-          "leg_left_knee_joint",
-        ],
-        [
-          "leg_right_4_joint",
-          "leg_right_5_joint",
-          "leg_right_length_joint",
-          "leg_right_knee_joint",
-        ],
-      ],
+  def __init__(self, env, shrink=None, joint_ranges=None):
+    env.extras = {"log": {}}
+    self.env = env
+    self.asset = _envelope_asset(
+      env, _ANKLE_JOINTS, torch.zeros(env.num_envs, len(_ANKLE_JOINTS))
+    )
+    for name, joint_range in (joint_ranges or {}).items():
+      self.asset.data.default_joint_pos_limits[:, _ANKLE_JOINTS.index(name)] = (
+        torch.tensor(joint_range)
+      )
+    asset_cfg = SceneEntityCfg(
+      "robot", joint_names=_ANKLE_PATTERNS, preserve_order=True
+    )
+    asset_cfg.resolve(env.scene)  # As the reward manager does.
+    self.params = {
+      "asset_cfg": asset_cfg,
       "limits": KANGAROO_ANKLE_ENVELOPE_LIMITS,
-      "shrink": shrink,
-    },
-  )
+      "shrink": shrink or {},
+    }
+    cfg = RewardTermCfg(func=None, weight=1.0, params=self.params)
+    self.term = pal_mjlab_r.ankle_envelope_limits(cfg, env)
+
+  def __call__(self, left, right=_ANKLE_INSIDE):
+    """Reward for per-leg (j4, j5, leg length, femur, knee); each value a scalar
+    or a tensor of shape (n,). Returns shape (n,)."""
+    left = torch.broadcast_tensors(*(torch.as_tensor(q) for q in left))
+    right = [torch.full_like(left[0], q) for q in right]
+    self.asset.data.joint_pos = torch.stack([*left, *right], dim=-1).reshape(
+      -1, len(_ANKLE_JOINTS)
+    )
+    return self.term(self.env, **self.params)
 
 
-def _ankle_unfolded(j4, j5, tibia_pitch, leg_length):
-  """The ankle limits written out per mirror side (no |j5| fold)."""
+def _ankle_inside(j4, j5, leg_length, femur, knee, shrink=None):
+  """Independent oracle: the ankle limits, with margins, written out as inequalities."""
+  shrink = shrink or {}
+  margin_joint = shrink.get("joint", 0.0)
+  margin_act = shrink.get("actuator", 0.0)
+  margin_crank = shrink.get("crank", 0.0)
   limits = KANGAROO_ANKLE_ENVELOPE_LIMITS
-  foot_tibia_collision, tibia_bars_crank_collision = (
-    limits["foot_tibia_collision"],
-    limits["tibia_bars_crank_collision"],
+  foot_tibia = limits["foot_tibia_collision"]
+  act, crank = limits["actuator"], limits["crank_bar_collision"]
+  j5_min, j5_max = _mjcf_joint_ranges()["leg_left_5_joint"]
+
+  j4n = j4 - (KANGAROO_TIBIA_PITCH_OFFSET + femur - knee)
+  ft_line = foot_tibia["b0j5"] + foot_tibia["dj4ndj5"] * j5.abs()
+  ft_margin = margin_joint * (1 + foot_tibia["dj4ndj5"] ** 2) ** 0.5
+  cb_margin = margin_crank * (1 + crank["dj4dj5"] ** 2) ** 0.5
+  ok = j4n >= foot_tibia["j4n_min"] + margin_joint
+  ok &= (j5 >= j5_min + margin_joint) & (j5 <= j5_max - margin_joint)
+  ok &= j4n >= ft_line + ft_margin
+  ok &= j4 <= (
+    crank["b0l"] + crank["dj4dl"] * leg_length - crank["dj4dj5"] * j5.abs() - cb_margin
   )
-  actuator_min, actuator_max = limits["actuator_min"], limits["actuator_max"]
-  ranges = _mjcf_joint_ranges()
-  j4_min, j4_max = ranges["leg_right_4_joint"]
-  j5_max = ranges["leg_right_5_joint"][1]
-  # Normalize joint 4 to the knee using the equivalent angular offset.
-  j4_knee_rel = j4 - tibia_pitch
-  ok = j4_knee_rel >= foot_tibia_collision["j4_lim"]
-  for s in (1, -1):
-    ok &= (
-      j4_knee_rel
-      >= foot_tibia_collision["offset"] + foot_tibia_collision["slope"] * s * j5
-    )
-    ok &= (
-      j4
-      <= tibia_bars_crank_collision["offset"]
-      + tibia_bars_crank_collision["ll"] * leg_length
-      + tibia_bars_crank_collision["slope"] * s * j5
-    )
-    ok &= j4 <= j4_max + actuator_min["slope"] * s * j5
-    ok &= j4 >= j4_min + actuator_max["slope"] * s * j5
-    ok &= s * j5 <= j5_max
+  for sign in (1.0, -1.0):
+    stroke = act["b0j5"] + act["dadj4"] * j4 + sign * act["dadj5"] * j5
+    ok &= (stroke >= act["min"] + margin_act) & (stroke <= act["max"] - margin_act)
   return ok
 
 
-def test_ankle_envelope_limits(mock_env, mock_asset_cfg):
-  env = mock_env
-  env.extras = {"log": {}}
-  j5_max = _mjcf_joint_ranges()["leg_right_5_joint"][1]
+@pytest.mark.parametrize("shrink", [None, _ANKLE_MARGIN])
+def test_ankle_envelope_matches_unfolded_limits(mock_env, shrink):
+  # Left leg random, right leg inside: the reward is 0 iff the left leg is inside.
+  reward = _AnkleReward(mock_env, shrink)
+  gen = torch.Generator().manual_seed(0)
+  n = 100_000
+  low = torch.tensor([-1.0, -0.6, 0.148, 0.174533, 0.349066])  # Femur, knee: MJCF.
+  high = torch.tensor([1.0, 0.6, 0.704, 1.22173, 2.44346])
+  q = (low + (high - low) * torch.rand(n, 5, generator=gen)).unbind(-1)
+  penalty = reward(q)
+  inside = _ankle_inside(*q, shrink)
+  assert 0.05 < inside.float().mean() < 0.95
+  assert torch.all(penalty[inside] == 0)
+  # Points within float32 rounding of an edge may land on either side.
+  assert not inside[penalty > 1e-5].any()
 
-  def set_pose(left, right):
-    # (j4, j5, tibia_pitch, leg_length) per leg.
-    legs = torch.tensor([left, right], dtype=torch.float32).T  # (4, 2)
-    rows = legs.unsqueeze(1).expand(4, env.num_envs, 2)
-    return _ankle_asset(env, *rows)
 
-  # Tibia pitch 0.32 rad corresponds to knee angle approximately 1.8 rad.
-  inside = (-0.05, 0.40, 0.32, 0.6)
-  set_pose(inside, inside)
-  cfg = _ankle_cfg(mock_asset_cfg)
-  term = pal_mjlab_r.ankle_envelope_limits(cfg, env)
+def test_ankle_envelope_penalty(mock_env):
+  reward = _AnkleReward(mock_env)
+  j5_max = _mjcf_joint_ranges()["leg_left_5_joint"][1]
+  foot_tibia = KANGAROO_ANKLE_ENVELOPE_LIMITS["foot_tibia_collision"]
 
-  test_name = "Ankle envelope (inside)"
-  value = term(env, **cfg.params)
-  assert value.shape == (env.num_envs,), tensor_shape_error_message(
-    test_name, (env.num_envs,), value.shape
+  value = reward(_ANKLE_INSIDE)
+  assert value.shape == (1,)
+  assert value[0] == pytest.approx(0.0, abs=1e-6)
+
+  # Right leg past joint 5 min only: the excess [rad].
+  value = reward(_ANKLE_INSIDE, (0.0, -0.45, 0.4, 0.7, 1.6))
+  assert value[0] == pytest.approx(0.45 - j5_max, abs=1e-6)
+
+  # Knee bent so j4n = -70 deg: past j4n_min and past the foot-tibia line, as a
+  # distance in the (j4, j5) plane. At j5 = 0 both rows of that |j5| pair are
+  # crossed equally; the pair counts once.
+  j4n = -math.radians(70.0)
+  j4n_excess = foot_tibia["j4n_min"] - j4n
+  line_excess = (foot_tibia["b0j5"] - j4n) / (1 + foot_tibia["dj4ndj5"] ** 2) ** 0.5
+  value = reward((0.0, 0.0, 0.4, 0.7, 0.7))
+  assert value[0] == pytest.approx(j4n_excess + line_excess, abs=1e-5)
+  # The metrics use the largest single violation, not the sum.
+  log = mock_env.extras["log"]
+  for stat in ("mean", "max"):
+    assert log[f"Metrics/joint_envelope_ankle_violation_{stat}"] == pytest.approx(
+      max(j4n_excess, line_excess), abs=1e-5
+    )
+
+  # Two envs, one inside and one past joint 5: mean and max across envs differ.
+  reward((0.0, torch.tensor([0.0, 0.45]), 0.4, 0.7, 1.6))
+  assert log["Metrics/joint_envelope_ankle_violation_mean"] == pytest.approx(
+    0.5 * (0.45 - j5_max), abs=1e-6
   )
-  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
-
-  # Right leg past the joint 5 limit (the only violated limit at this pose).
-  set_pose(inside, (-0.05, -0.45, 0.32, 0.6))
-  test_name = "Ankle envelope (joint 5 violated on one leg)"
-  value = term(env, **cfg.params)
-  assert value[0] == pytest.approx((0.45 - j5_max) ** 2, abs=1e-6), (
-    tensor_value_error_message(test_name)
-  )
-  assert env.extras["log"]["Metrics/joint_envelope_ankle"] == pytest.approx(
+  assert log["Metrics/joint_envelope_ankle_violation_max"] == pytest.approx(
     0.45 - j5_max, abs=1e-6
   )
 
-  # Change the left knee configuration so normalized joint 4 falls below its limit:
-  # j4_knee_rel = j4 - tibia_pitch = -0.05 - 1.0 = -1.05 < j4_lim.
-  j4_lim = KANGAROO_ANKLE_ENVELOPE_LIMITS["foot_tibia_collision"]["j4_lim"]
-  set_pose((-0.05, 0.0, 1.0, 0.6), inside)
-  test_name = "Ankle envelope (joint 4 normalized to the knee)"
-  value = term(env, **cfg.params)
-  assert value[0] == pytest.approx((j4_lim - (-1.05)) ** 2, abs=1e-5), (
-    tensor_value_error_message(test_name)
-  )
-
-  # Shrinking by 10 % pulls the joint 5 limit in to 0.9 * j5_max.
-  set_pose(inside, inside)
-  cfg_shrink = _ankle_cfg(mock_asset_cfg, shrink=0.1)
-  term_shrink = pal_mjlab_r.ankle_envelope_limits(cfg_shrink, env)
-  test_name = "Ankle envelope (shrink)"
-  value = term_shrink(env, **cfg_shrink.params)
-  assert value[0] == pytest.approx(2 * (0.40 - 0.9 * j5_max) ** 2, abs=1e-6), (
-    tensor_value_error_message(test_name)
-  )
+  # A joint margin of 0.02 rad pulls the joint 5 limit in, on both legs.
+  pose = (0.0, 0.41, 0.4, 0.7, 1.6)
+  value = _AnkleReward(mock_env, {"joint": 0.02})(pose, pose)
+  assert value[0] == pytest.approx(2 * (0.41 - (j5_max - 0.02)), abs=1e-6)
 
 
-def test_ankle_envelope_matches_unfolded_limits(mock_env, mock_asset_cfg):
-  env = mock_env
-  zeros = torch.zeros(env.num_envs, 2)
-  _ankle_asset(env, zeros, zeros, zeros, zeros)
-  term = pal_mjlab_r.ankle_envelope_limits(_ankle_cfg(mock_asset_cfg), env)
-
-  gen = torch.Generator().manual_seed(0)
-  n = 200_000
-
-  def uniform(lo, hi):
-    return lo + (hi - lo) * torch.rand(n, generator=gen)
-
-  # (n / 2, 2): one column per leg. Knee over its MJCF range.
-  j4, j5 = uniform(-1.0, 1.0).view(-1, 2), uniform(-0.6, 0.6).view(-1, 2)
-  knee, leg_length = (
-    uniform(0.349066, 2.44346).view(-1, 2),
-    uniform(0.148, 0.704).view(-1, 2),
-  )
-  tibia_pitch = (
-    KANGAROO_KNEE_TO_JOINT_4_OFFSET - 0.5 * knee
-  )  # Same arithmetic as the reward.
-  inside = term.violation(j4, j5, knee, leg_length, shrink=0.0) <= 0
-  assert 0.05 < inside.float().mean() < 0.95
-  assert torch.equal(inside, _ankle_unfolded(j4, j5, tibia_pitch, leg_length))
-  # Shrinking only removes configurations.
-  shrunk = term.violation(j4, j5, knee, leg_length, shrink=0.05) <= 0
-  assert not (shrunk & ~inside).any()
-  assert shrunk.sum() < inside.sum()
-
-
-_HIP_JOINTS = [
-  "leg_left_2_joint",
-  "leg_left_3_joint",
-  "leg_right_2_joint",
-  "leg_right_3_joint",
-]
-
-
-def _hip_cfg(
-  mock_asset_cfg, shrink: float | tuple[float, float] = 0.0
-) -> RewardTermCfg:
-  return RewardTermCfg(
-    func=pal_mjlab_r.hip_envelope_limits,
-    weight=1.0,
-    params={
-      "asset_cfg": mock_asset_cfg,
-      "joint_names_group": [
-        ["leg_left_2_joint", "leg_left_3_joint"],
-        ["leg_right_2_joint", "leg_right_3_joint"],
-      ],
-      "limits": KANGAROO_HIP_ENVELOPE_LIMITS,
-      "shrink": shrink,
-    },
-  )
-
-
-def test_hip_envelope_limits(mock_env, mock_asset_cfg):
-  env = mock_env
-  env.extras = {"log": {}}
-
-  def pose(*row):
-    return torch.tensor([row] * env.num_envs, dtype=torch.float32)
-
-  _envelope_asset(env, _HIP_JOINTS, pose(0.0, 0.0, 0.0, 0.0))
-  cfg = _hip_cfg(mock_asset_cfg)
-  cfg.params["limits"] = _HIP_ACTUATOR_TEST_LIMITS
-  term = pal_mjlab_r.hip_envelope_limits(cfg, env)
-
-  test_name = "Hip envelope (inside)"
-  value = term(env, **cfg.params)
-  assert value.shape == (env.num_envs,), tensor_shape_error_message(
-    test_name, (env.num_envs,), value.shape
-  )
-  # Both actuator residuals are clipped to zero at q=0.
-  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
-
-  # Left past joint 2 max, right past joint 3 (either sign of joint 3).
-  env.scene["robot"].data.joint_pos = pose(0.8, 0.0, 0.0, -0.5)
-  test_name = "Hip envelope (both legs violated)"
-  value = term(env, **cfg.params)
-  # Both joint and normalized actuator residuals contribute.
-  expected = math.sqrt(
-    (0.8 - 0.747401) ** 2 + 2 * (0.0453125 / math.hypot(0.125, 0.0625)) ** 2
-  ) + (0.5 - 0.437830)
-  assert value[0] == pytest.approx(expected, abs=1e-6), tensor_value_error_message(
-    test_name
-  )
-
-
-_HIP_ACTUATOR_TEST_LIMITS = {
-  "b0": 0.0078125,
-  "J": [[0.125, 0.0625], [0.125, -0.0625]],
-  "A": 0.0625,
-}
-
-
-@pytest.mark.parametrize("actuator_index", [0, 1])
-@pytest.mark.parametrize("sign", [-1.0, 1.0])
-@pytest.mark.parametrize("shrink", [0.0, 0.02])
-@pytest.mark.parametrize("distance", [-0.01, 0.0, 0.01])
-def test_hip_envelope_actuator_boundary_distance(
-  mock_env, mock_asset_cfg, actuator_index, sign, shrink, distance
-):
-  # Move along the unit normal from an original actuator boundary. The
-  # reported excess must equal distance + shrink on either side/actuator.
-  env = mock_env
-  env.extras = {"log": {}}
-  cfg = _hip_cfg(mock_asset_cfg, shrink=shrink)
-  affine = _HIP_ACTUATOR_TEST_LIMITS
-  cfg.params["limits"] = affine
-  jacobian = torch.tensor(affine["J"])
-  normal = sign * jacobian[actuator_index]
-  norm = normal.norm()
-  boundary = normal * ((affine["A"] - sign * affine["b0"]) / norm.square())
-  q = boundary + distance * normal / norm
-  asset = _envelope_asset(
-    env, _HIP_JOINTS, torch.cat((q, torch.zeros(2))).repeat(env.num_envs, 1)
-  )
-  # Isolate actuator constraints for this geometric check.
-  asset.data.default_joint_pos_limits[..., 0] = -10
-  asset.data.default_joint_pos_limits[..., 1] = 10
-  original_q = asset.data.joint_pos.clone()
-  term = pal_mjlab_r.hip_envelope_limits(cfg, env)
-  expected = max(0.0, distance + shrink)
-  value = term(env, **cfg.params)
-  torch.testing.assert_close(
-    value, torch.full((env.num_envs,), expected), atol=1e-7, rtol=1e-5
-  )
-  assert env.extras["log"]["Metrics/joint_envelope_hip"] == pytest.approx(
-    expected, abs=1e-7
-  )
-  torch.testing.assert_close(asset.data.joint_pos, original_q)
-
-
-@pytest.mark.parametrize("shrink", [0.02, (0.02, 0.02), (0.0, 0.02), (0.01, 0.03)])
-def test_hip_envelope_actuator_margin(mock_env, mock_asset_cfg, shrink):
-  env = mock_env
-  env.extras = {"log": {}}
-  _envelope_asset(env, _HIP_JOINTS, torch.zeros(env.num_envs, 4))
-  cfg = _hip_cfg(mock_asset_cfg, shrink=shrink)
-  cfg.params["limits"] = _HIP_ACTUATOR_TEST_LIMITS
-  term = pal_mjlab_r.hip_envelope_limits(cfg, env)
-  s2, s3 = (shrink, shrink) if isinstance(shrink, float) else shrink
-  expected = 0.0625 - math.hypot(0.125 * s2, 0.0625 * s3)
-  torch.testing.assert_close(term._actuator_max, torch.full((2,), expected))
-  assert torch.all(term._actuator_max <= 0.0625)
-
-
-@pytest.mark.parametrize("sign", [-1.0, 1.0])
-def test_hip_envelope_joint_only_violation(mock_env, mock_asset_cfg, sign):
-  env = mock_env
-  env.extras = {"log": {}}
-  _envelope_asset(
-    env, _HIP_JOINTS, torch.tensor([[0.0, sign * 0.5, 0.0, 0.0]] * env.num_envs)
-  )
-  cfg = _hip_cfg(mock_asset_cfg, shrink=0.02)
-  term = pal_mjlab_r.hip_envelope_limits(cfg, env)
-  torch.testing.assert_close(
-    term(env, **cfg.params), torch.full((env.num_envs,), 0.5 - (0.437830 - 0.02))
-  )
-
-
-def test_hip_envelope_precomputes_joint_and_actuator_limits(mock_env, mock_asset_cfg):
-  env = mock_env
-  env.extras = {"log": {}}
-  joint_pos = torch.tensor([[0.4, 0.2, -0.2, -0.1]] * env.num_envs)
-  original_joint_pos = joint_pos.clone()
-  asset = _envelope_asset(env, _HIP_JOINTS, joint_pos)
-  asset.data.soft_joint_pos_limits = None
-  model_limits = asset.data.default_joint_pos_limits
-  model_limits[1, 0] = torch.tensor([-0.4, 0.5])
-  model_limits[2, 3] = torch.tensor([-0.2, 0.3])
-  original_limits = model_limits.clone()
-  cfg = _hip_cfg(mock_asset_cfg, shrink=(0.02, 0.03))
-  cfg.params["limits"] = _HIP_ACTUATOR_TEST_LIMITS
-  term = pal_mjlab_r.hip_envelope_limits(cfg, env)
-
-  margin = torch.tensor([0.02, 0.03])
-  expected_lower = original_limits[..., 0].reshape(env.num_envs, 2, 2) + margin
-  expected_upper = original_limits[..., 1].reshape(env.num_envs, 2, 2) - margin
-  expected_actuator = torch.full((2,), 0.0625 - math.hypot(0.125 * 0.02, 0.0625 * 0.03))
-  torch.testing.assert_close(term._joint_min, expected_lower)
-  torch.testing.assert_close(term._joint_max, expected_upper)
-  torch.testing.assert_close(term._actuator_max, expected_actuator)
-  torch.testing.assert_close(model_limits, original_limits)
-  baseline = term(env, **cfg.params)
-  assert torch.all(baseline > 0)
-
-  # All bounds remain fixed after initialization, including call-time shrink.
-  model_limits.zero_()
-  cfg.params["shrink"] = (0.2, 0.1)
-  cfg.params["limits"] = {**_HIP_ACTUATOR_TEST_LIMITS, "A": 1.0}
-  torch.testing.assert_close(term._joint_min, expected_lower)
-  torch.testing.assert_close(term._joint_max, expected_upper)
-  torch.testing.assert_close(term._actuator_max, expected_actuator)
-  torch.testing.assert_close(term(env, **cfg.params), baseline)
-  assert torch.equal(asset.data.joint_pos, original_joint_pos)
-
-
-def test_hip_envelope_without_soft_limits(mock_env, mock_asset_cfg):
-  env = mock_env
-  env.extras = {"log": {}}
-  asset = _envelope_asset(env, _HIP_JOINTS, torch.zeros(env.num_envs, 4))
-  asset.data.soft_joint_pos_limits = None
-  cfg = _hip_cfg(mock_asset_cfg, shrink=0.02)
-  term = pal_mjlab_r.hip_envelope_limits(cfg, env)
-  torch.testing.assert_close(term(env, **cfg.params), torch.zeros(env.num_envs))
-
-
-def test_hip_envelope_asymmetric_joint3_range(mock_env, mock_asset_cfg):
-  env = mock_env
-  env.extras = {"log": {}}
-  asset = _envelope_asset(env, _HIP_JOINTS, torch.zeros(env.num_envs, 4))
-  for joint_id in (1, 3):
-    asset.data.default_joint_pos_limits[:, joint_id] = torch.tensor([-0.1, 0.3])
-  original_limits = asset.data.default_joint_pos_limits.clone()
-  cfg = _hip_cfg(mock_asset_cfg, shrink=(0.01, 0.02))
-  term = pal_mjlab_r.hip_envelope_limits(cfg, env)
-
-  # Fixed radian margins move each endpoint equally, without recentering.
-  torch.testing.assert_close(
-    term._joint_min[..., 1], torch.full((env.num_envs, 2), -0.08)
-  )
-  torch.testing.assert_close(
-    term._joint_max[..., 1], torch.full((env.num_envs, 2), 0.28)
-  )
-  torch.testing.assert_close(asset.data.default_joint_pos_limits, original_limits)
+def _ankle_edge_pose(edge: str, distance: float):
+  """A pose at a signed distance [rad] past one ankle edge, moved in by its
+  _ANKLE_MARGIN, along the edge's normal in the (j4, j5) plane. Every other limit
+  stays inactive. Returns (j4, j5, leg length, femur, knee)."""
+  limits = KANGAROO_ANKLE_ENVELOPE_LIMITS
+  if edge in ("actuator +j5", "actuator -j5"):
+    # a4 / a5 max: a = b0j5 + dadj4 j4 +- dadj5 j5 <= max - margin [m].
+    act, sign = limits["actuator"], 1.0 if edge.endswith("+j5") else -1.0
+    norm = (act["dadj4"] ** 2 + act["dadj5"] ** 2) ** 0.5
+    along = (act["max"] - _ANKLE_MARGIN["actuator"] - act["b0j5"]) / norm + distance
+    j4, j5 = along * act["dadj4"] / norm, along * sign * act["dadj5"] / norm
+    return j4, j5, 0.6, 0.0, KANGAROO_TIBIA_PITCH_OFFSET + 0.3  # Tibia -0.3 rad.
+  if edge == "crank-bar":
+    # j4 <= b0l + dj4dl L - dj4dj5 j5 - margin * norm, at j5 > 0.
+    crank, leg_length, j5 = limits["crank_bar_collision"], 0.3, 0.1
+    norm = (1 + crank["dj4dj5"] ** 2) ** 0.5
+    j4 = crank["b0l"] + crank["dj4dl"] * leg_length - crank["dj4dj5"] * j5
+    j4 -= _ANKLE_MARGIN["crank"] * norm
+    j4, j5 = j4 + distance / norm, j5 + distance * crank["dj4dj5"] / norm
+    return j4, j5, leg_length, 0.0, KANGAROO_TIBIA_PITCH_OFFSET - 0.3  # Tibia 0.3.
+  # Foot-tibia: j4n >= b0j5 + dj4ndj5 j5 + margin * norm, at j5 > 0.
+  ft, tibia, j5 = limits["foot_tibia_collision"], 0.9, 0.3
+  norm = (1 + ft["dj4ndj5"] ** 2) ** 0.5
+  j4n = ft["b0j5"] + ft["dj4ndj5"] * j5 + _ANKLE_MARGIN["joint"] * norm
+  j4n, j5 = j4n - distance / norm, j5 + distance * ft["dj4ndj5"] / norm
+  return j4n + tibia, j5, 0.4, 0.0, KANGAROO_TIBIA_PITCH_OFFSET - tibia
 
 
 @pytest.mark.parametrize(
-  "affine",
+  "edge", ["actuator +j5", "actuator -j5", "crank-bar", "foot-tibia"]
+)
+@pytest.mark.parametrize("distance", [-0.01, 0.01])
+def test_ankle_envelope_edge_distance(mock_env, edge, distance):
+  # Along an edge's normal, the penalty is the distance [rad] past the edge moved
+  # in by its margin: in metres for the actuators (converted by the row norm),
+  # in radians for the collision lines (scaled by their slope).
+  reward = _AnkleReward(mock_env, _ANKLE_MARGIN)
+  value = reward(_ankle_edge_pose(edge, distance))
+  assert value[0] == pytest.approx(max(0.0, distance), abs=1e-6)
+
+
+def test_ankle_envelope_joint5_range_from_model(mock_env):
+  reward = _AnkleReward(mock_env, joint_ranges={"leg_left_5_joint": (-0.1, 0.2)})
+  assert reward((0.0, 0.15, 0.4, 0.7, 1.6))[0] == pytest.approx(0.0, abs=1e-6)
+  assert reward((0.0, 0.25, 0.4, 0.7, 1.6))[0] == pytest.approx(0.05, abs=1e-6)
+  assert reward((0.0, -0.15, 0.4, 0.7, 1.6))[0] == pytest.approx(0.05, abs=1e-6)
+
+
+_HIP_ROLES = ("2", "3")
+_HIP_PATTERNS = tuple(rf"leg_.*_{role}_joint" for role in _HIP_ROLES)
+_HIP_JOINTS = [
+  f"leg_{side}_{role}_joint" for side in ("left", "right") for role in _HIP_ROLES
+]
+# Margins of the velocity and tracking tasks.
+_HIP_MARGIN = {"joint": 0.02, "actuator": 0.0015}
+
+
+class _HipReward:
+  """The hip reward on a mock asset whose pose is set per call."""
+
+  def __init__(self, env, shrink=None, joint_ranges=None):
+    env.extras = {"log": {}}
+    self.env = env
+    self.asset = _envelope_asset(env, _HIP_JOINTS, torch.zeros(env.num_envs, 4))
+    for name, joint_range in (joint_ranges or {}).items():
+      self.asset.data.default_joint_pos_limits[:, _HIP_JOINTS.index(name)] = (
+        torch.tensor(joint_range)
+      )
+    asset_cfg = SceneEntityCfg("robot", joint_names=_HIP_PATTERNS, preserve_order=True)
+    asset_cfg.resolve(env.scene)  # As the reward manager does.
+    self.params = {
+      "asset_cfg": asset_cfg,
+      "limits": KANGAROO_HIP_ENVELOPE_LIMITS,
+      "shrink": shrink or {},
+    }
+    cfg = RewardTermCfg(func=None, weight=1.0, params=self.params)
+    self.term = pal_mjlab_r.hip_envelope_limits(cfg, env)
+
+  def __call__(self, left, right=(0.0, 0.0)):
+    """Reward for per-leg (j2, j3); each value a scalar or a tensor of shape (n,).
+    Returns shape (n,)."""
+    j2, j3 = torch.broadcast_tensors(*(torch.as_tensor(q) for q in left))
+    columns = [j2, j3, torch.full_like(j2, right[0]), torch.full_like(j2, right[1])]
+    self.asset.data.joint_pos = torch.stack(columns, dim=-1).reshape(-1, 4)
+    return self.term(self.env, **self.params)
+
+
+@pytest.mark.parametrize("shrink", [None, _HIP_MARGIN])
+def test_hip_envelope_matches_halfplanes(mock_env, shrink):
+  reward = _HipReward(mock_env, shrink)
+  margin_joint = (shrink or {}).get("joint", 0.0)
+  margin_act = (shrink or {}).get("actuator", 0.0)
+  act = KANGAROO_HIP_ENVELOPE_LIMITS["actuator"]
+  ranges = _mjcf_joint_ranges()
+  j2_min, j2_max = ranges["leg_left_2_joint"]
+  j3_min, j3_max = ranges["leg_left_3_joint"]
+  gen = torch.Generator().manual_seed(0)
+  j2 = -0.9 + 1.8 * torch.rand(100_000, generator=gen)
+  j3 = -0.6 + 1.2 * torch.rand(100_000, generator=gen)
+
+  # Independent oracle: summed excess over the eight limits, each in rad.
+  norm = (act["dadj2"] ** 2 + act["dadj3"] ** 2) ** 0.5
+  excess = [
+    j2_min + margin_joint - j2,
+    j2 - (j2_max - margin_joint),
+    j3_min + margin_joint - j3,
+    j3 - (j3_max - margin_joint),
+  ]
+  for sign in (1.0, -1.0):
+    stroke = act["b0j3"] + act["dadj2"] * j2 + sign * act["dadj3"] * j3
+    excess += [
+      (stroke - (act["max"] - margin_act)) / norm,
+      (act["min"] + margin_act - stroke) / norm,
+    ]
+  expected = torch.stack(excess, dim=-1).clamp(min=0.0).sum(-1)
+  torch.testing.assert_close(reward((j2, j3)), expected, atol=2e-6, rtol=1e-5)
+
+
+def test_hip_envelope_penalty(mock_env):
+  reward = _HipReward(mock_env)
+  j3_max = _mjcf_joint_ranges()["leg_left_3_joint"][1]
+
+  value = reward((0.0, 0.0))
+  assert value.shape == (1,)
+  assert value[0] == pytest.approx(0.0, abs=1e-6)
+
+  # Right leg past joint 3 min only: the excess [rad].
+  value = reward((0.4, 0.0), (0.0, -0.45))
+  assert value[0] == pytest.approx(0.45 - j3_max, abs=1e-6)
+
+  # Both legs past joint 3: the legs add up; the metric is the largest single
+  # violation.
+  value = reward((0.0, 0.5), (0.0, -0.45))
+  assert value[0] == pytest.approx((0.5 - j3_max) + (0.45 - j3_max), abs=1e-6)
+  log = mock_env.extras["log"]
+  for stat in ("mean", "max"):
+    assert log[f"Metrics/joint_envelope_hip_violation_{stat}"] == pytest.approx(
+      0.5 - j3_max, abs=1e-6
+    )
+
+  # Two envs, one inside and one past joint 3: mean and max across envs differ.
+  reward((0.0, torch.tensor([0.0, 0.5])))
+  assert log["Metrics/joint_envelope_hip_violation_mean"] == pytest.approx(
+    0.5 * (0.5 - j3_max), abs=1e-6
+  )
+  assert log["Metrics/joint_envelope_hip_violation_max"] == pytest.approx(
+    0.5 - j3_max, abs=1e-6
+  )
+
+
+def test_hip_envelope_joint_ranges_from_model(mock_env):
+  reward = _HipReward(
+    mock_env,
+    joint_ranges={"leg_left_2_joint": (-0.2, 0.3), "leg_left_3_joint": (-0.1, 0.2)},
+  )
+  assert reward((0.25, 0.15))[0] == pytest.approx(0.0, abs=1e-6)
+  assert reward((0.35, 0.0))[0] == pytest.approx(0.05, abs=1e-6)
+  assert reward((-0.25, 0.0))[0] == pytest.approx(0.05, abs=1e-6)
+  assert reward((0.0, 0.25))[0] == pytest.approx(0.05, abs=1e-6)
+  assert reward((0.0, -0.15))[0] == pytest.approx(0.05, abs=1e-6)
+
+
+def test_envelope_patterns_resolve_per_role_on_model():
+  # On the real joint order, one pattern per role gives the IDs grouped by role,
+  # legs in model order (left before right) within each role.
+  model_joints = list(_mjcf_joint_ranges())
+  for patterns, roles in ((_ANKLE_PATTERNS, _ANKLE_ROLES), (_HIP_PATTERNS, _HIP_ROLES)):
+    _, names = resolve_matching_names(patterns, model_joints, preserve_order=True)
+    assert names == [
+      f"leg_{side}_{role}_joint" for role in roles for side in ("left", "right")
+    ]
+
+
+@pytest.mark.parametrize(
+  "reward, joints, patterns",
   [
-    KANGAROO_HIP_ENVELOPE_LIMITS,
-    {"b0": 0.001, "J": [[0.06, 0.025], [0.06, -0.025]], "A": 0.03},
-    {"b0": 0.001, "J": [[0.06, 0.025], [0.04, -0.035]], "A": 0.03},
-    {"b0": 0.001, "J": [[0.0, 0.025], [0.04, -0.035]], "A": 0.03},
+    (
+      pal_mjlab_r.hip_envelope_limits,
+      _HIP_JOINTS,
+      (*_HIP_PATTERNS[:1], "leg_left_3_joint"),
+    ),
+    (pal_mjlab_r.ankle_envelope_limits, _ANKLE_JOINTS, _ANKLE_PATTERNS[:4]),
   ],
 )
-@pytest.mark.parametrize("shrink", [0.0, 0.02, (0.01, 0.03)])
-def test_hip_envelope_matches_joint_space_halfplanes(
-  mock_env, mock_asset_cfg, affine, shrink
-):
-  env = mock_env
-  env.extras = {"log": {}}
-  gen = torch.Generator().manual_seed(0)
-  n = 10_000
-  joint_pos = torch.stack(
-    [
-      -0.9 + 1.8 * torch.rand(n, generator=gen),
-      -0.6 + 1.2 * torch.rand(n, generator=gen),
-      -0.9 + 1.8 * torch.rand(n, generator=gen),
-      -0.6 + 1.2 * torch.rand(n, generator=gen),
-    ],
-    dim=1,
-  )
-  asset = _envelope_asset(env, _HIP_JOINTS, joint_pos)
-  cfg = _hip_cfg(mock_asset_cfg, shrink=shrink)
-  cfg.params["limits"] = affine
-  term = pal_mjlab_r.hip_envelope_limits(cfg, env)
-  value = term(env, **cfg.params)
-
-  # Independent oracle: eight explicit affine halfplanes in joint space.
-  # Normalize first, then shift each boundary by its joint-space clearance.
-  jacobian = joint_pos.new_tensor(affine["J"])
-  normals = torch.cat((torch.eye(2), -torch.eye(2), jacobian, -jacobian))
-  norms = normals.norm(dim=-1)
-  unit_normals = normals / norms[:, None]
-  bounds = asset.data.default_joint_pos_limits.reshape(n, 2, 2, 2)
-  offsets = torch.cat(
-    (
-      bounds[..., 1],
-      -bounds[..., 0],
-      torch.full((n, 2, 2), affine["A"] - affine["b0"]),
-      torch.full((n, 2, 2), affine["A"] + affine["b0"]),
-    ),
-    dim=-1,
-  )
-  margin = joint_pos.new_tensor(shrink).expand(2)
-  clearance = (unit_normals * margin).norm(dim=-1)
-  residual = (
-    joint_pos.reshape(n, 2, 2) @ unit_normals.T - offsets / norms + clearance
-  ).clamp(min=0)
-  expected = residual.norm(dim=-1).sum(dim=1)
-  torch.testing.assert_close(value, expected, atol=2e-6, rtol=1e-5)
-  assert torch.all(value >= 0)
-
-
-@pytest.mark.parametrize("shrink", [-0.01, (0.01, -0.02), float("nan"), float("inf")])
-def test_hip_envelope_rejects_invalid_shrink(mock_env, mock_asset_cfg, shrink):
-  _envelope_asset(mock_env, _HIP_JOINTS, torch.zeros(mock_env.num_envs, 4))
-  with pytest.raises(ValueError, match="shrink must be finite and nonnegative"):
-    pal_mjlab_r.hip_envelope_limits(_hip_cfg(mock_asset_cfg, shrink), mock_env)
+def test_envelope_rejects_wrong_joint_count(mock_env, reward, joints, patterns):
+  _envelope_asset(mock_env, joints, torch.zeros(mock_env.num_envs, len(joints)))
+  asset_cfg = SceneEntityCfg("robot", joint_names=patterns, preserve_order=True)
+  asset_cfg.resolve(mock_env.scene)
+  cfg = RewardTermCfg(func=reward, weight=1.0, params={"asset_cfg": asset_cfg})
+  with pytest.raises(ValueError, match="same number of joints"):
+    reward(cfg, mock_env)
 
 
 def test_track_body_ang_vel_z_exp_reward(mock_env, mock_asset_cfg):
