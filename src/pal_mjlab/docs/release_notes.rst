@@ -158,12 +158,12 @@ Model Updates
 
 Bug Fixes & Reliability
 ^^^^^^^^^^^^^^^^^^^^^^^^
-- **Fixed arm 7 link collision being ignored.** In earlier commit `#131 
+- **Fixed arm 7 link collision being ignored.** In earlier commit `#131
   (<https://github.com/pal-robotics/pal_mjlab/pull/131>`_) was introduced
   a bug were collision configuration ignores arm 7 link collisions in
   ``kangaroo_grippers.xml``, because they were named with the "_capsule"
   suffix, instead of "_collision". Collision configuration loads collisions
-  with the regex ".*_collision", and ignores all other by default. Renamed 
+  with the regex ".*_collision", and ignores all other by default. Renamed
   the collisions to use the proper suffix.
   (`#136 <https://github.com/pal-robotics/pal_mjlab/pull/136>`_)
 
