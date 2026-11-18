@@ -1,7 +1,8 @@
 .. _release_notes:
 
 Release Notes
-======
+=============
+
 This page summarizes what has changed in ``pal_mjlab`` between releases, in
 plain language, with a link back to the pull request (PR) that introduced
 each change. If you are new to the project, this is the fastest way to
@@ -274,8 +275,8 @@ Documentation & CI
   and deploys them on every push to ``main``. Use ``make docs`` to build
   them locally.
   (`#128 <https://github.com/pal-robotics/pal_mjlab/pull/128>`_)
-- Brought the documentation up to date with the code. All registered
-  tasks are now listed. New pages cover the Kangaroo Hands model, the
+- Brought the documentation up to date with the code. All registered Kangaroo
+  tasks are now listed. New pages cover the Kangaroo Hands model and the
   Kangaroo reaching task. Stale values are fixed:
   the velocity ``upright`` weight, the tracking observations and the
   grippers joint count. A test now fails if a registered task is missing
