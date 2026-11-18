@@ -57,7 +57,7 @@ KANGAROO_ANKLE_ENVELOPE_LIMITS = {
     "j4n_min": -0.998403,
   },
   "actuator": {
-    "b0j5": 0.000963,
+    "a0": 0.000963,
     "dadj4": -0.031860,
     "dadj5": -0.018999,
     "min": -0.022294,
@@ -71,7 +71,7 @@ KANGAROO_ANKLE_ENVELOPE_LIMITS = {
 }
 KANGAROO_HIP_ENVELOPE_LIMITS = {
   "actuator": {
-    "b0j3": -0.000940,
+    "a0": -0.000940,
     "dadj2": 0.054716,
     "dadj3": 0.033618,
     "min": -0.04,

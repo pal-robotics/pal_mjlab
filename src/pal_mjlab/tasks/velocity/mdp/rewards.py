@@ -75,16 +75,17 @@ class ankle_envelope_limits:
   collisions and the actuator strokes. The collisions and actuators are modelled
   as affine lines, symmetric in joint 5. All limits are solved together as
   ``A x <= b`` in x = (j4, j5, j4n, L), where j4n = j4 - (70 deg + femur - knee)
-  is the foot angle relative to the tibia instead of the hip. Joint limits come
-  from the model; the other limits are described by:
+  is the foot angle relative to the tibia instead of the hip. In case of
+  overlapping constraints, the violations of all of them are summed ane each |j5|
+  pair (foot-tibia, crank-bar) counts once, as its larger row. Joint limits come
+  from the model, the other limits are described by:
 
     j4n_min: lowest foot angle relative to the tibia [rad].
     ft_b0j5: j4n where the affine lines approximating the foot-tibia collision
       meet, at j5 = 0 [rad].
     ft_dj4ndj5: rate of change of j4n with respect to |j5|, the slope of the
       foot-tibia collision [rad/rad].
-    act_b0j5: offset from the zero position of joint 5 that makes the actuator
-      lines symmetric [m].
+    act_a0: stroke of both actuators at j4 = j5 = 0 [m].
     act_dadj4, act_dadj5: rates of change of the actuator with respect to
       joints 4 and 5 [m/rad].
     min, max: actuator stroke limits [m].
@@ -103,13 +104,12 @@ class ankle_envelope_limits:
     # Joint 5 range from the model, one value per leg.
     joint_limits = asset.data.default_joint_pos_limits[0, asset_cfg.joint_ids]
     n_joints = joint_limits.shape[0]
-    if n_joints == 0 or n_joints % 5:
+    if n_joints != 10:
       raise ValueError(
-        "asset_cfg must select the same number of joints for each of the 5 roles "
-        "[joint 4, joint 5, leg length, femur, knee], "
-        f"got {n_joints}: {asset_cfg.joint_names}"
+        "asset_cfg must select 10 joints, [joint 4, joint 5, leg length, femur, "
+        f"knee] for both legs, got {n_joints}: {asset_cfg.joint_names}"
       )
-    joint_limits = joint_limits.to(torch.float32).view(5, -1, 2)  # (role, leg, 2)
+    joint_limits = joint_limits.to(torch.float32).view(5, 2, 2)  # (joint, leg, 2)
     j5_min, j5_max = joint_limits[1].unbind(-1)
 
     limits = params["limits"]
@@ -124,7 +124,7 @@ class ankle_envelope_limits:
 
     j4n_min = foot_tibia["j4n_min"]
     ft_b0j5, ft_dj4ndj5 = foot_tibia["b0j5"], foot_tibia["dj4ndj5"]
-    act_b0j5, act_dadj4, act_dadj5 = act["b0j5"], act["dadj4"], act["dadj5"]
+    act_a0, act_dadj4, act_dadj5 = act["a0"], act["dadj4"], act["dadj5"]
     cb_b0l, cb_dj4dl, cb_dj4dj5 = crank["b0l"], crank["dj4dl"], crank["dj4dj5"]
 
     # The collision lines are lines in joint space, so their margin in rad is a
@@ -150,16 +150,16 @@ class ankle_envelope_limits:
     ], dtype=torch.float32, device=device)
 
     one = torch.ones_like(j5_min)
-    b = torch.stack([                       
+    b = torch.stack([
       -(j4n_min + margin_joint) * one,  #  0
       j5_max - margin_joint,            #  1
       -(j5_min + margin_joint),         #  2
       (-ft_b0j5 - margin_ft) * one,     #  3
       (-ft_b0j5 - margin_ft) * one,     #  4
-      (act_max - act_b0j5) * one,       #  5
-      (act_b0j5 - act_min) * one,       #  6
-      (act_max - act_b0j5) * one,       #  7
-      (act_b0j5 - act_min) * one,       #  8
+      (act_max - act_a0) * one,         #  5
+      (act_a0 - act_min) * one,         #  6
+      (act_max - act_a0) * one,         #  7
+      (act_a0 - act_min) * one,         #  8
       (cb_b0l - margin_cb) * one,       #  9
       (cb_b0l - margin_cb) * one,       # 10
     ], dim=-1)
@@ -188,7 +188,7 @@ class ankle_envelope_limits:
   ) -> torch.Tensor:
     del limits, shrink  # Resolved in __init__.
     joint_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids]
-    joint_pos = joint_pos.view(joint_pos.shape[0], 5, -1)  # (num_envs, role, leg)
+    joint_pos = joint_pos.view(joint_pos.shape[0], 5, -1)  # (num_envs, joint, leg)
     j4, j5, leg_length, femur, knee = joint_pos.unbind(1)  # each (num_envs, n_legs)
 
     # Joint 4 position relative to the tibia, from the robot's geometry.
@@ -214,11 +214,11 @@ class hip_envelope_limits:
 
   The space is mostly bounded by the joint 3 range and the actuator strokes;
   the actuators are modelled as affine lines, symmetric along both joints. All
-  limits are solved together as ``A x <= b`` in x = (j2, j3). Joint limits come
-  from the model; the actuators are described by:
+  limits are solved together as ``A x <= b`` in x = (j2, j3). In case of
+  overlapping constraints, the violations of all of them are summed. Joint
+  limits come from the model, the actuators are described by:
 
-    b0j3: offset from the zero position of joint 3 that makes the actuator
-      lines symmetric [m].
+    a0: stroke of both actuators at j2 = j3 = 0 [m].
     dadj2, dadj3: rates of change of the actuator with respect to joints 2 and
       3, representing linearized reprojections of the actuator limits onto joint
       space [m/rad].
@@ -234,12 +234,12 @@ class hip_envelope_limits:
     # Joint 2 and joint 3 ranges from the model, one value per leg.
     joint_limits = asset.data.default_joint_pos_limits[0, asset_cfg.joint_ids]
     n_joints = joint_limits.shape[0]
-    if n_joints == 0 or n_joints % 2:
+    if n_joints != 4:
       raise ValueError(
-        "asset_cfg must select the same number of joints for each of the 2 roles "
-        f"[joint 2, joint 3], got {n_joints}: {asset_cfg.joint_names}"
+        "asset_cfg must select 4 joints, [joint 2, joint 3] for both legs, "
+        f"got {n_joints}: {asset_cfg.joint_names}"
       )
-    joint_limits = joint_limits.to(torch.float32).view(2, -1, 2)
+    joint_limits = joint_limits.to(torch.float32).view(2, 2, 2)  # (joint, leg, 2)
     j2_min, j2_max = joint_limits[0].unbind(-1)
     j3_min, j3_max = joint_limits[1].unbind(-1)
     one = torch.ones_like(j2_min)
@@ -250,7 +250,7 @@ class hip_envelope_limits:
     margin_joint = shrink.get("joint", 0.0)
     margin_act = shrink.get("actuator", 0.0)
 
-    b0j3, dadj2, dadj3 = act["b0j3"], act["dadj2"], act["dadj3"]
+    a0, dadj2, dadj3 = act["a0"], act["dadj2"], act["dadj3"]
     act_min, act_max = act["min"] + margin_act, act["max"] - margin_act
 
     # fmt: off
@@ -270,10 +270,10 @@ class hip_envelope_limits:
       j2_max - margin_joint,     # 1
       j3_max - margin_joint,     # 2
       -(j3_min + margin_joint),  # 3
-      (act_max - b0j3) * one,    # 4
-      (b0j3 - act_min) * one,    # 5
-      (act_max - b0j3) * one,    # 6
-      (b0j3 - act_min) * one,    # 7
+      (act_max - a0) * one,      # 4
+      (a0 - act_min) * one,      # 5
+      (act_max - a0) * one,      # 6
+      (a0 - act_min) * one,      # 7
     ], dim=-1)
     # fmt: on
 
@@ -291,7 +291,7 @@ class hip_envelope_limits:
   ) -> torch.Tensor:
     del limits, shrink  # Resolved in __init__.
     joint_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids]
-    joint_pos = joint_pos.view(joint_pos.shape[0], 2, -1)  # (num_envs, role, leg)
+    joint_pos = joint_pos.view(joint_pos.shape[0], 2, -1)  # (num_envs, joint, leg)
     j2, j3 = joint_pos.unbind(1)  # each (num_envs, n_legs)
     X = torch.stack((j2, j3), dim=-1)  # (num_envs, n_legs, 2)
 
@@ -300,7 +300,7 @@ class hip_envelope_limits:
     violation = v.amax(dim=(1, 2))
     env.extras["log"]["Metrics/joint_envelope_hip_violation_mean"] = violation.mean()
     env.extras["log"]["Metrics/joint_envelope_hip_violation_max"] = violation.max()
-    return v.sum(-1).sum(dim=1)
+    return v.sum(dim=(1, 2))
 
 
 class joint_vel_limits:
