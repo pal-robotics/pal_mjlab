@@ -76,7 +76,7 @@ class ankle_envelope_limits:
   as affine lines, symmetric in joint 5. All limits are solved together as
   ``A x <= b`` in x = (j4, j5, j4n, L), where j4n = j4 - (70 deg + femur - knee)
   is the foot angle relative to the tibia instead of the hip. In case of
-  overlapping constraints, the violations of all of them are summed ane each |j5|
+  overlapping constraints, the violations of all of them are summed and each |j5|
   pair (foot-tibia, crank-bar) counts once, as its larger row. Joint limits come
   from the model, the other limits are described by:
 

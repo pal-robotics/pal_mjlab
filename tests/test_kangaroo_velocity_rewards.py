@@ -20,20 +20,47 @@ from pal_mjlab.robots import (
 )
 from pal_mjlab.tasks.velocity.mdp import rewards as pal_mjlab_r
 
-PARTIALLY_ACTUATED_ROBOT_XML = """
+KANGAROO_MOCK_LEGS_XML = """
 <mujoco>
+  <compiler angle="radian"/>
+  <!-- Armature keeps the mass matrix positive definite: the femur, knee and
+       joint 4 hinges share an axis through the same point. -->
+  <default>
+    <joint armature="0.01"/>
+  </default>
   <worldbody>
-    <body name="base" pos="0 0 0.5">
-      <geom name="base_geom" type="cylinder" size="0.1 0.05" mass="1.0"/>
-      <body name="link1" pos="0 0 0.1">
-        <joint name="actuated_joint1" type="hinge" axis="0 0 1" range="-3.14 3.14"/>
-        <geom name="link1_geom" type="box" size="0.05 0.05 0.2" mass="0.5"/>
-        <body name="link2" pos="0 0 0.4">
-          <joint name="passive_joint" type="hinge" axis="0 1 0" range="-1.57 1.57"/>
-          <geom name="link2_geom" type="box" size="0.05 0.05 0.15" mass="0.3"/>
-          <body name="link3" pos="0 0 0.3">
-            <joint name="actuated_joint2" type="hinge" axis="1 0 0" range="-1.57 1.57"/>
-            <geom name="link3_geom" type="box" size="0.05 0.05 0.1" mass="0.2"/>
+    <body name="base">
+      <freejoint name="root"/>
+      <geom type="sphere" size="0.1" mass="1.0"/>
+      <body name="leg_left_hip_link">
+        <joint name="leg_left_2_joint" axis="0 1 0" range="-0.60 0.80"/>
+        <joint name="leg_left_3_joint" axis="1 0 0" range="-0.40 0.40"/>
+        <geom type="sphere" size="0.05" mass="0.5"/>
+        <body name="leg_left_knee_link">
+          <joint name="leg_left_length_joint" type="slide" axis="0 0 1" range="0.15 0.68"/>
+          <joint name="leg_left_femur_joint" axis="0 1 0" range="0.20 1.10"/>
+          <joint name="leg_left_knee_joint" axis="0 -1 0" range="0.40 2.30"/>
+          <geom type="sphere" size="0.05" mass="0.5"/>
+          <body name="leg_left_foot_link">
+            <joint name="leg_left_4_joint" axis="0 1 0" range="-0.70 0.70"/>
+            <joint name="leg_left_5_joint" axis="-1 0 0" range="-0.38 0.38"/>
+            <geom type="sphere" size="0.05" mass="0.5"/>
+          </body>
+        </body>
+      </body>
+      <body name="leg_right_hip_link">
+        <joint name="leg_right_2_joint" axis="0 1 0" range="-0.60 0.80"/>
+        <joint name="leg_right_3_joint" axis="1 0 0" range="-0.40 0.40"/>
+        <geom type="sphere" size="0.05" mass="0.5"/>
+        <body name="leg_right_knee_link">
+          <joint name="leg_right_length_joint" type="slide" axis="0 0 1" range="0.15 0.68"/>
+          <joint name="leg_right_femur_joint" axis="0 1 0" range="0.20 1.10"/>
+          <joint name="leg_right_knee_joint" axis="0 -1 0" range="0.40 2.30"/>
+          <geom type="sphere" size="0.05" mass="0.5"/>
+          <body name="leg_right_foot_link">
+            <joint name="leg_right_4_joint" axis="0 1 0" range="-0.70 0.70"/>
+            <joint name="leg_right_5_joint" axis="-1 0 0" range="-0.38 0.38"/>
+            <geom type="sphere" size="0.05" mass="0.5"/>
           </body>
         </body>
       </body>
@@ -171,6 +198,30 @@ def tensor_shape_error_message(test_name: str, expected, actual):
 
 def tensor_value_error_message(test_name: str):
   return f"{test_name} returned incorrect value"
+
+
+def load_entity(env, xml: str, device: str) -> Entity:
+  """Load an entity from an XML string, initialize it and put it in env's scene."""
+  entity = Entity(EntityCfg(spec_fn=lambda: mujoco.MjSpec.from_string(xml)))
+  model = entity.compile()
+  sim = Simulation(
+    num_envs=env.num_envs, cfg=SimulationCfg(), model=model, device=device
+  )
+  entity.initialize(model, sim.model, sim.data, device)
+  env.device = device
+  env.scene = {"robot": entity}
+  return entity
+
+
+def write_joint_pose(
+  entity: Entity, joint_names: list[str], joint_pos: torch.Tensor
+) -> None:
+  """Write joint positions, one column per name in joint_names, to the sim."""
+  joint_ids, _ = entity.find_joints(joint_names, preserve_order=True)
+  entity.write_joint_position_to_sim(
+    joint_pos.to(entity.data.joint_pos),
+    joint_ids=torch.tensor(joint_ids, device=entity.data.joint_pos.device),
+  )
 
 
 # -------------------------------------#
@@ -946,100 +997,6 @@ def test_joint_vel_limits_penalty(mock_env, mock_asset_cfg):
   assert value[0] == pytest.approx(1.3, abs=1e-6), tensor_value_error_message(test_name)
 
 
-# Joint ranges hardcoded in ENVELOPE_LEGS_XML, per joint and the same for both legs.
-# The envelope rewards read joints 2, 3 and 5 from the model; joint 3 and joint 5
-# are symmetric and below 0.45 rad so the "outside" poses below exceed them.
-ENVELOPE_JOINT_RANGES = {
-  "2": (-0.6, 0.8),
-  "3": (-0.4, 0.4),
-  "4": (-0.7, 0.7),
-  "5": (-0.38, 0.38),
-  "length": (0.15, 0.68),
-  "femur": (0.2, 1.1),
-  "knee": (0.4, 2.3),
-}
-
-# Minimal two-leg model with the envelope joints of both legs and the ranges above.
-ENVELOPE_LEGS_XML = """
-<mujoco>
-  <compiler angle="radian"/>
-  <!-- Armature keeps the mass matrix positive definite: the femur, knee and
-       joint 4 hinges share an axis through the same point. -->
-  <default>
-    <joint armature="0.01"/>
-  </default>
-  <worldbody>
-    <body name="base">
-      <freejoint name="root"/>
-      <geom type="sphere" size="0.1" mass="1.0"/>
-      <body name="leg_left_hip_link">
-        <joint name="leg_left_2_joint" axis="0 1 0" range="-0.60 0.80"/>
-        <joint name="leg_left_3_joint" axis="1 0 0" range="-0.40 0.40"/>
-        <geom type="sphere" size="0.05" mass="0.5"/>
-        <body name="leg_left_knee_link">
-          <joint name="leg_left_length_joint" type="slide" axis="0 0 1" range="0.15 0.68"/>
-          <joint name="leg_left_femur_joint" axis="0 1 0" range="0.20 1.10"/>
-          <joint name="leg_left_knee_joint" axis="0 -1 0" range="0.40 2.30"/>
-          <geom type="sphere" size="0.05" mass="0.5"/>
-          <body name="leg_left_foot_link">
-            <joint name="leg_left_4_joint" axis="0 1 0" range="-0.70 0.70"/>
-            <joint name="leg_left_5_joint" axis="-1 0 0" range="-0.38 0.38"/>
-            <geom type="sphere" size="0.05" mass="0.5"/>
-          </body>
-        </body>
-      </body>
-      <body name="leg_right_hip_link">
-        <joint name="leg_right_2_joint" axis="0 1 0" range="-0.60 0.80"/>
-        <joint name="leg_right_3_joint" axis="1 0 0" range="-0.40 0.40"/>
-        <geom type="sphere" size="0.05" mass="0.5"/>
-        <body name="leg_right_knee_link">
-          <joint name="leg_right_length_joint" type="slide" axis="0 0 1" range="0.15 0.68"/>
-          <joint name="leg_right_femur_joint" axis="0 1 0" range="0.20 1.10"/>
-          <joint name="leg_right_knee_joint" axis="0 -1 0" range="0.40 2.30"/>
-          <geom type="sphere" size="0.05" mass="0.5"/>
-          <body name="leg_right_foot_link">
-            <joint name="leg_right_4_joint" axis="0 1 0" range="-0.70 0.70"/>
-            <joint name="leg_right_5_joint" axis="-1 0 0" range="-0.38 0.38"/>
-            <geom type="sphere" size="0.05" mass="0.5"/>
-          </body>
-        </body>
-      </body>
-    </body>
-  </worldbody>
-</mujoco>
-"""
-
-
-def _envelope_entity(env, device: str) -> Entity:
-  """Put a real two-leg Entity built from ENVELOPE_LEGS_XML in the env's scene.
-
-  Follows mjlab's tests/test_rewards.py: the joint names, joint positions and
-  default joint limits the rewards read all come from the compiled entity.
-  """
-  entity = Entity(
-    EntityCfg(spec_fn=lambda: mujoco.MjSpec.from_string(ENVELOPE_LEGS_XML))
-  )
-  model = entity.compile()
-  sim = Simulation(
-    num_envs=env.num_envs, cfg=SimulationCfg(), model=model, device=device
-  )
-  entity.initialize(model, sim.model, sim.data, device)
-  env.device = device
-  env.scene = {"robot": entity}
-  return entity
-
-
-def _write_joint_pos(
-  entity: Entity, joint_names: list[str], joint_pos: torch.Tensor
-) -> None:
-  """Write joint positions, one column per name in joint_names, to the sim."""
-  joint_ids, _ = entity.find_joints(joint_names, preserve_order=True)
-  entity.write_joint_position_to_sim(
-    joint_pos.to(entity.data.joint_pos),
-    joint_ids=torch.tensor(joint_ids, device=entity.data.joint_pos.device),
-  )
-
-
 def test_ankle_envelope_limits(mock_env, device):
   env = mock_env
 
@@ -1058,7 +1015,7 @@ def test_ankle_envelope_limits(mock_env, device):
     "leg_right_knee_joint",
   ]
 
-  asset = _envelope_entity(env, device)
+  asset = load_entity(env, KANGAROO_MOCK_LEGS_XML, device)
 
   asset_cfg = SceneEntityCfg(
     "robot",
@@ -1088,7 +1045,8 @@ def test_ankle_envelope_limits(mock_env, device):
   foot_tibia = KANGAROO_ANKLE_ENVELOPE_LIMITS["foot_tibia_collision"]
   act = KANGAROO_ANKLE_ENVELOPE_LIMITS["actuator"]
   crank = KANGAROO_ANKLE_ENVELOPE_LIMITS["crank_bar_collision"]
-  j5_max = ENVELOPE_JOINT_RANGES["5"][1]
+  (j5_id,), _ = asset.find_joints("leg_left_5_joint")
+  j5_max = asset.data.default_joint_pos_limits[0, j5_id, 1].item()
   act_norm = (act["dadj4"] ** 2 + act["dadj5"] ** 2) ** 0.5
 
   # (j4, j5, leg length, femur, knee)
@@ -1134,7 +1092,7 @@ def test_ankle_envelope_limits(mock_env, device):
 
   # Inside
 
-  _write_joint_pos(
+  write_joint_pose(
     asset, joint_names, torch.tensor([[*inside, *inside]] * env.num_envs)
   )
 
@@ -1150,7 +1108,7 @@ def test_ankle_envelope_limits(mock_env, device):
   # On the boundary
 
   for name, pose, _ in boundaries:
-    _write_joint_pos(
+    write_joint_pose(
       asset, joint_names, torch.tensor([[*pose, *inside]] * env.num_envs)
     )
 
@@ -1164,7 +1122,7 @@ def test_ankle_envelope_limits(mock_env, device):
 
   # One leg outside
 
-  _write_joint_pos(
+  write_joint_pose(
     asset,
     joint_names,
     torch.tensor([[*inside, 0.0, -0.45, 0.4, 0.7, 1.6]] * env.num_envs),
@@ -1180,7 +1138,7 @@ def test_ankle_envelope_limits(mock_env, device):
 
   # Both legs outside
 
-  _write_joint_pos(
+  write_joint_pose(
     asset,
     joint_names,
     torch.tensor([[0.0, 0.5, 0.4, 0.7, 1.6, 0.0, -0.45, 0.4, 0.7, 1.6]] * env.num_envs),
@@ -1204,7 +1162,7 @@ def test_ankle_envelope_limits(mock_env, device):
 
   joint_pos = torch.tensor([[0.0, 0.45, 0.4, 0.7, 1.6, *inside]] * env.num_envs)
   joint_pos[0, 1] = 0.0
-  _write_joint_pos(asset, joint_names, joint_pos)
+  write_joint_pose(asset, joint_names, joint_pos)
 
   reward_term(env, **cfg.params)
 
@@ -1219,7 +1177,7 @@ def test_ankle_envelope_limits(mock_env, device):
 
   # Far outside
 
-  _write_joint_pos(
+  write_joint_pose(
     asset,
     joint_names,
     torch.tensor([[0.0, 0.0, 0.4, 0.7, 0.7, *inside]] * env.num_envs),
@@ -1244,7 +1202,7 @@ def test_ankle_envelope_limits(mock_env, device):
   reward_term = pal_mjlab_r.ankle_envelope_limits(cfg, env)
 
   for name, pose, margin in boundaries:
-    _write_joint_pos(
+    write_joint_pose(
       asset, joint_names, torch.tensor([[*pose, *inside]] * env.num_envs)
     )
 
@@ -1256,7 +1214,7 @@ def test_ankle_envelope_limits(mock_env, device):
       test_name
     )
 
-  _write_joint_pos(
+  write_joint_pose(
     asset, joint_names, torch.tensor([[*inside, *inside]] * env.num_envs)
   )
 
@@ -1304,7 +1262,7 @@ def test_hip_envelope_limits(mock_env, device):
     "leg_right_3_joint",
   ]
 
-  asset = _envelope_entity(env, device)
+  asset = load_entity(env, KANGAROO_MOCK_LEGS_XML, device)
 
   asset_cfg = SceneEntityCfg(
     "robot",
@@ -1326,8 +1284,10 @@ def test_hip_envelope_limits(mock_env, device):
   reward_term = pal_mjlab_r.hip_envelope_limits(cfg, env)
 
   act = KANGAROO_HIP_ENVELOPE_LIMITS["actuator"]
-  j2_max = ENVELOPE_JOINT_RANGES["2"][1]
-  j3_max = ENVELOPE_JOINT_RANGES["3"][1]
+  joint_ids, _ = asset.find_joints(
+    ("leg_left_2_joint", "leg_left_3_joint"), preserve_order=True
+  )
+  j2_max, j3_max = asset.data.default_joint_pos_limits[0, joint_ids, 1].tolist()
   act_norm = (act["dadj2"] ** 2 + act["dadj3"] ** 2) ** 0.5
 
   # (name, pose on the boundary, margin of that boundary [rad])
@@ -1345,7 +1305,7 @@ def test_hip_envelope_limits(mock_env, device):
 
   # Inside
 
-  _write_joint_pos(
+  write_joint_pose(
     asset, joint_names, torch.zeros((env.num_envs, 4), device=env.device)
   )
 
@@ -1361,7 +1321,7 @@ def test_hip_envelope_limits(mock_env, device):
   # On the boundary
 
   for name, pose, _ in boundaries:
-    _write_joint_pos(
+    write_joint_pose(
       asset, joint_names, torch.tensor([[*pose, 0.0, 0.0]] * env.num_envs)
     )
 
@@ -1375,7 +1335,7 @@ def test_hip_envelope_limits(mock_env, device):
 
   # One leg outside
 
-  _write_joint_pos(
+  write_joint_pose(
     asset, joint_names, torch.tensor([[0.4, 0.0, 0.0, -0.45]] * env.num_envs)
   )
 
@@ -1389,7 +1349,7 @@ def test_hip_envelope_limits(mock_env, device):
 
   # Both legs outside
 
-  _write_joint_pos(
+  write_joint_pose(
     asset, joint_names, torch.tensor([[0.0, 0.5, 0.0, -0.45]] * env.num_envs)
   )
 
@@ -1411,7 +1371,7 @@ def test_hip_envelope_limits(mock_env, device):
 
   joint_pos = torch.tensor([[0.0, 0.5, 0.0, 0.0]] * env.num_envs)
   joint_pos[0, 1] = 0.0
-  _write_joint_pos(asset, joint_names, joint_pos)
+  write_joint_pose(asset, joint_names, joint_pos)
 
   reward_term(env, **cfg.params)
 
@@ -1426,7 +1386,7 @@ def test_hip_envelope_limits(mock_env, device):
 
   # Far outside
 
-  _write_joint_pos(
+  write_joint_pose(
     asset, joint_names, torch.tensor([[0.9, 0.6, 0.0, 0.0]] * env.num_envs)
   )
 
@@ -1449,7 +1409,7 @@ def test_hip_envelope_limits(mock_env, device):
   reward_term = pal_mjlab_r.hip_envelope_limits(cfg, env)
 
   for name, pose, margin in boundaries:
-    _write_joint_pos(
+    write_joint_pose(
       asset, joint_names, torch.tensor([[*pose, 0.0, 0.0]] * env.num_envs)
     )
 
@@ -1461,7 +1421,7 @@ def test_hip_envelope_limits(mock_env, device):
       test_name
     )
 
-  _write_joint_pos(
+  write_joint_pose(
     asset, joint_names, torch.zeros((env.num_envs, 4), device=env.device)
   )
 
