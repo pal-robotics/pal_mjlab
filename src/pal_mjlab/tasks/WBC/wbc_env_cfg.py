@@ -362,17 +362,10 @@ def make_wbc_env_cfg() -> ManagerBasedRlEnvCfg:
   # Curriculum
   ##
 
+  # No survival curriculum: survival stays at weight 1.0 for the whole run so the
+  # net reward stays positive once the foot penalties (lift / slip) are active.
+  # Otherwise ending the episode early can become the best strategy.
   curriculum = {
-    "survival_curr": CurriculumTermCfg(
-      func=mdp.reward_curriculum,
-      params={
-        "reward_name": "survival",
-        "stages": [
-          {"step": 0, "weight": 1.0},
-          {"step": 5_000 * 24, "weight": 0.0},
-        ],
-      },
-    ),
     "motion_body_pos_curr": CurriculumTermCfg(
       func=mdp.reward_curriculum,
       params={

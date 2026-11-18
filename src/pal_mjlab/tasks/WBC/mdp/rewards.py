@@ -116,6 +116,249 @@ def _library_body_z(motion, body_idx: list[int]) -> torch.Tensor:
   return out
 
 
+@torch.no_grad()
+def _clip_body_z_range(
+  command: MotionCommand, body_names: tuple[str, ...]
+) -> tuple[torch.Tensor, torch.Tensor]:
+  """Per-clip min and max world z of the given reference bodies.
+
+  Returns ``(z_min, z_max)``, each of shape (num_trajectories, len(body_names)).
+  The library sweep is expensive with the online loader, so the result is cached
+  on the command and shared between all reward terms that need it.
+  """
+  cache = command.__dict__.setdefault("_clip_body_z_range_cache", {})
+  key = tuple(body_names)
+  if key not in cache:
+    body_idx = [command.cfg.body_names.index(n) for n in body_names]
+    z = _library_body_z(command.motion, body_idx)  # (T_total, F)
+    starts = command.motion.segment_start_idx.tolist()
+    ends = command.motion.segment_end_idx.tolist()
+    z_min = torch.stack([z[s:e].amin(dim=0) for s, e in zip(starts, ends, strict=True)])
+    z_max = torch.stack([z[s:e].amax(dim=0) for s, e in zip(starts, ends, strict=True)])
+    cache[key] = (z_min.to(command.device), z_max.to(command.device))
+  return cache[key]
+
+
+class _ref_foot_contact_base:
+  """Shared logic: is each reference foot planted, and is the robot foot touching
+  the ground?
+
+  A reference foot is *planted* when it is within ``lift_threshold`` of its
+  lowest height in the current clip and its horizontal speed is below
+  ``vel_threshold``. Clips in which the reference steps are handled naturally:
+  the swing foot is not planted, so it is not penalised.
+
+  Robot contact comes from a ContactSensor whose primaries are the foot subtrees
+  (``found > 0``). Sensor primaries are matched to ``foot_body_names`` by name.
+  """
+
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+    params = cfg.params
+    command = cast(MotionCommand, env.command_manager.get_term(params["command_name"]))
+    foot_body_names: tuple[str, ...] = params["foot_body_names"]
+    self.foot_idx = torch.tensor(
+      [command.cfg.body_names.index(n) for n in foot_body_names],
+      dtype=torch.long,
+      device=env.device,
+    )
+    self.clip_min_z, _ = _clip_body_z_range(command, foot_body_names)
+
+    sensor = env.scene[params["sensor_name"]]
+    primary_names = list(sensor.primary_names)
+    order = []
+    for foot in foot_body_names:
+      matches = [i for i, p in enumerate(primary_names) if p.split("/")[-1] == foot]
+      if len(matches) != 1:
+        raise ValueError(
+          f"Foot '{foot}' must match exactly one primary of sensor "
+          f"'{params['sensor_name']}', got {primary_names}"
+        )
+      order.append(matches[0])
+    self.sensor_order = torch.tensor(order, dtype=torch.long, device=env.device)
+
+  def _contacts(
+    self,
+    env: ManagerBasedRlEnv,
+    command: MotionCommand,
+    sensor_name: str,
+    lift_threshold: float,
+    vel_threshold: float,
+  ) -> tuple[torch.Tensor, torch.Tensor]:
+    """Returns (ref_planted, robot_contact), both bool of shape (N, F)."""
+    ref_z = (
+      command.body_pos_w[:, self.foot_idx, 2] - env.scene.env_origins[:, None, 2]
+    )
+    ref_h = ref_z - self.clip_min_z[command.rand_motion]
+    ref_speed = torch.linalg.norm(command.body_lin_vel_w[:, self.foot_idx, :2], dim=-1)
+    ref_planted = (ref_h < lift_threshold) & (ref_speed < vel_threshold)
+
+    found = env.scene[sensor_name].data.found
+    assert found is not None
+    robot_contact = found[:, self.sensor_order] > 0
+    return ref_planted, robot_contact
+
+  @staticmethod
+  def _after_grace(env: ManagerBasedRlEnv, grace_steps: int) -> torch.Tensor:
+    """(N,) bool: False during the first ``grace_steps`` policy steps of an
+    episode. The randomised initial state (RSI pose / velocity) is not the
+    policy's doing, so penalising it only adds unavoidable noise."""
+    return env.episode_length_buf > grace_steps
+
+
+class ref_contact_foot_lift_penalty(_ref_foot_contact_base):
+  """Penalise a robot foot that is off the ground while the reference foot is
+  planted (i.e. an unrequested step).
+
+  Returns the number of such feet (0, 1 or 2) per env; use a negative weight.
+  The cost of a step therefore scales with its swing time. This is a soft cost,
+  not a termination: when a push makes a step necessary, losing the tracking
+  reward or terminating costs more than the step, so the policy can still step.
+  """
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    command_name: str,
+    sensor_name: str,
+    foot_body_names: tuple[str, ...],
+    lift_threshold: float = 0.03,
+    vel_threshold: float = 0.1,
+    grace_steps: int = 25,
+  ) -> torch.Tensor:
+    del foot_body_names  # Used in __init__.
+    command = cast(MotionCommand, env.command_manager.get_term(command_name))
+    ref_planted, robot_contact = self._contacts(
+      env, command, sensor_name, lift_threshold, vel_threshold
+    )
+    lifted = ref_planted & ~robot_contact & self._after_grace(env, grace_steps)[:, None]
+    env.extras.setdefault("log", {})["Metrics/unrequested_foot_lift_rate"] = (
+      lifted.float().mean()
+    )
+    return lifted.float().sum(dim=-1)
+
+
+class ref_contact_foot_slip_penalty(_ref_foot_contact_base):
+  """Penalise horizontal velocity of a robot foot that is touching the ground
+  while the reference foot is planted (shuffling / sliding the feet).
+
+  Returns the sum over feet of ``1 - exp(-|v_xy|^2 / slip_std^2)``, bounded in
+  [0, 1] per foot; use a negative weight. The bound matters: an unbounded
+  ``|v|^2`` explodes when the robot falls or is pushed (pushes set the root
+  velocity, so the feet move with it), which drowns the tracking rewards early
+  in training and makes ending the episode early the best strategy.
+  """
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    command_name: str,
+    sensor_name: str,
+    foot_body_names: tuple[str, ...],
+    lift_threshold: float = 0.03,
+    vel_threshold: float = 0.1,
+    slip_std: float = 0.15,
+    grace_steps: int = 25,
+  ) -> torch.Tensor:
+    del foot_body_names  # Used in __init__.
+    command = cast(MotionCommand, env.command_manager.get_term(command_name))
+    ref_planted, robot_contact = self._contacts(
+      env, command, sensor_name, lift_threshold, vel_threshold
+    )
+    foot_vel_xy = command.robot_body_lin_vel_w[:, self.foot_idx, :2]
+    slip = 1.0 - torch.exp(-torch.sum(torch.square(foot_vel_xy), dim=-1) / slip_std**2)
+    active = ref_planted & robot_contact & self._after_grace(env, grace_steps)[:, None]
+    return torch.sum(slip * active.float(), dim=-1)
+
+
+class dcm_support_center_exp(_ref_foot_contact_base):
+  """Keep the robot's DCM (capture point) at the centre of its double support.
+
+  Stabilisation task in the spirit of an optimal-control balance controller: while
+  the reference is in double support (both reference feet planted), reward
+
+    exp(-(e_x / std_x)^2 - (e_y / std_y)^2)
+
+  where ``e`` is the horizontal offset of the robot's divergent component of
+  motion ``xi = c + c_dot / omega`` (``omega = sqrt(g / z_c)``) from the centroid
+  of the robot's foot collision geoms, expressed in a feet frame (y axis from
+  right to left foot, x axis forward). The target is the robot's *current* feet,
+  so after a recovery step the target moves with them.
+
+  Using the DCM instead of the COM means a push (which changes ``c_dot``) moves
+  ``xi`` immediately, so the policy is rewarded for actively braking with ankle /
+  hip strategy. If the DCM is pushed far outside the support, only a step can
+  bring it back, which is then traded off against the foot lift penalty.
+
+  Returns 0 while the reference is not in double support.
+  """
+
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+    super().__init__(cfg, env)
+    params = cfg.params
+    asset_cfg: SceneEntityCfg = params.get("asset_cfg", _DEFAULT_ASSET_CFG)
+    self.robot = env.scene[asset_cfg.name]
+    left_geoms, _ = self.robot.find_geoms(params["left_foot_geom_names"], preserve_order=True)
+    right_geoms, _ = self.robot.find_geoms(params["right_foot_geom_names"], preserve_order=True)
+    self.left_geom_ids = torch.tensor(left_geoms, dtype=torch.long, device=env.device)
+    self.right_geom_ids = torch.tensor(right_geoms, dtype=torch.long, device=env.device)
+    self.root_body_id = self.robot.indexing.root_body_id
+    self.gravity = float(abs(env.sim.mj_model.opt.gravity[2]))
+    # Exposed for debugging / visualisation.
+    self.dcm_w = torch.zeros(env.num_envs, 2, device=env.device)
+    self.support_center_w = torch.zeros(env.num_envs, 2, device=env.device)
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    command_name: str,
+    sensor_name: str,
+    foot_body_names: tuple[str, ...],
+    left_foot_geom_names: tuple[str, ...],
+    right_foot_geom_names: tuple[str, ...],
+    std_x: float = 0.06,
+    std_y: float = 0.08,
+    lift_threshold: float = 0.03,
+    vel_threshold: float = 0.1,
+    min_com_height: float = 0.2,
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+  ) -> torch.Tensor:
+    del foot_body_names, left_foot_geom_names, right_foot_geom_names, asset_cfg
+    command = cast(MotionCommand, env.command_manager.get_term(command_name))
+    ref_planted, _ = self._contacts(env, command, sensor_name, lift_threshold, vel_threshold)
+    ref_ds = ref_planted.all(dim=-1)
+
+    data = self.robot.data.data
+    com = data.subtree_com[:, self.root_body_id]
+    com_vel = data.subtree_linvel[:, self.root_body_id]
+    z_c = (com[:, 2] - env.scene.env_origins[:, 2]).clamp_min(min_com_height)
+    omega = torch.sqrt(self.gravity / z_c)
+    dcm = com[:, :2] + com_vel[:, :2] / omega[:, None]
+
+    geom_pos = self.robot.data.geom_pose_w[..., :2]  # (N, G, 2)
+    left = geom_pos[:, self.left_geom_ids].mean(dim=1)
+    right = geom_pos[:, self.right_geom_ids].mean(dim=1)
+    center = 0.5 * (left + right)
+
+    # Feet frame: y from right to left foot, x = y rotated by -90 deg (forward).
+    y_axis = left - right
+    y_axis = y_axis / torch.linalg.norm(y_axis, dim=-1, keepdim=True).clamp_min(1e-6)
+    x_axis = torch.stack([y_axis[:, 1], -y_axis[:, 0]], dim=-1)
+    err = dcm - center
+    e_x = torch.sum(err * x_axis, dim=-1)
+    e_y = torch.sum(err * y_axis, dim=-1)
+
+    self.dcm_w = dcm
+    self.support_center_w = center
+
+    log = env.extras.setdefault("log", {})
+    n_ds = ref_ds.sum().clamp_min(1)
+    log["Metrics/dcm_error_x_ds"] = (e_x.abs() * ref_ds).sum() / n_ds
+    log["Metrics/dcm_error_y_ds"] = (e_y.abs() * ref_ds).sum() / n_ds
+
+    reward = torch.exp(-torch.square(e_x / std_x) - torch.square(e_y / std_y))
+    return reward * ref_ds.float()
+
+
 class zmp_support_polygon_penalty:
   """Keep the Zero Moment Point inside the support polygon for static motions.
 
@@ -151,22 +394,9 @@ class zmp_support_polygon_penalty:
 
     # --- 1. Static / dynamic classification of every clip in the library. ---
     foot_body_names = params["foot_body_names"]
-    foot_idx = [command.cfg.body_names.index(n) for n in foot_body_names]
-    foot_z = _library_body_z(command.motion, foot_idx)  # (T_total, F)
+    z_min, z_max = _clip_body_z_range(command, foot_body_names)  # (num_traj, F)
     lift_threshold = params.get("lift_threshold", 0.03)
-    clip_lifts_foot = torch.zeros(
-      command.motion.num_trajectories, dtype=torch.bool, device=self.device
-    )
-    for i, (s, e) in enumerate(
-      zip(
-        command.motion.segment_start_idx.tolist(),
-        command.motion.segment_end_idx.tolist(),
-        strict=True,
-      )
-    ):
-      z = foot_z[s:e]
-      lift = (z - z.min(dim=0, keepdim=True).values).amax()
-      clip_lifts_foot[i] = lift > lift_threshold
+    clip_lifts_foot = (z_max - z_min).amax(dim=-1) > lift_threshold
     self.clip_is_static = ~clip_lifts_foot
     static_names = [
       n for n, st in zip(command.motion.segment_names, self.clip_is_static.tolist()) if st

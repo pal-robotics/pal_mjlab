@@ -3,6 +3,7 @@
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.metrics_manager import MetricsTermCfg
 from mjlab.managers.observation_manager import ObservationTermCfg
@@ -68,7 +69,19 @@ def pal_kangaroo_flat_wbc_env_cfg(
     reduce="none",
     num_slots=1,
   )
-  cfg.scene.sensors = (self_collision_cfg,)
+  feet_ground_cfg = ContactSensorCfg(
+    name="feet_ground_contact",
+    primary=ContactMatch(
+      mode="subtree",
+      pattern=r"^(leg_left_5_link|leg_right_5_link)$",  # subtree so foot link is included
+      entity="robot",
+    ),
+    secondary=ContactMatch(mode="body", pattern="terrain"),
+    fields=("found",),
+    reduce="none",
+    num_slots=1,
+  )
+  cfg.scene.sensors = (self_collision_cfg, feet_ground_cfg)
 
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
@@ -157,7 +170,7 @@ def pal_kangaroo_flat_wbc_env_cfg(
   # reference never lifts a foot. The outer foot capsules span the foot sole.
   cfg.rewards["zmp_support_polygon"] = RewardTermCfg(
     func=mdp.zmp_support_polygon_penalty,
-    weight=-50.0,
+    weight=0.0,  # Disabled: superseded by dcm_support_center + unrequested_foot_lift.
     params={
       "command_name": "motion",
       "foot_body_names": ("leg_left_5_link", "leg_right_5_link"),
@@ -170,6 +183,70 @@ def pal_kangaroo_flat_wbc_env_cfg(
       "margin": 0.04,
       "lift_threshold": 0.03,
       "contact_height": 0.01,
+    },
+  )
+
+  # Stepping is allowed but not free: while the reference foot is planted, a
+  # robot foot in the air (an unrequested step) or sliding on the ground costs
+  # reward. Small disturbances should then be absorbed in double support, while
+  # a step is still worth it when a push would otherwise make the robot fall.
+  # Lift cost per footstep is about |weight| * swing_time (~0.35 s).
+  ref_contact_params = {
+    "command_name": "motion",
+    "sensor_name": "feet_ground_contact",
+    "foot_body_names": ("leg_left_5_link", "leg_right_5_link"),
+    "lift_threshold": 0.03,
+    "vel_threshold": 0.1,
+  }
+  cfg.rewards["unrequested_foot_lift"] = RewardTermCfg(
+    func=mdp.ref_contact_foot_lift_penalty,
+    weight=-5.0,
+    params=dict(ref_contact_params),
+  )
+  cfg.rewards["unrequested_foot_slip"] = RewardTermCfg(
+    func=mdp.ref_contact_foot_slip_penalty,
+    weight=-1.0,
+    params=dict(ref_contact_params),
+  )
+
+  # Ramp the foot penalties in: early on the policy can't stand yet, so they
+  # only add unavoidable negative reward that pushes towards ending episodes.
+  # Steps are env steps (iterations * num_steps_per_env = 24).
+  cfg.curriculum["unrequested_foot_lift_curr"] = CurriculumTermCfg(
+    func=mdp.reward_curriculum,
+    params={
+      "reward_name": "unrequested_foot_lift",
+      "stages": [
+        {"step": 0, "weight": 0.0},
+        {"step": 1_000 * 24, "weight": -2.5},
+        {"step": 3_000 * 24, "weight": -5.0},
+      ],
+    },
+  )
+  cfg.curriculum["unrequested_foot_slip_curr"] = CurriculumTermCfg(
+    func=mdp.reward_curriculum,
+    params={
+      "reward_name": "unrequested_foot_slip",
+      "stages": [
+        {"step": 0, "weight": 0.0},
+        {"step": 1_000 * 24, "weight": -0.5},
+        {"step": 3_000 * 24, "weight": -1.0},
+      ],
+    },
+  )
+
+  # Balance task: while the reference is in double support, keep the DCM at the
+  # centre of the robot's feet. Combined with the lift penalty: absorb
+  # disturbances in double support, step only when the DCM can't be recovered.
+  cfg.rewards["dcm_support_center"] = RewardTermCfg(
+    func=mdp.dcm_support_center_exp,
+    weight=1.0,
+    params={
+      **ref_contact_params,
+      "left_foot_geom_names": tuple(n for n in geom_names if n.startswith("left_")),
+      "right_foot_geom_names": tuple(n for n in geom_names if n.startswith("right_")),
+      "std_x": 0.06,
+      "std_y": 0.08,
     },
   )
 
@@ -280,6 +357,14 @@ def pal_kangaroo_flat_wbc_env_cfg(
 
     cfg.observations["actor"].enable_corruption = False
     cfg.events.pop("push_robot", None)
+    # Training-only term; its __init__ sweeps the whole motion library with
+    # batch_size == num_envs, which is prohibitively slow with few play envs.
+    cfg.rewards.pop("zmp_support_polygon", None)
+    cfg.rewards.pop("unrequested_foot_lift", None)
+    cfg.rewards.pop("unrequested_foot_slip", None)
+    cfg.rewards.pop("dcm_support_center", None)
+    cfg.curriculum.pop("unrequested_foot_lift_curr", None)
+    cfg.curriculum.pop("unrequested_foot_slip_curr", None)
 
     # Disable RSI randomization.
     motion_cmd.pose_range = {}
