@@ -20,6 +20,17 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
+- **Added new collisions meshes in kangaroo grippers.** ``kangaroo_grippers.xml`` 
+  now has collisions meshes in the grippers and the wrist. This allows
+  to manage this collisions in tasks using this robot. Collisions between
+  consecutive bodies are properly excluded.
+  (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
+
+- **Added arm tip links in kangaroo grippers.** In ``kangaroo_grippers.xml``, 
+  new body sitting at the end effector's position to ease body tracking in 
+  relevant tasks, like tracking or WBC. Names of the body match exactly their 
+  equivalent in ``kangaroo.xml``.
+  (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
 
 - **New stairs velocity task for the Kangaroo.** Adds
   ``Mjlab-Velocity-Stairs-Pal-Kangaroo`` on top of the rough task, with a
@@ -213,6 +224,11 @@ dependency issue, check which of these bumps might be relevant first.
 
 Breaking Changes
 ^^^^^^^^^^^^^^^^
+- **Axis inverted for arm joints 5 and 7 in kangaroo grippers xml**
+  For arm joints 5 and 7 in ``kangaroo_grippers.xml``, axis have gone from
+  ``"0 0 -1"`` to ``"0 0 1"``. Policies trained before this commit will have
+  their behaviour affected by this change.
+  (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
 
 - **Removed the base linear acceleration observation from the Kangaroo
   velocity tasks.** The ``base_lin_acc`` actor observation term (IMU
