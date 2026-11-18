@@ -229,8 +229,8 @@ Breaking Changes
 - **Axis inverted for arm joints 5 and 7 in kangaroo grippers xml**
   For arm joints 5 and 7 in ``kangaroo_grippers.xml``, axis have gone from
   ``"0 0 -1"`` to ``"0 0 1"``. Policies trained before this commit will have
-  their behaviour affected by this change. This is done to reflect the new 
-  changes introduced in the URDF. If the version of ``pal_sea_arm`` on the 
+  their behaviour affected by this change. This is done to reflect the new
+  changes introduced in the URDF. If the version of ``pal_sea_arm`` on the
   robot is greater than 2.5.1, this change is needed. If your robot is running
   ROS 1, this change is needed.
   (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
