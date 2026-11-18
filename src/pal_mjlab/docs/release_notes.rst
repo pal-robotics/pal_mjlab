@@ -158,6 +158,15 @@ Model Updates
 
 Bug Fixes & Reliability
 ^^^^^^^^^^^^^^^^^^^^^^^^
+- **Fixed arm 7 link collision being ignored.** In earlier commit `#131 
+  (<https://github.com/pal-robotics/pal_mjlab/pull/131>`_) was introduced
+  a bug were collision configuration ignores arm 7 link collisions in
+  ``kangaroo_grippers.xml``, because they were named with the "_capsule"
+  suffix, instead of "_collision". Collision configuration loads collisions
+  with the regex ".*_collision", and ignores all other by default. Renamed 
+  the collisions to use the proper suffix.
+  (`#136 <https://github.com/pal-robotics/pal_mjlab/pull/136>`_)
+
 - **Fixed swapped ``stairs_up``/``stairs_down`` names in the Kangaroo rough
   terrain.** The pyramid stairs (spawn on top, walk down) were named
   ``stairs_up`` and the inverted pyramid (spawn at the bottom, walk up)
