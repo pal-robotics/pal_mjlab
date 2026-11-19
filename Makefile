@@ -4,9 +4,12 @@ sync:
 
 .PHONY: format
 format:
-	uv run ruff format
-	uv run ruff check --fix
+	uvx pre-commit run --all-files
 
 .PHONY: test
 test:
 	uv run --extra cpu pytest
+
+.PHONY: docs
+docs:
+	uv run --only-group docs sphinx-build -W --keep-going -b html src/pal_mjlab/docs _build/html

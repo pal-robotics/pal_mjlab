@@ -32,6 +32,18 @@ New Features & Tasks
   robot and then fitted to the corresponding joints. The resulting values are
   stored in ``KANGAROO_HIP_ENVELOPE_LIMITS`` and
   ``KANGAROO_ANKLE_ENVELOPE_LIMITS``.
+  
+- **Reworked collisions meshes in kangaroo grippers.** ``kangaroo_grippers.xml``
+  now has collisions meshes in the grippers and the wrist. Collisions between
+  consecutive bodies are properly excluded. Additionally, the forearm collisions
+  were slightly modified to match better the arm.
+  (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
+
+- **Added arm tip links in kangaroo grippers.** In ``kangaroo_grippers.xml``,
+  new body sitting at the end effector's position to ease body tracking in
+  relevant tasks, like tracking or WBC. Names of the body match exactly their
+  equivalent in ``kangaroo.xml``.
+  (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
 
 - **New stairs velocity task for the Kangaroo.** Adds
   ``Mjlab-Velocity-Stairs-Pal-Kangaroo`` on top of the rough task, with a
@@ -162,6 +174,15 @@ Model Updates
 
 Bug Fixes & Reliability
 ^^^^^^^^^^^^^^^^^^^^^^^^
+- **Fixed arm 7 link collision being ignored.** In earlier commit
+  (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_) was introduced
+  a bug were collision configuration ignores arm 7 link collisions in
+  ``kangaroo_grippers.xml``, because they were named with the "_capsule"
+  suffix, instead of "_collision". Collision configuration loads collisions
+  with the regex ".*_collision", and ignores all other by default. Renamed
+  the collisions to use the proper suffix.
+  (`#136 <https://github.com/pal-robotics/pal_mjlab/pull/136>`_)
+
 - **Fixed swapped ``stairs_up``/``stairs_down`` names in the Kangaroo rough
   terrain.** The pyramid stairs (spawn on top, walk down) were named
   ``stairs_up`` and the inverted pyramid (spawn at the bottom, walk up)
@@ -238,6 +259,16 @@ Breaking Changes
   now needs the femur joint). ``shrink`` is a margin per limit group in its own
   units (rad or m of stroke). Metrics are logged as
   ``Metrics/joint_envelope_<hip|ankle>_violation_mean`` and ``..._max``.
+  Joints 2 to 5 are excluded from joint limits reward.
+  
+- **Axis inverted for arm joints 5 and 7 in kangaroo grippers xml**
+  For arm joints 5 and 7 in ``kangaroo_grippers.xml``, axis have gone from
+  ``"0 0 -1"`` to ``"0 0 1"``. Policies trained before this commit will have
+  their behaviour affected by this change. This is done to reflect the new
+  changes introduced in the URDF. If the version of ``pal_sea_arm`` on the
+  robot is greater than 2.5.1, this change is needed. If your robot is running
+  ROS 1, this change is needed.
+  (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
 
 - **Removed the base linear acceleration observation from the Kangaroo
   velocity tasks.** The ``base_lin_acc`` actor observation term (IMU
@@ -264,6 +295,12 @@ Breaking Changes
 
 Documentation & CI
 ^^^^^^^^^^^^^^^^^^
+- The documentation is now published to GitHub Pages at
+  https://pal-robotics.github.io/pal_mjlab/ by a new ``Docs`` workflow. The
+  workflow builds the docs on pull requests, treating warnings as errors,
+  and deploys them on every push to ``main``. Use ``make docs`` to build
+  them locally.
+  (`#128 <https://github.com/pal-robotics/pal_mjlab/pull/128>`_)
 - Updated the documentation for Kangaroo in ``pal_mjlab``. Added
   notes for rough terrain in the velocity task, and added documentation
   for Kangaroo grippers model (7-DoF + gripper).
