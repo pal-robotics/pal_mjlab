@@ -5,7 +5,7 @@
 # PAL Robotics in mjlab
 
 This repository showcases the implementation of [PAL Robotics](https://pal-robotics.com/)' robots in [mjlab](https://github.com/mujocolab/mjlab).
-Watch [Kangaroo](https://youtu.be/ky1aEw12mwM?si=q5eQ18HJBSvtY3Sc) walking outdoor with a locomotion policy trained in pal_mjlab. 
+Watch [Kangaroo](https://youtu.be/ky1aEw12mwM?si=q5eQ18HJBSvtY3Sc) walking outdoor with a locomotion policy trained in pal_mjlab.
 ![Project banner](static/pal_mjlab_viser.png)
 
 ## What is mjlab?
