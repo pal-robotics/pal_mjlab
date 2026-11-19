@@ -32,7 +32,7 @@ New Features & Tasks
   robot and then fitted to the corresponding joints. The resulting values are
   stored in ``KANGAROO_HIP_ENVELOPE_LIMITS`` and
   ``KANGAROO_ANKLE_ENVELOPE_LIMITS``.
-  
+
 - **Reworked collisions meshes in kangaroo grippers.** ``kangaroo_grippers.xml``
   now has collisions meshes in the grippers and the wrist. Collisions between
   consecutive bodies are properly excluded. Additionally, the forearm collisions
@@ -260,7 +260,7 @@ Breaking Changes
   units (rad or m of stroke). Metrics are logged as
   ``Metrics/joint_envelope_<hip|ankle>_violation_mean`` and ``..._max``.
   Joints 2 to 5 are excluded from joint limits reward.
-  
+
 - **Axis inverted for arm joints 5 and 7 in kangaroo grippers xml**
   For arm joints 5 and 7 in ``kangaroo_grippers.xml``, axis have gone from
   ``"0 0 -1"`` to ``"0 0 1"``. Policies trained before this commit will have
