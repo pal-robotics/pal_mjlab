@@ -93,6 +93,9 @@ class ankle_envelope_limits:
     cb_dj4dl, cb_dj4dj5: rates of change of j4 with respect to leg length
       [rad/m] and |j5| [rad/rad], approximating the reprojected crank-bar
       collision with a plane.
+
+    For a visual explanation of the parameters see
+      https://github.com/pal-robotics/pal_mjlab/pull/133
   """
 
   def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
@@ -223,6 +226,9 @@ class hip_envelope_limits:
       3, representing linearized reprojections of the actuator limits onto joint
       space [m/rad].
     min, max: actuator stroke limits [m].
+
+    For a visual explanation of the parameters see
+      https://github.com/pal-robotics/pal_mjlab/pull/133
   """
 
   def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
