@@ -567,6 +567,47 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # instead of flattening into a dead-zone.
   cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(0.1)
 
+  # Human-like arm swing: shoulder pitch in counter-phase with the legs, amplitude
+  # proportional to the forward command (0.2 rad per m/s, capped at 0.5 rad).
+  # Signs give "forward" motion: +leg_*_2 moves the foot back, +arm_left_1 moves the
+  # left hand back and +arm_right_1 moves the right hand forward.
+  cfg.rewards["arm_swing"] = RewardTermCfg(
+    func=mdp.arm_swing,
+    weight=0.5,
+    params={
+      "command_name": "twist",
+      "hip_joint_names": ("leg_left_2_joint", "leg_right_2_joint"),
+      "shoulder_joint_names": ("arm_left_1_joint", "arm_right_1_joint"),
+      "hip_flexion_signs": (-1.0, -1.0),
+      "shoulder_flexion_signs": (-1.0, 1.0),
+      "std": 0.15,
+      "amplitude_per_mps": 0.2,
+      "max_amplitude": 0.5,
+      "hip_flexion_ref": 0.25,
+      # Elbows (+arm_*_4 bends both): flex on the forward swing, open on the back
+      # swing, and bend more with speed (0.1 rad per m/s, capped at 0.4 rad).
+      "elbow_joint_names": ("arm_left_4_joint", "arm_right_4_joint"),
+      "elbow_flexion_signs": (1.0, 1.0),
+      "elbow_swing_ratio": 0.5,
+      "elbow_bend_per_mps": 0.1,
+      "max_elbow_bend": 0.4,
+      # Torso yaw (pelvis_2, +q brings the left shoulder forward) counter-rotates
+      # against the hips: 0.05 rad per m/s, capped at 0.15 rad. Torso roll
+      # (pelvis_1) is left to the upright and pose rewards to keep the head stable.
+      "torso_yaw_joint_name": "pelvis_2_joint",
+      "torso_yaw_sign": -1.0,
+      "torso_yaw_per_mps": 0.05,
+      "max_torso_yaw": 0.15,
+      "torso_yaw_std": 0.05,
+      "command_threshold": 0.1,
+    },
+  )
+  # Let the shoulder pitch and elbow leave the default pose enough to swing.
+  cfg.rewards["pose"].params["std_walking"][r"arm_.*_1_.*"] = 0.35
+  cfg.rewards["pose"].params["std_running"][r"arm_.*_1_.*"] = 0.6
+  cfg.rewards["pose"].params["std_walking"][r"arm_.*_4_.*"] = 0.3
+  cfg.rewards["pose"].params["std_running"][r"arm_.*_4_.*"] = 0.55
+
   # Sim2real: hip roll backlash + safety gap between the feet (feet collided on
   # the real robot at ~3.5 m/s).
   _add_hip_roll_backlash(cfg)
@@ -700,6 +741,7 @@ def pal_kangaroo_lower_body_rough_env_cfg(play: bool = False) -> ManagerBasedRlE
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_1_.*"]
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_4_.*"]
     del cfg.rewards["pose"].params[pose_type][r"arm_.*_(?![14]_joint)\d+_joint"]
+  del cfg.rewards["arm_swing"]  # No arms.
 
   cfg.scene.entities = {"robot": get_kangaroo_lower_body_robot_cfg()}
   # The robot entity was replaced: re-apply the robot-level sim2real edits.

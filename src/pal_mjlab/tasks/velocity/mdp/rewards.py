@@ -618,3 +618,133 @@ class feet_proximity:
     log["Metrics/feet_min_clearance_min"] = min_clearance.min().item()
 
     return torch.clamp(margin - min_clearance, min=0.0) / margin
+
+
+class arm_swing:
+  """Reward a human-like arm swing, counter-phase to the legs and scaled by speed.
+
+  Each shoulder pitch is asked to follow the opposite leg: when the left leg swings
+  forward the left arm swings back and the right arm forward. The gait phase is read
+  from the hip pitch difference, so the arms stay synchronized with whatever gait the
+  policy learns (no clock needed), and the swing amplitude is set by the command.
+
+  Optionally the elbows follow too, as in human gait: they bend more on the forward
+  swing and open on the back swing (elbow_swing_ratio), and they carry a speed
+  dependent extra bend so running arms are more flexed (elbow_bend_per_mps):
+
+    phase    = clip((hip_flex_L - hip_flex_R) / (2 * hip_flexion_ref), -1, 1)
+    A        = min(amplitude_per_mps * |v_x_cmd|, max_amplitude)
+    shoulder = (-A * phase, +A * phase)  (left, right flexion offsets)
+    elbow    = elbow_swing_ratio * shoulder
+               + min(elbow_bend_per_mps * |v_x_cmd|, max_elbow_bend)
+
+  Optionally the torso counter-rotates against the hips, as the human thorax does
+  against the pelvis: the shoulder that swings its arm forward also comes forward.
+  The yaw is positive counter-clockwise seen from above (left shoulder back):
+
+    torso    = min(torso_yaw_per_mps * |v_x_cmd|, max_torso_yaw) * phase
+
+    reward   = exp(-mean((err / std_j)^2)), only when |v_xy_cmd| > command_threshold
+               with std_j = std for the arm joints and torso_yaw_std for the torso.
+
+  Flexion is "forward" (shoulder) / "bending" (elbow); the *_signs params map joint
+  angles to it, and offsets are measured from the default joint positions.
+  """
+
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+    asset: Entity = env.scene[cfg.params.get("asset_cfg", _DEFAULT_ASSET_CFG).name]
+    p = cfg.params
+    elbow_names = tuple(p.get("elbow_joint_names") or ())
+    torso_names = (p["torso_yaw_joint_name"],) if p.get("torso_yaw_joint_name") else ()
+    names = (
+      *p["hip_joint_names"],
+      *p["shoulder_joint_names"],
+      *elbow_names,
+      *torso_names,
+    )
+    ids, _ = asset.find_joints(names, preserve_order=True)
+    assert len(ids) == len(names), f"Expected joints {names}, got {ids}."
+    self._hip_ids = ids[:2]
+    self._shoulder_ids = ids[2:4]
+    self._elbow_ids = ids[4 : 4 + len(elbow_names)]
+    self._torso_ids = ids[4 + len(elbow_names) :]
+
+    def _t(x):
+      return torch.tensor(x, device=env.device, dtype=torch.float32)
+
+    self._hip_sign = _t(p["hip_flexion_signs"])
+    self._shoulder_sign = _t(p["shoulder_flexion_signs"])
+    self._elbow_sign = _t(p.get("elbow_flexion_signs", (1.0, 1.0)))
+    self._torso_sign = p.get("torso_yaw_sign", 1.0)
+    # Left arm opposes the left leg, right arm follows it (i.e. opposes the right leg).
+    self._side = _t((-1.0, 1.0))
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    command_name: str,
+    hip_joint_names,
+    shoulder_joint_names,
+    hip_flexion_signs,
+    shoulder_flexion_signs,
+    std: float,
+    amplitude_per_mps: float = 0.2,
+    max_amplitude: float = 0.5,
+    hip_flexion_ref: float = 0.25,
+    elbow_joint_names=None,
+    elbow_flexion_signs=(1.0, 1.0),
+    elbow_swing_ratio: float = 0.5,
+    elbow_bend_per_mps: float = 0.1,
+    max_elbow_bend: float = 0.4,
+    torso_yaw_joint_name: str | None = None,
+    torso_yaw_sign: float = 1.0,
+    torso_yaw_per_mps: float = 0.05,
+    max_torso_yaw: float = 0.15,
+    torso_yaw_std: float = 0.05,
+    command_threshold: float = 0.1,
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+  ) -> torch.Tensor:
+    # Resolved in __init__.
+    del hip_joint_names, shoulder_joint_names, elbow_joint_names, torso_yaw_joint_name
+    del hip_flexion_signs, shoulder_flexion_signs, elbow_flexion_signs, torso_yaw_sign
+    asset: Entity = env.scene[asset_cfg.name]
+    q = asset.data.joint_pos
+    q0 = asset.data.default_joint_pos
+    command = env.command_manager.get_command(command_name)
+    assert command is not None
+    speed_x = torch.abs(command[:, 0])
+
+    hip_flex = (q[:, self._hip_ids] - q0[:, self._hip_ids]) * self._hip_sign
+    phase = torch.clamp(
+      (hip_flex[:, 0] - hip_flex[:, 1]) / (2.0 * hip_flexion_ref), -1.0, 1.0
+    )
+    amplitude = torch.clamp(amplitude_per_mps * speed_x, max=max_amplitude)
+    shoulder_target = (amplitude * phase).unsqueeze(1) * self._side  # [B, 2]
+    shoulder_flex = (
+      q[:, self._shoulder_ids] - q0[:, self._shoulder_ids]
+    ) * self._shoulder_sign
+    errors = [(shoulder_flex - shoulder_target) / std]
+
+    log = env.extras.setdefault("log", {})
+    log["Metrics/arm_swing_shoulder_error"] = (errors[0] * std).abs().mean().item()
+    log["Metrics/arm_swing_target_amplitude"] = amplitude.mean().item()
+
+    if self._elbow_ids:
+      bend = torch.clamp(elbow_bend_per_mps * speed_x, max=max_elbow_bend)
+      elbow_target = elbow_swing_ratio * shoulder_target + bend.unsqueeze(1)
+      elbow_flex = (q[:, self._elbow_ids] - q0[:, self._elbow_ids]) * self._elbow_sign
+      elbow_error = elbow_flex - elbow_target
+      errors.append(elbow_error / std)
+      log["Metrics/arm_swing_elbow_error"] = elbow_error.abs().mean().item()
+
+    if self._torso_ids:
+      yaw_amplitude = torch.clamp(torso_yaw_per_mps * speed_x, max=max_torso_yaw)
+      torso_target = (yaw_amplitude * phase).unsqueeze(1)
+      torso_yaw = (q[:, self._torso_ids] - q0[:, self._torso_ids]) * self._torso_sign
+      torso_error = torso_yaw - torso_target
+      errors.append(torso_error / torso_yaw_std)
+      log["Metrics/arm_swing_torso_yaw_error"] = torso_error.abs().mean().item()
+
+    normalized_error_sq = torch.mean(torch.square(torch.cat(errors, dim=1)), dim=1)
+    moving = (torch.norm(command[:, :2], dim=1) > command_threshold).float()
+    return torch.exp(-normalized_error_sq) * moving
