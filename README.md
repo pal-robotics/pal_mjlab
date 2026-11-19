@@ -5,13 +5,13 @@
 # PAL Robotics in mjlab
 
 This repository showcases the implementation of [PAL Robotics](https://pal-robotics.com/)' robots in [mjlab](https://github.com/mujocolab/mjlab).
-
+Watch [Kangaroo](https://youtu.be/ky1aEw12mwM?si=q5eQ18HJBSvtY3Sc) walking outdoor with a locomotion policy trained in pal_mjlab. 
 ![Project banner](static/pal_mjlab_viser.png)
 
 ## What is mjlab?
 
 mjlab brings the [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/index.html) API to [MuJoCo Warp](https://mujoco.readthedocs.io/en/latest/mjwarp/index.html).
-It's lightweight, easy to install, and has been validated for sim-to-real transfer on the G1 and Go1 robots for RL locomotion and motion imitation.
+It's lightweight, easy to install, and has been validated for sim-to-real transfer on several robots for RL locomotion and motion imitation.
 See the [announcement thread](https://x.com/kevin_zakka/status/1972757435707424898) for videos, or read about the [motivation behind mjlab](https://github.com/mujocolab/mjlab/blob/main/docs/motivation.md).
 
 ## Installation
