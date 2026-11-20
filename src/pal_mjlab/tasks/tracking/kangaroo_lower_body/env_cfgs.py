@@ -26,7 +26,7 @@ from pal_mjlab.tasks.velocity import mdp
 
 
 def pal_kangaroo_lower_body_flat_tracking_env_cfg(
-  has_state_estimation: bool = True,
+  has_state_estimation: bool = False,
   play: bool = False,
 ) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics Kangaroo lower body flat terrain tracking configuration."""

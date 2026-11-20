@@ -235,7 +235,14 @@ dependency issue, check which of these bumps might be relevant first.
 Breaking Changes
 ^^^^^^^^^^^^^^^^
 
-- **Axis inverted for arm joints 5 and 7 in kangaroo grippers xml**
+- **Removed tracking with state estimation and changed default**
+  The variants of the tracking task with state estimation have been removed.
+  Now, default tasks, ``Mjlab-Tracking-Flat-Pal-Kangaroo``, ``Mjlab-Tracking-Flat-Pal-Kangaroo-Hands``
+  and ``Mjlab-Tracking-Flat-Pal-Kangaroo-Lower-Body`` do not use state estimation.
+  The default value of the flag ``has-state_estimation`` is now set to ``False``.
+  (`#139 <https://github.com/pal-robotics/pal_mjlab/pull/139>`_)
+
+- **Axis inverted for arm joints 5 and 7 in kangaroo grippers xml.**
   For arm joints 5 and 7 in ``kangaroo_grippers.xml``, axis have gone from
   ``"0 0 -1"`` to ``"0 0 1"``. Policies trained before this commit will have
   their behaviour affected by this change. This is done to reflect the new
