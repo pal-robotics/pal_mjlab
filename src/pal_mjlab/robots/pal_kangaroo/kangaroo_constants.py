@@ -373,7 +373,10 @@ _EXCLUDED_JOINTS = {
 
 
 def _joint_names(spec_fn) -> list[str]:
-  return [j.name for j in spec_fn().joints if j.name]
+  # Keep the spec referenced while reading its joints: with a temporary spec, mujoco frees
+  # it during the iteration and every joint name comes back empty.
+  spec = spec_fn()
+  return [j.name for j in spec.joints if j.name]
 
 
 def _build_action_scales(
