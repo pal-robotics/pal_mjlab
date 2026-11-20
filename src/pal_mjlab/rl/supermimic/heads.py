@@ -25,7 +25,8 @@ from mjlab.managers.command_manager import CommandTerm
 
 from pal_mjlab.utils.math.kinematics import TorchKinematics
 
-from .state import reference_goal, root_pose_error, state_to_qpos_qvel
+from .names import DEFAULT_CRITIC_GROUP, EnvNamesCfg
+from .state import joint_state, reference_goal, root_pose_error, state_to_qpos_qvel
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -46,7 +47,13 @@ class AnalyticHeads:
     self,
     env: ManagerBasedRlEnv,
     compile_fk: bool = True,
+    names: EnvNamesCfg | None = None,
+    critic_group: str = DEFAULT_CRITIC_GROUP,
   ) -> None:
+    """``names``: the env's term and group names (``EnvNamesCfg``'s defaults if None);
+    ``critic_group``: the critic's observation group. Observation terms are recognized by
+    their function, so their names are free."""
+    names = names or EnvNamesCfg()
     # TODO(M2): the heads still use the motion-tracking task's terms; the task boundary
     # removes this. Imported here, not at module level: importing pal_mjlab.tasks loads
     # every task, the SuperMimic one included, and that one imports this package.
@@ -56,7 +63,7 @@ class AnalyticHeads:
 
     self._tracking = tracking
     cfg, self.device = env.cfg, env.device
-    cmd = cast(CommandTerm, env.command_manager.get_term("motion"))
+    cmd = cast(CommandTerm, env.command_manager.get_term(names.command))
     robot = env.scene[cmd.cfg.entity_name]
     self.library = cmd.library
     self.num_future_frames = cmd.cfg.num_future_frames
@@ -65,32 +72,53 @@ class AnalyticHeads:
     # Proprioception (Table A.1): q - q0 (with the calibration offset), q̇, IMU angular
     # velocity, projected gravity, previous action; history of h frames per term.
     om = env.observation_manager
-    group = cfg.observations["proprio"]
+    proprio = names.proprio_group
+    group = cfg.observations[proprio]
     self.obs_terms: list[str] = list(group.terms)
     self.history = group.history_length or 0
     self.noise: dict[str, tuple[float, float]] = {}
-    imu_sensors = []
+    # Each term's analytic head, by the term's function (the builtin sensor is the IMU's
+    # angular velocity, the only one the heads support).
+    self._obs_kind: dict[str, str] = {}
+    imu_sensors, joint_terms = [], []
     for name, term in group.terms.items():
       func = term.func
       if func is mj_obs.joint_pos_rel:
         assert term.params.get("biased"), "joint positions must include the offset"
-      elif func is mj_obs.builtin_sensor or func is sm_obs.imu_projected_gravity:
+        kind = "joint_pos"
+        joint_terms.append(name)
+      elif func is mj_obs.joint_vel_rel:
+        kind = "joint_vel"
+        joint_terms.append(name)
+      elif func is mj_obs.builtin_sensor:
+        kind = "imu_ang_vel"
         imu_sensors.append(term.params["sensor_name"])
-      elif func not in (mj_obs.joint_vel_rel, mj_obs.last_action):
+      elif func is sm_obs.imu_projected_gravity:
+        kind = "imu_projected_gravity"
+        imu_sensors.append(term.params["sensor_name"])
+      elif func is mj_obs.last_action:
+        kind = "actions"
+      else:
         raise NotImplementedError(f"observation term {name!r} has no analytic head")
+      self._obs_kind[name] = kind
       if group.enable_corruption and term.noise is not None:
         assert isinstance(term.noise, UniformNoiseCfg) and term.noise.operation == "add"
         self.noise[name] = (float(term.noise.n_min), float(term.noise.n_max))
     # The state holds the library's joints, so the env's joint terms must read those.
     self._library_joints = cmd.joint_ids.tolist()
     self._num_joints = len(robot.joint_names)
-    self._check_joints(om.get_term_cfg("proprio", "joint_pos").params["asset_cfg"])
-    self._check_joints(om.get_term_cfg("proprio", "joint_vel").params["asset_cfg"])
-    context = om.get_term_cfg("critic", "sim_context").params
-    self._check_joints(context["bias_asset_cfg"])
+    for name in joint_terms:
+      self._check_joints(om.get_term_cfg(proprio, name).params["asset_cfg"])
+    critic = cfg.observations[critic_group].terms
+    context = [n for n, t in critic.items() if t.func is sm_obs.sim_context]
+    if len(context) != 1:
+      raise ValueError(f"The critic group needs one sim_context term, got {context}.")
+    self.context_cfg = om.get_term_cfg(critic_group, context[0])
+    """The sim context ξ's term: the world model's and the critic's context input."""
+    self._check_joints(self.context_cfg.params["bias_asset_cfg"])
     self.q0 = robot.data.default_joint_pos[0, cmd.joint_ids]
     term_dims = dict(
-      zip(om.active_terms["proprio"], om.group_obs_term_dim["proprio"], strict=True)
+      zip(om.active_terms[proprio], om.group_obs_term_dim[proprio], strict=True)
     )
     self.obs_dims = {
       n: term_dims[n][-1] // max(self.history, 1) for n in self.obs_terms
@@ -125,11 +153,19 @@ class AnalyticHeads:
         raise NotImplementedError(f"reward term {name!r} has no analytic head")
     self.reward_scale = env.step_dt if cfg.scale_rewards_by_dt else 1.0
 
-    # The critic's input layout.
-    self.critic_terms = list(cfg.observations["critic"].terms)
-    expected = ["heading_state", "motion_goal", "sim_context", "root_pose_error",
-                "time_left"]  # fmt: skip
-    assert self.critic_terms == expected, self.critic_terms
+    # The critic's input layout (``critic_input``), recognized by the terms' functions; the
+    # reference-reading terms must read this command.
+    self.critic_terms = list(critic)
+    layout = [sm_obs.robot_heading_state, sm_obs.motion_goal, sm_obs.sim_context,
+              sm_obs.motion_root_pose_error, sm_obs.motion_time_left]  # fmt: skip
+    if [t.func for t in critic.values()] != layout:
+      raise ValueError(
+        f"The critic group {critic_group!r} must hold, in order: heading state, motion "
+        f"goal, sim context, root pose error and time left; got {self.critic_terms}."
+      )
+    for name, term in critic.items():
+      if term.params.get("command_name", names.command) != names.command:
+        raise ValueError(f"critic term {name!r} reads another command than {names.command!r}")
 
   def _check_joints(self, asset_cfg) -> None:
     ids = asset_cfg.joint_ids
@@ -166,8 +202,8 @@ class AnalyticHeads:
     last_action: torch.Tensor,
   ) -> dict[str, torch.Tensor]:
     """Noise-free proprioceptive frame ō per term, (B, dim) each."""
-    nj = (state.shape[-1] - 13) // 2
-    q, qd = state[:, 13 : 13 + nj], state[:, 13 + nj :]
+    q, qd = joint_state(state)
+    nj = q.shape[-1]
     bias = context[:, 1 : 1 + nj]  # ξ = (friction, calibration offsets, CoM offset)
     gravity = torch.zeros_like(kin.imu_ang_vel)
     gravity[:, 2] = -1.0
@@ -178,7 +214,7 @@ class AnalyticHeads:
       "imu_projected_gravity": quat_apply_inverse(kin.imu_quat, gravity),
       "actions": last_action,
     }
-    return {name: frame[name] for name in self.obs_terms}
+    return {name: frame[self._obs_kind[name]] for name in self.obs_terms}
 
   def add_noise(
     self, frame: dict[str, torch.Tensor], generator: torch.Generator | None = None
@@ -252,8 +288,7 @@ class AnalyticHeads:
         action - prev_action
       ).square().sum(-1)
     if self.limit_weight:
-      nj = (state.shape[-1] - 13) // 2
-      q = state[:, 13 : 13 + nj]
+      q = joint_state(state)[0]
       violation = self._tracking.joint_limit_violation(
         q, self.limits[:, 0], self.limits[:, 1]
       )

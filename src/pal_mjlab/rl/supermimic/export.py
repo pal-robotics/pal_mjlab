@@ -33,18 +33,23 @@ from mjlab.rl.exporter_utils import attach_metadata_to_onnx
 from mjlab.managers.command_manager import CommandTerm
 
 from .models import EncoderDecoderModel
+from .names import EnvNamesCfg
 
-OBS_GROUPS = ("goal", "proprio")  # the actor's input, in this order
 
 
-def policy_metadata(env: ManagerBasedRlEnv, checkpoint: str = "") -> dict:
+def policy_metadata(
+  env: ManagerBasedRlEnv, checkpoint: str = "", env_names: EnvNamesCfg | None = None
+) -> dict:
   """Everything the robot needs to build ``obs`` and apply ``actions``."""
-  robot = env.scene["robot"]
-  action = cast(JointPositionAction, env.action_manager.get_term("joint_pos"))
-  cmd = cast(CommandTerm, env.command_manager.get_term("motion"))
+  env_names = env_names or EnvNamesCfg()
+  cmd = cast(CommandTerm, env.command_manager.get_term(env_names.command))
+  robot = env.scene[cmd.cfg.entity_name]
+  action = cast(
+    JointPositionAction, env.action_manager.get_term(env_names.action_term)
+  )
   om = env.observation_manager
   names, dims, history = [], [], []
-  for group in OBS_GROUPS:
+  for group in env_names.actor_groups:
     for name, dim in zip(
       om.active_terms[group], om.group_obs_term_dim[group], strict=True
     ):
@@ -54,11 +59,13 @@ def policy_metadata(env: ManagerBasedRlEnv, checkpoint: str = "") -> dict:
       names.append(name)
       dims.append(dim[-1] // steps)
       history.append(steps)
-  imu_sites = {  # scene names are "<entity>/<name>"
+  proprio = env_names.proprio_group
+  imu_sites = {  # the sensor terms' sites; scene names are "<entity>/<name>"
     robot.spec.sensor(
-      om.get_term_cfg("proprio", t).params["sensor_name"].split("/")[-1]
+      om.get_term_cfg(proprio, t).params["sensor_name"].split("/")[-1]
     ).objname.split("/")[-1]
-    for t in ("imu_ang_vel", "imu_projected_gravity")
+    for t in om.active_terms[proprio]
+    if "sensor_name" in om.get_term_cfg(proprio, t).params
   }
   assert len(imu_sites) == 1, imu_sites
   joint_names = list(cmd.library.joint_names)
@@ -99,6 +106,7 @@ def export_policy(
   actor: EncoderDecoderModel,
   path: str | Path,
   checkpoint: str = "",
+  env_names: EnvNamesCfg | None = None,
 ) -> None:
   """Write the actor to ``path`` as ONNX with ``policy_metadata``."""
   model = actor.as_onnx(verbose=False).to("cpu").eval()
@@ -113,4 +121,4 @@ def export_policy(
     dynamic_axes={},
     dynamo=False,
   )
-  attach_metadata_to_onnx(str(path), policy_metadata(env, checkpoint))
+  attach_metadata_to_onnx(str(path), policy_metadata(env, checkpoint, env_names))
