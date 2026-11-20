@@ -26,7 +26,7 @@ from pal_mjlab.tasks.velocity import mdp
 
 
 def pal_kangaroo_flat_tracking_env_cfg(
-  has_state_estimation: bool = True,
+  has_state_estimation: bool = False,
   play: bool = False,
 ) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics Talos flat terrain tracking configuration."""
@@ -205,7 +205,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
 
 
 def pal_kangaroo_hands_flat_env_cfg(
-  has_state_estimation: bool = True,
+  has_state_estimation: bool = False,
   play: bool = False,
 ) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO with hands (5 DoF per arms) rough terrain velocity configuration."""
