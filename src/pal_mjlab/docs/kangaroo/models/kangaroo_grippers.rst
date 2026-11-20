@@ -15,16 +15,16 @@ require the robot to reach, grasp, and manipulate objects.
 It incorporates a simplified representation of Kangaroo's closed-chain leg
 mechanism: the real linkage is reduced to a serial chain plus four passive
 joints (femur and knee on each leg), while masses and inertias are computed
-for all links so the dynamics remain faithful to the real robot. Each
-gripper is also a closed-chain mechanism: only one joint per gripper is
-directly actuated, while the remaining finger joints are coupled to it
-through equality constraints (a joint-coupling constraint tying the two
-inner fingers together, and connect constraints closing the loop between the
-fingertips and outer fingers), reproducing the underactuated behavior of the
-real hardware. Despite this mechanical coupling, all finger joints remain in
-the actuator list for kinematic accuracy in simulation.
+for all links so the dynamics remain faithful to the real robot.
 
-44 joints :
+.. note::
+
+   The gripper finger joints and the equality constraints that close the
+   gripper linkage are currently commented out in ``kangaroo_grippers.xml``.
+   The grippers are therefore rigid, and the policy only controls the arm,
+   pelvis and leg joints.
+
+32 joints :
 
     28 actuators :
 
@@ -94,7 +94,7 @@ the actuator list for kinematic accuracy in simulation.
 
     - leg_right_femur_joint *(revolute)*
 
-    12 inactive joints (commented out in the model):
+    12 inactive gripper joints (commented out in the model, not counted above):
 
     - gripper_left_inner_finger_left_joint *(revolute)*
 
@@ -124,6 +124,4 @@ The passive joints are not directly actuated by the policy — they follow the
 motion of the closed-chain leg mechanism and are excluded from the action
 space. Each arm carries a 3-joint wrist (a roll-pitch-roll sequence) beyond
 the shoulder and elbow, giving the end effector enough freedom to orient the
-gripper for grasping, and each end effector carries 6 finger joints
-representing the parallel-jaw gripper's closed kinematic chain — for a total
-of 44 joints, 40 of which are actuated by the policy.
+gripper. This leaves 28 actuated joints controlled by the policy.
