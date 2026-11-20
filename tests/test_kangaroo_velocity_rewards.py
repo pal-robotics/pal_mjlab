@@ -3,28 +3,64 @@
 import math
 from unittest.mock import Mock
 
+import mujoco
 import pytest
 import torch
 from conftest import get_test_device
+from mjlab.entity import Entity, EntityCfg
 from mjlab.envs.mdp import rewards as mjlab_r
 from mjlab.managers.reward_manager import RewardTermCfg
+from mjlab.managers.scene_entity_config import SceneEntityCfg
+from mjlab.sim.sim import Simulation, SimulationCfg
 from mjlab.tasks.velocity.mdp import rewards as mjlab_vel_r
+from pal_mjlab.robots import (
+  KANGAROO_ANKLE_ENVELOPE_LIMITS,
+  KANGAROO_HIP_ENVELOPE_LIMITS,
+  KANGAROO_TIBIA_PITCH_OFFSET,
+)
 from pal_mjlab.tasks.velocity.mdp import rewards as pal_mjlab_r
 
-PARTIALLY_ACTUATED_ROBOT_XML = """
+KANGAROO_MOCK_LEGS_XML = """
 <mujoco>
+  <compiler angle="radian"/>
+  <!-- Armature keeps the mass matrix positive definite: the femur, knee and
+       joint 4 hinges share an axis through the same point. -->
+  <default>
+    <joint armature="0.01"/>
+  </default>
   <worldbody>
-    <body name="base" pos="0 0 0.5">
-      <geom name="base_geom" type="cylinder" size="0.1 0.05" mass="1.0"/>
-      <body name="link1" pos="0 0 0.1">
-        <joint name="actuated_joint1" type="hinge" axis="0 0 1" range="-3.14 3.14"/>
-        <geom name="link1_geom" type="box" size="0.05 0.05 0.2" mass="0.5"/>
-        <body name="link2" pos="0 0 0.4">
-          <joint name="passive_joint" type="hinge" axis="0 1 0" range="-1.57 1.57"/>
-          <geom name="link2_geom" type="box" size="0.05 0.05 0.15" mass="0.3"/>
-          <body name="link3" pos="0 0 0.3">
-            <joint name="actuated_joint2" type="hinge" axis="1 0 0" range="-1.57 1.57"/>
-            <geom name="link3_geom" type="box" size="0.05 0.05 0.1" mass="0.2"/>
+    <body name="base">
+      <freejoint name="root"/>
+      <geom type="sphere" size="0.1" mass="1.0"/>
+      <body name="leg_left_hip_link">
+        <joint name="leg_left_2_joint" axis="0 1 0" range="-0.60 0.80"/>
+        <joint name="leg_left_3_joint" axis="1 0 0" range="-0.40 0.40"/>
+        <geom type="sphere" size="0.05" mass="0.5"/>
+        <body name="leg_left_knee_link">
+          <joint name="leg_left_length_joint" type="slide" axis="0 0 1" range="0.15 0.68"/>
+          <joint name="leg_left_femur_joint" axis="0 1 0" range="0.20 1.10"/>
+          <joint name="leg_left_knee_joint" axis="0 -1 0" range="0.40 2.30"/>
+          <geom type="sphere" size="0.05" mass="0.5"/>
+          <body name="leg_left_foot_link">
+            <joint name="leg_left_4_joint" axis="0 1 0" range="-0.70 0.70"/>
+            <joint name="leg_left_5_joint" axis="-1 0 0" range="-0.38 0.38"/>
+            <geom type="sphere" size="0.05" mass="0.5"/>
+          </body>
+        </body>
+      </body>
+      <body name="leg_right_hip_link">
+        <joint name="leg_right_2_joint" axis="0 1 0" range="-0.60 0.80"/>
+        <joint name="leg_right_3_joint" axis="1 0 0" range="-0.40 0.40"/>
+        <geom type="sphere" size="0.05" mass="0.5"/>
+        <body name="leg_right_knee_link">
+          <joint name="leg_right_length_joint" type="slide" axis="0 0 1" range="0.15 0.68"/>
+          <joint name="leg_right_femur_joint" axis="0 1 0" range="0.20 1.10"/>
+          <joint name="leg_right_knee_joint" axis="0 -1 0" range="0.40 2.30"/>
+          <geom type="sphere" size="0.05" mass="0.5"/>
+          <body name="leg_right_foot_link">
+            <joint name="leg_right_4_joint" axis="0 1 0" range="-0.70 0.70"/>
+            <joint name="leg_right_5_joint" axis="-1 0 0" range="-0.38 0.38"/>
+            <geom type="sphere" size="0.05" mass="0.5"/>
           </body>
         </body>
       </body>
@@ -162,6 +198,30 @@ def tensor_shape_error_message(test_name: str, expected, actual):
 
 def tensor_value_error_message(test_name: str):
   return f"{test_name} returned incorrect value"
+
+
+def load_entity(env, xml: str, device: str) -> Entity:
+  """Load an entity from an XML string, initialize it and put it in env's scene."""
+  entity = Entity(EntityCfg(spec_fn=lambda: mujoco.MjSpec.from_string(xml)))
+  model = entity.compile()
+  sim = Simulation(
+    num_envs=env.num_envs, cfg=SimulationCfg(), model=model, device=device
+  )
+  entity.initialize(model, sim.model, sim.data, device)
+  env.device = device
+  env.scene = {"robot": entity}
+  return entity
+
+
+def write_joint_pose(
+  entity: Entity, joint_names: list[str], joint_pos: torch.Tensor
+) -> None:
+  """Write joint positions, one column per name in joint_names, to the sim."""
+  joint_ids, _ = entity.find_joints(joint_names, preserve_order=True)
+  entity.write_joint_position_to_sim(
+    joint_pos.to(entity.data.joint_pos),
+    joint_ids=torch.tensor(joint_ids, device=entity.data.joint_pos.device),
+  )
 
 
 # -------------------------------------#
@@ -937,197 +997,453 @@ def test_joint_vel_limits_penalty(mock_env, mock_asset_cfg):
   assert value[0] == pytest.approx(1.3, abs=1e-6), tensor_value_error_message(test_name)
 
 
-def test_convex_hull_joint_limnits(mock_env, mock_asset_cfg):
+def test_ankle_envelope_limits(mock_env, device):
   env = mock_env
 
   env.extras = {"log": {}}
 
-  mock_asset_cfg.joint_ids = [0, 1, 2, 3]
+  joint_names = [
+    "leg_left_4_joint",
+    "leg_left_5_joint",
+    "leg_left_length_joint",
+    "leg_left_femur_joint",
+    "leg_left_knee_joint",
+    "leg_right_4_joint",
+    "leg_right_5_joint",
+    "leg_right_length_joint",
+    "leg_right_femur_joint",
+    "leg_right_knee_joint",
+  ]
 
-  mock_asset_cfg.joint_names = (
-    "joint_left_1",
-    "joint_right_1",
-    "joint_left_2",
-    "joint_right_2",
+  asset = load_entity(env, KANGAROO_MOCK_LEGS_XML, device)
+
+  asset_cfg = SceneEntityCfg(
+    "robot",
+    joint_names=(
+      r"leg_.*_4_joint",
+      r"leg_.*_5_joint",
+      r"leg_.*_length_joint",
+      r"leg_.*_femur_joint",
+      r"leg_.*_knee_joint",
+    ),
+    preserve_order=True,
   )
-
-  asset = env.scene[mock_asset_cfg.name]
-
-  asset.find_joints = lambda names: (
-    [0, 2] if names == cfg.params["joint_names_group"][0] else [1, 3],
-    list(names),
-  )
+  asset_cfg.resolve(env.scene)
 
   cfg = RewardTermCfg(
     func=None,
     weight=1.0,
     params={
-      "asset_cfg": mock_asset_cfg,
-      "metrics_suffix": "dummy_suffix",
-      "joint_names_group": [
-        [r"joint_left_1", r"joint_left_2"],
-        [r"joint_right_1", r"joint_right_2"],
-      ],
-      "margin": 0.0,
-      "hull_points": torch.tensor(
-        [[2.3, 7.1], [5.8, 1.4], [9.2, 6.5], [1.0, 3.8], [6.4, 9.7]]
-      ),
+      "asset_cfg": asset_cfg,
+      "limits": KANGAROO_ANKLE_ENVELOPE_LIMITS,
+      "shrink": {},
     },
   )
 
-  asset.data.joint_pos = torch.tensor(
-    [[5.0, 5.0, 5.0, 5.0]] * env.num_envs,
-    device=env.device,
-    dtype=torch.float32,
+  reward_term = pal_mjlab_r.ankle_envelope_limits(cfg, env)
+
+  foot_tibia = KANGAROO_ANKLE_ENVELOPE_LIMITS["foot_tibia_collision"]
+  act = KANGAROO_ANKLE_ENVELOPE_LIMITS["actuator"]
+  crank = KANGAROO_ANKLE_ENVELOPE_LIMITS["crank_bar_collision"]
+  (j5_id,), _ = asset.find_joints("leg_left_5_joint")
+  j5_max = asset.data.default_joint_pos_limits[0, j5_id, 1].item()
+  act_norm = (act["dadj4"] ** 2 + act["dadj5"] ** 2) ** 0.5
+
+  # (j4, j5, leg length, femur, knee)
+  inside = (0.0, 0.0, 0.4, 0.7, 1.6)
+
+  # (name, pose on the boundary, margin of that boundary [rad])
+  boundaries = [
+    ("joint 5", (0.0, j5_max, 0.4, 0.7, 1.6), 0.02),
+    (
+      "actuator",
+      (
+        (act["max"] - act["a0"]) / act_norm**2 * act["dadj4"],
+        (act["max"] - act["a0"]) / act_norm**2 * act["dadj5"],
+        0.6,
+        0.0,
+        KANGAROO_TIBIA_PITCH_OFFSET + 0.3,
+      ),
+      0.0008 / act_norm,
+    ),
+    (
+      "crank-bar",
+      (
+        crank["b0l"] + crank["dj4dl"] * 0.3 - crank["dj4dj5"] * 0.1,
+        0.1,
+        0.3,
+        0.0,
+        KANGAROO_TIBIA_PITCH_OFFSET - 0.3,
+      ),
+      0.02,
+    ),
+    (
+      "foot-tibia",
+      (
+        foot_tibia["b0j5"] + foot_tibia["dj4ndj5"] * 0.3 + 0.9,
+        0.3,
+        0.4,
+        0.0,
+        KANGAROO_TIBIA_PITCH_OFFSET - 0.9,
+      ),
+      0.02,
+    ),
+  ]
+
+  # Inside
+
+  write_joint_pose(
+    asset, joint_names, torch.tensor([[*inside, *inside]] * env.num_envs)
   )
-
-  reward_term = pal_mjlab_r.joint_limits_convex_hull(cfg, env, mock_asset_cfg)
-
-  # All inside
 
   value = reward_term(env, **cfg.params)
 
-  test_name = "Convex hull (all inside)"
+  test_name = "Ankle envelope (inside)"
 
   assert value.shape == (env.num_envs,), tensor_shape_error_message(
     test_name, (env.num_envs,), value.shape
   )
   assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
 
-  # All outside
+  # On the boundary
 
-  asset.data.joint_pos = torch.tensor(
-    [[5.8, 5.8, 0.4, 0.4]] * env.num_envs,
-    device=env.device,
-    dtype=torch.float32,
+  for name, pose, _ in boundaries:
+    write_joint_pose(
+      asset, joint_names, torch.tensor([[*pose, *inside]] * env.num_envs)
+    )
+
+    value = reward_term(env, **cfg.params)
+
+    test_name = f"Ankle envelope (on the {name} boundary)"
+
+    assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(
+      test_name
+    )
+
+  # One leg outside
+
+  write_joint_pose(
+    asset,
+    joint_names,
+    torch.tensor([[*inside, 0.0, -0.45, 0.4, 0.7, 1.6]] * env.num_envs),
   )
 
   value = reward_term(env, **cfg.params)
 
-  test_name = "Convex hull (all outside)"
+  test_name = "Ankle envelope (one leg outside)"
 
-  assert value.shape == (env.num_envs,), tensor_shape_error_message(
-    test_name, (env.num_envs,), value.shape
-  )
-  assert value[0] == pytest.approx(1.6, abs=1e-6), tensor_value_error_message(test_name)
-
-  # On the hull boundary (both groups exactly at vertex (5.8, 1.4))
-
-  asset.data.joint_pos = torch.tensor(
-    [[5.8, 5.8, 1.4, 1.4]] * env.num_envs,
-    device=env.device,
-    dtype=torch.float32,
-  )
-
-  value = reward_term(env, **cfg.params)
-
-  test_name = "Convex hull (on the boundary)"
-
-  assert value.shape == (env.num_envs,), tensor_shape_error_message(
-    test_name, (env.num_envs,), value.shape
-  )
-  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
-
-  # Mixed: left group inside at (5.0, 5.0), right group outside at (5.8, 0.4)
-  # Only the right group contributes: 0.8
-
-  asset.data.joint_pos = torch.tensor(
-    [[5.0, 5.8, 5.0, 0.4]] * env.num_envs,
-    device=env.device,
-    dtype=torch.float32,
-  )
-
-  value = reward_term(env, **cfg.params)
-
-  test_name = "Convex hull (one group inside, one outside)"
-
-  assert value.shape == (env.num_envs,), tensor_shape_error_message(
-    test_name, (env.num_envs,), value.shape
-  )
-  assert value[0] == pytest.approx(0.8, abs=1e-5), tensor_value_error_message(test_name)
-
-  # Asymmetric violations: left group at (5.8, -0.6) contributes 3.2,
-  # right group at (5.8, 0.4) contributes 0.8
-
-  asset.data.joint_pos = torch.tensor(
-    [[5.8, 5.8, -0.6, 0.4]] * env.num_envs,
-    device=env.device,
-    dtype=torch.float32,
-  )
-
-  value = reward_term(env, **cfg.params)
-
-  test_name = "Convex hull (asymmetric violations)"
-
-  assert value.shape == (env.num_envs,), tensor_shape_error_message(
-    test_name, (env.num_envs,), value.shape
-  )
-  assert value[0] == pytest.approx(4.0, abs=1e-5), tensor_value_error_message(test_name)
-
-  # Far outside: both groups at the origin (0.0, 0.0)
-  # Max facet violation is 3.8460369213 per group -> 2 * 3.8460369213**2
-
-  asset.data.joint_pos = torch.tensor(
-    [[0.0, 0.0, 0.0, 0.0]] * env.num_envs,
-    device=env.device,
-    dtype=torch.float32,
-  )
-
-  value = reward_term(env, **cfg.params)
-
-  test_name = "Convex hull (far outside)"
-
-  assert value.shape == (env.num_envs,), tensor_shape_error_message(
-    test_name, (env.num_envs,), value.shape
-  )
-  assert value[0] == pytest.approx(29.584, abs=1e-4), tensor_value_error_message(
+  assert value[0] == pytest.approx(0.45 - j5_max, abs=1e-6), tensor_value_error_message(
     test_name
   )
 
-  # With margin: the hull is shrunk by 0.5, so a point exactly on the original
-  # boundary now violates by the margin -> 2 * 0.5**2 = 0.5
+  # Both legs outside
 
-  cfg_margin = RewardTermCfg(
+  write_joint_pose(
+    asset,
+    joint_names,
+    torch.tensor([[0.0, 0.5, 0.4, 0.7, 1.6, 0.0, -0.45, 0.4, 0.7, 1.6]] * env.num_envs),
+  )
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Ankle envelope (both legs outside)"
+
+  assert value[0] == pytest.approx((0.5 - j5_max) + (0.45 - j5_max), abs=1e-6), (
+    tensor_value_error_message(test_name)
+  )
+  for stat in ("mean", "max"):
+    assert env.extras["log"][
+      f"Metrics/joint_envelope_ankle_violation_{stat}"
+    ] == pytest.approx(0.5 - j5_max, abs=1e-6), tensor_value_error_message(
+      f"{test_name}, metric {stat}"
+    )
+
+  # Metrics across envs
+
+  joint_pos = torch.tensor([[0.0, 0.45, 0.4, 0.7, 1.6, *inside]] * env.num_envs)
+  joint_pos[0, 1] = 0.0
+  write_joint_pose(asset, joint_names, joint_pos)
+
+  reward_term(env, **cfg.params)
+
+  test_name = "Ankle envelope (metrics across envs)"
+
+  assert env.extras["log"]["Metrics/joint_envelope_ankle_violation_mean"] == (
+    pytest.approx(0.75 * (0.45 - j5_max), abs=1e-6)
+  ), tensor_value_error_message(test_name)
+  assert env.extras["log"]["Metrics/joint_envelope_ankle_violation_max"] == (
+    pytest.approx(0.45 - j5_max, abs=1e-6)
+  ), tensor_value_error_message(test_name)
+
+  # Far outside
+
+  write_joint_pose(
+    asset,
+    joint_names,
+    torch.tensor([[0.0, 0.0, 0.4, 0.7, 0.7, *inside]] * env.num_envs),
+  )
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Ankle envelope (far outside)"
+
+  j4n = -math.radians(70.0)
+  j4n_excess = foot_tibia["j4n_min"] - j4n
+  line_excess = (foot_tibia["b0j5"] - j4n) / (1 + foot_tibia["dj4ndj5"] ** 2) ** 0.5
+
+  assert value[0] == pytest.approx(j4n_excess + line_excess, abs=1e-5), (
+    tensor_value_error_message(test_name)
+  )
+
+  # With margin
+
+  cfg.params["shrink"] = {"joint": 0.02, "actuator": 0.0008, "crank": 0.02}
+
+  reward_term = pal_mjlab_r.ankle_envelope_limits(cfg, env)
+
+  for name, pose, margin in boundaries:
+    write_joint_pose(
+      asset, joint_names, torch.tensor([[*pose, *inside]] * env.num_envs)
+    )
+
+    value = reward_term(env, **cfg.params)
+
+    test_name = f"Ankle envelope (margin, on the {name} boundary)"
+
+    assert value[0] == pytest.approx(margin, abs=1e-6), tensor_value_error_message(
+      test_name
+    )
+
+  write_joint_pose(
+    asset, joint_names, torch.tensor([[*inside, *inside]] * env.num_envs)
+  )
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Ankle envelope (margin, inside)"
+
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
+
+  # Wrong number of joints
+
+  for joint_patterns in (
+    (
+      "leg_left_4_joint",
+      "leg_left_5_joint",
+      "leg_left_length_joint",
+      "leg_left_femur_joint",
+      "leg_left_knee_joint",
+    ),
+    (
+      r"leg_.*_4_joint",
+      r"leg_.*_5_joint",
+      r"leg_.*_length_joint",
+      r"leg_.*_femur_joint",
+    ),
+  ):
+    asset_cfg = SceneEntityCfg("robot", joint_names=joint_patterns, preserve_order=True)
+    asset_cfg.resolve(env.scene)
+
+    cfg = RewardTermCfg(func=None, weight=1.0, params={"asset_cfg": asset_cfg})
+
+    with pytest.raises(ValueError, match="must select 10 joints"):
+      pal_mjlab_r.ankle_envelope_limits(cfg, env)
+
+
+def test_hip_envelope_limits(mock_env, device):
+  env = mock_env
+
+  env.extras = {"log": {}}
+
+  joint_names = [
+    "leg_left_2_joint",
+    "leg_left_3_joint",
+    "leg_right_2_joint",
+    "leg_right_3_joint",
+  ]
+
+  asset = load_entity(env, KANGAROO_MOCK_LEGS_XML, device)
+
+  asset_cfg = SceneEntityCfg(
+    "robot",
+    joint_names=(r"leg_.*_2_joint", r"leg_.*_3_joint"),
+    preserve_order=True,
+  )
+  asset_cfg.resolve(env.scene)
+
+  cfg = RewardTermCfg(
     func=None,
     weight=1.0,
-    params={**cfg.params, "margin": 0.5, "metrics_suffix": "dummy_suffix_margin"},
+    params={
+      "asset_cfg": asset_cfg,
+      "limits": KANGAROO_HIP_ENVELOPE_LIMITS,
+      "shrink": {},
+    },
   )
 
-  asset.data.joint_pos = torch.tensor(
-    [[5.8, 5.8, 1.4, 1.4]] * env.num_envs,
-    device=env.device,
-    dtype=torch.float32,
+  reward_term = pal_mjlab_r.hip_envelope_limits(cfg, env)
+
+  act = KANGAROO_HIP_ENVELOPE_LIMITS["actuator"]
+  joint_ids, _ = asset.find_joints(
+    ("leg_left_2_joint", "leg_left_3_joint"), preserve_order=True
+  )
+  j2_max, j3_max = asset.data.default_joint_pos_limits[0, joint_ids, 1].tolist()
+  act_norm = (act["dadj2"] ** 2 + act["dadj3"] ** 2) ** 0.5
+
+  # (name, pose on the boundary, margin of that boundary [rad])
+  boundaries = [
+    ("joint 3", (0.0, j3_max), 0.02),
+    (
+      "actuator",
+      (
+        (act["max"] - act["a0"]) / act_norm**2 * act["dadj2"],
+        (act["max"] - act["a0"]) / act_norm**2 * act["dadj3"],
+      ),
+      0.0015 / act_norm,
+    ),
+  ]
+
+  # Inside
+
+  write_joint_pose(
+    asset, joint_names, torch.zeros((env.num_envs, 4), device=env.device)
   )
 
-  reward_term_margin = pal_mjlab_r.joint_limits_convex_hull(
-    cfg_margin, env, mock_asset_cfg
-  )
+  value = reward_term(env, **cfg.params)
 
-  value = reward_term_margin(env, **cfg_margin.params)
-
-  test_name = "Convex hull (margin, on original boundary)"
-
-  assert value.shape == (env.num_envs,), tensor_shape_error_message(
-    test_name, (env.num_envs,), value.shape
-  )
-  assert value[0] == pytest.approx(0.5, abs=1e-5), tensor_value_error_message(test_name)
-
-  # With margin: a point deep inside stays penalty-free
-
-  asset.data.joint_pos = torch.tensor(
-    [[5.0, 5.0, 5.0, 5.0]] * env.num_envs,
-    device=env.device,
-    dtype=torch.float32,
-  )
-
-  value = reward_term_margin(env, **cfg_margin.params)
-
-  test_name = "Convex hull (margin, deep inside)"
+  test_name = "Hip envelope (inside)"
 
   assert value.shape == (env.num_envs,), tensor_shape_error_message(
     test_name, (env.num_envs,), value.shape
   )
   assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
+
+  # On the boundary
+
+  for name, pose, _ in boundaries:
+    write_joint_pose(
+      asset, joint_names, torch.tensor([[*pose, 0.0, 0.0]] * env.num_envs)
+    )
+
+    value = reward_term(env, **cfg.params)
+
+    test_name = f"Hip envelope (on the {name} boundary)"
+
+    assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(
+      test_name
+    )
+
+  # One leg outside
+
+  write_joint_pose(
+    asset, joint_names, torch.tensor([[0.4, 0.0, 0.0, -0.45]] * env.num_envs)
+  )
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Hip envelope (one leg outside)"
+
+  assert value[0] == pytest.approx(0.45 - j3_max, abs=1e-6), tensor_value_error_message(
+    test_name
+  )
+
+  # Both legs outside
+
+  write_joint_pose(
+    asset, joint_names, torch.tensor([[0.0, 0.5, 0.0, -0.45]] * env.num_envs)
+  )
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Hip envelope (both legs outside)"
+
+  assert value[0] == pytest.approx((0.5 - j3_max) + (0.45 - j3_max), abs=1e-6), (
+    tensor_value_error_message(test_name)
+  )
+  for stat in ("mean", "max"):
+    assert env.extras["log"][
+      f"Metrics/joint_envelope_hip_violation_{stat}"
+    ] == pytest.approx(0.5 - j3_max, abs=1e-6), tensor_value_error_message(
+      f"{test_name}, metric {stat}"
+    )
+
+  # Metrics across envs
+
+  joint_pos = torch.tensor([[0.0, 0.5, 0.0, 0.0]] * env.num_envs)
+  joint_pos[0, 1] = 0.0
+  write_joint_pose(asset, joint_names, joint_pos)
+
+  reward_term(env, **cfg.params)
+
+  test_name = "Hip envelope (metrics across envs)"
+
+  assert env.extras["log"]["Metrics/joint_envelope_hip_violation_mean"] == (
+    pytest.approx(0.75 * (0.5 - j3_max), abs=1e-6)
+  ), tensor_value_error_message(test_name)
+  assert env.extras["log"]["Metrics/joint_envelope_hip_violation_max"] == (
+    pytest.approx(0.5 - j3_max, abs=1e-6)
+  ), tensor_value_error_message(test_name)
+
+  # Far outside
+
+  write_joint_pose(
+    asset, joint_names, torch.tensor([[0.9, 0.6, 0.0, 0.0]] * env.num_envs)
+  )
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Hip envelope (far outside)"
+
+  a2 = act["a0"] + act["dadj2"] * 0.9 + act["dadj3"] * 0.6
+  # Sum of the three violated limits: joint 2, joint 3 and actuator 2.
+  expected = (0.9 - j2_max) + (0.6 - j3_max) + (a2 - act["max"]) / act_norm
+
+  assert value[0] == pytest.approx(expected, abs=1e-5), tensor_value_error_message(
+    test_name
+  )
+
+  # With margin
+
+  cfg.params["shrink"] = {"joint": 0.02, "actuator": 0.0015}
+
+  reward_term = pal_mjlab_r.hip_envelope_limits(cfg, env)
+
+  for name, pose, margin in boundaries:
+    write_joint_pose(
+      asset, joint_names, torch.tensor([[*pose, 0.0, 0.0]] * env.num_envs)
+    )
+
+    value = reward_term(env, **cfg.params)
+
+    test_name = f"Hip envelope (margin, on the {name} boundary)"
+
+    assert value[0] == pytest.approx(margin, abs=1e-6), tensor_value_error_message(
+      test_name
+    )
+
+  write_joint_pose(
+    asset, joint_names, torch.zeros((env.num_envs, 4), device=env.device)
+  )
+
+  value = reward_term(env, **cfg.params)
+
+  test_name = "Hip envelope (margin, inside)"
+
+  assert value[0] == pytest.approx(0.0, abs=1e-6), tensor_value_error_message(test_name)
+
+  # Wrong number of joints
+
+  for joint_patterns in (
+    ("leg_left_2_joint", "leg_left_3_joint"),
+    (r"leg_.*_2_joint", "leg_left_3_joint"),
+  ):
+    asset_cfg = SceneEntityCfg("robot", joint_names=joint_patterns, preserve_order=True)
+    asset_cfg.resolve(env.scene)
+
+    cfg = RewardTermCfg(func=None, weight=1.0, params={"asset_cfg": asset_cfg})
+
+    with pytest.raises(ValueError, match="must select 4 joints"):
+      pal_mjlab_r.hip_envelope_limits(cfg, env)
 
 
 def test_track_body_ang_vel_z_exp_reward(mock_env, mock_asset_cfg):

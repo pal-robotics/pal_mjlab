@@ -12,12 +12,12 @@ from mjlab.utils.lab_api.string import (
   resolve_matching_names_values,
 )
 
+from pal_mjlab.robots.pal_kangaroo.kangaroo_constants import (
+  KANGAROO_TIBIA_PITCH_OFFSET,
+)
+
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
-
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy.spatial import ConvexHull
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 
@@ -68,321 +68,245 @@ def stand_still_joint_deviation_l1(
   return penalty
 
 
-class joint_limits_convex_hull:
+class ankle_envelope_limits:
+  """Penalize ankle configurations outside the feasible joint space of the ankle.
+
+  The space is bounded by the joint 5 range, the foot-tibia and crank-bar
+  collisions and the actuator strokes. The collisions and actuators are modelled
+  as affine lines, symmetric in joint 5. All limits are solved together as
+  ``A x <= b`` in x = (j4, j5, j4n, L), where j4n = j4 - (70 deg + femur - knee)
+  is the foot angle relative to the tibia instead of the hip. In case of
+  overlapping constraints, the violations of all of them are summed and each |j5|
+  pair (foot-tibia, crank-bar) counts once, as its larger row. Joint limits come
+  from the model, the other limits are described by:
+
+    j4n_min: lowest foot angle relative to the tibia [rad].
+    ft_b0j5: j4n where the affine lines approximating the foot-tibia collision
+      meet, at j5 = 0 [rad].
+    ft_dj4ndj5: rate of change of j4n with respect to |j5|, the slope of the
+      foot-tibia collision [rad/rad].
+    act_a0: stroke of both actuators at j4 = j5 = 0 [m].
+    act_dadj4, act_dadj5: rates of change of the actuator with respect to
+      joints 4 and 5 [m/rad].
+    min, max: actuator stroke limits [m].
+    cb_b0l: value of j4 at the crank-bar collision when L = 0, j5 = 0 [rad].
+    cb_dj4dl, cb_dj4dj5: rates of change of j4 with respect to leg length
+      [rad/m] and |j5| [rad/rad], approximating the reprojected crank-bar
+      collision with a plane.
+
+    For a visual explanation of the parameters see
+      https://github.com/pal-robotics/pal_mjlab/pull/133
   """
-  joint_limits_convex_hull is mainly to penalize the commands that are outside the convex hull of the joint limits.
-  This is a more flexible way to enforce joint limits, especially for complex robots where the feasible joint space
-  may not be a simple box defined by min/max limits on each joint. By using the convex hull of the joint limits,
-  we can capture the true feasible joint space and penalize any commands that fall outside of it.
-  This can help improve the realism and safety of the robot's movements.
-  """
 
-  def __init__(
-    self,
-    cfg: RewardTermCfg,
-    env: ManagerBasedRlEnv,
-    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
-  ):
-    asset: Entity = env.scene[cfg.params["asset_cfg"].name]
-    self.convex_hull = None
-    self.equations = None
-    self.equation_coeff_A = None
-    self.equation_coeff_b = None
-    self.original_equation_coeff_b = None  # Store original b coefficients
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+    params = cfg.params
+    asset_cfg: SceneEntityCfg = params["asset_cfg"]
+    asset: Entity = env.scene[asset_cfg.name]
+    device = asset.data.joint_pos.device
 
-    for joint_group in cfg.params["joint_names_group"]:
-      asset: Entity = env.scene[asset_cfg.name]
-      target_ids, target_names = asset.find_joints(joint_group)
-      # print("Target joint names:", target_names)
-      # print("Target joint ids:", target_ids)
-      joint_pos = asset.data.joint_pos[:, target_ids]
-
-      if self.convex_hull is None:
-        self.convex_hull = ConvexHull(cfg.params["hull_points"].cpu().numpy())
-        self.equations = torch.from_numpy(self.convex_hull.equations).to(
-          device=joint_pos.device, dtype=joint_pos.dtype
-        )
-        self.equation_coeff_A = self.equations[:, :-1].to(
-          device=joint_pos.device, dtype=joint_pos.dtype
-        )  # Normals
-        self.equation_coeff_b = self.equations[:, -1].to(
-          device=joint_pos.device, dtype=joint_pos.dtype
-        )  # Offsets
-        print("Convex hull equations device", self.equations.device)
-        # Apply margin reduction to shrink the convex hull
-        self._reduce_convex_hull(cfg.params["margin"])
-        # Plot comparison of original and reduced hulls
-        self._plot_hull_comparison(
-          cfg.params["hull_points"].cpu().numpy(),
-          cfg.params["margin"],
-          f"/tmp/convex_hull_comparison_{cfg.params['metrics_suffix']}.png",
-        )
-
-  def _reduce_convex_hull(self, margin: float) -> None:
-    """
-    Reduce the convex hull by moving each hyperplane inward by the specified margin.
-    This shrinks the feasible region to create a safety buffer.
-
-    Args:
-        margin: The distance by which to shrink each hyperplane (must be non-negative)
-    """
-    if self.convex_hull is None or margin <= 0:
-      return
-
-    # Store original b coefficients before modification
-    if self.original_equation_coeff_b is None:
-      self.original_equation_coeff_b = self.equation_coeff_b.clone()
-
-    # Get the normal vectors (normalized)
-    normals = self.equation_coeff_A
-    # Compute the norm of each normal vector
-    norm_magnitudes = torch.norm(normals, dim=1, keepdim=True)
-    # Normalize the vectors
-    # normalized_normals = normals / (norm_magnitudes + 1e-8)
-    # Reduce the feasible region by increasing b (making constraint tighter)
-    # For equations Ax + b <= 0, increasing b shrinks the region
-    self.equation_coeff_b = self.equation_coeff_b + margin * norm_magnitudes.squeeze(1)
-
-  def _plot_hull_comparison(
-    self, hull_points: np.ndarray, margin: float, save_path: str
-  ) -> None:
-    """
-    Plot and save comparison of original and margin-reduced convex hulls.
-
-    Args:
-        hull_points: Original points defining the convex hull
-        margin: The margin used to reduce the hull
-        save_path: Path where to save the plot image
-    """
-    if self.convex_hull is None:
-      print("Convex hull not yet initialized")
-      return
-
-    ndim = hull_points.shape[1]
-
-    if ndim == 2:
-      self._plot_2d_comparison(hull_points, margin, save_path)
-    elif ndim == 3:
-      self._plot_3d_comparison(hull_points, margin, save_path)
-    else:
-      print(f"Convex hull visualization not supported for {ndim}D points")
-
-  def _plot_2d_comparison(
-    self, hull_points: np.ndarray, margin: float, save_path: str
-  ) -> None:
-    """Plot 2D comparison of original and reduced convex hulls."""
-    fig, ax = plt.subplots(figsize=(12, 9))
-
-    # Plot original hull points
-    ax.scatter(
-      hull_points[:, 0],
-      hull_points[:, 1],
-      c="blue",
-      s=100,
-      label="Original hull vertices",
-      zorder=5,
-      edgecolors="black",
-      linewidths=1.5,
-    )
-
-    # Plot original hull edges
-    for simplex in self.convex_hull.simplices:
-      ax.plot(
-        hull_points[simplex, 0],
-        hull_points[simplex, 1],
-        "b-",
-        linewidth=2.5,
-        label="Original hull" if simplex[0] == self.convex_hull.simplices[0][0] else "",
-        alpha=0.8,
+    # Joint 5 range from the model, one value per leg.
+    joint_limits = asset.data.default_joint_pos_limits[0, asset_cfg.joint_ids]
+    n_joints = joint_limits.shape[0]
+    if n_joints != 10:
+      raise ValueError(
+        "asset_cfg must select 10 joints, [joint 4, joint 5, leg length, femur, "
+        f"knee] for both legs, got {n_joints}: {asset_cfg.joint_names}"
       )
+    joint_limits = joint_limits.to(torch.float32).view(5, 2, 2)  # (joint, leg, 2)
+    j5_min, j5_max = joint_limits[1].unbind(-1)
 
-    # Generate sample points to visualize the reduced hull
-    if margin > 0 and self.original_equation_coeff_b is not None:
-      # Create a grid of points to test
-      x_min, x_max = hull_points[:, 0].min() - 0.2, hull_points[:, 0].max() + 0.2
-      y_min, y_max = hull_points[:, 1].min() - 0.2, hull_points[:, 1].max() + 0.2
-      xx, yy = np.meshgrid(
-        np.linspace(x_min, x_max, 200), np.linspace(y_min, y_max, 200)
-      )
-      grid_points = np.c_[xx.ravel(), yy.ravel()]
+    limits = params["limits"]
+    foot_tibia = limits["foot_tibia_collision"]
+    act = limits["actuator"]
+    crank = limits["crank_bar_collision"]
 
-      # Check which points are inside the reduced hull
-      A = self.equation_coeff_A.cpu().numpy()
-      b_reduced = self.equation_coeff_b.cpu().numpy()
+    shrink = params.get("shrink", {})
+    margin_joint = shrink.get("joint", 0.0)
+    margin_act = shrink.get("actuator", 0.0)
+    margin_crank = shrink.get("crank", 0.0)
 
-      # For 2D: Ax + b <= 0
-      dots = grid_points @ A.T + b_reduced
-      inside_reduced = np.all(dots <= 1e-6, axis=1)
+    j4n_min = foot_tibia["j4n_min"]
+    ft_b0j5, ft_dj4ndj5 = foot_tibia["b0j5"], foot_tibia["dj4ndj5"]
+    act_a0, act_dadj4, act_dadj5 = act["a0"], act["dadj4"], act["dadj5"]
+    cb_b0l, cb_dj4dl, cb_dj4dj5 = crank["b0l"], crank["dj4dl"], crank["dj4dj5"]
 
-      # Plot the reduced hull boundary
-      inside_reduced_grid = inside_reduced.reshape(xx.shape)
-      ax.contour(
-        xx,
-        yy,
-        inside_reduced_grid,
-        levels=[0.5],
-        colors="red",
-        linewidths=2.5,
-        linestyles="--",
-      )
+    # The collision lines are lines in joint space, so their margin in rad is a
+    # distance there: b - margin * |(a_j4, a_j5)| before normalising.
+    margin_ft = margin_joint * (1 + ft_dj4ndj5**2) ** 0.5
+    margin_cb = margin_crank * (1 + cb_dj4dj5**2) ** 0.5
+    act_min, act_max = act["min"] + margin_act, act["max"] - margin_act
 
-      # Add a dummy line for legend
-      ax.plot([], [], "r--", linewidth=2.5, label=f"Reduced hull (margin={margin:.3f})")
+    # fmt: off
+    A = torch.tensor([
+      # j4           j5            j4n            L
+      [ 0.0,         0.0,         -1.0,           0.0       ],  #  0 j4n >= j4n_min
+      [ 0.0,         1.0,          0.0,           0.0       ],  #  1 j5 <= j5_max
+      [ 0.0,        -1.0,          0.0,           0.0       ],  #  2 j5 >= j5_min
+      [ 0.0,         ft_dj4ndj5,  -1.0,           0.0       ],  #  3 j4n >= ft_b0j5 + ft_dj4ndj5 j5
+      [ 0.0,        -ft_dj4ndj5,  -1.0,           0.0       ],  #  4 j4n >= ft_b0j5 - ft_dj4ndj5 j5
+      [ act_dadj4,   act_dadj5,    0.0,           0.0       ],  #  5 a4 <= act_max
+      [-act_dadj4,  -act_dadj5,    0.0,           0.0       ],  #  6 a4 >= act_min
+      [ act_dadj4,  -act_dadj5,    0.0,           0.0       ],  #  7 a5 <= act_max
+      [-act_dadj4,   act_dadj5,    0.0,           0.0       ],  #  8 a5 >= act_min
+      [ 1.0,         cb_dj4dj5,    0.0,          -cb_dj4dl  ],  #  9 j4 <= cb_b0l + cb_dj4dl L - cb_dj4dj5 j5
+      [ 1.0,        -cb_dj4dj5,    0.0,          -cb_dj4dl  ],  # 10 j4 <= cb_b0l + cb_dj4dl L + cb_dj4dj5 j5
+    ], dtype=torch.float32, device=device)
 
-    ax.set_xlabel("Joint 1", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Joint 2", fontsize=12, fontweight="bold")
-    ax.set_title(
-      f"Convex Hull Comparison: Original vs Reduced (margin={margin:.3f})",
-      fontsize=14,
-      fontweight="bold",
-    )
-    ax.legend(fontsize=11, loc="best")
-    ax.grid(True, alpha=0.3, linestyle="--")
+    one = torch.ones_like(j5_min)
+    b = torch.stack([
+      -(j4n_min + margin_joint) * one,  #  0
+      j5_max - margin_joint,            #  1
+      -(j5_min + margin_joint),         #  2
+      (-ft_b0j5 - margin_ft) * one,     #  3
+      (-ft_b0j5 - margin_ft) * one,     #  4
+      (act_max - act_a0) * one,         #  5
+      (act_a0 - act_min) * one,         #  6
+      (act_max - act_a0) * one,         #  7
+      (act_a0 - act_min) * one,         #  8
+      (cb_b0l - margin_cb) * one,       #  9
+      (cb_b0l - margin_cb) * one,       # 10
+    ], dim=-1)
+    # fmt: on
 
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches="tight")
-    plt.close()
-    print(f"2D Convex hull comparison saved to: {save_path}")
+    # Normalise by dividing every row and its bound by the length of the row's
+    # gradient in the (j4, j5) plane, so that A @ x - b is the signed distance
+    # [rad]. j4 and j4n are collapsed into a single value (since they contribute to
+    # different constraints) so the norm is correct. Also skip leg length as it
+    # is not needed for the normalization.
+    n = torch.stack((A[:, 0] + A[:, 2], A[:, 1]), dim=-1).norm(dim=1)
+    self.A, self.b = A / n[:, None], b / n
 
-  def _plot_3d_comparison(
-    self, hull_points: np.ndarray, margin: float, save_path: str
-  ) -> None:
-    """Plot 3D comparison of original and reduced convex hulls."""
-    fig = plt.figure(figsize=(14, 10))
-    ax = fig.add_subplot(111, projection="3d")
-
-    # Plot original hull points
-    ax.scatter(
-      hull_points[:, 0],
-      hull_points[:, 1],
-      hull_points[:, 2],
-      c="blue",
-      s=100,
-      label="Original hull vertices",
-      edgecolors="black",
-      linewidths=1.5,
-      zorder=10,
-    )
-
-    # Plot original hull surface
-    for simplex in self.convex_hull.simplices:
-      triangle = hull_points[simplex]
-      from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-
-      poly = Poly3DCollection(
-        [triangle], alpha=0.3, facecolor="blue", edgecolor="darkblue", linewidth=1.5
-      )
-      ax.add_collection3d(poly)
-
-    # For the reduced hull, we'll visualize it by showing points that are inside
-    if margin > 0 and self.original_equation_coeff_b is not None:
-      # Generate points slightly inside the reduced hull boundary
-      reduced_points = []
-      for simplex in self.convex_hull.simplices:
-        triangle = hull_points[simplex]
-        # Get the centroid of the whole hull
-        centroid = hull_points.mean(axis=0)
-        # Move triangle vertices toward centroid
-        for vertex in triangle:
-          direction = centroid - vertex
-          # Move approximately by margin distance
-          new_point = vertex + direction * (margin / np.linalg.norm(direction)) * 0.8
-          reduced_points.append(new_point)
-
-      reduced_points = np.array(reduced_points)
-
-      # Plot reduced hull surface approximation
-      from scipy.spatial import ConvexHull as CH
-
-      try:
-        reduced_hull = CH(reduced_points)
-        for simplex in reduced_hull.simplices:
-          triangle = reduced_points[simplex]
-          poly = Poly3DCollection(
-            [triangle],
-            alpha=0.3,
-            facecolor="red",
-            edgecolor="darkred",
-            linewidth=1.5,
-            linestyle="--",
-          )
-          ax.add_collection3d(poly)
-      except Exception:
-        # If reduced hull cannot be computed, just plot points
-        ax.scatter(
-          reduced_points[:, 0],
-          reduced_points[:, 1],
-          reduced_points[:, 2],
-          c="red",
-          s=20,
-          alpha=0.5,
-          label=f"Reduced hull region (margin={margin:.3f})",
-        )
-
-    ax.set_xlabel("Joint 1", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Joint 2", fontsize=12, fontweight="bold")
-    ax.set_zlabel("Joint 3", fontsize=12, fontweight="bold")
-    ax.set_title(
-      f"3D Convex Hull Comparison: Original vs Reduced (margin={margin:.3f})",
-      fontsize=14,
-      fontweight="bold",
-    )
-
-    # Create custom legend
-    from matplotlib.patches import Patch
-
-    legend_elements = [
-      Patch(facecolor="blue", edgecolor="darkblue", alpha=0.3, label="Original hull"),
-      Patch(
-        facecolor="red",
-        edgecolor="darkred",
-        alpha=0.3,
-        label=f"Reduced hull (margin={margin:.3f})",
-      ),
-    ]
-    ax.legend(handles=legend_elements, fontsize=11, loc="best")
-
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=150, bbox_inches="tight")
-    plt.close()
-    print(f"3D Convex hull comparison saved to: {save_path}")
+    # Penalty terms: rows that are limits of their own, and the |j5| pairs
+    # (foot-tibia, crank-bar) that count once each.
+    self._single = [0, 1, 2, 5, 6, 7, 8]
+    self._j5_positive = [3, 9]  # +j5 row of each pair
+    self._j5_negative = [4, 10]  # -j5 row of each pair
 
   def __call__(
     self,
     env: ManagerBasedRlEnv,
     asset_cfg: SceneEntityCfg,
-    metrics_suffix: str,
-    margin: float,
-    joint_names_group: list[list[str]],
-    hull_points: torch.Tensor,
+    limits: dict[str, dict[str, float]],
+    shrink: dict[str, float] | None = None,
   ) -> torch.Tensor:
-    penalty = torch.zeros(env.num_envs, device=env.device, dtype=torch.float32)
-    metrics_violation_dist = torch.zeros(
-      env.num_envs, device=env.device, dtype=torch.float32
-    )
-    for joint_group in joint_names_group:
-      asset: Entity = env.scene[asset_cfg.name]
-      target_ids, target_names = asset.find_joints(joint_group)
-      # print("Target joint names:", target_names)
-      # print("Target joint ids:", target_ids)
-      joint_pos = asset.data.joint_pos[:, target_ids]
+    del limits, shrink  # Resolved in __init__.
+    joint_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids]
+    joint_pos = joint_pos.view(joint_pos.shape[0], 5, -1)  # (num_envs, joint, leg)
+    j4, j5, leg_length, femur, knee = joint_pos.unbind(1)  # each (num_envs, n_legs)
 
-      # Calculate distance using A*x + b
-      # equation_coeff_A has shape (K, N), joint_pos has shape (M, N)
-      # equation_coeff_b has shape (K,)
-      # Result has shape (M, K)
-      dot_product_res = (
-        torch.matmul(joint_pos, self.equation_coeff_A.T) + self.equation_coeff_b
+    # Joint 4 position relative to the tibia, from the robot's geometry.
+    j4n = j4 - (KANGAROO_TIBIA_PITCH_OFFSET + femur - knee)
+    X = torch.stack((j4, j5, j4n, leg_length), dim=-1)  # (num_envs, n_legs, 4)
+
+    # Distance past every edge [rad], 0 where the edge is satisfied.
+    v = (X @ self.A.T - self.b).clamp(min=0.0)  # (num_envs, n_legs, 11)
+
+    violation = v.amax(dim=(1, 2))
+    env.extras["log"]["Metrics/joint_envelope_ankle_violation_mean"] = violation.mean()
+    env.extras["log"]["Metrics/joint_envelope_ankle_violation_max"] = violation.max()
+
+    # Sum the violations of the non-symmetric rows and the larger row of each
+    # symmetric pair.
+    return v[..., self._single].sum((1, 2)) + torch.maximum(
+      v[..., self._j5_positive], v[..., self._j5_negative]
+    ).sum((1, 2))
+
+
+class hip_envelope_limits:
+  """Penalize hip configurations outside the feasible joint space of hip xy.
+
+  The space is mostly bounded by the joint 3 range and the actuator strokes;
+  the actuators are modelled as affine lines, symmetric along both joints. All
+  limits are solved together as ``A x <= b`` in x = (j2, j3). In case of
+  overlapping constraints, the violations of all of them are summed. Joint
+  limits come from the model, the actuators are described by:
+
+    a0: stroke of both actuators at j2 = j3 = 0 [m].
+    dadj2, dadj3: rates of change of the actuator with respect to joints 2 and
+      3, representing linearized reprojections of the actuator limits onto joint
+      space [m/rad].
+    min, max: actuator stroke limits [m].
+
+    For a visual explanation of the parameters see
+      https://github.com/pal-robotics/pal_mjlab/pull/133
+  """
+
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+    params = cfg.params
+    asset_cfg: SceneEntityCfg = params["asset_cfg"]
+    asset: Entity = env.scene[asset_cfg.name]
+    device = asset.data.joint_pos.device
+
+    # Joint 2 and joint 3 ranges from the model, one value per leg.
+    joint_limits = asset.data.default_joint_pos_limits[0, asset_cfg.joint_ids]
+    n_joints = joint_limits.shape[0]
+    if n_joints != 4:
+      raise ValueError(
+        "asset_cfg must select 4 joints, [joint 2, joint 3] for both legs, "
+        f"got {n_joints}: {asset_cfg.joint_names}"
       )
-      # For those that are within the polygon return 0.0, but for others return the squared distance to the polygon
-      violation_dist = torch.clamp(dot_product_res, min=0.0).max(dim=1)[0]
-      penalty += torch.square(violation_dist)
-      metrics_violation_dist += violation_dist
+    joint_limits = joint_limits.to(torch.float32).view(2, 2, 2)  # (joint, leg, 2)
+    j2_min, j2_max = joint_limits[0].unbind(-1)
+    j3_min, j3_max = joint_limits[1].unbind(-1)
+    one = torch.ones_like(j2_min)
 
-    env.extras["log"][f"Metrics/joint_limits_hull_{metrics_suffix}"] = torch.mean(
-      metrics_violation_dist
-    )
-    return penalty
+    act = params["limits"]["actuator"]
+
+    shrink = params.get("shrink", {})
+    margin_joint = shrink.get("joint", 0.0)
+    margin_act = shrink.get("actuator", 0.0)
+
+    a0, dadj2, dadj3 = act["a0"], act["dadj2"], act["dadj3"]
+    act_min, act_max = act["min"] + margin_act, act["max"] - margin_act
+
+    # fmt: off
+    A = torch.tensor([
+      # j2       j3
+      [-1.0,     0.0   ],  # 0 j2 >= j2_min
+      [ 1.0,     0.0   ],  # 1 j2 <= j2_max
+      [ 0.0,     1.0   ],  # 2 j3 <= j3_max
+      [ 0.0,    -1.0   ],  # 3 j3 >= j3_min
+      [ dadj2,   dadj3 ],  # 4 a2 <= act_max
+      [-dadj2,  -dadj3 ],  # 5 a2 >= act_min
+      [ dadj2,  -dadj3 ],  # 6 a3 <= act_max
+      [-dadj2,   dadj3 ],  # 7 a3 >= act_min
+    ], dtype=torch.float32, device=device)
+    b = torch.stack([
+      -(j2_min + margin_joint),  # 0
+      j2_max - margin_joint,     # 1
+      j3_max - margin_joint,     # 2
+      -(j3_min + margin_joint),  # 3
+      (act_max - a0) * one,      # 4
+      (a0 - act_min) * one,      # 5
+      (act_max - a0) * one,      # 6
+      (a0 - act_min) * one,      # 7
+    ], dim=-1)
+    # fmt: on
+
+    # Normalise by dividing every row and its bound by the row's length, so that
+    # A @ x - b is the signed distance [rad] to the edge in the (j2, j3) plane.
+    n = A.norm(dim=1)
+    self.A, self.b = A / n[:, None], b / n
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    asset_cfg: SceneEntityCfg,
+    limits: dict[str, dict[str, float]],
+    shrink: dict[str, float] | None = None,
+  ) -> torch.Tensor:
+    del limits, shrink  # Resolved in __init__.
+    joint_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids]
+    joint_pos = joint_pos.view(joint_pos.shape[0], 2, -1)  # (num_envs, joint, leg)
+    j2, j3 = joint_pos.unbind(1)  # each (num_envs, n_legs)
+    X = torch.stack((j2, j3), dim=-1)  # (num_envs, n_legs, 2)
+
+    v = (X @ self.A.T - self.b).clamp(min=0.0)  # (num_envs, n_legs, 8)
+
+    violation = v.amax(dim=(1, 2))
+    env.extras["log"]["Metrics/joint_envelope_hip_violation_mean"] = violation.mean()
+    env.extras["log"]["Metrics/joint_envelope_hip_violation_max"] = violation.max()
+    return v.sum(dim=(1, 2))
 
 
 class joint_vel_limits:

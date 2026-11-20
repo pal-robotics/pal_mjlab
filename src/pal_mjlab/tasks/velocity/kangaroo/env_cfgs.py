@@ -28,18 +28,19 @@ from mjlab.terrains.terrain_generator import TerrainGeneratorCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
 from pal_mjlab.robots import (
-  ANKLE_XY_CONVEX_HULL_POINTS,
-  HIP_XY_CONVEX_HULL_POINTS,
   KANGAROO_ACTION_SCALE,
   KANGAROO_ACTUATOR_NAMES,
+  KANGAROO_ANKLE_ENVELOPE_LIMITS,
   KANGAROO_GRIPPERS_ACTION_SCALE,
   KANGAROO_GRIPPERS_ACTUATOR_NAMES,
   KANGAROO_HANDS_ACTION_SCALE,
   KANGAROO_HANDS_ACTUATOR_NAMES,
+  KANGAROO_HIP_ENVELOPE_LIMITS,
   KANGAROO_LOWER_BODY_ACTION_SCALE,
   KANGAROO_LOWER_BODY_ACTUATOR_NAMES,
   REGEX_ALL_ACTUATED_JOINTS,
   REGEX_FEMUR_AND_KNEE_LINKS,
+  REGEX_JOINTS_WITHOUT_ENVELOPE,
   REGEX_LEG_LENGTH_JOINTS_ONLY,
   get_kangaroo_grippers_robot_cfg,
   get_kangaroo_hands_robot_cfg,
@@ -284,35 +285,47 @@ def pal_kangaroo_baseline_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={"sensor_name": self_collision_cfg.name},
   )
 
-  # The hull points should correspond to the respective joints defined in the joint_names_group order
-  # leg_*_2_joint corresponds to Hip Pitch and leg_*_3_joint corresponds to Hip roll
-  cfg.rewards["convex_hull_joint_limits_hip"] = RewardTermCfg(
-    func=mdp.joint_limits_convex_hull,
+  # Hip joints 2 / 3 and ankle joints 4 / 5 are limited by the envelope rewards below.
+  cfg.rewards["dof_pos_limits"].params["asset_cfg"] = SceneEntityCfg(
+    "robot", joint_names=(REGEX_JOINTS_WITHOUT_ENVELOPE,)
+  )
+  cfg.rewards["joint_envelope_hip"] = RewardTermCfg(
+    func=mdp.hip_envelope_limits,
     weight=-10.0,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(r".*",)),
-      "metrics_suffix": "hipXY",
-      "joint_names_group": [
-        [r"leg_left_2_joint", r"leg_left_3_joint"],
-        [r"leg_right_2_joint", r"leg_right_3_joint"],
-      ],
-      "margin": 0.02,
-      "hull_points": HIP_XY_CONVEX_HULL_POINTS,
+      # One pattern per role [joint 2, joint 3], each matching both legs.
+      "asset_cfg": SceneEntityCfg(
+        "robot",
+        joint_names=(r"leg_.*_2_joint", r"leg_.*_3_joint"),
+        preserve_order=True,
+      ),
+      "limits": KANGAROO_HIP_ENVELOPE_LIMITS,
+      # Margin per limit group, in that group's units: joint [rad], actuator [m].
+      "shrink": {"joint": 0.02, "actuator": 0.0015},
     },
   )
 
-  cfg.rewards["convex_hull_joint_limits_ankle"] = RewardTermCfg(
-    func=mdp.joint_limits_convex_hull,
+  cfg.rewards["joint_envelope_ankle"] = RewardTermCfg(
+    func=mdp.ankle_envelope_limits,
     weight=-10.0,
     params={
-      "asset_cfg": SceneEntityCfg("robot", joint_names=(r".*",)),
-      "margin": 0.02,
-      "metrics_suffix": "ankleXY",
-      "joint_names_group": [
-        [r"leg_left_4_joint", r"leg_left_5_joint"],
-        [r"leg_right_4_joint", r"leg_right_5_joint"],
-      ],
-      "hull_points": ANKLE_XY_CONVEX_HULL_POINTS,
+      # One pattern per role [joint 4, joint 5, leg length, femur, knee], each
+      # matching both legs.
+      "asset_cfg": SceneEntityCfg(
+        "robot",
+        joint_names=(
+          r"leg_.*_4_joint",
+          r"leg_.*_5_joint",
+          r"leg_.*_length_joint",
+          r"leg_.*_femur_joint",
+          r"leg_.*_knee_joint",
+        ),
+        preserve_order=True,
+      ),
+      "limits": KANGAROO_ANKLE_ENVELOPE_LIMITS,
+      # Margin per limit group, in that group's units: joint and crank-bar
+      # collision [rad], actuator [m].
+      "shrink": {"joint": 0.02, "actuator": 0.0008, "crank": 0.02},
     },
   )
   cfg.rewards["joint_vel_limits"] = RewardTermCfg(
