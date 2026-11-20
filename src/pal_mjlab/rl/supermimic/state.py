@@ -27,9 +27,22 @@ from mjlab.utils.lab_api.math import (
 
 from pal_mjlab.utils.math.kinematics import matrix_from_rot6d, rot6d, yaw_angle
 
+ROOT_STATE_DIM = 13
+"""Root part of a heading state: height (1), tilt rot6d (6), linear and angular velocity in
+the root frame (3 + 3). The joint positions and velocities follow."""
+
+
+def joint_state(state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+  """(q, q̇) of a (B, ROOT_STATE_DIM + 2 nj) heading state, (B, nj) each."""
+  nj = (state.shape[-1] - ROOT_STATE_DIM) // 2
+  return (
+    state[:, ROOT_STATE_DIM : ROOT_STATE_DIM + nj],
+    state[:, ROOT_STATE_DIM + nj :],
+  )
+
 
 def heading_state(qpos: torch.Tensor, qvel: torch.Tensor) -> torch.Tensor:
-  """(B, 13 + 2 nj) state from ``qpos`` (B, 7 + nj) and ``qvel`` (B, 6 + nj)."""
+  """(B, ROOT_STATE_DIM + 2 nj) state from ``qpos`` (B, 7 + nj) and ``qvel`` (B, 6 + nj)."""
   quat = qpos[:, 3:7]
   tilt = quat_mul(quat_conjugate(yaw_quat(quat)), quat)
   lin_vel_b = quat_apply_inverse(quat, qvel[:, :3])
@@ -48,15 +61,15 @@ def state_to_qpos_qvel(
   state: torch.Tensor, pose: torch.Tensor
 ) -> tuple[torch.Tensor, torch.Tensor]:
   """Inverse of (heading_state, heading_pose): qpos and qvel, differentiable."""
-  nj = (state.shape[-1] - 13) // 2
+  q, qd = joint_state(state)
   tilt = quat_from_matrix(matrix_from_rot6d(state[:, 1:7]))
   half = 0.5 * pose[:, 2:3]
   zero = torch.zeros_like(half)
   heading = torch.cat([torch.cos(half), zero, zero, torch.sin(half)], dim=-1)
   quat = quat_mul(heading, tilt)
-  qpos = torch.cat([pose[:, :2], state[:, :1], quat, state[:, 13 : 13 + nj]], dim=-1)
+  qpos = torch.cat([pose[:, :2], state[:, :1], quat, q], dim=-1)
   qvel = torch.cat(
-    [quat_apply(quat, state[:, 7:10]), state[:, 10:13], state[:, 13 + nj :]], dim=-1
+    [quat_apply(quat, state[:, 7:10]), state[:, 10:13], qd], dim=-1
   )
   return qpos, qvel
 

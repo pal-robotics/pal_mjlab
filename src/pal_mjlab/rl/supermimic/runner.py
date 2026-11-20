@@ -32,6 +32,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from .export import export_policy
 from .heads import AnalyticHeads
+from .names import EnvNamesCfg, critic_group, env_names_from_dict
 from .replay import ReplayBuffer
 from .state import heading_pose, heading_state, pose_delta
 from .supermimic import (
@@ -55,10 +56,14 @@ def _from_dict(cfg: dict) -> SuperMimicCfg:
 class SimCollector:
   """Steps the env and returns world-model transitions (states in the local frame)."""
 
-  def __init__(self, env: ManagerBasedRlEnv) -> None:
+  def __init__(
+    self, env: ManagerBasedRlEnv, names: EnvNamesCfg, context_cfg
+  ) -> None:
+    """``context_cfg``: the sim context's observation term (``AnalyticHeads.context_cfg``)."""
     self.env = env
-    self.cmd = cast(CommandTerm, env.command_manager.get_term("motion"))
-    self._context = env.observation_manager.get_term_cfg("critic", "sim_context")
+    self.cmd = cast(CommandTerm, env.command_manager.get_term(names.command))
+    self._context = context_cfg
+    self._failure_terms = names.failure_terms
 
   def state(self) -> tuple[torch.Tensor, torch.Tensor]:
     qpos = self.cmd.robot_qpos.clone()
@@ -85,7 +90,11 @@ class SimCollector:
     }
     _, reward, terminated, truncated, _ = env.step(action)
     t["next_state"], t["next_pose"] = self.state()  # terminal state where done
-    t["failure"] = env.termination_manager.get_term("anchor_failure").clone()
+    tm = env.termination_manager
+    failure = tm.get_term(self._failure_terms[0]).clone()
+    for name in self._failure_terms[1:]:
+      failure |= tm.get_term(name)
+    t["failure"] = failure
     t["done"] = terminated | truncated
     t["reward"] = reward.clone()
     t["log"] = {}
@@ -106,17 +115,24 @@ class SuperMimicRunner:
   ) -> None:
     self.env, self.cfg, self.log_dir, self.device = env, train_cfg, log_dir, device
     raw = env.unwrapped
-    self.collector = SimCollector(raw)
-    self.heads = AnalyticHeads(raw, compile_fk=train_cfg["compile"])
+    self.names = env_names_from_dict(train_cfg)
+    critic = critic_group(train_cfg, self.names)
+    self.heads = AnalyticHeads(
+      raw, compile_fk=train_cfg["compile"], names=self.names, critic_group=critic
+    )
+    self.collector = SimCollector(raw, self.names, self.heads.context_cfg)
     obs = self.collector.observations()
     self.alg = SuperMimic(
       obs,
       self.heads,
       raw.action_manager.total_action_dim,
       self.collector.context().shape[-1],
+      self.collector.state()[0].shape[-1],
       _from_dict(train_cfg),
       device,
       compile=train_cfg["compile"],
+      actor_groups=self.names.actor_groups,
+      critic_group=critic,
     )
     self.current_learning_iteration = 0
 
@@ -149,7 +165,8 @@ class SuperMimicRunner:
     # The policy for the robot next to each checkpoint (model_N.onnx).
     try:
       export_policy(
-        self.env.unwrapped, self.alg.actor, Path(path).with_suffix(".onnx"), path
+        self.env.unwrapped, self.alg.actor, Path(path).with_suffix(".onnx"), path,
+        env_names=self.names,
       )
     except Exception as e:  # never stop a training run over the export
       print(f"[WARN] ONNX export failed (training continues): {e}")

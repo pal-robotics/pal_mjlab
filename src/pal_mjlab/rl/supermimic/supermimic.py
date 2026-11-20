@@ -239,21 +239,27 @@ class SuperMimic:
     heads: AnalyticHeads,
     num_actions: int,
     context_dim: int,
+    state_dim: int,
     cfg: SuperMimicCfg,
     device: str,
     compile: bool = False,
+    *,
+    actor_groups: tuple[str, str],
+    critic_group: str,
   ) -> None:
+    """``actor_groups``: the actor's (goal, proprioception) observation groups;
+    ``critic_group``: the critic's; ``state_dim``: the heading state's size."""
     self.cfg, self.heads, self.device = cfg, heads, device
     pc, cc, wc = cfg.policy, cfg.critic, cfg.world_model
-    groups = {"actor": ["goal", "proprio"], "critic": ["critic"]}
+    groups = {"actor": list(actor_groups), "critic": [critic_group]}
     self.actor = EncoderDecoderModel(
       obs, groups, "actor", num_actions, hidden_dims=pc.hidden_dims,
       encoder_dims=pc.encoder_dims, latent_dim=pc.latent_dim, obs_normalization=True,
+      goal_group=actor_groups[0],
     ).to(device)  # fmt: skip
     self.critic = MLPModel(
       obs, groups, "critic", 1, hidden_dims=cc.hidden_dims, obs_normalization=True
     ).to(device)
-    state_dim = obs["critic"].shape[-1] - obs["goal"].shape[-1] - context_dim - 5
     self.world_model = WorldModel(
       WorldModelCfg(
         state_dim=state_dim, action_dim=num_actions, context_dim=context_dim,
