@@ -186,7 +186,12 @@ from it, so sim and imagination agree by construction.
      builds the model, `command_model_of(env, name)` fetches and checks it.
      (`--env.imagination.failure-terms X` does not parse, as `--agent.env-names...`
      didn't before: a tyro quirk with that tuple field.)
-  2. `Batch`, `@imaginable`, sim-side batch builder + tests (no term converted)
+  2. [x] `rl/supermimic/imagination.py`: `Batch` (state, pose, qpos/qvel, FK, `c` +
+     model, last two actions, ξ, `spec`), `BatchSpec` (state joints = action joints,
+     `joint_cols`, body/site indices, q0, limits), `BatchSource` (`sim()` cached per env
+     step + qpos/qvel/`c`, `imagined(...)`), `@imaginable` / `imagined_fn`.
+     `ImaginationCfg` gained `bodies`, `sites`, `context` (the Kangaroo: 12 tracked
+     bodies, `imu`, the critic's `sim_context` config). `test_imagination.py`.
   3. rewards → imaginable (env cfg + heads), per-term `reward_terms`
   4. proprio obs → imaginable, named ξ layout (`encoder_bias` slice)
   5. goal and critic groups → imaginable, protocol shrinks, critic-layout check goes

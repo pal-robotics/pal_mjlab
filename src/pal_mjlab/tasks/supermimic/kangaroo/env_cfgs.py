@@ -102,6 +102,8 @@ def pal_kangaroo_grippers_supermimic_env_cfg(
   assert isinstance(motion_cmd, MotionLibraryCommandCfg)
   motion_cmd.library_path = LIBRARY_PATH
   motion_cmd.body_names = TRACKED_BODIES
+  cfg.imagination.bodies = TRACKED_BODIES
+  cfg.imagination.sites = ("imu",)
   motion_cmd.passive_joint_state = kangaroo_passive_leg_joints
 
   # The actuated joints are the library's joints, and the ones measured.
