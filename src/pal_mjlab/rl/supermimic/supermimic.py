@@ -23,7 +23,7 @@ import torch
 from rsl_rl.models import MLPModel
 from tensordict import TensorDict
 
-from .command_model import CommandModel, CommandState
+from .command_model import CommandModel
 from .models import EncoderDecoderModel
 from .replay import ReplayBuffer
 from .world_model import WorldModel, WorldModelCfg, window_loss
@@ -99,19 +99,6 @@ def critic_value(critic: MLPModel, x: torch.Tensor) -> torch.Tensor:
   return critic.mlp(critic.obs_normalizer(x)).squeeze(-1)
 
 
-def critic_input(
-  command_model: CommandModel,
-  state: torch.Tensor,
-  pose: torch.Tensor,
-  goal: torch.Tensor,
-  context: torch.Tensor,
-  c: CommandState,
-) -> torch.Tensor:
-  """The critic's input: (ŝ, g, ξ) and the command's privileged features."""
-  extras = command_model.critic_extras(c, state, pose)
-  return torch.cat([state, goal, context, extras], dim=-1)
-
-
 def make_step(heads: AnalyticHeads, command_model: CommandModel):
   """One imagined step from ŝ_t, as a function of tensors only (so it can be compiled).
 
@@ -122,21 +109,24 @@ def make_step(heads: AnalyticHeads, command_model: CommandModel):
   rewards see the command state the step targeted, observations the advanced one.
   """
 
-  def step(world_model, actor, s, p, prev_action, history, ctx, c, noise):
-    goal = command_model.goal(c, s, p)
-    x = critic_input(command_model, s, p, goal, ctx, c)
+  def step(world_model, actor, b, history, noise):
+    """``b``: the batch of ŝ_t, its last two actions and its (advanced) command state."""
+    goal = heads.goal(b)
+    x = heads.critic_input(b)
     action = actor.act(torch.cat([goal, heads.flatten_history(history)], dim=-1))
-    s_next, p_next = world_model.step(s, p, action, ctx)
-    b = heads.source.imagined(s_next, p_next, c, action, prev_action, ctx)
-    terms = heads.reward_terms(b)
-    logit = world_model.termination_logit(s_next, command_model.termination_ref(c))
-    c_next = command_model.advance(c)
-    obs = heads.observation(b._replace(c=c_next, memo={}))
+    s_next, p_next = world_model.step(b.state, b.pose, action, b.context)
+    # Rewards: the resulting state, its action and the command state the step targeted.
+    scored = heads.source.imagined(s_next, p_next, b.c, action, b.action, b.context)
+    terms = heads.reward_terms(scored)
+    logit = world_model.termination_logit(s_next, command_model.termination_ref(b.c))
+    # Observations (and the next step's goal and critic input): the advanced command state.
+    b_next = scored._replace(c=command_model.advance(b.c), memo={})
+    obs = heads.observation(b_next)
     obs = {n: o + noise[n] if n in noise else o for n, o in obs.items()}
     history = {
       n: torch.cat([history[n][:, 1:], obs[n][:, None]], dim=1) for n in history
     }
-    return x, action, s_next, p_next, c_next, terms, torch.sigmoid(logit), history
+    return x, b_next, terms, torch.sigmoid(logit), history
 
   return step
 
@@ -176,20 +166,21 @@ def imagine(
   )
   history = heads.add_noise(history, generator)
   history = {n: o.unflatten(0, (b, h)) for n, o in history.items()}
-  prev_action = start["history_last_action"][:, -1]
+  batch = heads.source.imagined(
+    start["state"], start["pose"], c, start["history_last_action"][:, -1],
+    start["history_prev_action"][:, -1], ctx,
+  )  # fmt: skip
 
-  s, p = start["state"], start["pose"]
-  survival = torch.ones(b, device=s.device)  # ĉ: product of the continuations so far
-  alive = torch.ones(b, device=s.device)
-  objective = torch.zeros(b, device=s.device)
+  device = ctx.device
+  survival = torch.ones(b, device=device)  # ĉ: product of the continuations so far
+  alive = torch.ones(b, device=device)
+  objective = torch.zeros(b, device=device)
   out = {k: [] for k in ("reward", "cont", "alive", "end", "head", "input")}
   for t in range(cfg.horizon):
     noise = heads.sample_noise(b, generator)
-    x, action, s_next, p_next, c_next, terms, head, history = step(
-      world_model, actor, s, p, prev_action, history, ctx, c, noise
-    )
+    end = command_model.done(batch.c).float()
+    x, batch, terms, head, history = step(world_model, actor, batch, history, noise)
     reward = sum(terms.values())
-    end = command_model.done(c).float()
     objective = objective + gamma**t * survival * reward
     cont = (1.0 - head) * (1.0 - end)
     survival = survival * cont
@@ -199,9 +190,7 @@ def imagine(
     ):  # fmt: skip
       out[key].append(value)
     alive = alive * (1.0 - end)
-    s, p, prev_action, c = s_next, p_next, action, c_next
-  goal = command_model.goal(c, s, p)
-  out["input"].append(critic_input(command_model, s, p, goal, ctx, c))
+  out["input"].append(heads.critic_input(batch))
 
   inputs = torch.stack(out["input"], dim=1)
   value_end = critic_value(critic, inputs[:, -1])  # gradient flows into ŝ_H

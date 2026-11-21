@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING
 import torch
 
 from pal_mjlab.rl.supermimic.command_model import CommandState
-from pal_mjlab.rl.supermimic.state import state_to_qpos_qvel
 
 from .tracking import BodyState, projected_gravity_z, reference_goal, root_pose_error
 
@@ -54,27 +53,27 @@ class MotionLibraryCommandModel:
     """The step that targets the clip's last frame ends the episode (``at_clip_end``)."""
     return c["frame"] >= self._last(c)
 
-  def goal(self, c: CommandState, state: torch.Tensor, pose: torch.Tensor) -> torch.Tensor:
-    """K future reference frames from the target frame on; past the clip end, the last."""
-    root_quat = state_to_qpos_qvel(state, pose)[0][:, 3:7]
-    k = torch.arange(self.num_future_frames, device=root_quat.device)
+  def goal(self, c: CommandState, qpos: torch.Tensor) -> torch.Tensor:
+    """K future reference frames from the target frame on (past the clip end, the last),
+    in the frame of the robot's root orientation ``qpos[:, 3:7]``."""
+    k = torch.arange(self.num_future_frames, device=qpos.device)
     idx = torch.minimum(c["frame"][:, None] + k, self._last(c)[:, None])
-    return reference_goal(self.library.qpos[idx], self.library.qvel[idx], root_quat)
+    return reference_goal(self.library.qpos[idx], self.library.qvel[idx], qpos[:, 3:7])
 
   def termination_ref(self, c: CommandState) -> torch.Tensor:
     qp = self.library.qpos[c["frame"]]
     return torch.stack([qp[:, 2], projected_gravity_z(qp[:, 3:7])], dim=-1)
 
-  def critic_extras(
-    self, c: CommandState, state: torch.Tensor, pose: torch.Tensor
-  ) -> torch.Tensor:
-    """(B, 5): root-pose error to the target frame (4) and time left in the clip (1)."""
-    qpos, _ = state_to_qpos_qvel(state, pose)
+  def root_pose_error(self, c: CommandState, qpos: torch.Tensor) -> torch.Tensor:
+    """(B, 4) the target frame's root position in the robot's heading frame, and the yaw
+    error (a privileged critic input)."""
     ref = self.library.qpos[c["frame"]]
-    err = root_pose_error(qpos[:, :3], qpos[:, 3:7], ref[:, :3], ref[:, 3:7])
+    return root_pose_error(qpos[:, :3], qpos[:, 3:7], ref[:, :3], ref[:, 3:7])
+
+  def time_left(self, c: CommandState) -> torch.Tensor:
+    """(B, 1) steps left in the clip, in [0, 1] over ``time_left_cap_s``."""
     left = (self._last(c) - c["frame"]).float()
-    time_left = (left.clamp(max=self.time_left_cap) / self.time_left_cap)[:, None]
-    return torch.cat([err, time_left], dim=-1)
+    return (left.clamp(max=self.time_left_cap) / self.time_left_cap)[:, None]
 
   # Motion-specific: the tracking rewards' reference --------------------------------
 

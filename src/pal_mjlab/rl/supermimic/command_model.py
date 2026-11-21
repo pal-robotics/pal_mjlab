@@ -27,8 +27,10 @@ CommandState = dict[str, torch.Tensor]
 
 @runtime_checkable
 class CommandModel(Protocol):
-  """Tensor-only twin of an env command term. ``state``/``pose`` are heading states and
-  root poses (``state.py``), in the env's local frame."""
+  """Tensor-only twin of an env command term: what imagination needs to move the command
+  along. What the policy and critic observe of it (a goal, privileged features) are the
+  env's observation terms, written on a ``Batch`` (``imagination.py``) with whatever else
+  the task's model offers."""
 
   # Simulator side (collector) -------------------------------------------------------
 
@@ -46,18 +48,8 @@ class CommandModel(Protocol):
     """(B,) bool: the step taken in c ends the episode (a time limit, not a failure)."""
     ...
 
-  def goal(self, c: CommandState, state: torch.Tensor, pose: torch.Tensor) -> torch.Tensor:
-    """(B, G) the policy's goal input, as the env's goal observation group computes it."""
-    ...
-
   def termination_ref(self, c: CommandState) -> torch.Tensor:
     """(B, 2) target root height and projected-gravity z: the termination head's reference."""
-    ...
-
-  def critic_extras(
-    self, c: CommandState, state: torch.Tensor, pose: torch.Tensor
-  ) -> torch.Tensor:
-    """(B, E) privileged critic features after (state, goal, context); E may be 0."""
     ...
 
 
@@ -74,7 +66,7 @@ def command_model_of(env: ManagerBasedRlEnv, command_name: str) -> CommandModel:
   if not isinstance(model, CommandModel):
     missing = [
       m
-      for m in ("state", "advance", "done", "goal", "termination_ref", "critic_extras")
+      for m in ("state", "advance", "done", "termination_ref")
       if not callable(getattr(model, m, None))
     ]
     raise TypeError(

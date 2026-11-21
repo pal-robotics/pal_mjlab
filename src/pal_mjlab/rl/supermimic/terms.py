@@ -15,6 +15,8 @@ from .imagination import Batch, imaginable
 
 __all__ = [
   "action_rate_l2",
+  "context",
+  "heading_state",
   "joint_pos_rel",
   "joint_vel_rel",
   "last_action",
@@ -23,6 +25,18 @@ __all__ = [
 ]
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
+
+
+@imaginable
+def heading_state(b: Batch) -> torch.Tensor:
+  """The heading-invariant robot state: the world model's state (a critic input)."""
+  return b.state
+
+
+@imaginable
+def context(b: Batch) -> torch.Tensor:
+  """The sim context ξ (``ImaginationCfg.context``; a critic input)."""
+  return b.context
 
 
 @imaginable
