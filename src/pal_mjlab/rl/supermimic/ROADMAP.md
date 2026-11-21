@@ -136,20 +136,35 @@ M2a progress (uncommitted, 2026-11-21), in dependency order:
   `"sampler"` key still loads. `state_dict` left the `CommandModel` protocol (the twin is
   imagination-only). WBC's `OnlineMotionCommand` adaptive sampler is not checkpointed yet
   (left for M4: give it `state_dict`).
-- [ ] step 3: consumers (`supermimic.py` step / imagine / world-model update) call the
-  model with `c = {"clip", "frame"}` built at batch unpacking; delete `goal`, `reference`,
-  `ref_root`, `critic_input`'s extras, `clip_end`, `next_frame` from `heads.py`
+- [x] step 3: imagination and the world-model update call the `CommandModel` (`goal`,
+  `critic_extras` via `supermimic.critic_input`, `termination_ref`, `done`, `advance`);
+  `SuperMimic`, `make_step`, `imagine` take it; `replay_command_state` builds `c` from the
+  replay's clip/frame columns (removed in step 4). `heads.py` lost `goal`, `reference`,
+  `ref_root`, `critic_input`, `clip_end`, `next_frame`; it keeps the command model only for
+  the tracking rewards' `reference(c)` (TODO(M2b)). The critic-layout check is unchanged
+  (moves to twins in M2b). `Rollout.clip_end` is now `Rollout.end`.
 - [ ] step 4: collector records `command_model.state()`; replay stores generic `c` columns
 - [ ] step 5: parity run
 
-**M2b, term-twin registry** (replaces the whitelists):
-- `register_twin(env_term_func, twin_fn)`; a twin gets one imagined batch (state,
-  kinematics, command state, action, prev action, context) plus the term's `params`
-- heads walk `cfg.rewards` and the proprio group and look up twins; missing twin raises
-  (keep the colleague's safety property)
-- mjlab builtin twins in `rl/supermimic`; task twins next to the task's terms
-  (`TRACKING_ERRORS`, `joint_pos_limits_hard`, `sim_context` layout)
-- `reward_terms` = sum over registered terms, not 3 fixed buckets
+**M2b, explicit twin dicts** (replace the whitelists in `heads.py:84-168`). Decided
+2026-11-21: explicit twins, in dedicated modules, not in the heads (an "imagined env"
+running the env's own term functions on predicted state was considered and rejected).
+- `rl/supermimic/twins.py`: dicts `{env term function: twin}` for mjlab builtins
+  (`joint_pos_rel`, `joint_vel_rel`, `last_action`, `builtin_sensor` gyro only,
+  `action_rate_l2`, ...)
+- `tasks/supermimic/mdp/twins.py`: the task's twins (6 tracking rewards via
+  `command_model.reference(c)`, `joint_pos_limits_hard`, `imu_projected_gravity`,
+  `sim_context` with a named layout instead of the hardcoded `ξ[1:1+nj]`)
+- keyed by function, not obs name (names are per env config; same rule as M1)
+- a twin is `twin(batch, **term.params) -> Tensor`; batch = one imagined step (state,
+  pose, kinematics, `c` + command model, action, prev action, ξ)
+- the task passes its dicts through the runner config (like `command_model`), so the
+  method imports nothing from `tasks/`
+- heads only merge the dicts (duplicate key raises), walk `cfg.rewards` and the obs
+  groups, look up twins, and raise once listing every term without a twin
+- `reward_terms` = `{term: weight * twin * dt}` per env term, not 3 fixed buckets
+- open: whether goal/critic groups go through twins too (then `CommandModel.goal` and
+  `critic_extras` could leave the protocol)
 
 **M2c, export**: generic metadata in the method, goal metadata from the `CommandModel`.
 

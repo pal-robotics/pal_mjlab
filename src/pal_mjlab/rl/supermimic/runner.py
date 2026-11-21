@@ -131,19 +131,19 @@ class SuperMimicRunner:
     raw = env.unwrapped
     self.names = env_names_from_dict(train_cfg)
     critic = critic_group(train_cfg, self.names)
-    # TODO(M2a step 3): imagination and the world-model update still read (clip, frame)
-    # through the heads; they move onto this model next.
     self.command_model = build_command_model(
       train_cfg.get("command_model"), raw, self.names.command
     )
     self.heads = AnalyticHeads(
-      raw, compile_fk=train_cfg["compile"], names=self.names, critic_group=critic
+      raw, self.command_model, compile_fk=train_cfg["compile"], names=self.names,
+      critic_group=critic,
     )
     self.collector = SimCollector(raw, self.names, self.heads.context_cfg)
     obs = self.collector.observations()
     self.alg = SuperMimic(
       obs,
       self.heads,
+      self.command_model,
       raw.action_manager.total_action_dim,
       self.collector.context().shape[-1],
       self.collector.state()[0].shape[-1],

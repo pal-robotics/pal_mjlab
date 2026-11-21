@@ -23,6 +23,7 @@ from pal_mjlab.rl.supermimic.supermimic import (
   imagine,
   lambda_returns,
   make_step,
+  replay_command_state,
 )
 from pal_mjlab.rl.supermimic.world_model import window_loss
 
@@ -160,6 +161,7 @@ def test_objective_gradient_matches_finite_differences(trained):
     noise = torch.Generator(device=trained.device).manual_seed(2)
     roll = imagine(
       trained.heads,
+      trained.command_model,
       alg.world_model,
       alg.actor,
       alg.critic,
@@ -194,12 +196,13 @@ def test_compiled_updates_match_eager(trained):
     16, trained.heads.history, torch.Generator(device=trained.device).manual_seed(2)
   )
   actor = list(alg.actor.parameters())
-  step = make_step(trained.heads)
+  step = make_step(trained.heads, trained.command_model)
   out = []
   for fn in (step, torch.compile(step, backend="aot_eager", dynamic=False)):
     g = torch.Generator(device=trained.device).manual_seed(3)
     roll = imagine(
-      trained.heads, alg.world_model, alg.actor, alg.critic, start, pc, g, fn
+      trained.heads, trained.command_model, alg.world_model, alg.actor, alg.critic,
+      start, pc, g, fn,
     )
     out.append((roll, torch.autograd.grad(roll.objective.sum(), actor)))
   (eager, eager_grads), (traced, traced_grads) = out
@@ -211,7 +214,8 @@ def test_compiled_updates_match_eager(trained):
   w = trained.replay.sample_windows(
     16, 4, torch.Generator(device=trained.device).manual_seed(4)
   )
-  ref_root = trained.heads.ref_root(w["frame"].flatten()).unflatten(0, w["frame"].shape)
+  c = {k: v.flatten() for k, v in replay_command_state(w).items()}
+  ref_root = trained.command_model.termination_ref(c).unflatten(0, w["frame"].shape)
   args = (w["states"], w["poses"], w["actions"], w["context"], ref_root, w["failure"])
   wm = list(alg.world_model.parameters())
   losses = []
@@ -241,10 +245,11 @@ def test_imagine_uses_the_current_world_model(trained):
     g = lambda: torch.Generator(device=trained.device).manual_seed(6)  # noqa: E731
     pc = alg.cfg.policy
     via_alg = alg.imagine(start, g())
+    cm = trained.command_model
     direct = imagine(
-      trained.heads, alg.world_model, alg.actor, alg.critic, start, pc, g()
+      trained.heads, cm, alg.world_model, alg.actor, alg.critic, start, pc, g()
     )
-    old = imagine(trained.heads, original, alg.actor, alg.critic, start, pc, g())
+    old = imagine(trained.heads, cm, original, alg.actor, alg.critic, start, pc, g())
     torch.testing.assert_close(via_alg.reward, direct.reward)
     assert not torch.allclose(via_alg.reward, old.reward)
   finally:
