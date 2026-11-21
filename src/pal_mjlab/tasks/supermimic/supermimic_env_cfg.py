@@ -18,6 +18,7 @@ The critic sees the heading-invariant state, the goal, ξ and two privileged ter
 root-pose error and the time left in the clip.
 """
 
+from pal_mjlab.rl.supermimic import terms as sm_terms
 from pal_mjlab.rl.supermimic.names import ImaginationCfg, SuperMimicEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -183,41 +184,43 @@ def make_supermimic_env_cfg() -> SuperMimicEnvCfg:
   }
 
   ##
-  # Rewards (Table A.2)
+  # Rewards (Table A.2). Single-definition terms (``@imaginable``): SuperMimic's
+  # imagination computes each exactly as the env does. The tracking terms read the
+  # command of ``ImaginationCfg.command``.
   ##
 
   rewards: dict[str, RewardTermCfg] = {
     "motion_root_pos": RewardTermCfg(
       func=mdp.motion_root_pos_exp,
       weight=0.5,
-      params={"command_name": "motion", "std": 0.3},
+      params={"std": 0.3},
     ),
     "motion_root_ori": RewardTermCfg(
       func=mdp.motion_root_ori_exp,
       weight=0.5,
-      params={"command_name": "motion", "std": 0.4},
+      params={"std": 0.4},
     ),
     "motion_body_pos": RewardTermCfg(
       func=mdp.motion_body_pos_exp,
       weight=1.0,
-      params={"command_name": "motion", "std": 0.3},
+      params={"std": 0.3},
     ),
     "motion_body_ori": RewardTermCfg(
       func=mdp.motion_body_ori_exp,
       weight=1.0,
-      params={"command_name": "motion", "std": 0.4},
+      params={"std": 0.4},
     ),
     "motion_body_lin_vel": RewardTermCfg(
       func=mdp.motion_body_lin_vel_exp,
       weight=1.0,
-      params={"command_name": "motion", "std": 1.0},
+      params={"std": 1.0},
     ),
     "motion_body_ang_vel": RewardTermCfg(
       func=mdp.motion_body_ang_vel_exp,
       weight=1.0,
-      params={"command_name": "motion", "std": 3.14},
+      params={"std": 3.14},
     ),
-    "action_rate_l2": RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1),
+    "action_rate_l2": RewardTermCfg(func=sm_terms.action_rate_l2, weight=-0.1),
     "joint_limit": RewardTermCfg(
       func=mdp.joint_pos_limits_hard,
       weight=-2.0,
@@ -236,7 +239,7 @@ def make_supermimic_env_cfg() -> SuperMimicEnvCfg:
     ),
     "anchor_failure": TerminationTermCfg(
       func=mdp.anchor_failure,
-      params={"command_name": "motion", "z_threshold": 0.25, "tilt_threshold": 0.8},
+      params={"z_threshold": 0.25, "tilt_threshold": 0.8},
     ),
   }
 

@@ -29,10 +29,10 @@ def test_held_failure_waits_for_its_duration(monkeypatch):
     terminations, "anchor_failure", lambda *a, **k: next(failed).bool()
   )
   term = terminations.anchor_failure_held(cfg=None, env=env)
-  out = [term(env, "motion", 0.25, 0.8, 1.0).tolist() for _ in range(4)]
+  out = [term(env, 0.25, 0.8, 1.0).tolist() for _ in range(4)]
   assert out == [[False, False], [True, False], [False, True], [False, True]]
   term.reset(env_ids=torch.tensor([1]))
-  assert term(env, "motion", 0.25, 0.8, 1.0).tolist() == [True, False]
+  assert term(env, 0.25, 0.8, 1.0).tolist() == [True, False]
 
 
 def test_replay_sets_library_clips_and_held_failure():

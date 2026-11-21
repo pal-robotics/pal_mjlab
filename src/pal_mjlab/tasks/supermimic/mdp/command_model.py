@@ -19,6 +19,8 @@ from pal_mjlab.rl.supermimic.state import state_to_qpos_qvel
 from .tracking import BodyState, projected_gravity_z, reference_goal, root_pose_error
 
 if TYPE_CHECKING:
+  from pal_mjlab.rl.supermimic.imagination import BatchSpec
+
   from .commands import MotionLibraryCommand
 
 __all__ = ["MotionLibraryCommandModel"]
@@ -33,6 +35,7 @@ class MotionLibraryCommandModel:
     self.library = cmd.library
     self.num_future_frames = cmd.cfg.num_future_frames
     self.time_left_cap = cmd.cfg.time_left_cap_s / cmd._env.step_dt
+    self._body_index: tuple[object, torch.Tensor | None] | None = None
 
   # Simulator side ---------------------------------------------------------------
 
@@ -74,6 +77,16 @@ class MotionLibraryCommandModel:
     return torch.cat([err, time_left], dim=-1)
 
   # Motion-specific: the tracking rewards' reference --------------------------------
+
+  def body_index(self, spec: BatchSpec) -> torch.Tensor | None:
+    """Indices of the tracked bodies (``reference``'s order) in a batch's FK bodies;
+    None when they are exactly those bodies, in order."""
+    if self._body_index is None or self._body_index[0] is not spec:
+      idx = [spec.body(name) for name in self.cmd.cfg.body_names]
+      same = idx == list(range(len(spec.body_names)))
+      tensor = None if same else torch.tensor(idx, device=self.cmd.device)
+      self._body_index = (spec, tensor)
+    return self._body_index[1]
 
   @torch.no_grad()
   def reference(self, c: CommandState) -> BodyState:

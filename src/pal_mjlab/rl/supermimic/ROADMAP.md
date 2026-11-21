@@ -192,7 +192,15 @@ from it, so sim and imagination agree by construction.
      step + qpos/qvel/`c`, `imagined(...)`), `@imaginable` / `imagined_fn`.
      `ImaginationCfg` gained `bodies`, `sites`, `context` (the Kangaroo: 12 tracked
      bodies, `imu`, the critic's `sim_context` config). `test_imagination.py`.
-  3. rewards → imaginable (env cfg + heads), per-term `reward_terms`
+  3. [x] rewards are `@imaginable`: `rl/supermimic/terms.py` (`action_rate_l2`), the
+     task's 6 tracking terms (robot bodies from the batch FK, reference from
+     `command_model.reference(c)`; no `command_name` param: the batch's command) and
+     `joint_pos_limits_hard`. The heads walk every weighted reward term, raise once
+     listing the non-imaginable ones, and return `reward_terms(b)` per env term. Env
+     rewards vs the old formulas: max 1.1e-6 (local vs world frame rounding).
+     `Batch.memo` caches what several terms derive (the motion's robot/reference
+     bodies), and `anchor_failure` reads the sim batch too: without both, a sim step ran
+     FK 4x instead of 2x (446 vs 158 ms/step at 1024 envs); now 157 vs 151 ms.
   4. proprio obs → imaginable, named ξ layout (`encoder_bias` slice)
   5. goal and critic groups → imaginable, protocol shrinks, critic-layout check goes
   6. clean-up (`heads.py` imports nothing from `tasks/`), parity vs `m2a_mine`
