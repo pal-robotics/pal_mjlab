@@ -127,7 +127,10 @@ M2a progress (uncommitted, 2026-11-21), in dependency order:
   rewards). The runner builds it but nothing uses it yet. `reference_goal` and
   `root_pose_error` moved from `state.py` to `tasks/supermimic/mdp/tracking.py`.
   `tests/supermimic/test_command_model.py`: model == env and model == heads, bit-exact.
-- [ ] step 1: robot state from the robot entity (`runner.py` `SimCollector.state`)
+- [x] step 1: robot state from the robot (`SimCollector.state`): raw free-joint + action-joint
+  qpos/qvel on the action term's entity (not `robot.data.joint_pos`, which has no free
+  joint and includes the passive joints; not `root_link_*`, whose angular velocity is in
+  the world frame). Bit-exact vs the command's (`test_command_model.py`).
 - [ ] step 2: checkpoint `command_model.state_dict()` instead of `cmd.sampler`
 - [ ] step 3: consumers (`supermimic.py` step / imagine / world-model update) call the
   model with `c = {"clip", "frame"}` built at batch unpacking; delete `goal`, `reference`,
