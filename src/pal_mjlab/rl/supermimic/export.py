@@ -60,12 +60,10 @@ def policy_metadata(
       dims.append(dim[-1] // steps)
       history.append(steps)
   proprio = env_names.proprio_group
-  imu_sites = {  # the sensor terms' sites; scene names are "<entity>/<name>"
-    robot.spec.sensor(
-      om.get_term_cfg(proprio, t).params["sensor_name"].split("/")[-1]
-    ).objname.split("/")[-1]
+  imu_sites = {  # the IMU terms' site
+    om.get_term_cfg(proprio, t).params["site"]
     for t in om.active_terms[proprio]
-    if "sensor_name" in om.get_term_cfg(proprio, t).params
+    if "site" in om.get_term_cfg(proprio, t).params
   }
   assert len(imu_sites) == 1, imu_sites
   joint_names = list(cmd.library.joint_names)

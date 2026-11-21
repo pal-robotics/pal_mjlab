@@ -64,7 +64,10 @@ def test_heads_match_the_env():
     # Proprioception in the env's layout. A reset env's history is backfilled with its
     # first frame (mjlab's history buffer); otherwise the newest frame is appended.
     last = env.action_manager.action.clone()
-    frame = heads.observation(state, heads.kinematics(state, pose), context, last)
+    prev_last = env.action_manager.prev_action.clone()
+    frame = heads.observation(
+      heads.source.imagined(state, pose, c, last, prev_last, context)
+    )
     filled = {n: f[:, None].expand(-1, heads.history, -1) for n, f in frame.items()}
     if history is None:
       history = filled
@@ -125,16 +128,15 @@ def test_rewards_without_a_single_definition_fail_clearly():
   env.close()
 
 
-def test_heads_refuse_other_joints_than_the_library():
-  """The predicted state holds the library's joints, so a joint term on any other set of
-  joints (here every joint, passive ones included) has no analytic head."""
+def test_terms_refuse_joints_outside_the_state():
+  """The predicted state holds the action joints, so a joint term on others (here every
+  joint, the passive ones included) cannot be computed: the env refuses it when it builds
+  the term, before any training."""
   cfg = pal_kangaroo_grippers_supermimic_env_cfg()
   cfg.commands["motion"].library_path = str(LIBRARY)
   cfg.commands["motion"].compile_kinematics = False
   cfg.observations["proprio"].terms["joint_vel"].params["asset_cfg"] = SceneEntityCfg(
     "robot"
   )
-  env = ManagerBasedRlEnv(cfg=cfg, device=get_test_device())
-  with pytest.raises(ValueError, match="motion library's joints"):
-    AnalyticHeads(env, command_model_of(env, "motion"), compile_fk=False)
-  env.close()
+  with pytest.raises(ValueError, match="not in the state"):
+    ManagerBasedRlEnv(cfg=cfg, device=get_test_device())

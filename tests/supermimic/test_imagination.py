@@ -75,7 +75,7 @@ def test_sim_batch_holds_what_the_env_sees(env):
   names = imagination_cfg(env)
   model = command_model_of(env, names.command)
   context_cfg = env.observation_manager.get_term_cfg("critic", "sim_context")
-  collector = SimCollector(env, names, context_cfg, model)
+  collector = SimCollector(env, names, model)
   cmd = env.command_manager.get_term("motion")
   tracked = [cmd.fk.body_names.index(f"robot/{n}") for n in names.bodies]
   for _ in _rollout(env, 12, seed=0):

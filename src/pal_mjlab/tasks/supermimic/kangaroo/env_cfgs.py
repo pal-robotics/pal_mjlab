@@ -111,8 +111,8 @@ def pal_kangaroo_grippers_supermimic_env_cfg(
   proprio = cfg.observations["proprio"].terms
   proprio["joint_pos"].params["asset_cfg"] = actuated
   proprio["joint_vel"].params["asset_cfg"] = actuated
-  proprio["imu_ang_vel"].params["sensor_name"] = "robot/imu_ang_vel"
-  proprio["imu_projected_gravity"].params["sensor_name"] = "robot/imu_quat"
+  proprio["imu_ang_vel"].params["site"] = "imu"
+  proprio["imu_projected_gravity"].params["site"] = "imu"
   cfg.rewards["joint_limit"].params["asset_cfg"] = actuated
 
   context = cfg.observations["critic"].terms["sim_context"].params

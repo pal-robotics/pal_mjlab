@@ -15,20 +15,17 @@ imagination never silently optimizes a different objective than the simulator.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import torch
-from mjlab.envs.mdp import observations as mj_obs
-from mjlab.utils.lab_api.math import quat_apply_inverse
 from mjlab.utils.noise import UniformNoiseCfg
-from mjlab.managers.command_manager import CommandTerm
 
 from pal_mjlab.utils.math.kinematics import Kinematics
 
 from .command_model import CommandModel
 from .imagination import Batch, batch_source, imagined_fn
 from .names import DEFAULT_CRITIC_GROUP, ImaginationCfg, imagination_cfg
-from .state import joint_state, state_to_qpos_qvel
+from .state import state_to_qpos_qvel
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -59,70 +56,41 @@ class AnalyticHeads:
     if compile_fk:
       self.source.fk_fn = torch.compile(self.source.fk.forward)
     cfg, self.device = env.cfg, env.device
-    cmd = cast(CommandTerm, env.command_manager.get_term(names.command))
-    robot = env.scene[cmd.cfg.entity_name]
 
-    # Proprioception (Table A.1): q - q0 (with the calibration offset), q̇, IMU angular
-    # velocity, projected gravity, previous action; history of h frames per term.
+    # Proprioception (Table A.1): every term of the proprio group, by its single
+    # definition, with the env's params and noise; history of h frames per term.
     om = env.observation_manager
     proprio = names.proprio_group
     group = cfg.observations[proprio]
     self.obs_terms: list[str] = list(group.terms)
     self.history = group.history_length or 0
+    self.obs: dict[str, tuple] = {}
+    """name: (single definition, resolved params)."""
     self.noise: dict[str, tuple[float, float]] = {}
-    # Each term's analytic head, by the term's function (the builtin sensor is the IMU's
-    # angular velocity, the only one the heads support).
-    self._obs_kind: dict[str, str] = {}
-    imu_sensors, joint_terms = [], []
+    missing = []
     for name, term in group.terms.items():
-      func = term.func
-      if func is mj_obs.joint_pos_rel:
-        assert term.params.get("biased"), "joint positions must include the offset"
-        kind = "joint_pos"
-        joint_terms.append(name)
-      elif func is mj_obs.joint_vel_rel:
-        kind = "joint_vel"
-        joint_terms.append(name)
-      elif func is mj_obs.builtin_sensor:
-        kind = "imu_ang_vel"
-        imu_sensors.append(term.params["sensor_name"])
-      elif func is sm_obs.imu_projected_gravity:
-        kind = "imu_projected_gravity"
-        imu_sensors.append(term.params["sensor_name"])
-      elif func is mj_obs.last_action:
-        kind = "actions"
-      else:
-        raise NotImplementedError(f"observation term {name!r} has no analytic head")
-      self._obs_kind[name] = kind
+      fn = imagined_fn(term.func)
+      if fn is None:
+        missing.append(f"{name} ({term.func.__module__}.{term.func.__qualname__})")
+        continue
+      self.obs[name] = (fn, om.get_term_cfg(proprio, name).params)  # entities resolved
       if group.enable_corruption and term.noise is not None:
-        assert isinstance(term.noise, UniformNoiseCfg) and term.noise.operation == "add"
+        if not (isinstance(term.noise, UniformNoiseCfg) and term.noise.operation == "add"):
+          raise NotImplementedError(f"proprio term {name!r}: only additive uniform noise")
         self.noise[name] = (float(term.noise.n_min), float(term.noise.n_max))
-    # The state holds the library's joints, so the env's joint terms must read those.
-    self._library_joints = cmd.joint_ids.tolist()
-    self._num_joints = len(robot.joint_names)
-    for name in joint_terms:
-      self._check_joints(om.get_term_cfg(proprio, name).params["asset_cfg"])
-    critic = cfg.observations[critic_group].terms
-    context = [n for n, t in critic.items() if t.func is sm_obs.sim_context]
-    if len(context) != 1:
-      raise ValueError(f"The critic group needs one sim_context term, got {context}.")
-    self.context_cfg = om.get_term_cfg(critic_group, context[0])
-    """The sim context ξ's term: the world model's and the critic's context input."""
-    self._check_joints(self.context_cfg.params["bias_asset_cfg"])
-    self.q0 = robot.data.default_joint_pos[0, cmd.joint_ids]
+    if missing:
+      raise NotImplementedError(
+        f"Observation terms of {proprio!r} without a single definition, so imagination "
+        f"cannot compute them: {', '.join(missing)}. Write them on a Batch with "
+        "@imaginable (rl/supermimic/imagination.py)."
+      )
     term_dims = dict(
       zip(om.active_terms[proprio], om.group_obs_term_dim[proprio], strict=True)
     )
     self.obs_dims = {
       n: term_dims[n][-1] // max(self.history, 1) for n in self.obs_terms
     }
-
-    # IMU site: both IMU sensors must read the same site, one of the batch's FK sites.
-    mj = env.sim.mj_model
-    sites = {mj.site(int(mj.sensor(s).objid[0])).name for s in imu_sensors}
-    assert len(sites) == 1, f"IMU sensors on different sites: {sites}"
-    spec = self.source.spec
-    self._imu = spec.site(sites.pop().removeprefix(f"{spec.entity_name}/"))
+    critic = cfg.observations[critic_group].terms
 
     # Reward (Table A.2): every weighted env term, by its single definition, with the
     # env's weights, params and dt scaling.
@@ -160,12 +128,6 @@ class AnalyticHeads:
       if term.params.get("command_name", names.command) != names.command:
         raise ValueError(f"critic term {name!r} reads another command than {names.command!r}")
 
-  def _check_joints(self, asset_cfg) -> None:
-    ids = asset_cfg.joint_ids
-    ids = list(range(self._num_joints))[ids] if isinstance(ids, slice) else list(ids)
-    if ids != self._library_joints:
-      raise ValueError("The env's joint terms must read the motion library's joints.")
-
   # Kinematics -------------------------------------------------------------------
 
   def kinematics(self, state: torch.Tensor, pose: torch.Tensor) -> Kinematics:
@@ -174,28 +136,10 @@ class AnalyticHeads:
 
   # Observation ō and sensor noise η ------------------------------------------------
 
-  def observation(
-    self,
-    state: torch.Tensor,
-    kin: Kinematics,
-    context: torch.Tensor,
-    last_action: torch.Tensor,
-  ) -> dict[str, torch.Tensor]:
-    """Noise-free proprioceptive frame ō per term, (B, dim) each."""
-    q, qd = joint_state(state)
-    nj = q.shape[-1]
-    bias = context[:, 1 : 1 + nj]  # ξ = (friction, calibration offsets, CoM offset)
-    imu_quat, imu_ang_vel = kin.site_quat[:, self._imu], kin.site_ang_vel[:, self._imu]
-    gravity = torch.zeros_like(imu_ang_vel)
-    gravity[:, 2] = -1.0
-    frame = {
-      "joint_pos": q + bias - self.q0,
-      "joint_vel": qd,
-      "imu_ang_vel": quat_apply_inverse(imu_quat, imu_ang_vel),
-      "imu_projected_gravity": quat_apply_inverse(imu_quat, gravity),
-      "actions": last_action,
-    }
-    return {name: frame[self._obs_kind[name]] for name in self.obs_terms}
+  def observation(self, b: Batch) -> dict[str, torch.Tensor]:
+    """Noise-free proprioceptive frame ō per term, (B, dim) each, on a batch: the state,
+    its last action and the command state after the step (as the env observes them)."""
+    return {name: fn(b, **params) for name, (fn, params) in self.obs.items()}
 
   def add_noise(
     self, frame: dict[str, torch.Tensor], generator: torch.Generator | None = None

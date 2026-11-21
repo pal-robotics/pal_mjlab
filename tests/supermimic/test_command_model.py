@@ -133,9 +133,8 @@ def test_collector_reads_the_state_from_the_robot(env):
   one the motion command gives, bit for bit, over a rollout."""
   from pal_mjlab.rl.supermimic.runner import SimCollector
 
-  context_cfg = env.observation_manager.get_term_cfg("critic", "sim_context")
   model = command_model_of(env, "motion")
-  collector = SimCollector(env, imagination_cfg(env), context_cfg, model)
+  collector = SimCollector(env, imagination_cfg(env), model)
   cmd = env.command_manager.get_term("motion")
   gen = torch.Generator(device=env.device).manual_seed(1)
   env.reset()

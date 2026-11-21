@@ -158,7 +158,8 @@ class ReplayBuffer:
 
     History rows before the episode's first row repeat that first row, as the env
     backfills a reset env's observation history. ``last_action`` of a row is the action
-    executed in the row before it (zero at an episode start).
+    executed in the row before it (zero at an episode start), ``prev_action`` the one
+    before that; ``history_command`` the rows' command states.
     """
     envs, rows = [], []
     for _ in range(100):
@@ -182,6 +183,11 @@ class ReplayBuffer:
     hist = torch.maximum(hist, first[:, None])
     prev = self._rows(e, hist - 1)
     last_action = self.action[prev] * self.has_action[prev][..., None]
+    # Two rows back (still in the buffer: starts keep history + 1 rows behind them);
+    # zero unless both rows before are in the episode.
+    prev2 = self._rows(e, hist - 2)
+    in_episode = (hist - 2 >= first[:, None])[..., None]
+    prev_action = self.action[prev2] * (self.has_action[prev2][..., None] & in_episode)
     idx = self._rows(e, hist)
     start = self._rows(e, r)
     return {
@@ -192,4 +198,6 @@ class ReplayBuffer:
       "history_state": self.state[idx],
       "history_pose": self.pose[idx],
       "history_last_action": last_action,
+      "history_prev_action": prev_action,
+      "history_command": {n: v[idx] for n, v in self.command.items()},
     }
