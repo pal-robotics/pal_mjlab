@@ -15,7 +15,7 @@ from onnx.reference import ReferenceEvaluator
 from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import (
   pal_kangaroo_grippers_supermimic_env_cfg,
 )
-from pal_mjlab.rl.supermimic.export import export_policy
+from pal_mjlab.rl.supermimic.export import export_policy, policy_metadata
 from pal_mjlab.rl.supermimic.names import ImaginationCfg
 from pal_mjlab.rl.supermimic.models import EncoderDecoderModel
 from pal_mjlab.tasks.supermimic.mdp.tracking import reference_goal
@@ -82,7 +82,10 @@ def test_metadata_layout_sums_to_the_observation(rollout):
     t for g in OBS_GROUPS for t in env.observation_manager.active_terms[g]
   ]
   cmd = env.command_manager.get_term("motion")
-  assert _list(meta, "joint_names") == list(cmd.library.joint_names)
+  assert _list(meta, "joint_names") == list(cmd.library.joint_names)  # = the action joints
+  sites = meta["observation_sites"].split(",")
+  assert len(sites) == len(_list(meta, "observation_names"))
+  assert {s for s in sites if s} == {meta["imu_site"]} == {"imu"}
   assert len(_list(meta, "joint_names")) == env.action_manager.total_action_dim
   assert len(_list(meta, "action_scale", float)) == env.action_manager.total_action_dim
   assert meta["checkpoint"] == "model_1.pt" and meta["goal_root_body"] == "base_link"
@@ -135,3 +138,16 @@ def test_proprio_from_robot_state(rollout):
     )  # shifted by one step: oldest first
     if name in expected:
       torch.testing.assert_close(term[:, -1], expected[name], atol=1e-5, rtol=0)
+
+
+def test_metadata_without_command_metadata(rollout, monkeypatch):
+  """A command without ``export_metadata`` gives the generic metadata only; one whose
+  keys clash with the generic ones is refused."""
+  env = rollout[0]
+  cmd = env.command_manager.get_term("motion")
+  monkeypatch.setattr(type(cmd), "export_metadata", None)
+  meta = policy_metadata(env, "model_1.pt")
+  assert "goal_num_future_frames" not in meta and "joint_names" in meta
+  monkeypatch.setattr(type(cmd), "export_metadata", lambda self: {"joint_names": []})
+  with pytest.raises(ValueError, match="redefines"):
+    policy_metadata(env)

@@ -53,12 +53,12 @@ tasks/supermimic/     the Kangaroo motion-tracking task (owns its names; fine)
 
 ## 3. What is still task-specific (audit after M1)
 
-**Status after M2b (2026-11-21):** items 1-6 are resolved (M2a: command state, command
+**Status after M2 (2026-11-21):** items 1-7 are resolved (M2a: command state, command
 model, robot state from the robot; M2b: single-definition terms, named ξ parts; the
-tracking helpers live in the task). `rl/supermimic` imports nothing from `tasks/`. Left:
-item 7 (export reads `MotionLibraryCommand` attributes: M2c) and item 8 (the robot
-contract, now explicit: state joints = action joints, FK bodies/sites in
-`ImaginationCfg`; the terrain-relative height flag still stands). The audit below is kept
+tracking helpers live in the task; M2c: the export). `rl/supermimic` imports nothing from
+`tasks/` and reads no task attribute. Left: item 8, the robot contract, now explicit
+(state joints = action joints, FK bodies/sites in `ImaginationCfg`, position actuators
+for the export); the terrain-relative height flag still stands. The audit below is kept
 as it was written.
 
 Line numbers at `8d11905`, files under `rl/supermimic/`.
@@ -250,7 +250,14 @@ from it, so sim and imagination agree by construction.
      before long trainings:** compare several seeds over more iterations on Linux
      (compile, num_rollouts 4096).
 
-**M2c, export**: generic metadata in the method, goal metadata from the `CommandModel`.
+**M2c, export** [x] (2026-11-21): `export.py` reads the robot and joints from the action
+term (`BatchSpec`: `joint_names`, `q0`), refuses non-position actuators instead of exporting
+wrong PD gains, and lists each observation term's site (`observation_sites`, aligned with
+`observation_names`; `imu_site` kept when there is one). Goal metadata comes from the
+command term's optional `export_metadata()` (`MotionLibraryCommand`:
+`goal_num_future_frames`, `goal_root_body`, and the goal's layout in its docstring); a
+key clash with the generic metadata raises. The Kangaroo's metadata is identical to
+before, plus `observation_sites`.
 
 Done when `rl/supermimic` imports nothing from `tasks/`, parity holds, and a missing twin
 fails with a clear message.
