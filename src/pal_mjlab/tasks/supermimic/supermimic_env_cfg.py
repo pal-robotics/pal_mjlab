@@ -18,7 +18,7 @@ The critic sees the heading-invariant state, the goal, ξ and two privileged ter
 root-pose error and the time left in the clip.
 """
 
-from mjlab.envs import ManagerBasedRlEnvCfg
+from pal_mjlab.rl.supermimic.names import SuperMimicEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.action_manager import ActionTermCfg
@@ -39,7 +39,7 @@ from pal_mjlab.tasks.supermimic import mdp
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommandCfg
 
 
-def make_supermimic_env_cfg() -> ManagerBasedRlEnvCfg:
+def make_supermimic_env_cfg() -> SuperMimicEnvCfg:
   """Create the base SuperMimic tracking configuration."""
 
   ##
@@ -240,7 +240,7 @@ def make_supermimic_env_cfg() -> ManagerBasedRlEnvCfg:
     ),
   }
 
-  return ManagerBasedRlEnvCfg(
+  return SuperMimicEnvCfg(
     scene=SceneCfg(terrain=TerrainEntityCfg(terrain_type="plane"), num_envs=1),
     observations=observations,
     actions=actions,

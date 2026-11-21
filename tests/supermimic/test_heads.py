@@ -16,7 +16,7 @@ from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import (
   pal_kangaroo_grippers_supermimic_env_cfg,
 )
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommand
-from pal_mjlab.tasks.supermimic.mdp.command_model import MotionLibraryCommandModel
+from pal_mjlab.rl.supermimic.command_model import command_model_of
 from pal_mjlab.rl.supermimic.heads import AnalyticHeads
 from pal_mjlab.rl.supermimic.supermimic import critic_input
 from pal_mjlab.rl.supermimic.state import heading_pose, heading_state
@@ -43,7 +43,7 @@ def _state(env: ManagerBasedRlEnv, cmd: MotionLibraryCommand):
 
 def test_heads_match_the_env():
   env = _env()
-  model = MotionLibraryCommandModel(env, "motion")
+  model = command_model_of(env, "motion")
   heads = AnalyticHeads(env, model, compile_fk=False)
   cmd: MotionLibraryCommand = env.command_manager.get_term("motion")
   context_cfg = env.observation_manager.get_term_cfg("critic", "sim_context")
@@ -108,5 +108,5 @@ def test_heads_refuse_other_joints_than_the_library():
   )
   env = ManagerBasedRlEnv(cfg=cfg, device=get_test_device())
   with pytest.raises(ValueError, match="motion library's joints"):
-    AnalyticHeads(env, MotionLibraryCommandModel(env, "motion"), compile_fk=False)
+    AnalyticHeads(env, command_model_of(env, "motion"), compile_fk=False)
   env.close()

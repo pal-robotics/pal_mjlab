@@ -31,10 +31,10 @@ from mjlab.entity import Entity
 
 from pal_mjlab.rl.command_state import command_state_dicts, load_command_state_dicts
 
-from .command_model import CommandModel, build_command_model
+from .command_model import CommandModel, command_model_of
 from .export import export_policy
 from .heads import AnalyticHeads
-from .names import EnvNamesCfg, critic_group, env_names_from_dict
+from .names import ImaginationCfg, critic_group, imagination_cfg
 from .replay import ReplayBuffer
 from .state import heading_pose, heading_state, pose_delta
 from .supermimic import (
@@ -61,7 +61,7 @@ class SimCollector:
   def __init__(
     self,
     env: ManagerBasedRlEnv,
-    names: EnvNamesCfg,
+    names: ImaginationCfg,
     context_cfg,
     command_model: CommandModel,
   ) -> None:
@@ -131,11 +131,9 @@ class SuperMimicRunner:
   ) -> None:
     self.env, self.cfg, self.log_dir, self.device = env, train_cfg, log_dir, device
     raw = env.unwrapped
-    self.names = env_names_from_dict(train_cfg)
+    self.names = imagination_cfg(raw)
     critic = critic_group(train_cfg, self.names)
-    self.command_model = build_command_model(
-      train_cfg.get("command_model"), raw, self.names.command
-    )
+    self.command_model = command_model_of(raw, self.names.command)
     self.heads = AnalyticHeads(
       raw, self.command_model, compile_fk=train_cfg["compile"], names=self.names,
       critic_group=critic,
@@ -189,7 +187,7 @@ class SuperMimicRunner:
     try:
       export_policy(
         self.env.unwrapped, self.alg.actor, Path(path).with_suffix(".onnx"), path,
-        env_names=self.names,
+        names=self.names,
       )
     except Exception as e:  # never stop a training run over the export
       print(f"[WARN] ONNX export failed (training continues): {e}")

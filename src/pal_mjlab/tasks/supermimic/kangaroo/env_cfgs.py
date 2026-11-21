@@ -11,7 +11,7 @@ Kangaroo facts that shape the mapping:
 
 import math
 
-from mjlab.envs import ManagerBasedRlEnvCfg
+from pal_mjlab.rl.supermimic.names import SuperMimicEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 
@@ -84,7 +84,7 @@ def _action_scales() -> dict[str, float]:
 
 def pal_kangaroo_grippers_supermimic_env_cfg(
   play: bool = False,
-) -> ManagerBasedRlEnvCfg:
+) -> SuperMimicEnvCfg:
   """Create the PAL Kangaroo SuperMimic tracking configuration."""
   cfg = make_supermimic_env_cfg()
 

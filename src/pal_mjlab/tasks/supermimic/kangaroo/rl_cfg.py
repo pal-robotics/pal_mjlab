@@ -1,7 +1,6 @@
 """RL configuration for PAL Robotics' Kangaroo SuperMimic task."""
 
 from pal_mjlab.rl.supermimic import SuperMimicRunnerCfg
-from pal_mjlab.tasks.supermimic.mdp.command_model import MotionLibraryCommandModel
 
 
 def pal_kangaroo_supermimic_runner_cfg() -> SuperMimicRunnerCfg:
@@ -13,5 +12,4 @@ def pal_kangaroo_supermimic_runner_cfg() -> SuperMimicRunnerCfg:
     max_iterations=320_000,
     save_interval=2000,
     obs_groups={"actor": ("goal", "proprio"), "critic": ("critic",)},
-    command_model=MotionLibraryCommandModel,
   )

@@ -35,6 +35,7 @@ from mjlab.utils.lab_api.math import (
 from pal_mjlab.utils.math.kinematics import TorchKinematics
 from ..library import MotionLibrary
 from pal_mjlab.rl.supermimic.state import heading_state
+from .command_model import MotionLibraryCommandModel
 from .sampler import ReturnSampler
 from .tracking import BodyState, reference_goal, root_pose_error
 
@@ -128,6 +129,7 @@ class MotionLibraryCommand(CommandTerm):
     ):
       self.metrics[name] = torch.zeros(n, device=self.device)
     self._ghost_model = None
+    self._command_model: MotionLibraryCommandModel | None = None
 
   # Commanded goal ---------------------------------------------------------------
 
@@ -231,6 +233,14 @@ class MotionLibraryCommand(CommandTerm):
     rq, fq = self.robot_qpos, self.ref_qpos
     self.metrics["error_anchor_pos"] = (rq[:, :3] - fq[:, :3]).norm(dim=-1)
     self.metrics["error_joint_pos"] = (rq[:, 7:] - fq[:, 7:]).norm(dim=-1)
+
+  # SuperMimic ---------------------------------------------------------------------
+
+  def command_model(self) -> MotionLibraryCommandModel:
+    """This command's tensor twin, for SuperMimic's imagination (one per command)."""
+    if self._command_model is None:
+      self._command_model = MotionLibraryCommandModel(self)
+    return self._command_model
 
   # Checkpointing (``pal_mjlab/rl/command_state.py``) -----------------------------
 

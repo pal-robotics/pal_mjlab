@@ -11,18 +11,16 @@ import torch
 from conftest import get_test_device
 from mjlab.envs import ManagerBasedRlEnv
 from pal_mjlab.rl.command_state import command_state_dicts, load_command_state_dicts
-from pal_mjlab.rl.supermimic.command_model import CommandModel, build_command_model
-from pal_mjlab.rl.supermimic.names import EnvNamesCfg
+from pal_mjlab.rl.supermimic.command_model import CommandModel, command_model_of
+from pal_mjlab.rl.supermimic.names import imagination_cfg
 from pal_mjlab.rl.supermimic.state import heading_pose, heading_state
 from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import (
   pal_kangaroo_grippers_supermimic_env_cfg,
 )
-from pal_mjlab.tasks.supermimic.kangaroo.rl_cfg import pal_kangaroo_supermimic_runner_cfg
 from pal_mjlab.tasks.supermimic.mdp.command_model import MotionLibraryCommandModel
 
 LIBRARY = Path(__file__).parent / "fixtures" / "library_tiny"
 NUM_ENVS = 4
-MOTION_MODEL = pal_kangaroo_supermimic_runner_cfg().command_model
 
 
 def _env() -> ManagerBasedRlEnv:
@@ -45,14 +43,15 @@ def env():
   return _env()
 
 
-def test_task_config_names_the_motion_model(env):
-  model = build_command_model(MOTION_MODEL, env, "motion")
-  assert isinstance(model, MotionLibraryCommandModel)
-  assert isinstance(model, CommandModel)
+def test_the_command_provides_its_model(env):
+  model = command_model_of(env, "motion")
+  assert isinstance(model, MotionLibraryCommandModel) and isinstance(model, CommandModel)
+  assert model is command_model_of(env, "motion")  # one model per command
+  assert model.cmd is env.command_manager.get_term("motion")
 
 
 def test_model_matches_the_env(env):
-  model = MotionLibraryCommandModel(env, "motion")
+  model = command_model_of(env, "motion")
   cmd = model.cmd
   tm = env.termination_manager
   gen = torch.Generator(device=env.device).manual_seed(0)
@@ -108,17 +107,25 @@ def test_command_checkpoint_mismatch_fails_clearly(env):
   load_command_state_dicts(env, {}, strict=False)  # non-strict: nothing to restore
 
 
+class _NoModel:
+  pass
+
+
+class _NotAModel:
+  def command_model(self):
+    return object()
+
+
 @pytest.mark.parametrize(
-  ("cls", "error", "match"),
-  [
-    (None, ValueError, "not set"),
-    ("MotionLibraryCommandModel", TypeError, "must be a class"),
-    (EnvNamesCfg, TypeError, "not a CommandModel"),
-  ],
+  ("term", "match"), [(_NoModel(), "has no command_model"), (_NotAModel(), "not a CommandModel")]
 )
-def test_bad_command_models_fail_clearly(env, cls, error, match):
-  with pytest.raises(error, match=match):
-    build_command_model(cls, env, "motion")
+def test_commands_without_a_model_fail_clearly(term, match):
+  class Env:
+    class command_manager:  # noqa: N801
+      get_term = staticmethod(lambda name: term)
+
+  with pytest.raises(TypeError, match=match):
+    command_model_of(Env(), "motion")
 
 
 def test_collector_reads_the_state_from_the_robot(env):
@@ -127,8 +134,8 @@ def test_collector_reads_the_state_from_the_robot(env):
   from pal_mjlab.rl.supermimic.runner import SimCollector
 
   context_cfg = env.observation_manager.get_term_cfg("critic", "sim_context")
-  model = MotionLibraryCommandModel(env, "motion")
-  collector = SimCollector(env, EnvNamesCfg(), context_cfg, model)
+  model = command_model_of(env, "motion")
+  collector = SimCollector(env, imagination_cfg(env), context_cfg, model)
   cmd = env.command_manager.get_term("motion")
   gen = torch.Generator(device=env.device).manual_seed(1)
   env.reset()

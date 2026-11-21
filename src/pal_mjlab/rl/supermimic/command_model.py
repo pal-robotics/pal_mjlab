@@ -8,8 +8,8 @@ back to the model. What the tensors mean (a clip and frame, a velocity command, 
 task's business. What the command learns across episodes (e.g. a start sampler) stays
 on the env's command term, which checkpoints it (``pal_mjlab/rl/command_state.py``).
 
-A task names its command model class in the runner config (``command_model``);
-``build_command_model`` builds it as ``cls(env, command_name)``.
+The env's command term provides its model (``command_model()``), as it owns everything else
+about the command (e.g. its start sampler); ``command_model_of`` fetches and checks it.
 """
 
 from __future__ import annotations
@@ -61,23 +61,24 @@ class CommandModel(Protocol):
     ...
 
 
-def build_command_model(
-  cls: type[CommandModel] | None, env: ManagerBasedRlEnv, command_name: str
-) -> CommandModel:
-  """Build the task's command model as ``cls(env, command_name)``."""
-  if cls is None:
-    raise ValueError(
-      "The runner config's command_model is not set: the task must give its CommandModel "
-      "class."
+def command_model_of(env: ManagerBasedRlEnv, command_name: str) -> CommandModel:
+  """The ``CommandModel`` of the env's command term ``command_name``."""
+  term = env.command_manager.get_term(command_name)
+  provide = getattr(term, "command_model", None)
+  if not callable(provide):
+    raise TypeError(
+      f"Command {command_name!r} ({type(term).__name__}) has no command_model(): "
+      "SuperMimic needs the command's CommandModel to imagine it."
     )
-  if not isinstance(cls, type):
-    raise TypeError(f"command_model must be a class, got {cls!r}.")
-  model = cls(env, command_name)
+  model = provide()
   if not isinstance(model, CommandModel):
     missing = [
       m
       for m in ("state", "advance", "done", "goal", "termination_ref", "critic_extras")
       if not callable(getattr(model, m, None))
     ]
-    raise TypeError(f"{cls.__name__} is not a CommandModel: missing {missing}.")
+    raise TypeError(
+      f"{type(term).__name__}.command_model() gave a {type(model).__name__}, not a "
+      f"CommandModel: missing {missing}."
+    )
   return model
