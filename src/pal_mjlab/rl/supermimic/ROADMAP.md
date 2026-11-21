@@ -119,6 +119,22 @@ M0, M1: done. Each next milestone keeps the Kangaroo motion task training identi
 - read the robot state from the robot entity, not `cmd.robot_qpos`
 - check `torch.compile(dynamic=False)` still works with the opaque state (fixed shape)
 
+M2a progress (uncommitted, 2026-11-21), in dependency order:
+- [x] step 0: `rl/supermimic/command_model.py` (protocol, `build_command_model`),
+  `SuperMimicRunnerCfg.command_model` (the class itself; `tyro.conf.Suppress`, so not a
+  CLI option; `agent.yaml` records it as `!!python/name:...`), `tasks/supermimic/mdp/command_model.py`
+  (`MotionLibraryCommandModel`, plus a motion-only `reference(c)` for the tracking
+  rewards). The runner builds it but nothing uses it yet. `reference_goal` and
+  `root_pose_error` moved from `state.py` to `tasks/supermimic/mdp/tracking.py`.
+  `tests/supermimic/test_command_model.py`: model == env and model == heads, bit-exact.
+- [ ] step 1: robot state from the robot entity (`runner.py` `SimCollector.state`)
+- [ ] step 2: checkpoint `command_model.state_dict()` instead of `cmd.sampler`
+- [ ] step 3: consumers (`supermimic.py` step / imagine / world-model update) call the
+  model with `c = {"clip", "frame"}` built at batch unpacking; delete `goal`, `reference`,
+  `ref_root`, `critic_input`'s extras, `clip_end`, `next_frame` from `heads.py`
+- [ ] step 4: collector records `command_model.state()`; replay stores generic `c` columns
+- [ ] step 5: parity run
+
 **M2b, term-twin registry** (replaces the whitelists):
 - `register_twin(env_term_func, twin_fn)`; a twin gets one imagined batch (state,
   kinematics, command state, action, prev action, context) plus the term's `params`

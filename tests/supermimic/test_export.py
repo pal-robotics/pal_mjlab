@@ -1,5 +1,5 @@
 """ONNX export: the file computes the actor's actions on recorded env observations, and its
-metadata is enough to build those observations (goal by state.reference_goal, proprio oldest
+metadata is enough to build those observations (goal by tracking.reference_goal, proprio oldest
 first)."""
 
 from pathlib import Path
@@ -18,7 +18,7 @@ from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import (
 from pal_mjlab.rl.supermimic.export import export_policy
 from pal_mjlab.rl.supermimic.names import EnvNamesCfg
 from pal_mjlab.rl.supermimic.models import EncoderDecoderModel
-from pal_mjlab.rl.supermimic.state import reference_goal
+from pal_mjlab.tasks.supermimic.mdp.tracking import reference_goal
 from tensordict import TensorDict
 
 OBS_GROUPS = EnvNamesCfg().actor_groups  # the actor's input, in this order
