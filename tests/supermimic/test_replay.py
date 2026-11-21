@@ -8,7 +8,8 @@ E, CAPACITY, STEPS = 5, 40, 130  # wraps around about three times
 
 
 def _fill(seed: int) -> ReplayBuffer:
-  """State = (env step t, episode id, env, terminal flag, step in episode); action = t + 1."""
+  """State = (env step t, episode id, env, terminal flag, step in episode); action = t + 1;
+  command state c = {"t": t (long), "vec": (t, env) (float, 2-d)}."""
   g = torch.Generator().manual_seed(seed)
   buf = ReplayBuffer(E, CAPACITY, 5, 2, 1, "cpu")
   episode, in_episode = torch.zeros(E), torch.zeros(E)
@@ -22,9 +23,12 @@ def _fill(seed: int) -> ReplayBuffer:
     nxt[:, 0] += 1
     nxt[:, 3] = 1.0
     action = torch.full((E, 2), t + 1.0)
-    zero = torch.zeros(E, dtype=torch.long)
+    command = {
+      "t": torch.full((E,), t, dtype=torch.long),
+      "vec": torch.stack([torch.full((E,), float(t)), envs], 1),
+    }
     buf.add(
-      state, torch.zeros(E, 3), action, torch.zeros(E, 1), zero, zero, done, done,
+      state, torch.zeros(E, 3), action, torch.zeros(E, 1), command, done, done,
       nxt, torch.zeros(E, 3),
     )  # fmt: skip
     episode = episode + done.float()
@@ -46,6 +50,11 @@ def test_windows_are_consecutive_steps_of_one_episode(seed, k):
   torch.testing.assert_close(w["actions"][..., 0], s[:, :-1, 0] + 1)
   # Only the newest CAPACITY rows of each env are used.
   assert (s[:, 0, 0] >= STEPS - CAPACITY).all()
+  # Each transition's command state, stored as given (dtype and shape kept).
+  c = w["command"]
+  assert c["t"].dtype == torch.long and c["t"].shape == (500, k)
+  assert torch.equal(c["t"], s[:, :-1, 0].long())
+  torch.testing.assert_close(c["vec"], s[:, :-1, [0, 2]])
 
 
 @pytest.mark.parametrize("seed", range(3))
@@ -65,3 +74,16 @@ def test_starts_carry_their_episode_history(seed):
   # Last action: the previous step's action (= its step + 1), zero at the episode start.
   last = st["history_last_action"][..., 0]
   torch.testing.assert_close(last, torch.where(hist[:, :, 4] == 0, 0.0, hist[:, :, 0]))
+  # The start row's command state.
+  assert torch.equal(st["command"]["t"], t0.long())
+  torch.testing.assert_close(st["command"]["vec"], st["state"][:, [0, 2]])
+
+
+def test_command_state_layout_must_not_change():
+  buf = ReplayBuffer(E, CAPACITY, 5, 2, 1, "cpu")
+  args = (torch.zeros(E, 5), torch.zeros(E, 3), torch.zeros(E, 2), torch.zeros(E, 1))
+  no = torch.zeros(E, dtype=torch.bool)
+  tail = (no, no, torch.zeros(E, 5), torch.zeros(E, 3))
+  buf.add(*args, {"t": torch.zeros(E, dtype=torch.long)}, *tail)
+  with pytest.raises(ValueError, match="layout changed"):
+    buf.add(*args, {"t": torch.zeros(E)}, *tail)  # float instead of long

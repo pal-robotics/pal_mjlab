@@ -13,8 +13,8 @@ class ReplayBuffer:
   """SuperMimic's FIFO replay buffer (Algorithm A.1): the newest ``capacity`` rows per env.
 
   A row is a state. A transition row also holds the executed (noisy) action, the
-  reference clip and target frame it was scored against and its failure label, and leads
-  to the next row. When an episode ends, its terminal state is written as an extra row
+  command state c it was scored against (``CommandModel.state``: opaque tensors, stored as
+  given) and its failure label, and leads to the next row. When an episode ends, its terminal state is written as an extra row
   without an action, so the next row starts the new episode. A k-step window is then k
   consecutive transition rows plus the row after them, and never spans two episodes.
   """
@@ -34,18 +34,36 @@ class ReplayBuffer:
     self.pose = torch.zeros(c, e, 3, device=device)
     self.action = torch.zeros(c, e, action_dim, device=device)
     self.context = torch.zeros(c, e, context_dim, device=device)
-    self.clip = torch.zeros(c, e, dtype=torch.long, device=device)
-    self.frame = torch.zeros(c, e, dtype=torch.long, device=device)
+    self.command: dict[str, torch.Tensor] = {}  # c's columns, allocated by the first add
     self.failure = torch.zeros(c, e, dtype=torch.bool, device=device)
     self.has_action = torch.zeros(c, e, dtype=torch.bool, device=device)
     self.count = torch.zeros(e, dtype=torch.long, device=device)  # rows written
     self._envs = torch.arange(e, device=device)
 
-  def _write(self, envs: torch.Tensor, **fields: torch.Tensor) -> None:
+  def _write(
+    self, envs: torch.Tensor, command: dict[str, torch.Tensor], **fields: torch.Tensor
+  ) -> None:
     slot = self.count[envs] % self.capacity
     for name, value in fields.items():
       getattr(self, name)[slot, envs] = value
+    for name, value in command.items():
+      self.command[name][slot, envs] = value
     self.count[envs] += 1
+
+  def _check_command(self, command: dict[str, torch.Tensor]) -> None:
+    """Allocate c's columns on the first add; later adds must match their layout."""
+    if not self.command:
+      self.command = {
+        name: torch.zeros(
+          self.capacity, *v.shape, dtype=v.dtype, device=self.device
+        )
+        for name, v in command.items()
+      }
+      return
+    layout = {n: (tuple(v.shape[2:]), v.dtype) for n, v in self.command.items()}
+    given = {n: (tuple(v.shape[1:]), v.dtype) for n, v in command.items()}
+    if given != layout:
+      raise ValueError(f"Command state layout changed: {given} instead of {layout}.")
 
   @torch.no_grad()
   def add(
@@ -54,23 +72,24 @@ class ReplayBuffer:
     pose: torch.Tensor,
     action: torch.Tensor,
     context: torch.Tensor,
-    clip: torch.Tensor,
-    frame: torch.Tensor,
+    command: dict[str, torch.Tensor],
     failure: torch.Tensor,
     done: torch.Tensor,
     next_state: torch.Tensor,
     next_pose: torch.Tensor,
   ) -> None:
-    """One env step of all envs; ``next_*`` is only stored where the episode ended."""
+    """One env step of all envs; ``next_*`` is only stored where the episode ended (its
+    row keeps the transition's command state)."""
+    self._check_command(command)
     self._write(
-      self._envs, state=state, pose=pose, action=action, context=context,
-      clip=clip.long(), frame=frame.long(), failure=failure, has_action=torch.ones_like(done),
+      self._envs, command, state=state, pose=pose, action=action, context=context,
+      failure=failure, has_action=torch.ones_like(done),
     )  # fmt: skip
     ids = done.nonzero().squeeze(-1)
     if len(ids):
       self._write(
-        ids, state=next_state[ids], pose=next_pose[ids], context=context[ids],
-        clip=clip[ids].long(), frame=frame[ids].long(),
+        ids, {n: v[ids] for n, v in command.items()}, state=next_state[ids],
+        pose=next_pose[ids], context=context[ids],
         failure=torch.zeros_like(ids, dtype=torch.bool),
         has_action=torch.zeros_like(ids, dtype=torch.bool),
       )  # fmt: skip
@@ -103,7 +122,8 @@ class ReplayBuffer:
   def sample_windows(
     self, n: int, k: int, generator: torch.Generator | None = None
   ) -> dict[str, torch.Tensor]:
-    """n random k-step windows inside episodes (Eq. 1)."""
+    """n random k-step windows inside episodes (Eq. 1); ``command``: c of each of the k
+    transitions, (n, k, ...) per tensor."""
     envs, rows = [], []
     for _ in range(100):
       if sum(len(r) for r in rows) >= n:
@@ -124,9 +144,8 @@ class ReplayBuffer:
       "poses": self.pose[idx],
       "actions": self.action[idx][:, :k],
       "context": self.context[first],
-      "frame": self.frame[idx][:, :k],
+      "command": {n: v[idx][:, :k] for n, v in self.command.items()},
       "failure": self.failure[idx][:, :k],
-      "clip": self.clip[first],
     }
 
   def sample_starts(
@@ -169,8 +188,7 @@ class ReplayBuffer:
       "state": self.state[start],
       "pose": self.pose[start],
       "context": self.context[start],
-      "clip": self.clip[start],
-      "frame": self.frame[start],
+      "command": {n: v[start] for n, v in self.command.items()},
       "history_state": self.state[idx],
       "history_pose": self.pose[idx],
       "history_last_action": last_action,

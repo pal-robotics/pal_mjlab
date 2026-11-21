@@ -143,7 +143,11 @@ M2a progress (uncommitted, 2026-11-21), in dependency order:
   `ref_root`, `critic_input`, `clip_end`, `next_frame`; it keeps the command model only for
   the tracking rewards' `reference(c)` (TODO(M2b)). The critic-layout check is unchanged
   (moves to twins in M2b). `Rollout.clip_end` is now `Rollout.end`.
-- [ ] step 4: collector records `command_model.state()`; replay stores generic `c` columns
+- [x] step 4: the collector records `command_model.state()` (it no longer holds the
+  command term); replay stores c as given (columns allocated from the first add, layout
+  checked after) and returns it as `"command"` (per transition in windows, per start
+  row in starts); `replay_command_state` is gone. Nothing in `rl/supermimic` reads
+  clip/frame; what is left of the motion task there is M2b (heads) and M2c (export).
 - [ ] step 5: parity run
 
 **M2b, explicit twin dicts** (replace the whitelists in `heads.py:84-168`). Decided

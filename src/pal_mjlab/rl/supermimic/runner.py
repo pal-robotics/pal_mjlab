@@ -21,11 +21,9 @@ import math
 import os
 import time
 from pathlib import Path
-from typing import cast
 
 import torch
 from mjlab.envs import ManagerBasedRlEnv
-from mjlab.managers.command_manager import CommandTerm
 from mjlab.rl import RslRlVecEnvWrapper
 from tensordict import TensorDict
 from torch.utils.tensorboard import SummaryWriter
@@ -33,7 +31,7 @@ from mjlab.entity import Entity
 
 from pal_mjlab.rl.command_state import command_state_dicts, load_command_state_dicts
 
-from .command_model import build_command_model
+from .command_model import CommandModel, build_command_model
 from .export import export_policy
 from .heads import AnalyticHeads
 from .names import EnvNamesCfg, critic_group, env_names_from_dict
@@ -61,11 +59,16 @@ class SimCollector:
   """Steps the env and returns world-model transitions (states in the local frame)."""
 
   def __init__(
-    self, env: ManagerBasedRlEnv, names: EnvNamesCfg, context_cfg
+    self,
+    env: ManagerBasedRlEnv,
+    names: EnvNamesCfg,
+    context_cfg,
+    command_model: CommandModel,
   ) -> None:
-    """``context_cfg``: the sim context's observation term (``AnalyticHeads.context_cfg``)."""
+    """``context_cfg``: the sim context's observation term (``AnalyticHeads.context_cfg``);
+    ``command_model``: gives the command state c each transition is scored against."""
     self.env = env
-    self.cmd = cast(CommandTerm, env.command_manager.get_term(names.command))
+    self.command_model = command_model
     self._context = context_cfg
     self._failure_terms = names.failure_terms
     # The state's joints are the action joints, on the action term's entity (the robot
@@ -92,15 +95,14 @@ class SimCollector:
     return TensorDict(obs, batch_size=[self.env.num_envs])
 
   def step(self, action: torch.Tensor) -> tuple[dict[str, torch.Tensor], TensorDict]:
-    env, cmd = self.env, self.cmd
+    env = self.env
     state, pose = self.state()
     t = {
       "state": state,
       "pose": pose,
       "action": action,
       "context": self.context(),
-      "clip": cmd.clip.clone(),
-      "frame": cmd.frame.clone(),
+      "command": self.command_model.state(),
     }
     _, reward, terminated, truncated, _ = env.step(action)
     t["next_state"], t["next_pose"] = self.state()  # terminal state where done
@@ -138,7 +140,9 @@ class SuperMimicRunner:
       raw, self.command_model, compile_fk=train_cfg["compile"], names=self.names,
       critic_group=critic,
     )
-    self.collector = SimCollector(raw, self.names, self.heads.context_cfg)
+    self.collector = SimCollector(
+      raw, self.names, self.heads.context_cfg, self.command_model
+    )
     obs = self.collector.observations()
     self.alg = SuperMimic(
       obs,
@@ -219,7 +223,7 @@ class SuperMimicRunner:
     self, num_learning_iterations: int, init_at_random_ep_len: bool = False
   ) -> None:
     """Train until ``num_learning_iterations`` iterations in total (resumes count)."""
-    del init_at_random_ep_len  # episodes start at sampled frames anyway
+    del init_at_random_ep_len  # episodes start where the command's reset puts them
     cfg, alg, raw = self.cfg, self.alg, self.env.unwrapped
     if raw.cfg.auto_reset:
       raise ValueError("SuperMimic stores terminal states: set env auto_reset=False.")
@@ -292,7 +296,7 @@ class SuperMimicRunner:
       pose_delta(t["pose"], t["next_pose"]),
     )  # fmt: skip
     self.replay.add(
-      t["state"], t["pose"], t["action"], t["context"], t["clip"], t["frame"],
+      t["state"], t["pose"], t["action"], t["context"], t["command"],
       t["failure"], t["done"], t["next_state"], t["next_pose"],
     )  # fmt: skip
 
