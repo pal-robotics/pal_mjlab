@@ -226,6 +226,24 @@ class MotionLibraryCommand(CommandTerm):
       self._command_model = MotionLibraryCommandModel(self)
     return self._command_model
 
+  def export_metadata(self) -> dict:
+    """The goal's metadata for the robot (``rl/supermimic/export.py``).
+
+    The goal is the next ``goal_num_future_frames`` reference frames from the target
+    frame on (the last one repeated past the clip end), each as ``reference_goal``
+    (``tracking.py``) builds it: the reference positions and velocities of the policy's
+    joints, and the reference root orientation in the frame of the robot's root body
+    ``goal_root_body`` (rot6d: the first two columns of its rotation matrix).
+
+    Training episodes start at the reference pose, so the reference's root yaw at its first
+    frame must match the robot's: rotate the motion about z before building goals (a yaw
+    offset reads as a tracking error).
+    """
+    return {
+      "goal_num_future_frames": self.cfg.num_future_frames,
+      "goal_root_body": self.robot.body_names[0],
+    }
+
   # Checkpointing (``pal_mjlab/rl/command_state.py``) -----------------------------
 
   def state_dict(self) -> dict:
