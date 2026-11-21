@@ -15,33 +15,23 @@ imagination never silently optimizes a different objective than the simulator.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import TYPE_CHECKING, cast
 
 import torch
 from mjlab.envs.mdp import observations as mj_obs
-from mjlab.envs.mdp import rewards as mj_rewards
 from mjlab.utils.lab_api.math import quat_apply_inverse
 from mjlab.utils.noise import UniformNoiseCfg
 from mjlab.managers.command_manager import CommandTerm
 
-from pal_mjlab.utils.math.kinematics import TorchKinematics
+from pal_mjlab.utils.math.kinematics import Kinematics
 
-from .command_model import CommandModel, CommandState
+from .command_model import CommandModel
+from .imagination import Batch, batch_source, imagined_fn
 from .names import DEFAULT_CRITIC_GROUP, ImaginationCfg, imagination_cfg
 from .state import joint_state, state_to_qpos_qvel
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
-
-  from pal_mjlab.tasks.supermimic.mdp.tracking import BodyState
-
-
-class Kin(NamedTuple):
-  """Kinematics of a (predicted) state: tracked bodies and the IMU frame."""
-
-  bodies: BodyState
-  imu_quat: torch.Tensor  # world orientation of the IMU site
-  imu_ang_vel: torch.Tensor  # world angular velocity of the IMU site
 
 
 class AnalyticHeads:
@@ -53,7 +43,7 @@ class AnalyticHeads:
     names: ImaginationCfg | None = None,
     critic_group: str = DEFAULT_CRITIC_GROUP,
   ) -> None:
-    """``command_model``: the task's command twin (the tracking rewards' reference);
+    """``command_model``: the task's command twin;
     ``names``: the env's term and group names (the env's ``imagination`` if None);
     ``critic_group``: the critic's observation group. Observation terms are recognized by
     their function, so their names are free."""
@@ -62,11 +52,12 @@ class AnalyticHeads:
     # removes this. Imported here, not at module level: importing pal_mjlab.tasks loads
     # every task, the SuperMimic one included, and that one imports this package.
     from pal_mjlab.tasks.supermimic.mdp import observations as sm_obs
-    from pal_mjlab.tasks.supermimic.mdp import rewards as sm_rewards
-    from pal_mjlab.tasks.supermimic.mdp import tracking
 
-    self._tracking = tracking
     self.command_model = command_model
+    self.source = batch_source(env)
+    """Builds the imagined batches (``imagination.py``), with the env's FK and layout."""
+    if compile_fk:
+      self.source.fk_fn = torch.compile(self.source.fk.forward)
     cfg, self.device = env.cfg, env.device
     cmd = cast(CommandTerm, env.command_manager.get_term(names.command))
     robot = env.scene[cmd.cfg.entity_name]
@@ -126,33 +117,33 @@ class AnalyticHeads:
       n: term_dims[n][-1] // max(self.history, 1) for n in self.obs_terms
     }
 
-    # IMU site: both IMU sensors must read the same site.
+    # IMU site: both IMU sensors must read the same site, one of the batch's FK sites.
     mj = env.sim.mj_model
     sites = {mj.site(int(mj.sensor(s).objid[0])).name for s in imu_sensors}
     assert len(sites) == 1, f"IMU sensors on different sites: {sites}"
-    self.fk = TorchKinematics(
-      mj, cmd.fk.body_names, sorted(sites), cmd.fk.joint_names, device=self.device
-    )
-    self._fk = torch.compile(self.fk.forward) if compile_fk else self.fk.forward
+    spec = self.source.spec
+    self._imu = spec.site(sites.pop().removeprefix(f"{spec.entity_name}/"))
 
-    # Reward (Table A.2), with the env's weights, stds and dt scaling.
-    self.tracking_terms, self.action_rate_weight = [], 0.0
-    self.limit_weight = 0.0
+    # Reward (Table A.2): every weighted env term, by its single definition, with the
+    # env's weights, params and dt scaling.
+    self.rewards: dict[str, tuple] = {}
+    """name: (single definition, resolved params, weight)."""
+    missing = []
     for name, term in cfg.rewards.items():
       if term is None or term.weight == 0.0:
         continue
-      if term.func in sm_rewards.TRACKING_ERRORS:
-        self.tracking_terms.append(
-          (term.weight, term.params["std"], sm_rewards.TRACKING_ERRORS[term.func])
-        )
-      elif term.func is mj_rewards.action_rate_l2:
-        self.action_rate_weight = term.weight
-      elif term.func is sm_rewards.joint_pos_limits_hard:
-        self.limit_weight = term.weight
-        self._check_joints(env.reward_manager.get_term_cfg(name).params["asset_cfg"])
-        self.limits = robot.data.joint_pos_limits[0, cmd.joint_ids]
-      else:
-        raise NotImplementedError(f"reward term {name!r} has no analytic head")
+      fn = imagined_fn(term.func)
+      if fn is None:
+        missing.append(f"{name} ({term.func.__module__}.{term.func.__qualname__})")
+        continue
+      params = env.reward_manager.get_term_cfg(name).params  # entities resolved
+      self.rewards[name] = (fn, params, term.weight)
+    if missing:
+      raise NotImplementedError(
+        "Reward terms without a single definition, so imagination cannot compute them: "
+        f"{', '.join(missing)}. Write them on a Batch with @imaginable "
+        "(rl/supermimic/imagination.py)."
+      )
     self.reward_scale = env.step_dt if cfg.scale_rewards_by_dt else 1.0
 
     # The critic's input layout (``critic_input``), recognized by the terms' functions; the
@@ -177,18 +168,16 @@ class AnalyticHeads:
 
   # Kinematics -------------------------------------------------------------------
 
-  def kinematics(self, state: torch.Tensor, pose: torch.Tensor) -> Kin:
-    qpos, qvel = state_to_qpos_qvel(state, pose)
-    k = self._fk(qpos, qvel)
-    bodies = self._tracking.BodyState(k.body_pos, k.body_quat, k.body_lin_vel, k.body_ang_vel)
-    return Kin(bodies, k.site_quat[:, 0], k.site_ang_vel[:, 0])
+  def kinematics(self, state: torch.Tensor, pose: torch.Tensor) -> Kinematics:
+    """The batch's FK of a (predicted) state."""
+    return self.source.fk_fn(*state_to_qpos_qvel(state, pose))
 
   # Observation ō and sensor noise η ------------------------------------------------
 
   def observation(
     self,
     state: torch.Tensor,
-    kin: Kin,
+    kin: Kinematics,
     context: torch.Tensor,
     last_action: torch.Tensor,
   ) -> dict[str, torch.Tensor]:
@@ -196,13 +185,14 @@ class AnalyticHeads:
     q, qd = joint_state(state)
     nj = q.shape[-1]
     bias = context[:, 1 : 1 + nj]  # ξ = (friction, calibration offsets, CoM offset)
-    gravity = torch.zeros_like(kin.imu_ang_vel)
+    imu_quat, imu_ang_vel = kin.site_quat[:, self._imu], kin.site_ang_vel[:, self._imu]
+    gravity = torch.zeros_like(imu_ang_vel)
     gravity[:, 2] = -1.0
     frame = {
       "joint_pos": q + bias - self.q0,
       "joint_vel": qd,
-      "imu_ang_vel": quat_apply_inverse(kin.imu_quat, kin.imu_ang_vel),
-      "imu_projected_gravity": quat_apply_inverse(kin.imu_quat, gravity),
+      "imu_ang_vel": quat_apply_inverse(imu_quat, imu_ang_vel),
+      "imu_projected_gravity": quat_apply_inverse(imu_quat, gravity),
       "actions": last_action,
     }
     return {name: frame[self._obs_kind[name]] for name in self.obs_terms}
@@ -228,36 +218,13 @@ class AnalyticHeads:
     """(B, h, dim) per term -> the env's flat layout: per-term history, oldest first."""
     return torch.cat([history[n].flatten(1) for n in self.obs_terms], dim=-1)
 
-  # Reward r̂ -------------------------------------------------------
+  # Reward r̂ ---------------------------------------------------------------------
 
-  def reward_terms(
-    self,
-    state: torch.Tensor,
-    kin: Kin,
-    c: CommandState,
-    action: torch.Tensor,
-    prev_action: torch.Tensor,
-  ) -> dict[str, torch.Tensor]:
-    """The reward split into its bounded tracking part and its two unbounded penalties.
-
-    ``c`` is the command state the step targets. TODO(M2b): the tracking terms read the
-    motion command model's reference; twins will take that over.
-    """
-    ref = self.command_model.reference(c)
-    zero = torch.zeros_like(state[:, 0])
-    terms = {"tracking": zero, "action_rate": zero, "joint_limit": zero}
-    terms["tracking"] = sum(
-      w * torch.exp(-err(kin.bodies, ref) / std**2)
-      for w, std, err in self.tracking_terms
-    )
-    if self.action_rate_weight:
-      terms["action_rate"] = self.action_rate_weight * (
-        action - prev_action
-      ).square().sum(-1)
-    if self.limit_weight:
-      q = joint_state(state)[0]
-      violation = self._tracking.joint_limit_violation(
-        q, self.limits[:, 0], self.limits[:, 1]
-      )
-      terms["joint_limit"] = self.limit_weight * violation
-    return {k: v * self.reward_scale for k, v in terms.items()}
+  def reward_terms(self, b: Batch) -> dict[str, torch.Tensor]:
+    """Each env reward term on an imagined batch: weight * value (* dt), as the env's
+    reward manager scales it. ``b`` holds the step's resulting state, its action and the
+    command state the step targeted."""
+    return {
+      name: fn(b, **params) * (weight * self.reward_scale)
+      for name, (fn, params, weight) in self.rewards.items()
+    }

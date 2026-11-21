@@ -126,10 +126,10 @@ def make_step(heads: AnalyticHeads, command_model: CommandModel):
     x = critic_input(command_model, s, p, goal, ctx, c)
     action = actor.act(torch.cat([goal, heads.flatten_history(history)], dim=-1))
     s_next, p_next = world_model.step(s, p, action, ctx)
-    kin = heads.kinematics(s_next, p_next)
-    terms = heads.reward_terms(s_next, kin, c, action, prev_action)
+    b = heads.source.imagined(s_next, p_next, c, action, prev_action, ctx)
+    terms = heads.reward_terms(b)
     logit = world_model.termination_logit(s_next, command_model.termination_ref(c))
-    obs = heads.observation(s_next, kin, ctx, action)
+    obs = heads.observation(s_next, b.kin, ctx, action)
     obs = {n: o + noise[n] if n in noise else o for n, o in obs.items()}
     history = {
       n: torch.cat([history[n][:, 1:], obs[n][:, None]], dim=1) for n in history

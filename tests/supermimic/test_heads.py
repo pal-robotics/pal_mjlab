@@ -85,15 +85,43 @@ def test_heads_match_the_env():
     prev = last.clone()
     obs, reward, terminated, truncated, _ = env.step(action)
     next_state, next_pose = _state(env, cmd)
-    kin = heads.kinematics(next_state, next_pose)
-    terms = heads.reward_terms(next_state, kin, c, action, prev)  # c: the step's target
+    # The step's resulting state, its action and the command state it targeted.
+    b = heads.source.imagined(next_state, next_pose, c, action, prev, context)
+    terms = heads.reward_terms(b)
     torch.testing.assert_close(sum(terms.values()), reward, atol=1e-5, rtol=1e-5)
+    rm = env.reward_manager  # each term as the env weighed it (before the dt scaling)
+    for i, name in enumerate(rm.active_terms):
+      if name in terms:
+        torch.testing.assert_close(
+          terms[name] / heads.reward_scale, rm._step_reward[:, i], atol=1e-5, rtol=1e-5
+        )
+    assert set(terms) == {n for n in rm.active_terms if rm.get_term_cfg(n).weight}
 
     fresh = terminated | truncated
     if fresh.any():
       obs, _ = env.reset(env_ids=fresh.nonzero().squeeze(-1))
       resets += int(fresh.sum())
   assert resets > 0
+  env.close()
+
+
+def test_rewards_without_a_single_definition_fail_clearly():
+  """A reward term imagination cannot compute is refused, every such term listed, rather
+  than silently left out of the imagined objective."""
+  from mjlab.envs.mdp import rewards as mj_rewards
+  from mjlab.managers.reward_manager import RewardTermCfg
+
+  cfg = pal_kangaroo_grippers_supermimic_env_cfg()
+  cfg.scene.num_envs = 2
+  cfg.commands["motion"].library_path = str(LIBRARY)
+  cfg.commands["motion"].compile_kinematics = False
+  cfg.rewards["mjlab_rate"] = RewardTermCfg(func=mj_rewards.action_rate_l2, weight=-0.1)
+  cfg.rewards["alive"] = RewardTermCfg(func=mj_rewards.is_alive, weight=1.0)
+  cfg.rewards["unweighted"] = RewardTermCfg(func=mj_rewards.is_terminated, weight=0.0)
+  env = ManagerBasedRlEnv(cfg=cfg, device=get_test_device())
+  with pytest.raises(NotImplementedError, match=r"mjlab_rate .*, alive .*@imaginable") as e:
+    AnalyticHeads(env, command_model_of(env, "motion"), compile_fk=False)
+  assert "unweighted" not in str(e.value)  # weight 0: the env does not compute it either
   env.close()
 
 

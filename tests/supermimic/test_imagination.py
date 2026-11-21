@@ -117,11 +117,11 @@ def test_imaginable_terms_compute_their_function_in_the_env(env):
     obs = env.observation_manager.compute()["probe"]
     b = sim_batch(env)
     torch.testing.assert_close(obs, imagined_fn(probe)(b, scale=2.0), atol=0, rtol=0)
-    # The same state as a prediction: the same kinematics (up to the quaternion round
-    # trip of the heading state), so the same term value.
+    # The same state as a prediction: the same kinematics (up to the float32 rounding of
+    # the heading state's quaternion round trip, relative to the value), so the same term.
     imagined = source.imagined(b.state, b.pose, b.c, b.action, b.prev_action, b.context)
     for got, want in zip(imagined.kin, b.kin, strict=True):
-      torch.testing.assert_close(got, want, atol=1e-5, rtol=0)
+      torch.testing.assert_close(got, want, atol=1e-5, rtol=1e-5)
     torch.testing.assert_close(
       imagined_fn(probe)(imagined, scale=2.0), obs, atol=1e-5, rtol=0
     )

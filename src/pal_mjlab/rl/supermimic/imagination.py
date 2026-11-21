@@ -127,6 +127,9 @@ class Batch(NamedTuple):
   context: torch.Tensor
   """Sim context ξ (``ImaginationCfg.context``), (B, 0) if none."""
   spec: BatchSpec
+  memo: dict
+  """Per-batch cache: what several terms derive from this batch, computed once (e.g. a
+  motion's reference bodies). A batch lives one state (sim) or one imagined step."""
 
 
 class BatchSource:
@@ -194,6 +197,7 @@ class BatchSource:
       prev_action=am.prev_action.clone(),
       context=self.context(),
       spec=spec,
+      memo={},
     )
     self._key = (env.common_step_counter, *tensors)
     return self._batch
@@ -212,7 +216,7 @@ class BatchSource:
     return Batch(
       state=state, pose=pose, qpos=qpos, qvel=qvel, kin=self.fk_fn(qpos, qvel), c=c,
       command_model=self.command_model, action=action, prev_action=prev_action,
-      context=context, spec=self.spec,
+      context=context, spec=self.spec, memo={},
     )  # fmt: skip
 
 
