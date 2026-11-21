@@ -10,6 +10,7 @@ import pytest
 import torch
 from conftest import get_test_device
 from mjlab.envs import ManagerBasedRlEnv
+from pal_mjlab.rl.command_state import command_state_dicts, load_command_state_dicts
 from pal_mjlab.rl.supermimic.command_model import CommandModel, build_command_model
 from pal_mjlab.rl.supermimic.heads import AnalyticHeads
 from pal_mjlab.rl.supermimic.names import EnvNamesCfg
@@ -98,14 +99,25 @@ def test_model_matches_the_env(env):
   assert resets > 0
 
 
-def test_state_dict_round_trip(env):
-  model = MotionLibraryCommandModel(env, "motion")
-  saved = {k: v.clone() for k, v in model.state_dict()["sampler"].items()}
-  sampler = model.cmd.sampler
+def test_command_terms_checkpoint_their_sampler(env):
+  """The motion command's sampler is saved and restored through the command term."""
+  saved = command_state_dicts(env)
+  assert saved.keys() == {"motion"}
+  saved = {"motion": {"sampler": {k: v.clone() for k, v in saved["motion"]["sampler"].items()}}}
+  sampler = env.command_manager.get_term("motion").sampler
   sampler.update(torch.tensor([0], device=env.device), torch.tensor([0.5], device=env.device))
-  model.load_state_dict({"sampler": saved})
-  for k, v in model.state_dict()["sampler"].items():
-    assert torch.equal(v, saved[k]), k
+  load_command_state_dicts(env, saved)
+  for k, v in command_state_dicts(env)["motion"]["sampler"].items():
+    assert torch.equal(v, saved["motion"]["sampler"][k]), k
+
+
+def test_command_checkpoint_mismatch_fails_clearly(env):
+  state = command_state_dicts(env)["motion"]
+  with pytest.raises(KeyError, match="missing from the checkpoint"):
+    load_command_state_dicts(env, {})
+  with pytest.raises(KeyError, match="not in the env"):
+    load_command_state_dicts(env, {"motion": state, "other": {}})
+  load_command_state_dicts(env, {}, strict=False)  # non-strict: nothing to restore
 
 
 @pytest.mark.parametrize(

@@ -5,7 +5,8 @@ policy sees, when the episode ends. Imagination has no env, so the task provides
 ``CommandModel`` that does the same on tensors. The method only ever sees an opaque command
 state ``c``: a dict of fixed-shape tensors, (B, ...) each, that it stores in replay and hands
 back to the model. What the tensors mean (a clip and frame, a velocity command, ...) is the
-task's business.
+task's business. What the command learns across episodes (e.g. a start sampler) stays
+on the env's command term, which checkpoints it (``pal_mjlab/rl/command_state.py``).
 
 A task names its command model class in the runner config (``command_model``);
 ``build_command_model`` builds it as ``cls(env, command_name)``.
@@ -59,14 +60,6 @@ class CommandModel(Protocol):
     """(B, E) privileged critic features after (state, goal, context); E may be 0."""
     ...
 
-  # Checkpointing (whatever the command learns or keeps across episodes) ------------
-
-  def state_dict(self) -> dict:
-    ...
-
-  def load_state_dict(self, state: dict) -> None:
-    ...
-
 
 def build_command_model(
   cls: type[CommandModel] | None, env: ManagerBasedRlEnv, command_name: str
@@ -83,8 +76,7 @@ def build_command_model(
   if not isinstance(model, CommandModel):
     missing = [
       m
-      for m in ("state", "advance", "done", "goal", "termination_ref", "critic_extras",
-                "state_dict", "load_state_dict")  # fmt: skip
+      for m in ("state", "advance", "done", "goal", "termination_ref", "critic_extras")
       if not callable(getattr(model, m, None))
     ]
     raise TypeError(f"{cls.__name__} is not a CommandModel: missing {missing}.")

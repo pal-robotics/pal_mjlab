@@ -232,6 +232,15 @@ class MotionLibraryCommand(CommandTerm):
     self.metrics["error_anchor_pos"] = (rq[:, :3] - fq[:, :3]).norm(dim=-1)
     self.metrics["error_joint_pos"] = (rq[:, 7:] - fq[:, 7:]).norm(dim=-1)
 
+  # Checkpointing (``pal_mjlab/rl/command_state.py``) -----------------------------
+
+  def state_dict(self) -> dict:
+    """What the command learns across episodes: the return-based start sampler."""
+    return {"sampler": self.sampler.state_dict()}
+
+  def load_state_dict(self, state: dict) -> None:
+    self.sampler.load_state_dict(state["sampler"])
+
   def _resample_command(self, env_ids: torch.Tensor) -> None:
     self._finish_episodes(env_ids)
     n, lib, s = len(env_ids), self.library, self.sampler
