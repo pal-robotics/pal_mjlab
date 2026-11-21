@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from mjlab.envs import ManagerBasedRlEnvCfg
+from mjlab.managers.observation_manager import ObservationTermCfg
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -21,7 +22,8 @@ DEFAULT_CRITIC_GROUP = "critic"
 
 @dataclass
 class ImaginationCfg:
-  """The env's terms and observation groups that SuperMimic reads, by name.
+  """What SuperMimic reads from the env: terms and groups by name, and what the
+  single-definition terms' batch holds (``imagination.py``).
 
   Only what the env knows by name is configured here. Observation terms are recognized by
   their function instead (``heads.py``), and the actor and critic groups are the runner's
@@ -37,7 +39,16 @@ class ImaginationCfg:
   proprio_group: str = "proprio"
   """Actor group of the proprioception, predicted by the analytic observation head."""
   action_term: str = "joint_pos"
-  """Joint position action term the policy drives."""
+  """Joint position action term the policy drives; its joints are the state's."""
+  bodies: tuple[str, ...] = ()
+  """Bodies whose FK the batch holds (names without the entity prefix). Only these: FK
+  over every body the state determines costs ~50% more per imagined step on the
+  Kangaroo."""
+  sites: tuple[str, ...] = ()
+  """Sites whose FK the batch holds (names without the entity prefix)."""
+  context: ObservationTermCfg | None = None
+  """The sim context ξ: the domain-randomization parameters the world model and critic
+  see. None: no context."""
 
   @property
   def actor_groups(self) -> tuple[str, str]:

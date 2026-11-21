@@ -1,7 +1,7 @@
 """The registered SuperMimic task, driven by mjlab's ``train`` and ``play``."""
 
 import shutil
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import mjlab
@@ -16,7 +16,7 @@ from mjlab.tasks.registry import list_tasks, load_runner_cls
 from pal_mjlab.robots import kangaroo_passive_leg_joints
 from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import LIBRARY_PATH
 from pal_mjlab.rl.supermimic import SuperMimicRunner
-from pal_mjlab.rl.supermimic.names import ImaginationCfg, critic_group
+from pal_mjlab.rl.supermimic.names import critic_group
 from pal_mjlab.rl.supermimic.supermimic import (
   CriticUpdateCfg,
   PolicyUpdateCfg,
@@ -108,7 +108,8 @@ def test_train_with_other_env_names(tmp_path, monkeypatch):
     if term is not None and term.params.get("command_name") == "motion":
       term.params["command_name"] = "reference"
 
-  env.imagination = ImaginationCfg(
+  env.imagination = replace(
+    env.imagination,
     command="reference",
     failure_terms=("fell",),
     goal_group="target",
