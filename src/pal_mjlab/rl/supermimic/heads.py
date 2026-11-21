@@ -26,7 +26,7 @@ from mjlab.managers.command_manager import CommandTerm
 from pal_mjlab.utils.math.kinematics import TorchKinematics
 
 from .names import DEFAULT_CRITIC_GROUP, EnvNamesCfg
-from .state import joint_state, reference_goal, root_pose_error, state_to_qpos_qvel
+from .state import joint_state, state_to_qpos_qvel
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -247,7 +247,7 @@ class AnalyticHeads:
     last = self.library.clip_end[clip] - 1
     idx = torch.minimum(frame[:, None] + k, last[:, None])
     qp, qv = self.library.qpos[idx], self.library.qvel[idx]
-    return reference_goal(qp, qv, root_quat)
+    return self._tracking.reference_goal(qp, qv, root_quat)
 
   def critic_input(
     self,
@@ -261,7 +261,7 @@ class AnalyticHeads:
     """(ŝ, g, ξ) plus the privileged root-pose error and time left in the clip."""
     qpos, _ = state_to_qpos_qvel(state, pose)
     ref = self.library.qpos[frame]
-    err = root_pose_error(qpos[:, :3], qpos[:, 3:7], ref[:, :3], ref[:, 3:7])
+    err = self._tracking.root_pose_error(qpos[:, :3], qpos[:, 3:7], ref[:, :3], ref[:, 3:7])
     left = (self.library.clip_end[clip] - 1 - frame).float()
     time_left = (left.clamp(max=self.time_left_cap) / self.time_left_cap)[:, None]
     return torch.cat([state, goal, context, err, time_left], dim=-1)

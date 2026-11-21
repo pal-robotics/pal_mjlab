@@ -34,9 +34,9 @@ from mjlab.utils.lab_api.math import (
 
 from pal_mjlab.utils.math.kinematics import TorchKinematics
 from ..library import MotionLibrary
-from pal_mjlab.rl.supermimic.state import heading_state, reference_goal, root_pose_error
+from pal_mjlab.rl.supermimic.state import heading_state
 from .sampler import ReturnSampler
-from .tracking import BodyState
+from .tracking import BodyState, reference_goal, root_pose_error
 
 if TYPE_CHECKING:
   from mjlab.entity import Entity

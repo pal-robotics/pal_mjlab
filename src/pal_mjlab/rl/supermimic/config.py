@@ -1,9 +1,12 @@
 """Configuration of the SuperMimic runner."""
 
 from dataclasses import dataclass, field
+from typing import Annotated
 
+import tyro
 from mjlab.rl import RslRlBaseRunnerCfg
 
+from .command_model import CommandModel
 from .names import DEFAULT_CRITIC_GROUP, EnvNamesCfg
 from .supermimic import SuperMimicCfg
 
@@ -12,6 +15,10 @@ from .supermimic import SuperMimicCfg
 class SuperMimicRunnerCfg(RslRlBaseRunnerCfg):
   algorithm: SuperMimicCfg = field(default_factory=SuperMimicCfg)
   env_names: EnvNamesCfg = field(default_factory=EnvNamesCfg)
+  command_model: Annotated[type[CommandModel] | None, tyro.conf.Suppress] = None
+  """The task's ``CommandModel`` class (``command_model.py``), built as
+  ``cls(env, env_names.command)``. Required: the method knows no command. Not a CLI
+  option: it is the task's choice, like its env config."""
   obs_groups: dict[str, tuple[str, ...]] = field(
     default_factory=lambda: {
       "actor": EnvNamesCfg().actor_groups,

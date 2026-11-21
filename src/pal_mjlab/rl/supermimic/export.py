@@ -6,7 +6,7 @@ The ONNX is the actor (observation normalizer, goal encoder, decoder): input ``o
 ``obs`` as the env does, with no noise:
 
   obs = [goal, proprio]
-  goal     ``state.reference_goal`` of the next K reference frames: per frame, the reference
+  goal     the task's ``reference_goal`` (``tasks/supermimic/mdp/tracking.py``) of the next K reference frames: per frame, the reference
            positions and velocities of ``joint_names`` and the reference root orientation in
            the robot root frame (rot6d: the first two columns of its rotation matrix)
   proprio  per term in ``observation_names`` order, the last ``history_length`` control steps,

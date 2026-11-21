@@ -30,6 +30,7 @@ from mjlab.rl import RslRlVecEnvWrapper
 from tensordict import TensorDict
 from torch.utils.tensorboard import SummaryWriter
 
+from .command_model import build_command_model
 from .export import export_policy
 from .heads import AnalyticHeads
 from .names import EnvNamesCfg, critic_group, env_names_from_dict
@@ -117,6 +118,11 @@ class SuperMimicRunner:
     raw = env.unwrapped
     self.names = env_names_from_dict(train_cfg)
     critic = critic_group(train_cfg, self.names)
+    # TODO(M2a step 3): imagination and the world-model update still read (clip, frame)
+    # through the heads; they move onto this model next.
+    self.command_model = build_command_model(
+      train_cfg.get("command_model"), raw, self.names.command
+    )
     self.heads = AnalyticHeads(
       raw, compile_fk=train_cfg["compile"], names=self.names, critic_group=critic
     )
