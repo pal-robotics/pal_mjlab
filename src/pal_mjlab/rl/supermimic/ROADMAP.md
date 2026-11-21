@@ -262,9 +262,17 @@ before, plus `observation_sites`.
 Done when `rl/supermimic` imports nothing from `tasks/`, parity holds, and a missing twin
 fails with a clear message.
 
-### M3: contract tests
-- Twin consistency: each twin vs the env term's value on logged sim states.
-- `CommandModel`: `advance`/`done` vs the env command over real rollouts.
+### M3: contract tests [x] (2026-11-21)
+Reframed after M2b (no twins: the env and imagination run the same functions; what can
+differ is their inputs). `rl/supermimic/contracts.py`: `check_contract(env, steps,
+end_terms)` rolls the env out with random actions (ends and resets included) and reports
+the max error per check: each weighted reward term and each observation term on the
+simulator state rebuilt as a prediction, with the command state the env used (targeted
+for rewards, advanced for observations), and the command model's `advance` and `done`
+vs the env (exact `done` with the given episode-end terms). Terms without a single
+definition are listed as missing. A new task's test just calls it
+(`test_contracts.py`). Kangaroo, 80 steps / 8 ends: command exact, obs <= 3.3e-6,
+rewards <= 3.8e-6.
 
 ### M4: WBC with SuperMimic
 - Decide: `CommandModel` for our own `tasks/WBC` `MotionCommand` (recommended: one motion
