@@ -16,12 +16,12 @@ from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import (
   pal_kangaroo_grippers_supermimic_env_cfg,
 )
 from pal_mjlab.rl.supermimic.export import export_policy
-from pal_mjlab.rl.supermimic.names import EnvNamesCfg
+from pal_mjlab.rl.supermimic.names import ImaginationCfg
 from pal_mjlab.rl.supermimic.models import EncoderDecoderModel
 from pal_mjlab.tasks.supermimic.mdp.tracking import reference_goal
 from tensordict import TensorDict
 
-OBS_GROUPS = EnvNamesCfg().actor_groups  # the actor's input, in this order
+OBS_GROUPS = ImaginationCfg().actor_groups  # the actor's input, in this order
 LIBRARY = Path(__file__).parent / "fixtures" / "library_tiny"
 NUM_ENVS, STEPS = 2, 12
 

@@ -16,7 +16,7 @@ from mjlab.tasks.registry import list_tasks, load_runner_cls
 from pal_mjlab.robots import kangaroo_passive_leg_joints
 from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import LIBRARY_PATH
 from pal_mjlab.rl.supermimic import SuperMimicRunner
-from pal_mjlab.rl.supermimic.names import EnvNamesCfg, critic_group
+from pal_mjlab.rl.supermimic.names import ImaginationCfg, critic_group
 from pal_mjlab.rl.supermimic.supermimic import (
   CriticUpdateCfg,
   PolicyUpdateCfg,
@@ -82,7 +82,7 @@ def _renamed(terms: dict, names: dict) -> dict:
 
 def test_train_with_other_env_names(tmp_path, monkeypatch):
   """SuperMimic reads the env's command, failure term, groups and action term by the names
-  in ``agent.env_names`` / ``agent.obs_groups``, and the observation terms by function: an
+  in ``env.imagination`` / ``agent.obs_groups``, and the observation terms by function: an
   env where every one of them is named differently trains and exports the same way."""
   monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0" if get_test_device() == "cuda" else "")
   cfg = TrainConfig.from_task(TASK)
@@ -108,14 +108,14 @@ def test_train_with_other_env_names(tmp_path, monkeypatch):
     if term is not None and term.params.get("command_name") == "motion":
       term.params["command_name"] = "reference"
 
-  agent = cfg.agent
-  agent.env_names = EnvNamesCfg(
+  env.imagination = ImaginationCfg(
     command="reference",
     failure_terms=("fell",),
     goal_group="target",
     proprio_group="sensors",
     action_term="pd_targets",
   )
+  agent = cfg.agent
   agent.obs_groups = {"actor": ("target", "sensors"), "critic": ("value",)}
   agent.max_iterations = 1
   agent.compile, agent.warmup_steps, agent.replay_steps = False, 12, 60
@@ -133,10 +133,11 @@ def test_train_with_other_env_names(tmp_path, monkeypatch):
 def test_obs_groups_must_match_env_names():
   """The actor concatenates goal then proprioception: ``obs_groups`` saying otherwise is
   refused instead of silently feeding the encoder the wrong group."""
-  agent = TrainConfig.from_task(TASK).agent
+  cfg = TrainConfig.from_task(TASK)
+  agent = cfg.agent
   agent.obs_groups = {"actor": ("proprio", "goal"), "critic": ("critic",)}
   with pytest.raises(ValueError, match="goal_group, proprio_group"):
-    critic_group(asdict(agent), agent.env_names)
+    critic_group(asdict(agent), cfg.env.imagination)
 
 
 class StepOnlyViewer:

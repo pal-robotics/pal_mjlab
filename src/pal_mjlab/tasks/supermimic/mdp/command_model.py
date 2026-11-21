@@ -9,18 +9,17 @@ frame's root height and tilt. States are in the env's local frame, like the libr
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import torch
 
 from pal_mjlab.rl.supermimic.command_model import CommandState
 from pal_mjlab.rl.supermimic.state import state_to_qpos_qvel
 
-from .commands import MotionLibraryCommand
 from .tracking import BodyState, projected_gravity_z, reference_goal, root_pose_error
 
 if TYPE_CHECKING:
-  from mjlab.envs import ManagerBasedRlEnv
+  from .commands import MotionLibraryCommand
 
 __all__ = ["MotionLibraryCommandModel"]
 
@@ -28,16 +27,12 @@ __all__ = ["MotionLibraryCommandModel"]
 class MotionLibraryCommandModel:
   """``c = {"clip": (B,) long, "frame": (B,) long}``."""
 
-  def __init__(self, env: ManagerBasedRlEnv, command_name: str) -> None:
-    cmd = env.command_manager.get_term(command_name)
-    if not isinstance(cmd, MotionLibraryCommand):
-      raise TypeError(
-        f"Command {command_name!r} is a {type(cmd).__name__}, not a MotionLibraryCommand."
-      )
-    self.cmd = cast(MotionLibraryCommand, cmd)
-    self.library = self.cmd.library
-    self.num_future_frames = self.cmd.cfg.num_future_frames
-    self.time_left_cap = self.cmd.cfg.time_left_cap_s / env.step_dt
+  def __init__(self, cmd: MotionLibraryCommand) -> None:
+    """Built by the command (``MotionLibraryCommand.command_model``)."""
+    self.cmd = cmd
+    self.library = cmd.library
+    self.num_future_frames = cmd.cfg.num_future_frames
+    self.time_left_cap = cmd.cfg.time_left_cap_s / cmd._env.step_dt
 
   # Simulator side ---------------------------------------------------------------
 

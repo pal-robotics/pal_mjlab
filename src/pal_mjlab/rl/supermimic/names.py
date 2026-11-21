@@ -1,15 +1,27 @@
-"""Names of the env's terms and groups that SuperMimic reads (no other dependency, so
-every module of the package can import it)."""
+"""What SuperMimic reads from the env, configured in the env itself.
 
-from dataclasses import dataclass
+mjlab evaluates observation terms while it builds the env, before any runner exists, so
+the env's SuperMimic configuration lives in the env config (``SuperMimicEnvCfg``), not in
+the runner's. The runner and the heads read it from there.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+from mjlab.envs import ManagerBasedRlEnvCfg
+
+if TYPE_CHECKING:
+  from mjlab.envs import ManagerBasedRlEnv
 
 DEFAULT_CRITIC_GROUP = "critic"
 """The critic's observation group unless the runner's ``obs_groups`` say otherwise."""
 
 
 @dataclass
-class EnvNamesCfg:
-  """Names of the env's terms and observation groups that SuperMimic reads.
+class ImaginationCfg:
+  """The env's terms and observation groups that SuperMimic reads, by name.
 
   Only what the env knows by name is configured here. Observation terms are recognized by
   their function instead (``heads.py``), and the actor and critic groups are the runner's
@@ -33,15 +45,24 @@ class EnvNamesCfg:
     return (self.goal_group, self.proprio_group)
 
 
-def env_names_from_dict(train_cfg: dict) -> EnvNamesCfg:
-  """The runner receives its config as a dict (``asdict``); rebuild the names from it."""
-  names = dict(train_cfg.get("env_names") or {})
-  if "failure_terms" in names:
-    names["failure_terms"] = tuple(names["failure_terms"])
-  return EnvNamesCfg(**names)
+@dataclass(kw_only=True)
+class SuperMimicEnvCfg(ManagerBasedRlEnvCfg):
+  """An mjlab env config with SuperMimic's configuration."""
+
+  imagination: ImaginationCfg = field(default_factory=ImaginationCfg)
 
 
-def critic_group(train_cfg: dict, names: EnvNamesCfg) -> str:
+def imagination_cfg(env: ManagerBasedRlEnv) -> ImaginationCfg:
+  """The env's SuperMimic configuration (its config must be a ``SuperMimicEnvCfg``)."""
+  cfg = getattr(env.cfg, "imagination", None)
+  if not isinstance(cfg, ImaginationCfg):
+    raise TypeError(
+      f"SuperMimic needs a SuperMimicEnvCfg env config, got {type(env.cfg).__name__}."
+    )
+  return cfg
+
+
+def critic_group(train_cfg: dict, names: ImaginationCfg) -> str:
   """The critic's single observation group, after checking ``obs_groups`` agrees with
   ``names`` (the policy concatenates goal then proprioception)."""
   groups = train_cfg["obs_groups"]

@@ -33,15 +33,15 @@ from mjlab.rl.exporter_utils import attach_metadata_to_onnx
 from mjlab.managers.command_manager import CommandTerm
 
 from .models import EncoderDecoderModel
-from .names import EnvNamesCfg
+from .names import ImaginationCfg, imagination_cfg
 
 
 
 def policy_metadata(
-  env: ManagerBasedRlEnv, checkpoint: str = "", env_names: EnvNamesCfg | None = None
+  env: ManagerBasedRlEnv, checkpoint: str = "", env_names: ImaginationCfg | None = None
 ) -> dict:
   """Everything the robot needs to build ``obs`` and apply ``actions``."""
-  env_names = env_names or EnvNamesCfg()
+  env_names = env_names or imagination_cfg(env)
   cmd = cast(CommandTerm, env.command_manager.get_term(env_names.command))
   robot = env.scene[cmd.cfg.entity_name]
   action = cast(
@@ -106,7 +106,7 @@ def export_policy(
   actor: EncoderDecoderModel,
   path: str | Path,
   checkpoint: str = "",
-  env_names: EnvNamesCfg | None = None,
+  names: ImaginationCfg | None = None,
 ) -> None:
   """Write the actor to ``path`` as ONNX with ``policy_metadata``."""
   model = actor.as_onnx(verbose=False).to("cpu").eval()
@@ -121,4 +121,4 @@ def export_policy(
     dynamic_axes={},
     dynamo=False,
   )
-  attach_metadata_to_onnx(str(path), policy_metadata(env, checkpoint, env_names))
+  attach_metadata_to_onnx(str(path), policy_metadata(env, checkpoint, names))

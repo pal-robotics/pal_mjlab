@@ -118,7 +118,7 @@ M0, M1: done. Each next milestone keeps the Kangaroo motion task training identi
 - read the robot state from the robot entity, not `cmd.robot_qpos`
 - check `torch.compile(dynamic=False)` still works with the opaque state (fixed shape)
 
-M2a progress (uncommitted, 2026-11-21), in dependency order:
+M2a progress (done 2026-11-21, one commit per step), in dependency order:
 - [x] step 0: `rl/supermimic/command_model.py` (protocol, `build_command_model`),
   `SuperMimicRunnerCfg.command_model` (the class itself; `tyro.conf.Suppress`, so not a
   CLI option; `agent.yaml` records it as `!!python/name:...`), `tasks/supermimic/mdp/command_model.py`
@@ -148,27 +148,49 @@ M2a progress (uncommitted, 2026-11-21), in dependency order:
   checked after) and returns it as `"command"` (per transition in windows, per start
   row in starts); `replay_command_state` is gone. Nothing in `rl/supermimic` reads
   clip/frame; what is left of the motion task there is M2b (heads) and M2c (export).
-- [ ] step 5: parity run
+- [x] step 5: parity run (2026-11-21, `logs/rsl_rl/kangaroo_supermimic/2026-11-21_18-25-30_m2a_mine`,
+  the new reference for M2b): same 35 metrics as M1; it 5-20 within 0-2% (return 1.472 vs
+  1.438 at it 20); later drift both ways (it 100: WM loss 0.285 vs 0.221, episode length
+  29.4 vs 23.2). Every phase ~30% slower, env collection included: GPU shared with
+  another app during the run, not the code.
 
-**M2b, explicit twin dicts** (replace the whitelists in `heads.py:84-168`). Decided
-2026-11-21: explicit twins, in dedicated modules, not in the heads (an "imagined env"
-running the env's own term functions on predicted state was considered and rejected).
-- `rl/supermimic/twins.py`: dicts `{env term function: twin}` for mjlab builtins
-  (`joint_pos_rel`, `joint_vel_rel`, `last_action`, `builtin_sensor` gyro only,
-  `action_rate_l2`, ...)
-- `tasks/supermimic/mdp/twins.py`: the task's twins (6 tracking rewards via
-  `command_model.reference(c)`, `joint_pos_limits_hard`, `imu_projected_gravity`,
-  `sim_context` with a named layout instead of the hardcoded `ξ[1:1+nj]`)
-- keyed by function, not obs name (names are per env config; same rule as M1)
-- a twin is `twin(batch, **term.params) -> Tensor`; batch = one imagined step (state,
-  pose, kinematics, `c` + command model, action, prev action, ξ)
-- the task passes its dicts through the runner config (like `command_model`), so the
-  method imports nothing from `tasks/`
-- heads only merge the dicts (duplicate key raises), walk `cfg.rewards` and the obs
-  groups, look up twins, and raise once listing every term without a twin
-- `reward_terms` = `{term: weight * twin * dt}` per env term, not 3 fixed buckets
-- open: whether goal/critic groups go through twins too (then `CommandModel.goal` and
-  `critic_extras` could leave the protocol)
+**M2b, single-definition terms** (replace the whitelists in `heads.py`). Decided
+2026-11-21, after considering twin dicts (two definitions per term + consistency tests) and
+an "imagined env" (running mjlab's own terms on predicted state): each obs/reward term is
+defined **once**, as a pure function of one step's tensors, and the env's term is generated
+from it, so sim and imagination agree by construction.
+- `Batch`: state, pose, FK (configured bodies/sites), `c` + command model, action,
+  prev action, ξ. In imagination it is predicted; in the sim it is built from the true
+  state (`heading_state(qpos, qvel)`, `command_model.state()`, action manager, ξ term),
+  cached per step (invalidated when its inputs change, so post-reset obs are right).
+- `@imaginable` turns `fn(b, **params)` into an mjlab term `(env, **params)`; the heads
+  call `fn` on imagined batches and raise once, listing every term that is not imaginable.
+- Timing matches mjlab: rewards see the step's target `c` (command updated after rewards),
+  observations the advanced `c`.
+- Config lives in the env (mjlab evaluates obs terms while building the env, before the
+  runner): `SuperMimicEnvCfg.imagination = ImaginationCfg(...)` (today's `EnvNamesCfg`
+  fields + ξ term + FK bodies/sites). FK over all 49 computable bodies costs ~50% more
+  than the 12 tracked + IMU, so the bodies are listed.
+- The command model comes from the command term (`cmd.command_model()`), like its
+  sampler; the runner cfg's `command_model` field goes.
+- mjlab builtins used by SuperMimic tasks get imaginable versions in `rl/supermimic`
+  (`joint_pos_rel`, `joint_vel_rel`, `last_action`, IMU gyro, `action_rate_l2`); PPO tasks
+  keep mjlab's. Limit made explicit: a term needing what the state lacks (contacts) can't
+  be written, exactly as it couldn't be imagined.
+- Goal and critic groups go through the same mechanism; `CommandModel` then shrinks to
+  `state`/`advance`/`done`/`termination_ref` (+ what the task's own terms call).
+- Steps (one commit each, parity kept):
+  1. [x] config into the env: `EnvNamesCfg` became `ImaginationCfg`, on
+     `SuperMimicEnvCfg.imagination` (`names.py`; CLI `--env.imagination.*`); the runner
+     cfg lost `env_names` and `command_model`; `MotionLibraryCommand.command_model()`
+     builds the model, `command_model_of(env, name)` fetches and checks it.
+     (`--env.imagination.failure-terms X` does not parse, as `--agent.env-names...`
+     didn't before: a tyro quirk with that tuple field.)
+  2. `Batch`, `@imaginable`, sim-side batch builder + tests (no term converted)
+  3. rewards → imaginable (env cfg + heads), per-term `reward_terms`
+  4. proprio obs → imaginable, named ξ layout (`encoder_bias` slice)
+  5. goal and critic groups → imaginable, protocol shrinks, critic-layout check goes
+  6. clean-up (`heads.py` imports nothing from `tasks/`), parity vs `m2a_mine`
 
 **M2c, export**: generic metadata in the method, goal metadata from the `CommandModel`.
 
@@ -241,7 +263,7 @@ from the SOMA retargeter) is not available. A stand-in was built from two DCMR L
      --agent.algorithm.policy.num-rollouts 512 --agent.seed 42 --agent.max-iterations 100 \
      --agent.save-interval 100000 --agent.log-interval 5 --agent.run-name <name>
    ```
-3. Compare with the M1 run (`logs/rsl_rl/kangaroo_supermimic/2026-11-20_01-33-23_m1_mine`):
+3. Compare with the latest reference run (M2a: `logs/rsl_rl/kangaroo_supermimic/2026-11-21_18-25-30_m2a_mine`; M1: `2026-11-20_01-33-23_m1_mine`):
    `.venv/Scripts/python.exe -I artifacts/tools/compare_runs.py <run A> <run B>`.
    Expect agreement within a few % up to ~it 20, same curve shapes after (no bit-exactness).
    To reproduce the colleague's reference, check out `omm/wbc` in a worktree and run step 2

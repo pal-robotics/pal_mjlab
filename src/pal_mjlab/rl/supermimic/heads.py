@@ -27,7 +27,7 @@ from mjlab.managers.command_manager import CommandTerm
 from pal_mjlab.utils.math.kinematics import TorchKinematics
 
 from .command_model import CommandModel, CommandState
-from .names import DEFAULT_CRITIC_GROUP, EnvNamesCfg
+from .names import DEFAULT_CRITIC_GROUP, ImaginationCfg, imagination_cfg
 from .state import joint_state, state_to_qpos_qvel
 
 if TYPE_CHECKING:
@@ -50,14 +50,14 @@ class AnalyticHeads:
     env: ManagerBasedRlEnv,
     command_model: CommandModel,
     compile_fk: bool = True,
-    names: EnvNamesCfg | None = None,
+    names: ImaginationCfg | None = None,
     critic_group: str = DEFAULT_CRITIC_GROUP,
   ) -> None:
     """``command_model``: the task's command twin (the tracking rewards' reference);
-    ``names``: the env's term and group names (``EnvNamesCfg``'s defaults if None);
+    ``names``: the env's term and group names (the env's ``imagination`` if None);
     ``critic_group``: the critic's observation group. Observation terms are recognized by
     their function, so their names are free."""
-    names = names or EnvNamesCfg()
+    names = names or imagination_cfg(env)
     # TODO(M2): the heads still use the motion-tracking task's terms; the task boundary
     # removes this. Imported here, not at module level: importing pal_mjlab.tasks loads
     # every task, the SuperMimic one included, and that one imports this package.
