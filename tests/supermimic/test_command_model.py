@@ -127,7 +127,8 @@ def test_collector_reads_the_state_from_the_robot(env):
   from pal_mjlab.rl.supermimic.runner import SimCollector
 
   context_cfg = env.observation_manager.get_term_cfg("critic", "sim_context")
-  collector = SimCollector(env, EnvNamesCfg(), context_cfg)
+  model = MotionLibraryCommandModel(env, "motion")
+  collector = SimCollector(env, EnvNamesCfg(), context_cfg, model)
   cmd = env.command_manager.get_term("motion")
   gen = torch.Generator(device=env.device).manual_seed(1)
   env.reset()

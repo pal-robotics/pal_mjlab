@@ -23,7 +23,6 @@ from pal_mjlab.rl.supermimic.supermimic import (
   imagine,
   lambda_returns,
   make_step,
-  replay_command_state,
 )
 from pal_mjlab.rl.supermimic.world_model import window_loss
 
@@ -214,8 +213,8 @@ def test_compiled_updates_match_eager(trained):
   w = trained.replay.sample_windows(
     16, 4, torch.Generator(device=trained.device).manual_seed(4)
   )
-  c = {k: v.flatten() for k, v in replay_command_state(w).items()}
-  ref_root = trained.command_model.termination_ref(c).unflatten(0, w["frame"].shape)
+  c = {n: v.flatten(0, 1) for n, v in w["command"].items()}
+  ref_root = trained.command_model.termination_ref(c).unflatten(0, w["failure"].shape)
   args = (w["states"], w["poses"], w["actions"], w["context"], ref_root, w["failure"])
   wm = list(alg.world_model.parameters())
   losses = []

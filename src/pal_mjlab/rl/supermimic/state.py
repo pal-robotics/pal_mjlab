@@ -2,15 +2,14 @@
 
 The state is what the world model predicts and what the critic sees: root height, root
 tilt (6D rotation of the root in its heading frame), root linear and angular velocity in
-the root frame, and the positions and velocities of the motion library's joints. World x,
-y and yaw are left out: the dynamics do not depend on them. Passive joints of a closed
-chain are left out too: they are functions of the library's joints.
+the root frame, and the positions and velocities of the action joints (the joints the
+policy drives). World x, y and yaw are left out: the dynamics do not depend on them.
+Passive joints of a closed chain are left out too: they are functions of the actuated ones.
 
 The root's world pose (x, y, yaw) is carried separately and integrated from per-step
 displacements expressed in the heading frame, which is how the world model predicts it.
 
-``qpos`` and ``qvel`` are in the library's layout: the floating base as in MuJoCo, then the
-library's joints.
+``qpos`` and ``qvel`` are the floating base as in MuJoCo, then the action joints.
 """
 
 from __future__ import annotations

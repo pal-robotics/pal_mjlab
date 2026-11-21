@@ -112,18 +112,6 @@ def critic_input(
   return torch.cat([state, goal, context, extras], dim=-1)
 
 
-def replay_command_state(batch: dict[str, torch.Tensor]) -> CommandState:
-  """The command state c of replay rows.
-
-  TODO(M2a step 4): replay stores the motion command's (clip, frame) columns; it will
-  store c itself.
-  """
-  clip, frame = batch["clip"], batch["frame"]
-  if frame.dim() > clip.dim():  # windows: one clip per window, one frame per step
-    clip = clip[:, None].expand_as(frame)
-  return {"clip": clip, "frame": frame}
-
-
 def make_step(heads: AnalyticHeads, command_model: CommandModel):
   """One imagined step from ŝ_t, as a function of tensors only (so it can be compiled).
 
@@ -170,7 +158,7 @@ def imagine(
   """
   step = step or make_step(heads, command_model)
   b, gamma = start["state"].shape[0], cfg.gamma
-  ctx, c = start["context"], replay_command_state(start)
+  ctx, c = start["context"], start["command"]
 
   hs = start["history_state"]
   h = hs.shape[1]
@@ -345,8 +333,9 @@ class SuperMimic:
     wc, stats = self.cfg.world_model, {}
     for _ in range(wc.batches):
       w = replay.sample_windows(wc.batch_size, wc.window, generator)
-      c = {k: v.flatten() for k, v in replay_command_state(w).items()}
-      ref_root = self.command_model.termination_ref(c).unflatten(0, w["frame"].shape)
+      shape = w["failure"].shape  # (batch, k): c of each transition
+      c = {n: v.flatten(0, 1) for n, v in w["command"].items()}
+      ref_root = self.command_model.termination_ref(c).unflatten(0, shape)
       loss, info = self._window_loss(
         self.world_model, w["states"], w["poses"], w["actions"], w["context"],
         ref_root, w["failure"],
