@@ -34,10 +34,9 @@ from mjlab.utils.lab_api.math import (
 
 from pal_mjlab.utils.math.kinematics import TorchKinematics
 from ..library import MotionLibrary
-from pal_mjlab.rl.supermimic.state import heading_state
 from .command_model import MotionLibraryCommandModel
 from .sampler import ReturnSampler
-from .tracking import BodyState, reference_goal, root_pose_error
+from .tracking import BodyState
 
 if TYPE_CHECKING:
   from mjlab.entity import Entity
@@ -143,16 +142,16 @@ class MotionLibraryCommand(CommandTerm):
 
     Each frame is BeyondMimic's command without state estimation: reference joint
     positions and velocities, and the reference root orientation in the robot root frame
-    (6D). Frames past the clip end repeat the last frame.
+    (6D). Frames past the clip end repeat the last frame. Defined once, by the command
+    model (``MotionLibraryCommandModel.goal``), which the goal observation also uses.
     """
-    return self._cached("goal", self._compute_goal)
+    return self._cached(
+      "goal", lambda: self.command_model().goal(self._state(), self.robot_qpos)
+    )
 
-  def _compute_goal(self) -> torch.Tensor:
-    k = torch.arange(self.cfg.num_future_frames, device=self.device)
-    last = self.library.clip_end[self.clip] - 1
-    idx = torch.minimum(self.frame[:, None] + k, last[:, None])
-    qp, qv = self.library.qpos[idx], self.library.qvel[idx]  # (E, K, ·)
-    return reference_goal(qp, qv, self.robot_qpos[:, 3:7])
+  def _state(self) -> dict[str, torch.Tensor]:
+    """The command state (clip, target frame), uncopied."""
+    return {"clip": self.clip, "frame": self.frame}
 
   # Robot and reference state ----------------------------------------------------
 
@@ -188,24 +187,9 @@ class MotionLibraryCommand(CommandTerm):
     return self._cached("ref_bodies", lambda: self.bodies(self.ref_qpos, self.ref_qvel))
 
   @property
-  def heading_state(self) -> torch.Tensor:
-    return heading_state(self.robot_qpos, self.robot_qvel)
-
-  @property
-  def root_pose_error(self) -> torch.Tensor:
-    rq, fq = self.robot_qpos, self.ref_qpos
-    return root_pose_error(rq[:, :3], rq[:, 3:7], fq[:, :3], fq[:, 3:7])
-
-  @property
-  def clip_time_left(self) -> torch.Tensor:
-    """(E, 1) steps left in the clip, in [0, 1] over ``time_left_cap_s`` (critic input)."""
-    cap = self.cfg.time_left_cap_s / self._env.step_dt
-    left = (self.library.clip_end[self.clip] - 1 - self.frame).float()
-    return (left.clamp(max=cap) / cap)[:, None]
-
-  @property
   def at_clip_end(self) -> torch.Tensor:
-    return self.frame >= self.library.clip_end[self.clip] - 1
+    """The target is the clip's last frame (``MotionLibraryCommandModel.done``)."""
+    return self.command_model().done(self._state())
 
   def bodies(self, qpos: torch.Tensor, qvel: torch.Tensor) -> BodyState:
     """The tracked bodies of a state in the library's layout."""

@@ -53,6 +53,14 @@ tasks/supermimic/     the Kangaroo motion-tracking task (owns its names; fine)
 
 ## 3. What is still task-specific (audit after M1)
 
+**Status after M2b (2026-11-21):** items 1-6 are resolved (M2a: command state, command
+model, robot state from the robot; M2b: single-definition terms, named ξ parts; the
+tracking helpers live in the task). `rl/supermimic` imports nothing from `tasks/`. Left:
+item 7 (export reads `MotionLibraryCommand` attributes: M2c) and item 8 (the robot
+contract, now explicit: state joints = action joints, FK bodies/sites in
+`ImaginationCfg`; the terrain-relative height flag still stands). The audit below is kept
+as it was written.
+
 Line numbers at `8d11905`, files under `rl/supermimic/`.
 
 1. **Task imports inside the method**: `heads.py:34, 60-64` (lazy, `TODO(M2)`):
@@ -222,7 +230,25 @@ from it, so sim and imagination agree by construction.
      config (`ImaginationCfg.context`), read by the critic through `terms.context`.
      Env goal/critic obs vs the old ones: 0 / 2.4e-7. `rl/supermimic` imports nothing
      from `tasks/`.
-  6. clean-up (`heads.py` imports nothing from `tasks/`), parity vs `m2a_mine`
+  6. clean-up: `MotionLibraryCommand.goal` / `at_clip_end` call the command model (one
+     definition each); its unused `heading_state`, `root_pose_error`, `clip_time_left`
+     and the heads' `kinematics` are gone; docstrings.
+     Parity (2026-11-21, GPU not shared): `2026-11-21_22-00-42_m2b_mine` and its rerun
+     `2026-11-21_22-16-46_m2b_mine_rerun` match M1/M2a within 0-2% to it 20 (protocol
+     passed). After it 50 both sit on the worse side of M1/M2a (it 100: actor grad
+     norm 27.8 / 10.9 vs 1.1 / 1.4, WM loss 0.39 / 0.36 vs 0.29 / 0.22); run #1
+     collapsed (return -0.49), the rerun did not (0.67): not deterministic, so likely
+     run-to-run spread, but 2 vs 2 runs cannot exclude a small real change. Not the IMU:
+     the FK site frame matches the XML's (`imu` site quat composed with its body; gyro and
+     framequat on that site), and FK vs the sensors differ by <= 4.8e-6 (mjlab runs
+     forward() before observations, so the sensors are not stale); every sim value
+     changed by M2b is within 5e-6 of before. An extra M2a sample (the `b8df475` code,
+     `2026-11-21_22-38-08_m2a_mine_rerun`) went through the same rough patch at it
+     70-90 (return ~0.5, critic loss 3.6, grad norm 11-14, WM loss 0.35) and recovered
+     by it 100 (return 0.89): the late spread is the config's, not M2b's. Only M2b #1's
+     collapse has no M2a counterpart (1 of 2 vs 0 of 3 with M1). **To do
+     before long trainings:** compare several seeds over more iterations on Linux
+     (compile, num_rollouts 4096).
 
 **M2c, export**: generic metadata in the method, goal metadata from the `CommandModel`.
 
