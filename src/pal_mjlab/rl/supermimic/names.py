@@ -25,9 +25,10 @@ class ImaginationCfg:
   """What SuperMimic reads from the env: terms and groups by name, and what the
   single-definition terms' batch holds (``imagination.py``).
 
-  Only what the env knows by name is configured here. Observation terms are recognized by
-  their function instead (``heads.py``), and the actor and critic groups are the runner's
-  ``obs_groups``: ``{"actor": (goal_group, proprio_group), "critic": (<critic group>,)}``.
+  Only what the env knows by name is configured here. Observation and reward terms are
+  found by their single definition instead (``@imaginable``), and the actor and critic
+  groups are the runner's ``obs_groups``:
+  ``{"actor": (goal_group, proprio_group), "critic": (<critic group>,)}``.
   """
 
   command: str = "motion"

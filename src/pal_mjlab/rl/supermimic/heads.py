@@ -20,12 +20,9 @@ from typing import TYPE_CHECKING
 import torch
 from mjlab.utils.noise import UniformNoiseCfg
 
-from pal_mjlab.utils.math.kinematics import Kinematics
-
 from .command_model import CommandModel
 from .imagination import Batch, batch_source, imagined_fn
 from .names import DEFAULT_CRITIC_GROUP, ImaginationCfg, imagination_cfg
-from .state import state_to_qpos_qvel
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -42,8 +39,8 @@ class AnalyticHeads:
   ) -> None:
     """``command_model``: the task's command twin;
     ``names``: the env's term and group names (the env's ``imagination`` if None);
-    ``critic_group``: the critic's observation group. Observation terms are recognized by
-    their function, so their names are free."""
+    ``critic_group``: the critic's observation group. Terms are found by their single
+    definition (``imagined_fn``), so their names are free."""
     names = names or imagination_cfg(env)
     self.command_model = command_model
     self.source = batch_source(env)
@@ -127,12 +124,6 @@ class AnalyticHeads:
         "with @imaginable (rl/supermimic/imagination.py)."
       )
     return terms
-
-  # Kinematics -------------------------------------------------------------------
-
-  def kinematics(self, state: torch.Tensor, pose: torch.Tensor) -> Kinematics:
-    """The batch's FK of a (predicted) state."""
-    return self.source.fk_fn(*state_to_qpos_qvel(state, pose))
 
   # Observation ō and sensor noise η ------------------------------------------------
 
