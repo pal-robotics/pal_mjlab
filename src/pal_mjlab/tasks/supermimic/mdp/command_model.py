@@ -85,11 +85,3 @@ class MotionLibraryCommandModel:
     """Tracked reference bodies at the target frames (local frame, like the states)."""
     f = c["frame"]
     return self.cmd.bodies(self.library.qpos[f], self.library.qvel[f])
-
-  # Checkpointing: the return-based start sampler ------------------------------------
-
-  def state_dict(self) -> dict:
-    return {"sampler": self.cmd.sampler.state_dict()}
-
-  def load_state_dict(self, state: dict) -> None:
-    self.cmd.sampler.load_state_dict(state["sampler"])

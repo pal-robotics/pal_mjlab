@@ -113,7 +113,6 @@ M0, M1: done. Each next milestone keeps the Kangaroo motion task training identi
 - `advance(cmd_state)`, `goal(cmd_state, robot_state)`, `done(cmd_state)` (replaces
   clip end), `termination_ref(cmd_state)` (replaces `ref_root`),
   `critic_extras(...)` (replaces root-pose error / time left)
-- optional `state_dict` / `load_state_dict` (the sampler)
 - implement `MotionLibraryCommandModel` in `tasks/supermimic/`, moving `reference_goal`,
   `root_pose_error`, `ref_root`, time left, the export goal metadata there
 - read the robot state from the robot entity, not `cmd.robot_qpos`
@@ -131,7 +130,12 @@ M2a progress (uncommitted, 2026-11-21), in dependency order:
   qpos/qvel on the action term's entity (not `robot.data.joint_pos`, which has no free
   joint and includes the passive joints; not `root_link_*`, whose angular velocity is in
   the world frame). Bit-exact vs the command's (`test_command_model.py`).
-- [ ] step 2: checkpoint `command_model.state_dict()` instead of `cmd.sampler`
+- [x] step 2: the sampler is the command's (not the method's, not the task's): the
+  runner checkpoints every command term with `state_dict`/`load_state_dict` under
+  `"commands"` (`pal_mjlab/rl/command_state.py`, strict on resume); old checkpoints'
+  `"sampler"` key still loads. `state_dict` left the `CommandModel` protocol (the twin is
+  imagination-only). WBC's `OnlineMotionCommand` adaptive sampler is not checkpointed yet
+  (left for M4: give it `state_dict`).
 - [ ] step 3: consumers (`supermimic.py` step / imagine / world-model update) call the
   model with `c = {"clip", "frame"}` built at batch unpacking; delete `goal`, `reference`,
   `ref_root`, `critic_input`'s extras, `clip_end`, `next_frame` from `heads.py`
@@ -173,8 +177,10 @@ fails with a clear message.
 - Rough terrain: fix the terrain-relative height issue (section 3, item 8).
 
 ### Open decisions
-- Is the return-based start sampler (Appendix D.1) a method feature (generic reset
-  curriculum hook) or task-owned? Current lean: task-owned for now.
+- ~~Return-based start sampler: method or task?~~ Decided (2026-11-21): owned by the
+  command term, checkpointed per command term. Later, possibly one binned start sampler
+  with a pluggable score shared by `MotionLibraryCommand` (returns) and WBC's
+  `OnlineMotionCommand` (failure counts); decide with M4.
 - Which `MotionCommand` M4 builds on (see M4).
 
 ## 5. Dev environment (Windows laptop, RTX 3060 6 GB): read before running anything

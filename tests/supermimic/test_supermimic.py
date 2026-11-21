@@ -94,6 +94,18 @@ def test_runner_trains_saves_and_resumes(env, tmp_path):
     strict=True,
   ):
     torch.testing.assert_close(a, b)
+  # The command terms' state (the motion sampler) is checkpointed per term; checkpoints
+  # from before that held the sampler alone and still load.
+  ckpt = torch.load(tmp_path / "model_6.pt", weights_only=False)
+  assert ckpt["commands"].keys() == {"motion"}
+  sampler = env.unwrapped.command_manager.get_term("motion").sampler
+  saved = {k: v.clone() for k, v in ckpt["commands"]["motion"]["sampler"].items()}
+  ckpt["sampler"] = ckpt.pop("commands")["motion"]["sampler"]
+  torch.save(ckpt, tmp_path / "legacy.pt")
+  sampler.returns.add_(1.0)
+  resumed.load(str(tmp_path / "legacy.pt"))
+  for k, v in sampler.state_dict().items():
+    torch.testing.assert_close(v, saved[k])
   obs = runner.collector.observations()
   action = resumed.get_inference_policy(env.device)(obs)
   assert action.shape == (NUM_ENVS, env.num_actions) and action.isfinite().all()

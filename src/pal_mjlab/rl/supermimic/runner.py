@@ -31,6 +31,8 @@ from tensordict import TensorDict
 from torch.utils.tensorboard import SummaryWriter
 from mjlab.entity import Entity
 
+from pal_mjlab.rl.command_state import command_state_dicts, load_command_state_dicts
+
 from .command_model import build_command_model
 from .export import export_policy
 from .heads import AnalyticHeads
@@ -174,7 +176,7 @@ class SuperMimicRunner:
       {
         "alg": self.alg.state_dict(),
         "iter": self.current_learning_iteration,
-        "sampler": self.collector.cmd.sampler.state_dict(),
+        "commands": command_state_dicts(self.env.unwrapped),
         "common_step_counter": self.env.unwrapped.common_step_counter,
       },
       path,
@@ -204,7 +206,11 @@ class SuperMimicRunner:
       return {}
     self.alg.load_state_dict(ckpt["alg"])
     self.current_learning_iteration = ckpt["iter"]
-    self.collector.cmd.sampler.load_state_dict(ckpt["sampler"])
+    if "commands" in ckpt:
+      commands = ckpt["commands"]
+    else:  # checkpoints before command-term checkpointing held the motion sampler alone
+      commands = {self.names.command: {"sampler": ckpt["sampler"]}}
+    load_command_state_dicts(self.env.unwrapped, commands, strict=strict)
     self.env.unwrapped.common_step_counter = ckpt["common_step_counter"]
     return {}
 
