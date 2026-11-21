@@ -119,3 +119,25 @@ def test_state_dict_round_trip(env):
 def test_bad_command_models_fail_clearly(env, cls, error, match):
   with pytest.raises(error, match=match):
     build_command_model(cls, env, "motion")
+
+
+def test_collector_reads_the_state_from_the_robot(env):
+  """The collector's state (action joints on the action term's entity, no command) is the
+  one the motion command gives, bit for bit, over a rollout."""
+  from pal_mjlab.rl.supermimic.runner import SimCollector
+
+  context_cfg = env.observation_manager.get_term_cfg("critic", "sim_context")
+  collector = SimCollector(env, EnvNamesCfg(), context_cfg)
+  cmd = env.command_manager.get_term("motion")
+  gen = torch.Generator(device=env.device).manual_seed(1)
+  env.reset()
+  for _ in range(10):
+    for got, want in zip(collector.state(), _state(env, cmd), strict=True):
+      assert torch.equal(got, want)
+    action = torch.randn(
+      NUM_ENVS, env.action_manager.total_action_dim, device=env.device, generator=gen
+    )
+    _, _, terminated, truncated, _ = env.step(action)
+    done = terminated | truncated
+    if done.any():
+      env.reset(env_ids=done.nonzero().squeeze(-1))

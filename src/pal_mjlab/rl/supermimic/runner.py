@@ -29,6 +29,7 @@ from mjlab.managers.command_manager import CommandTerm
 from mjlab.rl import RslRlVecEnvWrapper
 from tensordict import TensorDict
 from torch.utils.tensorboard import SummaryWriter
+from mjlab.entity import Entity
 
 from .command_model import build_command_model
 from .export import export_policy
@@ -65,11 +66,21 @@ class SimCollector:
     self.cmd = cast(CommandTerm, env.command_manager.get_term(names.command))
     self._context = context_cfg
     self._failure_terms = names.failure_terms
+    # The state's joints are the action joints, on the action term's entity (the robot
+    # contract: state joints = action joints; passive joints of a closed chain are out).
+    # Raw qpos/qvel, not the entity's root_link_* accessors: the heading state expects
+    # MuJoCo's free-joint layout (angular velocity in the body frame, as in qvel).
+    action = env.action_manager.get_term(names.action_term)
+    robot: Entity = env.scene[action.cfg.entity_name]
+    idx, joints = robot.indexing, action.target_ids
+    self._q_adr = torch.cat([idx.free_joint_q_adr, idx.joint_q_adr[joints]])
+    self._v_adr = torch.cat([idx.free_joint_v_adr, idx.joint_v_adr[joints]])
 
   def state(self) -> tuple[torch.Tensor, torch.Tensor]:
-    qpos = self.cmd.robot_qpos.clone()
-    qpos[:, :3] -= self.env.scene.env_origins
-    return heading_state(qpos, self.cmd.robot_qvel), heading_pose(qpos)
+    qpos = self.env.sim.data.qpos[:, self._q_adr]  # advanced indexing: a copy
+    qvel = self.env.sim.data.qvel[:, self._v_adr]
+    qpos[:, :3] -= self.env.scene.env_origins  # root position in the env's local frame
+    return heading_state(qpos, qvel), heading_pose(qpos)
 
   def context(self) -> torch.Tensor:
     return self._context.func(self.env, **self._context.params)
