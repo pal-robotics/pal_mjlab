@@ -61,11 +61,13 @@ def test_model_matches_the_env(env):
     c = model.state()
     state, pose = _state(env, cmd)
 
-    # The goal and critic features the env observes.
-    goal = model.goal(c, state, pose)
-    torch.testing.assert_close(goal, obs["goal"], atol=1e-5, rtol=0)
-    extras = model.critic_extras(c, state, pose)
-    torch.testing.assert_close(extras, obs["critic"][:, -extras.shape[-1] :], atol=1e-4, rtol=0)
+    # The goal and critic features the env observes (the critic group ends with the
+    # root-pose error and the time left).
+    qpos = cmd.robot_qpos.clone()
+    qpos[:, :3] -= env.scene.env_origins
+    torch.testing.assert_close(model.goal(c, qpos), obs["goal"], atol=1e-5, rtol=0)
+    extras = torch.cat([model.root_pose_error(c, qpos), model.time_left(c)], dim=-1)
+    torch.testing.assert_close(extras, obs["critic"][:, -5:], atol=1e-4, rtol=0)
 
 
     action = 2.0 * torch.randn(

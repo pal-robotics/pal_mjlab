@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import torch
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 
-from pal_mjlab.rl.supermimic.imagination import ContextPart
-
-from .commands import MotionLibraryCommand
+from pal_mjlab.rl.supermimic.imagination import Batch, ContextPart, imaginable
 
 if TYPE_CHECKING:
   from mjlab.entity import Entity
@@ -15,35 +13,28 @@ if TYPE_CHECKING:
 
 __all__ = [
   "motion_goal",
-  "robot_heading_state",
   "motion_root_pose_error",
   "motion_time_left",
   "sim_context",
 ]
 
 
-def _command(env: ManagerBasedRlEnv, command_name: str) -> MotionLibraryCommand:
-  return cast(MotionLibraryCommand, env.command_manager.get_term(command_name))
-
-
-def motion_goal(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+@imaginable
+def motion_goal(b: Batch) -> torch.Tensor:
   """The next K reference frames: the policy's goal."""
-  return _command(env, command_name).goal
+  return b.command_model.goal(b.c, b.qpos)
 
 
-def robot_heading_state(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
-  """Heading-invariant robot state: the world model's state, seen by the critic."""
-  return _command(env, command_name).heading_state
-
-
-def motion_root_pose_error(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+@imaginable
+def motion_root_pose_error(b: Batch) -> torch.Tensor:
   """Reference root position in the robot heading frame, and the yaw error (privileged)."""
-  return _command(env, command_name).root_pose_error
+  return b.command_model.root_pose_error(b.c, b.qpos)
 
 
-def motion_time_left(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+@imaginable
+def motion_time_left(b: Batch) -> torch.Tensor:
   """Normalized steps left in the clip: the return ends at the clip end (privileged)."""
-  return _command(env, command_name).clip_time_left
+  return b.command_model.time_left(b.c)
 
 
 def sim_context(

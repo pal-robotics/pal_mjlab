@@ -1,4 +1,4 @@
-"""Analytic heads vs the simulator env: observation, reward, and imagination's critic input.
+"""Analytic heads vs the simulator env: goal, critic input, proprioception and reward.
 
 The policy must see the same inputs, and optimize the same reward, in imagination as in
 simulation. These checks run the env with random actions (episodes end and reset) and
@@ -18,7 +18,6 @@ from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import (
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommand
 from pal_mjlab.rl.supermimic.command_model import command_model_of
 from pal_mjlab.rl.supermimic.heads import AnalyticHeads
-from pal_mjlab.rl.supermimic.supermimic import critic_input
 from pal_mjlab.rl.supermimic.state import heading_pose, heading_state
 
 LIBRARY = Path(__file__).parent / "fixtures" / "library_tiny"
@@ -46,7 +45,6 @@ def test_heads_match_the_env():
   model = command_model_of(env, "motion")
   heads = AnalyticHeads(env, model, compile_fk=False)
   cmd: MotionLibraryCommand = env.command_manager.get_term("motion")
-  context_cfg = env.observation_manager.get_term_cfg("critic", "sim_context")
   gen = torch.Generator(device=env.device).manual_seed(0)
   obs, _ = env.reset()
   history = None
@@ -54,20 +52,18 @@ def test_heads_match_the_env():
   resets = 0
   for _ in range(80):
     state, pose = _state(env, cmd)
-    context = context_cfg.func(env, **context_cfg.params)
+    context = heads.source.context()
     c = model.state()
-    goal = model.goal(c, state, pose)
-    torch.testing.assert_close(goal, obs["goal"], atol=1e-5, rtol=0)
-    critic = critic_input(model, state, pose, goal, context, c)
-    torch.testing.assert_close(critic, obs["critic"], atol=1e-4, rtol=0)
+    last = env.action_manager.action.clone()
+    prev_last = env.action_manager.prev_action.clone()
+    # The env's state as imagination sees a predicted one (rebuilt from the heading state).
+    b = heads.source.imagined(state, pose, c, last, prev_last, context)
+    torch.testing.assert_close(heads.goal(b), obs["goal"], atol=1e-5, rtol=0)
+    torch.testing.assert_close(heads.critic_input(b), obs["critic"], atol=1e-4, rtol=0)
 
     # Proprioception in the env's layout. A reset env's history is backfilled with its
     # first frame (mjlab's history buffer); otherwise the newest frame is appended.
-    last = env.action_manager.action.clone()
-    prev_last = env.action_manager.prev_action.clone()
-    frame = heads.observation(
-      heads.source.imagined(state, pose, c, last, prev_last, context)
-    )
+    frame = heads.observation(b)
     filled = {n: f[:, None].expand(-1, heads.history, -1) for n, f in frame.items()}
     if history is None:
       history = filled

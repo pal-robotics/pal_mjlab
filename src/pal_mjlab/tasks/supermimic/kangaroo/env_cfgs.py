@@ -103,6 +103,7 @@ def pal_kangaroo_grippers_supermimic_env_cfg(
   motion_cmd.library_path = LIBRARY_PATH
   motion_cmd.body_names = TRACKED_BODIES
   cfg.imagination.bodies = TRACKED_BODIES
+  assert cfg.imagination.context is not None
   cfg.imagination.sites = ("imu",)
   motion_cmd.passive_joint_state = kangaroo_passive_leg_joints
 
@@ -115,7 +116,7 @@ def pal_kangaroo_grippers_supermimic_env_cfg(
   proprio["imu_projected_gravity"].params["site"] = "imu"
   cfg.rewards["joint_limit"].params["asset_cfg"] = actuated
 
-  context = cfg.observations["critic"].terms["sim_context"].params
+  context = cfg.imagination.context.params
   context["friction_asset_cfg"] = SceneEntityCfg("robot", geom_names=FOOT_GEOMS)
   context["bias_asset_cfg"] = actuated
   context["com_asset_cfg"] = SceneEntityCfg("robot", body_names=(TORSO_BODY,))

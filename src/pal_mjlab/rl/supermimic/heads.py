@@ -4,13 +4,13 @@ The paper's world model is a learned dynamics model plus reward, observation and
 termination heads, "each either learned or computed analytically". Here the reward r̂, the
 noise-free observation ō and the goal g are computed from a predicted state with forward
 kinematics and the training env's own definitions and parameters (read from its config);
-the termination d̂ is the learned head of ``WorldModel``. The command's own quantities
-(goal, episode end, termination reference, critic features) are the ``CommandModel``'s.
+the termination d̂ is the learned head of ``WorldModel``. Every term is the env's own,
+written once on a ``Batch`` (``imagination.py``): the heads name none of them.
 
 States are heading states ŝ (``state.py``) with world poses p = (x, y, yaw) in the env's
-local frame; ξ is the sim context; c is the command state (``CommandModel``). Only the
-env terms SuperMimic uses are supported; anything else raises, so
-imagination never silently optimizes a different objective than the simulator.
+local frame; ξ is the sim context; c is the command state (``CommandModel``). A term
+without a single definition raises, so imagination never silently optimizes a different
+objective than the simulator.
 """
 
 from __future__ import annotations
@@ -45,52 +45,34 @@ class AnalyticHeads:
     ``critic_group``: the critic's observation group. Observation terms are recognized by
     their function, so their names are free."""
     names = names or imagination_cfg(env)
-    # TODO(M2): the heads still use the motion-tracking task's terms; the task boundary
-    # removes this. Imported here, not at module level: importing pal_mjlab.tasks loads
-    # every task, the SuperMimic one included, and that one imports this package.
-    from pal_mjlab.tasks.supermimic.mdp import observations as sm_obs
-
     self.command_model = command_model
     self.source = batch_source(env)
     """Builds the imagined batches (``imagination.py``), with the env's FK and layout."""
     if compile_fk:
       self.source.fk_fn = torch.compile(self.source.fk.forward)
     cfg, self.device = env.cfg, env.device
+    self.noise: dict[str, tuple[float, float]] = {}
+    """Proprio name: additive uniform sensor noise (low, high)."""
 
-    # Proprioception (Table A.1): every term of the proprio group, by its single
-    # definition, with the env's params and noise; history of h frames per term.
+    # Observations: every term of the proprio, goal and critic groups, by its single
+    # definition, with the env's params. Proprioception (Table A.1) also gets the env's
+    # sensor noise and a history of h frames per term; the goal and the critic input are
+    # their groups' terms concatenated, as the env's observation manager does.
     om = env.observation_manager
     proprio = names.proprio_group
     group = cfg.observations[proprio]
     self.obs_terms: list[str] = list(group.terms)
     self.history = group.history_length or 0
-    self.obs: dict[str, tuple] = {}
-    """name: (single definition, resolved params)."""
-    self.noise: dict[str, tuple[float, float]] = {}
-    missing = []
-    for name, term in group.terms.items():
-      fn = imagined_fn(term.func)
-      if fn is None:
-        missing.append(f"{name} ({term.func.__module__}.{term.func.__qualname__})")
-        continue
-      self.obs[name] = (fn, om.get_term_cfg(proprio, name).params)  # entities resolved
-      if group.enable_corruption and term.noise is not None:
-        if not (isinstance(term.noise, UniformNoiseCfg) and term.noise.operation == "add"):
-          raise NotImplementedError(f"proprio term {name!r}: only additive uniform noise")
-        self.noise[name] = (float(term.noise.n_min), float(term.noise.n_max))
-    if missing:
-      raise NotImplementedError(
-        f"Observation terms of {proprio!r} without a single definition, so imagination "
-        f"cannot compute them: {', '.join(missing)}. Write them on a Batch with "
-        "@imaginable (rl/supermimic/imagination.py)."
-      )
+    self.obs = self._group_terms(env, proprio, noisy=True)
+    """Proprio name: (single definition, resolved params)."""
+    self.goal_terms = self._group_terms(env, names.goal_group)
+    self.critic_terms = self._group_terms(env, critic_group)
     term_dims = dict(
       zip(om.active_terms[proprio], om.group_obs_term_dim[proprio], strict=True)
     )
     self.obs_dims = {
       n: term_dims[n][-1] // max(self.history, 1) for n in self.obs_terms
     }
-    critic = cfg.observations[critic_group].terms
 
     # Reward (Table A.2): every weighted env term, by its single definition, with the
     # env's weights, params and dt scaling.
@@ -114,19 +96,37 @@ class AnalyticHeads:
       )
     self.reward_scale = env.step_dt if cfg.scale_rewards_by_dt else 1.0
 
-    # The critic's input layout (``critic_input``), recognized by the terms' functions; the
-    # reference-reading terms must read this command.
-    self.critic_terms = list(critic)
-    layout = [sm_obs.robot_heading_state, sm_obs.motion_goal, sm_obs.sim_context,
-              sm_obs.motion_root_pose_error, sm_obs.motion_time_left]  # fmt: skip
-    if [t.func for t in critic.values()] != layout:
-      raise ValueError(
-        f"The critic group {critic_group!r} must hold, in order: heading state, motion "
-        f"goal, sim context, root pose error and time left; got {self.critic_terms}."
+
+  def _group_terms(self, env: ManagerBasedRlEnv, group_name: str, noisy: bool = False) -> dict:
+    """``{term: (single definition, resolved params)}`` of an observation group, raising
+    once for every term imagination cannot compute. ``noisy``: the group's additive
+    uniform noise is imagined too (``self.noise``); otherwise the group must be noise-free
+    and without history, as imagination computes it once per step."""
+    group = env.cfg.observations[group_name]
+    om = env.observation_manager
+    terms, missing = {}, []
+    for name, term in group.terms.items():
+      fn = imagined_fn(term.func)
+      if fn is None:
+        missing.append(f"{name} ({term.func.__module__}.{term.func.__qualname__})")
+        continue
+      terms[name] = (fn, om.get_term_cfg(group_name, name).params)  # entities resolved
+      corrupted = group.enable_corruption and term.noise is not None
+      if noisy and corrupted:
+        if not (isinstance(term.noise, UniformNoiseCfg) and term.noise.operation == "add"):
+          raise NotImplementedError(f"{group_name}/{name}: only additive uniform noise")
+        self.noise[name] = (float(term.noise.n_min), float(term.noise.n_max))
+      elif not noisy and (corrupted or term.history_length or group.history_length):
+        raise NotImplementedError(
+          f"{group_name}/{name}: noise and history are only imagined for proprioception"
+        )
+    if missing:
+      raise NotImplementedError(
+        f"Observation terms of {group_name!r} without a single definition, so "
+        f"imagination cannot compute them: {', '.join(missing)}. Write them on a Batch "
+        "with @imaginable (rl/supermimic/imagination.py)."
       )
-    for name, term in critic.items():
-      if term.params.get("command_name", names.command) != names.command:
-        raise ValueError(f"critic term {name!r} reads another command than {names.command!r}")
+    return terms
 
   # Kinematics -------------------------------------------------------------------
 
@@ -135,6 +135,14 @@ class AnalyticHeads:
     return self.source.fk_fn(*state_to_qpos_qvel(state, pose))
 
   # Observation ō and sensor noise η ------------------------------------------------
+
+  def goal(self, b: Batch) -> torch.Tensor:
+    """The policy's goal: the goal group's terms on a batch, concatenated."""
+    return torch.cat([fn(b, **p) for fn, p in self.goal_terms.values()], dim=-1)
+
+  def critic_input(self, b: Batch) -> torch.Tensor:
+    """The critic's input: the critic group's terms on a batch, concatenated."""
+    return torch.cat([fn(b, **p) for fn, p in self.critic_terms.values()], dim=-1)
 
   def observation(self, b: Batch) -> dict[str, torch.Tensor]:
     """Noise-free proprioceptive frame ō per term, (B, dim) each, on a batch: the state,

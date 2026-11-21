@@ -211,7 +211,17 @@ from it, so sim and imagination agree by construction.
      when the env is built. Cost: one more FK per reset (the reset envs' IMU obs), ~35
      ms per sim step here (FK is launch-bound without `torch.compile`: ~31 ms per call
      whatever the rows), ~1% of a training iteration.
-  5. goal and critic groups → imaginable, protocol shrinks, critic-layout check goes
+  5. [x] goal and critic groups are `@imaginable` (`terms.heading_state`,
+     `terms.context`, the task's `motion_goal`, `motion_root_pose_error`,
+     `motion_time_left`); the heads concatenate each group's terms in the env's order
+     (`goal(b)`, `critic_input(b)`), and refuse noise/history outside proprioception.
+     `CommandModel` is now `state`/`advance`/`done`/`termination_ref`; the motion model
+     keeps `goal(c, qpos)`, `root_pose_error(c, qpos)`, `time_left(c)` for its terms.
+     Imagination passes the batch along (the step's observation batch is the next
+     step's goal/critic batch: still one FK per imagined step). The ξ term is its own
+     config (`ImaginationCfg.context`), read by the critic through `terms.context`.
+     Env goal/critic obs vs the old ones: 0 / 2.4e-7. `rl/supermimic` imports nothing
+     from `tasks/`.
   6. clean-up (`heads.py` imports nothing from `tasks/`), parity vs `m2a_mine`
 
 **M2c, export**: generic metadata in the method, goal metadata from the `CommandModel`.

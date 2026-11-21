@@ -74,7 +74,6 @@ def _rollout(env, steps: int, seed: int):
 def test_sim_batch_holds_what_the_env_sees(env):
   names = imagination_cfg(env)
   model = command_model_of(env, names.command)
-  context_cfg = env.observation_manager.get_term_cfg("critic", "sim_context")
   collector = SimCollector(env, names, model)
   cmd = env.command_manager.get_term("motion")
   tracked = [cmd.fk.body_names.index(f"robot/{n}") for n in names.bodies]
@@ -84,7 +83,9 @@ def test_sim_batch_holds_what_the_env_sees(env):
     assert torch.equal(b.state, state) and torch.equal(b.pose, pose)
     for k, v in model.state().items():
       assert torch.equal(b.c[k], v), k
-    assert torch.equal(b.context, context_cfg.func(env, **context_cfg.params))
+    assert torch.equal(b.context, batch_source(env).context())
+    critic = env.observation_manager.get_term_cfg("critic", "sim_context")
+    assert torch.equal(critic.func(env, **critic.params), b.context)  # the critic's ξ
     assert torch.equal(b.action, env.action_manager.action)
     assert torch.equal(b.prev_action, env.action_manager.prev_action)
     # FK in the env-local frame = the command's world-frame bodies minus the env origin.
@@ -111,7 +112,9 @@ def test_sim_batch_is_shared_within_a_state(env):
 
 def test_imaginable_terms_compute_their_function_in_the_env(env):
   assert imagined_fn(probe) is not None and imagined_fn(probe) is not probe
-  assert imagined_fn(env.observation_manager.get_term_cfg("critic", "sim_context").func) is None
+  from mjlab.envs.mdp import observations as mj_obs
+
+  assert imagined_fn(mj_obs.joint_pos_rel) is None  # mjlab's own terms: no single definition
   source = batch_source(env)
   for _ in _rollout(env, 6, seed=1):
     obs = env.observation_manager.compute()["probe"]

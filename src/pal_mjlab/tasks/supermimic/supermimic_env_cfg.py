@@ -47,11 +47,9 @@ def make_supermimic_env_cfg() -> SuperMimicEnvCfg:
   # Observations
   ##
 
-  goal_terms = {
-    "motion_goal": ObservationTermCfg(
-      func=mdp.motion_goal, params={"command_name": "motion"}
-    ),
-  }
+  # Every observation the policy and critic see is a single-definition term
+  # (``@imaginable``): SuperMimic's imagination computes each exactly as the env does.
+  goal_terms = {"motion_goal": ObservationTermCfg(func=mdp.motion_goal)}
 
   # Joint selection and sensor names are set per robot.
   proprio_terms = {
@@ -79,27 +77,22 @@ def make_supermimic_env_cfg() -> SuperMimicEnvCfg:
     "actions": ObservationTermCfg(func=sm_terms.last_action),
   }
 
+  # ξ: the domain-randomization parameters the world model and critic see
+  # (``ImaginationCfg.context``); the critic's ``sim_context`` term reads it.
+  context_term = ObservationTermCfg(
+    func=mdp.sim_context,
+    params={
+      "friction_asset_cfg": SceneEntityCfg("robot", geom_names=()),  # Set per robot.
+      "bias_asset_cfg": SceneEntityCfg("robot"),  # Set per robot.
+      "com_asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per robot.
+    },
+  )
   critic_terms = {
-    "heading_state": ObservationTermCfg(
-      func=mdp.robot_heading_state, params={"command_name": "motion"}
-    ),
-    "motion_goal": ObservationTermCfg(
-      func=mdp.motion_goal, params={"command_name": "motion"}
-    ),
-    "sim_context": ObservationTermCfg(
-      func=mdp.sim_context,
-      params={
-        "friction_asset_cfg": SceneEntityCfg("robot", geom_names=()),  # Set per robot.
-        "bias_asset_cfg": SceneEntityCfg("robot"),  # Set per robot.
-        "com_asset_cfg": SceneEntityCfg("robot", body_names=()),  # Set per robot.
-      },
-    ),
-    "root_pose_error": ObservationTermCfg(
-      func=mdp.motion_root_pose_error, params={"command_name": "motion"}
-    ),
-    "time_left": ObservationTermCfg(
-      func=mdp.motion_time_left, params={"command_name": "motion"}
-    ),
+    "heading_state": ObservationTermCfg(func=sm_terms.heading_state),
+    "motion_goal": ObservationTermCfg(func=mdp.motion_goal),
+    "sim_context": ObservationTermCfg(func=sm_terms.context),
+    "root_pose_error": ObservationTermCfg(func=mdp.motion_root_pose_error),
+    "time_left": ObservationTermCfg(func=mdp.motion_time_left),
   }
 
   observations = {
@@ -247,8 +240,7 @@ def make_supermimic_env_cfg() -> SuperMimicEnvCfg:
   }
 
   return SuperMimicEnvCfg(
-    # ξ is the critic's sim_context term (the same config, so per-robot settings apply).
-    imagination=ImaginationCfg(context=critic_terms["sim_context"]),
+    imagination=ImaginationCfg(context=context_term),
     scene=SceneCfg(terrain=TerrainEntityCfg(terrain_type="plane"), num_envs=1),
     observations=observations,
     actions=actions,
