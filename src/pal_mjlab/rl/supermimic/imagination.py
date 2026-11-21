@@ -43,6 +43,15 @@ if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
 
 
+class ContextPart(NamedTuple):
+  """A named part of the sim context ξ, as its term declares it (``context_layout``)."""
+
+  columns: slice
+  """Its columns in ξ."""
+  joint_ids: list[int] | None = None
+  """For a per-joint part: the robot joint of each column."""
+
+
 class BatchSpec:
   """Constants of the batch layout, resolved once per env: which robot joints the state
   holds, the FK's bodies and sites, the joints' defaults and limits."""
@@ -65,6 +74,12 @@ class BatchSpec:
     """(nj,) default positions of the state's joints."""
     self.joint_limits = robot.data.joint_pos_limits[0, ids].clone()
     """(nj, 2) position limits of the state's joints."""
+    self.qd0 = robot.data.default_joint_vel[0, ids].clone()
+    """(nj,) default velocities of the state's joints."""
+    self.context_parts: dict[str, ContextPart] = {}
+    """ξ's named parts (``ContextPart``), from its term's ``context_layout``."""
+    self._index: dict[tuple, slice | torch.Tensor] = {}
+    self._device = robot.data.default_joint_pos.device
     idx = robot.indexing
     self.q_adr = torch.cat([idx.free_joint_q_adr, idx.joint_q_adr[ids]])
     self.v_adr = torch.cat([idx.free_joint_v_adr, idx.joint_v_adr[ids]])
@@ -103,6 +118,42 @@ class BatchSpec:
         "a term can only read the joints the world model predicts."
       )
     return [col[i] for i in ids]
+
+  def joint_index(self, joint_ids: slice | list[int] | tuple[int, ...]) -> slice | torch.Tensor:
+    """``joint_cols`` as an index into the state's joints (a slice when it is all of them,
+    in order), cached: terms call it every step."""
+    key = ("joints", str(joint_ids) if isinstance(joint_ids, slice) else tuple(joint_ids))
+    if key not in self._index:
+      cols = self.joint_cols(joint_ids)
+      self._index[key] = (
+        slice(None)
+        if cols == list(range(len(self.joint_ids)))
+        else torch.tensor(cols, device=self._device)
+      )
+    return self._index[key]
+
+  def context_joint_index(
+    self, part: str, joint_ids: slice | list[int] | tuple[int, ...]
+  ) -> torch.Tensor:
+    """Columns of ξ holding per-joint part ``part`` for robot joints ``joint_ids``."""
+    key = ("context", part, str(joint_ids) if isinstance(joint_ids, slice) else tuple(joint_ids))
+    if key not in self._index:
+      if part not in self.context_parts:
+        raise KeyError(
+          f"The sim context declares no part {part!r} (its parts: "
+          f"{sorted(self.context_parts)}); give its term a context_layout."
+        )
+      p = self.context_parts[part]
+      if p.joint_ids is None:
+        raise ValueError(f"Context part {part!r} is not per joint.")
+      start = p.columns.start or 0
+      where = {j: start + k for k, j in enumerate(p.joint_ids)}
+      wanted = [self.joint_ids[c] for c in self.joint_cols(joint_ids)]
+      missing = [j for j in wanted if j not in where]
+      if missing:
+        raise ValueError(f"Context part {part!r} has no column for joints {missing}.")
+      self._index[key] = torch.tensor([where[j] for j in wanted], device=self._device)
+    return self._index[key]
 
 
 class Batch(NamedTuple):
@@ -157,8 +208,12 @@ class BatchSource:
       for value in self._context.params.values():
         if isinstance(value, SceneEntityCfg):
           value.resolve(env.scene)
+      layout = getattr(self._context.func, "context_layout", None)
+      if layout is not None:  # ξ's named parts, e.g. the per-joint encoder offsets
+        self.spec.context_parts = layout(env, **self._context.params)
     self._key: tuple | None = None
     self._batch: Batch | None = None
+    self._kin_key: tuple | None = None
 
   def context(self) -> torch.Tensor:
     """The simulator's ξ."""
@@ -169,8 +224,9 @@ class BatchSource:
   @torch.no_grad()
   def sim(self) -> Batch:
     """The batch of the simulator's current state, cached while its inputs (env step,
-    qpos, qvel, command state) are unchanged, so an env step's terms share one FK and a
-    reset (same step, new state) gets a new batch."""
+    qpos, qvel, command state) are unchanged: an env step's terms share one batch. Its FK
+    is cached apart, on qpos and qvel alone: the observations after the command update
+    (same state, new command state) reuse it."""
     env, spec = self.env, self.spec
     qpos = env.sim.data.qpos[:, spec.q_adr]  # advanced indexing: a copy
     qvel = env.sim.data.qvel[:, spec.v_adr]
@@ -190,7 +246,7 @@ class BatchSource:
       pose=heading_pose(qpos),
       qpos=qpos,
       qvel=qvel,
-      kin=self.fk_fn(qpos, qvel),
+      kin=self._sim_kinematics(qpos, qvel),
       c=c,
       command_model=self.command_model,
       action=am.action.clone(),
@@ -201,6 +257,18 @@ class BatchSource:
     )
     self._key = (env.common_step_counter, *tensors)
     return self._batch
+
+  def _sim_kinematics(self, qpos: torch.Tensor, qvel: torch.Tensor) -> Kinematics:
+    """FK of the simulator's state, reused while qpos and qvel are unchanged within an
+    env step (e.g. by the observations computed after the command update)."""
+    step = self.env.common_step_counter
+    if self._kin_key is not None and self._kin_key[0] == step:
+      _, old_qpos, old_qvel, kin = self._kin_key
+      if torch.equal(qpos, old_qpos) and torch.equal(qvel, old_qvel):
+        return kin
+    kin = self.fk_fn(qpos, qvel)
+    self._kin_key = (step, qpos, qvel, kin)
+    return kin
 
   def imagined(
     self,

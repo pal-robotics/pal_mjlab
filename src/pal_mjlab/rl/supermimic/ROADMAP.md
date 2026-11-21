@@ -201,7 +201,16 @@ from it, so sim and imagination agree by construction.
      `Batch.memo` caches what several terms derive (the motion's robot/reference
      bodies), and `anchor_failure` reads the sim batch too: without both, a sim step ran
      FK 4x instead of 2x (446 vs 158 ms/step at 1024 envs); now 157 vs 151 ms.
-  4. proprio obs → imaginable, named ξ layout (`encoder_bias` slice)
+  4. [x] proprio obs are `@imaginable` (`terms.py`: `joint_pos_rel` (biased via ξ's
+     `encoder_bias`), `joint_vel_rel`, `last_action`, `site_ang_vel`,
+     `site_projected_gravity`); the IMU obs are the IMU site's FK (a predicted state has
+     no sensors), env obs vs the old sensor-based ones: max 4.8e-6. ξ declares named
+     parts (`sim_context.context_layout` -> `ContextPart`s). Imagined obs see the
+     advanced `c`, as the env's; replay starts also give the history rows' command
+     states and previous actions. A joint term on joints outside the state now fails
+     when the env is built. Cost: one more FK per reset (the reset envs' IMU obs), ~35
+     ms per sim step here (FK is launch-bound without `torch.compile`: ~31 ms per call
+     whatever the rows), ~1% of a training iteration.
   5. goal and critic groups → imaginable, protocol shrinks, critic-layout check goes
   6. clean-up (`heads.py` imports nothing from `tasks/`), parity vs `m2a_mine`
 

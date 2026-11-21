@@ -74,6 +74,11 @@ def test_starts_carry_their_episode_history(seed):
   # Last action: the previous step's action (= its step + 1), zero at the episode start.
   last = st["history_last_action"][..., 0]
   torch.testing.assert_close(last, torch.where(hist[:, :, 4] == 0, 0.0, hist[:, :, 0]))
+  # And the action before it, zero unless both rows before are in the episode.
+  prev2 = st["history_prev_action"][..., 0]
+  torch.testing.assert_close(prev2, torch.where(hist[:, :, 4] <= 1, 0.0, hist[:, :, 0] - 1))
+  # The history rows' command states.
+  assert torch.equal(st["history_command"]["t"], hist[:, :, 0].long())
   # The start row's command state.
   assert torch.equal(st["command"]["t"], t0.long())
   torch.testing.assert_close(st["command"]["vec"], st["state"][:, [0, 2]])

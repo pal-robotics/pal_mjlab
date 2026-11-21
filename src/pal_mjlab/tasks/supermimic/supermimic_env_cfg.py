@@ -55,25 +55,28 @@ def make_supermimic_env_cfg() -> SuperMimicEnvCfg:
 
   # Joint selection and sensor names are set per robot.
   proprio_terms = {
+    # Single-definition terms (``@imaginable``): imagination computes each as the env
+    # does. The IMU terms are the IMU site's FK, which a predicted state has (it has no
+    # sensors), so the env's are too.
     "joint_pos": ObservationTermCfg(
-      func=mdp.joint_pos_rel,
+      func=sm_terms.joint_pos_rel,
       params={"biased": True},
       noise=Unoise(n_min=-0.01, n_max=0.01),
     ),
     "joint_vel": ObservationTermCfg(
-      func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.5, n_max=0.5)
+      func=sm_terms.joint_vel_rel, noise=Unoise(n_min=-0.5, n_max=0.5)
     ),
     "imu_ang_vel": ObservationTermCfg(
-      func=mdp.builtin_sensor,
-      params={"sensor_name": ""},
+      func=sm_terms.site_ang_vel,
+      params={"site": ""},  # Set per robot.
       noise=Unoise(n_min=-0.2, n_max=0.2),
     ),
     "imu_projected_gravity": ObservationTermCfg(
-      func=mdp.imu_projected_gravity,
-      params={"sensor_name": ""},
+      func=sm_terms.site_projected_gravity,
+      params={"site": ""},  # Set per robot.
       noise=Unoise(n_min=-0.05, n_max=0.05),
     ),
-    "actions": ObservationTermCfg(func=mdp.last_action),
+    "actions": ObservationTermCfg(func=sm_terms.last_action),
   }
 
   critic_terms = {

@@ -118,7 +118,8 @@ def make_step(heads: AnalyticHeads, command_model: CommandModel):
   The policy acts on the goal and its observation history; the world model predicts
   ŝ_{t+1}; the analytic heads give the reward terms and the next observation, to which
   the sensor noise η (sampled outside) is added; the world model's termination head gives
-  the failure probability, against the command's termination reference.
+  the failure probability, against the command's termination reference. As in the env,
+  rewards see the command state the step targeted, observations the advanced one.
   """
 
   def step(world_model, actor, s, p, prev_action, history, ctx, c, noise):
@@ -129,12 +130,13 @@ def make_step(heads: AnalyticHeads, command_model: CommandModel):
     b = heads.source.imagined(s_next, p_next, c, action, prev_action, ctx)
     terms = heads.reward_terms(b)
     logit = world_model.termination_logit(s_next, command_model.termination_ref(c))
-    obs = heads.observation(s_next, b.kin, ctx, action)
+    c_next = command_model.advance(c)
+    obs = heads.observation(b._replace(c=c_next, memo={}))
     obs = {n: o + noise[n] if n in noise else o for n, o in obs.items()}
     history = {
       n: torch.cat([history[n][:, 1:], obs[n][:, None]], dim=1) for n in history
     }
-    return x, action, s_next, p_next, terms, torch.sigmoid(logit), history
+    return x, action, s_next, p_next, c_next, terms, torch.sigmoid(logit), history
 
   return step
 
@@ -160,15 +162,17 @@ def imagine(
   b, gamma = start["state"].shape[0], cfg.gamma
   ctx, c = start["context"], start["command"]
 
-  hs = start["history_state"]
-  h = hs.shape[1]
-  flat_state = hs.flatten(0, 1)
-  kin = heads.kinematics(flat_state, start["history_pose"].flatten(0, 1))
+  h = start["history_state"].shape[1]
+  flat = lambda x: x.flatten(0, 1)  # noqa: E731  (b, h, ...) -> (b * h, ...)
   history = heads.observation(
-    flat_state,
-    kin,
-    ctx[:, None].expand(-1, h, -1).flatten(0, 1),
-    start["history_last_action"].flatten(0, 1),
+    heads.source.imagined(
+      flat(start["history_state"]),
+      flat(start["history_pose"]),
+      {n: flat(v) for n, v in start["history_command"].items()},
+      flat(start["history_last_action"]),
+      flat(start["history_prev_action"]),
+      flat(ctx[:, None].expand(-1, h, -1)),
+    )
   )
   history = heads.add_noise(history, generator)
   history = {n: o.unflatten(0, (b, h)) for n, o in history.items()}
@@ -181,7 +185,7 @@ def imagine(
   out = {k: [] for k in ("reward", "cont", "alive", "end", "head", "input")}
   for t in range(cfg.horizon):
     noise = heads.sample_noise(b, generator)
-    x, action, s_next, p_next, terms, head, history = step(
+    x, action, s_next, p_next, c_next, terms, head, history = step(
       world_model, actor, s, p, prev_action, history, ctx, c, noise
     )
     reward = sum(terms.values())
@@ -195,8 +199,7 @@ def imagine(
     ):  # fmt: skip
       out[key].append(value)
     alive = alive * (1.0 - end)
-    s, p, prev_action = s_next, p_next, action
-    c = command_model.advance(c)
+    s, p, prev_action, c = s_next, p_next, action, c_next
   goal = command_model.goal(c, s, p)
   out["input"].append(critic_input(command_model, s, p, goal, ctx, c))
 

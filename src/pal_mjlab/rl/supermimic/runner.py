@@ -33,6 +33,7 @@ from pal_mjlab.rl.command_state import command_state_dicts, load_command_state_d
 
 from .command_model import CommandModel, command_model_of
 from .export import export_policy
+from .imagination import batch_source
 from .heads import AnalyticHeads
 from .names import ImaginationCfg, critic_group, imagination_cfg
 from .replay import ReplayBuffer
@@ -62,14 +63,12 @@ class SimCollector:
     self,
     env: ManagerBasedRlEnv,
     names: ImaginationCfg,
-    context_cfg,
     command_model: CommandModel,
   ) -> None:
-    """``context_cfg``: the sim context's observation term (``AnalyticHeads.context_cfg``);
-    ``command_model``: gives the command state c each transition is scored against."""
+    """``command_model``: gives the command state c each transition is scored against."""
     self.env = env
     self.command_model = command_model
-    self._context = context_cfg
+    self._source = batch_source(env)
     self._failure_terms = names.failure_terms
     # The state's joints are the action joints, on the action term's entity (the robot
     # contract: state joints = action joints; passive joints of a closed chain are out).
@@ -88,7 +87,7 @@ class SimCollector:
     return heading_state(qpos, qvel), heading_pose(qpos)
 
   def context(self) -> torch.Tensor:
-    return self._context.func(self.env, **self._context.params)
+    return self._source.context()
 
   def observations(self) -> TensorDict:
     obs = self.env.observation_manager.compute()
@@ -138,9 +137,7 @@ class SuperMimicRunner:
       raw, self.command_model, compile_fk=train_cfg["compile"], names=self.names,
       critic_group=critic,
     )
-    self.collector = SimCollector(
-      raw, self.names, self.heads.context_cfg, self.command_model
-    )
+    self.collector = SimCollector(raw, self.names, self.command_model)
     obs = self.collector.observations()
     self.alg = SuperMimic(
       obs,
