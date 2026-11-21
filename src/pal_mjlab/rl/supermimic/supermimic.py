@@ -8,8 +8,9 @@ Each iteration, after collecting simulator transitions into the replay buffer:
                        imagined return; then Eq. 3: fit the critic to the λ-returns of
                        the same rollouts
 
-The world model holds the learned dynamics and termination head; reward, observation and
-goal are the analytic heads of ``heads.py``. The policy is deterministic and sees the
+The world model holds the learned dynamics and termination head; reward and observation
+are the analytic heads of ``heads.py``; the command (goal, its evolution, episode end,
+termination reference, privileged critic features) is the task's ``CommandModel``. The policy is deterministic and sees the
 predicted noise-free observation plus re-sampled sensor noise.
 """
 
@@ -22,7 +23,7 @@ import torch
 from rsl_rl.models import MLPModel
 from tensordict import TensorDict
 
-from .state import state_to_qpos_qvel
+from .command_model import CommandModel, CommandState
 from .models import EncoderDecoderModel
 from .replay import ReplayBuffer
 from .world_model import WorldModel, WorldModelCfg, window_loss
@@ -86,9 +87,9 @@ class Rollout:
 
   objective: torch.Tensor  # (B,) Eq. 2
   reward: torch.Tensor  # (B, H) r̂_{t+1}
-  cont: torch.Tensor  # (B, H) continuation after step t: (1 - d̂_{t+1})(1 - clip end)
-  alive: torch.Tensor  # (B, H) step t is inside the episode (before any clip end)
-  clip_end: torch.Tensor  # (B, H) step t reaches the clip's last frame
+  cont: torch.Tensor  # (B, H) continuation after step t: (1 - d̂_{t+1})(1 - end)
+  alive: torch.Tensor  # (B, H) step t is inside the episode (before any command end)
+  end: torch.Tensor  # (B, H) step t ends the episode (``CommandModel.done``)
   head_prob: torch.Tensor  # (B, H) learned failure probability
   critic_input: torch.Tensor  # (B, H + 1, D)
   value: torch.Tensor  # (B, H + 1) critic before this update
@@ -98,25 +99,48 @@ def critic_value(critic: MLPModel, x: torch.Tensor) -> torch.Tensor:
   return critic.mlp(critic.obs_normalizer(x)).squeeze(-1)
 
 
-def make_step(heads: AnalyticHeads):
+def critic_input(
+  command_model: CommandModel,
+  state: torch.Tensor,
+  pose: torch.Tensor,
+  goal: torch.Tensor,
+  context: torch.Tensor,
+  c: CommandState,
+) -> torch.Tensor:
+  """The critic's input: (ŝ, g, ξ) and the command's privileged features."""
+  extras = command_model.critic_extras(c, state, pose)
+  return torch.cat([state, goal, context, extras], dim=-1)
+
+
+def replay_command_state(batch: dict[str, torch.Tensor]) -> CommandState:
+  """The command state c of replay rows.
+
+  TODO(M2a step 4): replay stores the motion command's (clip, frame) columns; it will
+  store c itself.
+  """
+  clip, frame = batch["clip"], batch["frame"]
+  if frame.dim() > clip.dim():  # windows: one clip per window, one frame per step
+    clip = clip[:, None].expand_as(frame)
+  return {"clip": clip, "frame": frame}
+
+
+def make_step(heads: AnalyticHeads, command_model: CommandModel):
   """One imagined step from ŝ_t, as a function of tensors only (so it can be compiled).
 
   The policy acts on the goal and its observation history; the world model predicts
   ŝ_{t+1}; the analytic heads give the reward terms and the next observation, to which
   the sensor noise η (sampled outside) is added; the world model's termination head gives
-  the failure probability.
+  the failure probability, against the command's termination reference.
   """
 
-  def step(world_model, actor, s, p, prev_action, history, ctx, clip, frame, noise):
-    root_quat = state_to_qpos_qvel(s, p)[0][:, 3:7]
-    goal = heads.goal(root_quat, clip, frame)
-    x = heads.critic_input(s, p, goal, ctx, clip, frame)
+  def step(world_model, actor, s, p, prev_action, history, ctx, c, noise):
+    goal = command_model.goal(c, s, p)
+    x = critic_input(command_model, s, p, goal, ctx, c)
     action = actor.act(torch.cat([goal, heads.flatten_history(history)], dim=-1))
     s_next, p_next = world_model.step(s, p, action, ctx)
     kin = heads.kinematics(s_next, p_next)
-    ref = heads.reference(frame)
-    terms = heads.reward_terms(s_next, kin, ref, action, prev_action)
-    logit = world_model.termination_logit(s_next, heads.ref_root(frame))
+    terms = heads.reward_terms(s_next, kin, c, action, prev_action)
+    logit = world_model.termination_logit(s_next, command_model.termination_ref(c))
     obs = heads.observation(s_next, kin, ctx, action)
     obs = {n: o + noise[n] if n in noise else o for n, o in obs.items()}
     history = {
@@ -129,6 +153,7 @@ def make_step(heads: AnalyticHeads):
 
 def imagine(
   heads: AnalyticHeads,
+  command_model: CommandModel,
   world_model: WorldModel,
   actor: EncoderDecoderModel,
   critic: MLPModel,
@@ -140,12 +165,12 @@ def imagine(
   """Roll the policy out for H steps in the world model from replay states (Eq. 2).
 
   ``start`` comes from ``ReplayBuffer.sample_starts``: the start state, pose, ξ and
-  reference, and the previous rows, from which the policy's observation history is
+  command state, and the previous rows, from which the policy's observation history is
   rebuilt. ``step`` is ``make_step``'s function, possibly compiled; by default an eager one.
   """
-  step = step or make_step(heads)
+  step = step or make_step(heads, command_model)
   b, gamma = start["state"].shape[0], cfg.gamma
-  ctx, clip, frame = start["context"], start["clip"], start["frame"]
+  ctx, c = start["context"], replay_command_state(start)
 
   hs = start["history_state"]
   h = hs.shape[1]
@@ -162,35 +187,34 @@ def imagine(
   prev_action = start["history_last_action"][:, -1]
 
   s, p = start["state"], start["pose"]
-  c = torch.ones(b, device=s.device)
+  survival = torch.ones(b, device=s.device)  # ĉ: product of the continuations so far
   alive = torch.ones(b, device=s.device)
   objective = torch.zeros(b, device=s.device)
   out = {k: [] for k in ("reward", "cont", "alive", "end", "head", "input")}
   for t in range(cfg.horizon):
     noise = heads.sample_noise(b, generator)
     x, action, s_next, p_next, terms, head, history = step(
-      world_model, actor, s, p, prev_action, history, ctx, clip, frame, noise
+      world_model, actor, s, p, prev_action, history, ctx, c, noise
     )
     reward = sum(terms.values())
-    clip_end = heads.clip_end(clip, frame).float()
-    objective = objective + gamma**t * c * reward
-    cont = (1.0 - head) * (1.0 - clip_end)
-    c = c * cont
+    end = command_model.done(c).float()
+    objective = objective + gamma**t * survival * reward
+    cont = (1.0 - head) * (1.0 - end)
+    survival = survival * cont
     for key, value in (
       ("input", x), ("reward", reward), ("cont", cont), ("alive", alive),
-      ("end", clip_end), ("head", head),
+      ("end", end), ("head", head),
     ):  # fmt: skip
       out[key].append(value)
-    alive = alive * (1.0 - clip_end)
+    alive = alive * (1.0 - end)
     s, p, prev_action = s_next, p_next, action
-    frame = heads.next_frame(clip, frame)
-  root_quat = state_to_qpos_qvel(s, p)[0][:, 3:7]
-  goal = heads.goal(root_quat, clip, frame)
-  out["input"].append(heads.critic_input(s, p, goal, ctx, clip, frame))
+    c = command_model.advance(c)
+  goal = command_model.goal(c, s, p)
+  out["input"].append(critic_input(command_model, s, p, goal, ctx, c))
 
   inputs = torch.stack(out["input"], dim=1)
   value_end = critic_value(critic, inputs[:, -1])  # gradient flows into ŝ_H
-  objective = objective + gamma**cfg.horizon * c * value_end
+  objective = objective + gamma**cfg.horizon * survival * value_end
   with torch.no_grad():
     value = critic_value(critic, inputs.detach())
 
@@ -202,7 +226,7 @@ def imagine(
     reward=stack("reward"),
     cont=stack("cont"),
     alive=stack("alive"),
-    clip_end=stack("end"),
+    end=stack("end"),
     head_prob=stack("head"),
     critic_input=inputs.detach(),
     value=value,
@@ -237,6 +261,7 @@ class SuperMimic:
     self,
     obs: TensorDict,
     heads: AnalyticHeads,
+    command_model: CommandModel,
     num_actions: int,
     context_dim: int,
     state_dim: int,
@@ -250,6 +275,7 @@ class SuperMimic:
     """``actor_groups``: the actor's (goal, proprioception) observation groups;
     ``critic_group``: the critic's; ``state_dim``: the heading state's size."""
     self.cfg, self.heads, self.device = cfg, heads, device
+    self.command_model = command_model
     pc, cc, wc = cfg.policy, cfg.critic, cfg.world_model
     groups = {"actor": list(actor_groups), "critic": [critic_group]}
     self.actor = EncoderDecoderModel(
@@ -282,7 +308,7 @@ class SuperMimic:
     )
     # The imagination step and the world model's window loss are long chains of small
     # ops: compiled, each runs as a few fused kernels instead of thousands of launches.
-    self._step = make_step(heads)
+    self._step = make_step(heads, command_model)
     self._window_loss = window_loss
     if compile:
       # The compiler reads the legacy TF32 flags, which raise once TF32 was set through
@@ -298,7 +324,7 @@ class SuperMimic:
     self, start: dict[str, torch.Tensor], generator: torch.Generator | None = None
   ) -> Rollout:
     return imagine(
-      self.heads, self.world_model, self.actor, self.critic, start, self.cfg.policy,
+      self.heads, self.command_model, self.world_model, self.actor, self.critic, start, self.cfg.policy,
       generator, self._step,
     )  # fmt: skip
 
@@ -319,9 +345,8 @@ class SuperMimic:
     wc, stats = self.cfg.world_model, {}
     for _ in range(wc.batches):
       w = replay.sample_windows(wc.batch_size, wc.window, generator)
-      ref_root = self.heads.ref_root(w["frame"].flatten()).unflatten(
-        0, w["frame"].shape
-      )
+      c = {k: v.flatten() for k, v in replay_command_state(w).items()}
+      ref_root = self.command_model.termination_ref(c).unflatten(0, w["frame"].shape)
       loss, info = self._window_loss(
         self.world_model, w["states"], w["poses"], w["actions"], w["context"],
         ref_root, w["failure"],
@@ -369,7 +394,7 @@ class SuperMimic:
     target = lambda_returns(
       roll.reward, roll.cont, roll.value, self.cfg.policy.gamma, cc.lam
     )
-    keep = roll.alive > 0  # steps after a clip end have no target
+    keep = roll.alive > 0  # steps after the episode's end have no target
     x, y = roll.critic_input[:, :-1][keep], target[keep]
     # Each step's error is weighted by the survival before it, so imagined steps after a
     # predicted fall barely train the critic (the paper's Eq. 3 is unweighted).
@@ -419,7 +444,7 @@ class SuperMimic:
 def _rollout_stats(roll: Rollout, gamma: float) -> dict[str, float]:
   """Imagined reward, return and survival."""
   discount = gamma ** torch.arange(roll.reward.shape[1], device=roll.reward.device)
-  survival = (1 - roll.head_prob * roll.alive).prod(1)  # failures only, not clip ends
+  survival = (1 - roll.head_prob * roll.alive).prod(1)  # failures only, not command ends
   return {
     "imagined_reward": float((roll.reward * roll.alive).sum() / roll.alive.sum()),
     "imagined_return": float((roll.reward * roll.alive * discount).sum(1).mean()),

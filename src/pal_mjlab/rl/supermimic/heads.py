@@ -4,11 +4,12 @@ The paper's world model is a learned dynamics model plus reward, observation and
 termination heads, "each either learned or computed analytically". Here the reward r̂, the
 noise-free observation ō and the goal g are computed from a predicted state with forward
 kinematics and the training env's own definitions and parameters (read from its config);
-the termination d̂ is the learned head of ``WorldModel``.
+the termination d̂ is the learned head of ``WorldModel``. The command's own quantities
+(goal, episode end, termination reference, critic features) are the ``CommandModel``'s.
 
 States are heading states ŝ (``state.py``) with world poses p = (x, y, yaw) in the env's
-local frame; ξ is the sim context; the reference is a (clip, target frame) pair of the
-motion library. Only the env terms SuperMimic uses are supported; anything else raises, so
+local frame; ξ is the sim context; c is the command state (``CommandModel``). Only the
+env terms SuperMimic uses are supported; anything else raises, so
 imagination never silently optimizes a different objective than the simulator.
 """
 
@@ -25,6 +26,7 @@ from mjlab.managers.command_manager import CommandTerm
 
 from pal_mjlab.utils.math.kinematics import TorchKinematics
 
+from .command_model import CommandModel, CommandState
 from .names import DEFAULT_CRITIC_GROUP, EnvNamesCfg
 from .state import joint_state, state_to_qpos_qvel
 
@@ -46,11 +48,13 @@ class AnalyticHeads:
   def __init__(
     self,
     env: ManagerBasedRlEnv,
+    command_model: CommandModel,
     compile_fk: bool = True,
     names: EnvNamesCfg | None = None,
     critic_group: str = DEFAULT_CRITIC_GROUP,
   ) -> None:
-    """``names``: the env's term and group names (``EnvNamesCfg``'s defaults if None);
+    """``command_model``: the task's command twin (the tracking rewards' reference);
+    ``names``: the env's term and group names (``EnvNamesCfg``'s defaults if None);
     ``critic_group``: the critic's observation group. Observation terms are recognized by
     their function, so their names are free."""
     names = names or EnvNamesCfg()
@@ -62,12 +66,10 @@ class AnalyticHeads:
     from pal_mjlab.tasks.supermimic.mdp import tracking
 
     self._tracking = tracking
+    self.command_model = command_model
     cfg, self.device = env.cfg, env.device
     cmd = cast(CommandTerm, env.command_manager.get_term(names.command))
     robot = env.scene[cmd.cfg.entity_name]
-    self.library = cmd.library
-    self.num_future_frames = cmd.cfg.num_future_frames
-    self.time_left_cap = cmd.cfg.time_left_cap_s / env.step_dt
 
     # Proprioception (Table A.1): q - q0 (with the calibration offset), q̇, IMU angular
     # velocity, projected gravity, previous action; history of h frames per term.
@@ -181,17 +183,6 @@ class AnalyticHeads:
     bodies = self._tracking.BodyState(k.body_pos, k.body_quat, k.body_lin_vel, k.body_ang_vel)
     return Kin(bodies, k.site_quat[:, 0], k.site_ang_vel[:, 0])
 
-  @torch.no_grad()
-  def reference(self, frame: torch.Tensor) -> BodyState:
-    """Reference bodies at the target frames (local frame, like the logged states)."""
-    k = self._fk(self.library.qpos[frame], self.library.qvel[frame])
-    return self._tracking.BodyState(k.body_pos, k.body_quat, k.body_lin_vel, k.body_ang_vel)
-
-  def ref_root(self, frame: torch.Tensor) -> torch.Tensor:
-    """(B, 2) reference root height and gravity-z: the termination head's goal input."""
-    qp = self.library.qpos[frame]
-    return torch.stack([qp[:, 2], self._tracking.projected_gravity_z(qp[:, 3:7])], dim=-1)
-
   # Observation ō and sensor noise η ------------------------------------------------
 
   def observation(
@@ -237,46 +228,22 @@ class AnalyticHeads:
     """(B, h, dim) per term -> the env's flat layout: per-term history, oldest first."""
     return torch.cat([history[n].flatten(1) for n in self.obs_terms], dim=-1)
 
-  # Goal and critic input ----------------------------------------------------------
-
-  def goal(
-    self, root_quat: torch.Tensor, clip: torch.Tensor, frame: torch.Tensor
-  ) -> torch.Tensor:
-    """K future reference frames from the target frame on; past the clip end, the last."""
-    k = torch.arange(self.num_future_frames, device=self.device)
-    last = self.library.clip_end[clip] - 1
-    idx = torch.minimum(frame[:, None] + k, last[:, None])
-    qp, qv = self.library.qpos[idx], self.library.qvel[idx]
-    return self._tracking.reference_goal(qp, qv, root_quat)
-
-  def critic_input(
-    self,
-    state: torch.Tensor,
-    pose: torch.Tensor,
-    goal: torch.Tensor,
-    context: torch.Tensor,
-    clip: torch.Tensor,
-    frame: torch.Tensor,
-  ) -> torch.Tensor:
-    """(ŝ, g, ξ) plus the privileged root-pose error and time left in the clip."""
-    qpos, _ = state_to_qpos_qvel(state, pose)
-    ref = self.library.qpos[frame]
-    err = self._tracking.root_pose_error(qpos[:, :3], qpos[:, 3:7], ref[:, :3], ref[:, 3:7])
-    left = (self.library.clip_end[clip] - 1 - frame).float()
-    time_left = (left.clamp(max=self.time_left_cap) / self.time_left_cap)[:, None]
-    return torch.cat([state, goal, context, err, time_left], dim=-1)
-
-  # Reward r̂ and termination -------------------------------------------------------
+  # Reward r̂ -------------------------------------------------------
 
   def reward_terms(
     self,
     state: torch.Tensor,
     kin: Kin,
-    ref: BodyState,
+    c: CommandState,
     action: torch.Tensor,
     prev_action: torch.Tensor,
   ) -> dict[str, torch.Tensor]:
-    """The reward split into its bounded tracking part and its two unbounded penalties."""
+    """The reward split into its bounded tracking part and its two unbounded penalties.
+
+    ``c`` is the command state the step targets. TODO(M2b): the tracking terms read the
+    motion command model's reference; twins will take that over.
+    """
+    ref = self.command_model.reference(c)
     zero = torch.zeros_like(state[:, 0])
     terms = {"tracking": zero, "action_rate": zero, "joint_limit": zero}
     terms["tracking"] = sum(
@@ -294,10 +261,3 @@ class AnalyticHeads:
       )
       terms["joint_limit"] = self.limit_weight * violation
     return {k: v * self.reward_scale for k, v in terms.items()}
-
-  def clip_end(self, clip: torch.Tensor, frame: torch.Tensor) -> torch.Tensor:
-    """The step that targets the clip's last frame ends the episode."""
-    return frame >= self.library.clip_end[clip] - 1
-
-  def next_frame(self, clip: torch.Tensor, frame: torch.Tensor) -> torch.Tensor:
-    return torch.minimum(frame + 1, self.library.clip_end[clip] - 1)

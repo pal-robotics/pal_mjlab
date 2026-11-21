@@ -1,4 +1,4 @@
-"""Analytic heads vs the simulator env: observation, goal, critic input, reward, clip end.
+"""Analytic heads vs the simulator env: observation, reward, and imagination's critic input.
 
 The policy must see the same inputs, and optimize the same reward, in imagination as in
 simulation. These checks run the env with random actions (episodes end and reset) and
@@ -16,7 +16,9 @@ from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import (
   pal_kangaroo_grippers_supermimic_env_cfg,
 )
 from pal_mjlab.tasks.supermimic.mdp import MotionLibraryCommand
+from pal_mjlab.tasks.supermimic.mdp.command_model import MotionLibraryCommandModel
 from pal_mjlab.rl.supermimic.heads import AnalyticHeads
+from pal_mjlab.rl.supermimic.supermimic import critic_input
 from pal_mjlab.rl.supermimic.state import heading_pose, heading_state
 
 LIBRARY = Path(__file__).parent / "fixtures" / "library_tiny"
@@ -41,7 +43,8 @@ def _state(env: ManagerBasedRlEnv, cmd: MotionLibraryCommand):
 
 def test_heads_match_the_env():
   env = _env()
-  heads = AnalyticHeads(env, compile_fk=False)
+  model = MotionLibraryCommandModel(env, "motion")
+  heads = AnalyticHeads(env, model, compile_fk=False)
   cmd: MotionLibraryCommand = env.command_manager.get_term("motion")
   context_cfg = env.observation_manager.get_term_cfg("critic", "sim_context")
   gen = torch.Generator(device=env.device).manual_seed(0)
@@ -52,9 +55,10 @@ def test_heads_match_the_env():
   for _ in range(80):
     state, pose = _state(env, cmd)
     context = context_cfg.func(env, **context_cfg.params)
-    goal = heads.goal(cmd.robot_qpos[:, 3:7], cmd.clip, cmd.frame)
+    c = model.state()
+    goal = model.goal(c, state, pose)
     torch.testing.assert_close(goal, obs["goal"], atol=1e-5, rtol=0)
-    critic = heads.critic_input(state, pose, goal, context, cmd.clip, cmd.frame)
+    critic = critic_input(model, state, pose, goal, context, c)
     torch.testing.assert_close(critic, obs["critic"], atol=1e-4, rtol=0)
 
     # Proprioception in the env's layout. A reset env's history is backfilled with its
@@ -78,15 +82,12 @@ def test_heads_match_the_env():
     action = 2.0 * torch.randn(
       NUM_ENVS, env.action_manager.total_action_dim, device=env.device, generator=gen
     )
-    target, clip, prev = cmd.frame.clone(), cmd.clip.clone(), last.clone()
+    prev = last.clone()
     obs, reward, terminated, truncated, _ = env.step(action)
     next_state, next_pose = _state(env, cmd)
     kin = heads.kinematics(next_state, next_pose)
-    ref = heads.reference(target)
-    terms = heads.reward_terms(next_state, kin, ref, action, prev)
+    terms = heads.reward_terms(next_state, kin, c, action, prev)  # c: the step's target
     torch.testing.assert_close(sum(terms.values()), reward, atol=1e-5, rtol=1e-5)
-    tm = env.termination_manager
-    assert torch.equal(heads.clip_end(clip, target), tm.get_term("motion_end"))
 
     fresh = terminated | truncated
     if fresh.any():
@@ -107,5 +108,5 @@ def test_heads_refuse_other_joints_than_the_library():
   )
   env = ManagerBasedRlEnv(cfg=cfg, device=get_test_device())
   with pytest.raises(ValueError, match="motion library's joints"):
-    AnalyticHeads(env, compile_fk=False)
+    AnalyticHeads(env, MotionLibraryCommandModel(env, "motion"), compile_fk=False)
   env.close()

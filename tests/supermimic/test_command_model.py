@@ -12,9 +12,8 @@ from conftest import get_test_device
 from mjlab.envs import ManagerBasedRlEnv
 from pal_mjlab.rl.command_state import command_state_dicts, load_command_state_dicts
 from pal_mjlab.rl.supermimic.command_model import CommandModel, build_command_model
-from pal_mjlab.rl.supermimic.heads import AnalyticHeads
 from pal_mjlab.rl.supermimic.names import EnvNamesCfg
-from pal_mjlab.rl.supermimic.state import heading_pose, heading_state, state_to_qpos_qvel
+from pal_mjlab.rl.supermimic.state import heading_pose, heading_state
 from pal_mjlab.tasks.supermimic.kangaroo.env_cfgs import (
   pal_kangaroo_grippers_supermimic_env_cfg,
 )
@@ -54,7 +53,6 @@ def test_task_config_names_the_motion_model(env):
 
 def test_model_matches_the_env(env):
   model = MotionLibraryCommandModel(env, "motion")
-  heads = AnalyticHeads(env, compile_fk=False)
   cmd = model.cmd
   tm = env.termination_manager
   gen = torch.Generator(device=env.device).manual_seed(0)
@@ -70,16 +68,6 @@ def test_model_matches_the_env(env):
     extras = model.critic_extras(c, state, pose)
     torch.testing.assert_close(extras, obs["critic"][:, -extras.shape[-1] :], atol=1e-4, rtol=0)
 
-    # Identical to the heads it replaces (step 3 must be a pure move).
-    root_quat = state_to_qpos_qvel(state, pose)[0][:, 3:7]  # as imagination calls it
-    assert torch.equal(goal, heads.goal(root_quat, c["clip"], c["frame"]))
-    context = torch.zeros(NUM_ENVS, 0, device=env.device)
-    critic = heads.critic_input(state, pose, goal, context, c["clip"], c["frame"])
-    assert torch.equal(extras, critic[:, -extras.shape[-1] :])
-    assert torch.equal(model.termination_ref(c), heads.ref_root(c["frame"]))
-    ref, ref_heads = model.reference(c), heads.reference(c["frame"])
-    for a, b in zip(ref, ref_heads, strict=True):
-      torch.testing.assert_close(a, b, atol=1e-6, rtol=0)
 
     action = 2.0 * torch.randn(
       NUM_ENVS, env.action_manager.total_action_dim, device=env.device, generator=gen
