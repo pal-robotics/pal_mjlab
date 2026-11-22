@@ -274,11 +274,17 @@ def feet_air_time(
   command_threshold: float = 0.5,
   contact_height: float = FOOT_CONTACT["contact_height"],
   contact_width: float = FOOT_CONTACT["contact_width"],
+  edge_width: float = 0.01,
 ) -> tuple[torch.Tensor, dict]:
-  """mjlab's ``feet_air_time``: the feet whose current time in the air is in range."""
+  """mjlab's ``feet_air_time`` (the feet whose current time in the air is in range), with
+  soft edges: mjlab's hard window has no gradient, so imagination could not see it. Each
+  foot scores sigmoid((air - min) / w) * sigmoid((max - air) / w), w = ``edge_width`` (s);
+  the air time follows the smooth contact proxy, so the foot's height carries the gradient."""
   _, _, contact = _feet(b, asset_cfg, contact_height, contact_width)
   air = (memory["air_time"] + b.spec.step_dt) * (1.0 - contact)
-  in_range = ((air > threshold_min) & (air < threshold_max)).float()
+  in_range = torch.sigmoid((air - threshold_min) / edge_width) * torch.sigmoid(
+    (threshold_max - air) / edge_width
+  )
   reward = torch.sum(in_range, dim=1) * _active(b, command_threshold)
   return reward, {"air_time": air}
 
