@@ -78,6 +78,8 @@ class Kinematics(NamedTuple):
   body_ang_vel: torch.Tensor
   site_quat: torch.Tensor
   site_ang_vel: torch.Tensor
+  site_pos: torch.Tensor
+  site_lin_vel: torch.Tensor
 
 
 # Joint types as plain ints: comparing an int with a pybind11 mujoco enum is not traced
@@ -188,6 +190,7 @@ class TorchKinematics:
     self._out_bodies = [index[b] for b in body_ids]
     self._site_body = [index[int(model.site_bodyid[s])] for s in site_ids]
     self._site_quat = self._t(np.asarray(model.site_quat[site_ids]).reshape(-1, 4))
+    self._site_pos = self._t(np.asarray(model.site_pos[site_ids]).reshape(-1, 3))
     self.body_names = tuple(body_names)
     self.site_names = tuple(site_names)
     self.joint_names = None if joint_names is None else tuple(joint_names)
@@ -263,9 +266,19 @@ class TorchKinematics:
       bq = torch.stack([quat[k] for k in sb], dim=1)
       site_quat = quat_mul(bq, self._site_quat.expand(batch, -1, -1))
       site_ang = torch.stack([ang[k] for k in sb], dim=1)
+      # The site's origin on its rigid body: offset rotated into the world, and the body
+      # origin's velocity plus ω × offset.
+      offset = quat_apply(bq, self._site_pos.expand(batch, -1, -1))
+      site_pos = torch.stack([pos[k] for k in sb], dim=1) + offset
+      site_lin = torch.stack([lin[k] for k in sb], dim=1) + torch.linalg.cross(
+        site_ang, offset, dim=-1
+      )
     else:
       site_quat, site_ang = qpos.new_zeros(batch, 0, 4), qpos.new_zeros(batch, 0, 3)
-    return Kinematics(body_pos, body_quat, body_lin, body_ang, site_quat, site_ang)
+      site_pos, site_lin = qpos.new_zeros(batch, 0, 3), qpos.new_zeros(batch, 0, 3)
+    return Kinematics(
+      body_pos, body_quat, body_lin, body_ang, site_quat, site_ang, site_pos, site_lin
+    )
 
   __call__ = forward
 

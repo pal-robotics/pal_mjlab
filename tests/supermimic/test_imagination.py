@@ -12,6 +12,7 @@ import torch
 from conftest import get_test_device
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.managers.observation_manager import ObservationGroupCfg, ObservationTermCfg
+from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from pal_mjlab.rl.supermimic.command_model import command_model_of
 from pal_mjlab.rl.supermimic.imagination import (
@@ -19,7 +20,9 @@ from pal_mjlab.rl.supermimic.imagination import (
   batch_source,
   imaginable,
   imagined_fn,
+  reward_memory,
   sim_batch,
+  term_memory,
 )
 from pal_mjlab.rl.supermimic.names import imagination_cfg
 from pal_mjlab.rl.supermimic.runner import SimCollector
@@ -37,6 +40,13 @@ def probe(b: Batch, scale: float) -> torch.Tensor:
   return scale * torch.stack([b.state[:, 0], b.kin.site_quat[:, 0, 0]], dim=-1)
 
 
+@imaginable(memory=lambda b: {"steps": torch.zeros(b.state.shape[0], device=b.state.device)})
+def steps_alive(b: Batch, memory: dict) -> tuple[torch.Tensor, dict]:
+  """A toy stateful reward: the number of steps since the episode started."""
+  steps = memory["steps"] + 1.0
+  return steps, {"steps": steps}
+
+
 @pytest.fixture(scope="module")
 def env():
   cfg = pal_kangaroo_grippers_supermimic_env_cfg()
@@ -44,6 +54,7 @@ def env():
   motion = cfg.commands["motion"]
   motion.library_path = str(LIBRARY)
   motion.compile_kinematics = False
+  cfg.rewards["steps_alive"] = RewardTermCfg(func=steps_alive, weight=1e-9)
   cfg.observations["probe"] = ObservationGroupCfg(
     terms={"x": ObservationTermCfg(func=probe, params={"scale": 2.0})},
     concatenate_terms=True,
@@ -144,3 +155,30 @@ def test_spec_maps_env_joints_to_state_columns(env):
   with pytest.raises(KeyError, match="ImaginationCfg.bodies"):
     spec.body("nope")
   assert len(robot.joint_names) == spec.num_robot_joints
+
+
+def test_stateful_terms_keep_their_memory(env):
+  """A stateful reward counts, resets with its episode, and is recomputed from the
+  recorded memory exactly as the env computed it (as imagination and the contract do)."""
+  from pal_mjlab.rl.supermimic.command_model import command_model_of
+  from pal_mjlab.rl.supermimic.heads import AnalyticHeads
+
+  heads = AnalyticHeads(env, command_model_of(env, "motion"), compile_fk=False)
+  rm = env.reward_manager
+  i = rm.active_terms.index("steps_alive")
+  env.reset()
+  expected = torch.zeros(env.num_envs, device=env.device)
+  zero = torch.zeros(env.num_envs, env.action_manager.total_action_dim, device=env.device)
+  for _ in range(5):
+    memory = reward_memory(env)
+    assert torch.equal(term_memory(memory, "steps_alive")["steps"], expected)
+    env.step(zero)
+    expected = expected + 1
+    torch.testing.assert_close(rm._step_reward[:, i] / 1e-9, expected)
+    b = sim_batch(env)
+    terms, nxt = heads.reward_terms(b, memory)
+    torch.testing.assert_close(terms["steps_alive"] / (1e-9 * heads.reward_scale), expected)
+    assert torch.equal(nxt["steps_alive/steps"], expected)
+  env.reset(env_ids=torch.tensor([0], device=env.device))
+  assert reward_memory(env)["steps_alive/steps"][0] == 0  # reset with its episode
+  assert reward_memory(env)["steps_alive/steps"][1] == 5

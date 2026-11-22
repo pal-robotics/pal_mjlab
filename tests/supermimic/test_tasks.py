@@ -28,9 +28,13 @@ LIBRARY = Path(__file__).parent / "fixtures" / "library_tiny"
 TASK = "Mjlab-SuperMimic-Flat-Pal-Kangaroo-Grippers"
 
 
+VELOCITY_TASK = "Mjlab-SuperMimic-Velocity-Flat-Pal-Kangaroo"
+
+
 def test_registered_task():
-  assert [t for t in list_tasks() if "SuperMimic" in t] == [TASK]
+  assert sorted(t for t in list_tasks() if "SuperMimic" in t) == sorted([TASK, VELOCITY_TASK])
   assert load_runner_cls(TASK) is SuperMimicRunner
+  assert load_runner_cls(VELOCITY_TASK) is SuperMimicRunner
 
 
 def test_train_cli_overrides():

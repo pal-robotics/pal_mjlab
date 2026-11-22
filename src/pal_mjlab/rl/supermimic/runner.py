@@ -23,6 +23,7 @@ import time
 from pathlib import Path
 
 import torch
+from torch.utils._triton import has_triton
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import RslRlVecEnvWrapper
 from tensordict import TensorDict
@@ -33,7 +34,7 @@ from pal_mjlab.rl.command_state import command_state_dicts, load_command_state_d
 
 from .command_model import CommandModel, command_model_of
 from .export import export_policy
-from .imagination import batch_source
+from .imagination import batch_source, reward_memory
 from .heads import AnalyticHeads
 from .names import ImaginationCfg, critic_group, imagination_cfg
 from .replay import ReplayBuffer
@@ -102,6 +103,7 @@ class SimCollector:
       "action": action,
       "context": self.context(),
       "command": self.command_model.state(),
+      "memory": reward_memory(env),  # before the step: what its rewards start from
     }
     _, reward, terminated, truncated, _ = env.step(action)
     t["next_state"], t["next_pose"] = self.state()  # terminal state where done
@@ -133,8 +135,12 @@ class SuperMimicRunner:
     self.names = imagination_cfg(raw)
     critic = critic_group(train_cfg, self.names)
     self.command_model = command_model_of(raw, self.names.command)
+    compile_ = train_cfg["compile"]
+    if compile_ and not has_triton():  # e.g. Windows: torch.compile cannot run
+      print("[WARN] SuperMimic: compile requested but Triton is missing; running eager.")
+      compile_ = False
     self.heads = AnalyticHeads(
-      raw, self.command_model, compile_fk=train_cfg["compile"], names=self.names,
+      raw, self.command_model, compile_fk=compile_, names=self.names,
       critic_group=critic,
     )
     self.collector = SimCollector(raw, self.names, self.command_model)
@@ -148,7 +154,7 @@ class SuperMimicRunner:
       self.collector.state()[0].shape[-1],
       _from_dict(train_cfg),
       device,
-      compile=train_cfg["compile"],
+      compile=compile_,
       actor_groups=self.names.actor_groups,
       critic_group=critic,
     )
@@ -218,7 +224,6 @@ class SuperMimicRunner:
     self, num_learning_iterations: int, init_at_random_ep_len: bool = False
   ) -> None:
     """Train until ``num_learning_iterations`` iterations in total (resumes count)."""
-    del init_at_random_ep_len  # episodes start where the command's reset puts them
     cfg, alg, raw = self.cfg, self.alg, self.env.unwrapped
     if raw.cfg.auto_reset:
       raise ValueError("SuperMimic stores terminal states: set env auto_reset=False.")
@@ -229,6 +234,10 @@ class SuperMimicRunner:
     self.writer = SummaryWriter(self.log_dir) if self.log_dir else None
 
     obs = self.start_collection()
+    if init_at_random_ep_len and cfg.get("random_episode_start", False):  # as rsl_rl's PPO
+      raw.episode_length_buf = torch.randint_like(
+        raw.episode_length_buf, high=int(raw.max_episode_length)
+      )
     for _ in range(cfg["warmup_steps"]):
       obs, _ = self._collect(obs)
 
@@ -243,9 +252,16 @@ class SuperMimicRunner:
         budget -= 1.0
       t1 = time.perf_counter()
       alg.set_iteration(it)
-      self._record(alg.update_world_model(self.replay, self.generator), "world_model")
+      wm = alg.update_world_model(self.replay, self.generator)
       t2 = time.perf_counter()
-      self._record(alg.update_policy(self.replay, self.generator), "policy")
+      pol = alg.update_policy(self.replay, self.generator)
+      # Always defined: a NaN or inf here poisons every network; stop instead of logging
+      # around it (the stats' NaN filter is for the critic's empty batches).
+      for name, value in (("world-model loss", wm["loss"]), ("objective", pol["objective"])):
+        if not math.isfinite(value):
+          raise FloatingPointError(f"iteration {it}: the {name} is {value}.")
+      self._record(wm, "world_model")
+      self._record(pol, "policy")
       t3 = time.perf_counter()
       self._record(
         {"collect": t1 - t0, "world_model": t2 - t1, "policy": t3 - t2}, "time"
@@ -292,7 +308,7 @@ class SuperMimicRunner:
     )  # fmt: skip
     self.replay.add(
       t["state"], t["pose"], t["action"], t["context"], t["command"],
-      t["failure"], t["done"], t["next_state"], t["next_pose"],
+      t["failure"], t["done"], t["next_state"], t["next_pose"], t["memory"],
     )  # fmt: skip
 
     self._episode_return += t["reward"]

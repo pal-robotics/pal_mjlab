@@ -28,6 +28,11 @@ class SuperMimicRunnerCfg(RslRlBaseRunnerCfg):
   """Vector env steps per iteration: update-to-data ratio 0.4."""
   warmup_steps: int = 32
   """Env steps collected before the first update."""
+  random_episode_start: bool = False
+  """When ``train`` asks for it (``init_at_random_ep_len``), start each env at a random
+  point of its episode, as rsl_rl's PPO runner does, so time-outs spread over training
+  instead of coming in waves. Off by default: the motion task's episodes start on its
+  sampler's frames, whose returns a random early time-out would bias."""
   compile: bool = True
   """Compile the kinematics, the imagination step and the world model's window loss."""
   log_interval: int = 10

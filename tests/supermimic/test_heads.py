@@ -86,7 +86,7 @@ def test_heads_match_the_env():
     next_state, next_pose = _state(env, cmd)
     # The step's resulting state, its action and the command state it targeted.
     b = heads.source.imagined(next_state, next_pose, c, action, prev, context)
-    terms = heads.reward_terms(b)
+    terms, _ = heads.reward_terms(b)
     torch.testing.assert_close(sum(terms.values()), reward, atol=1e-5, rtol=1e-5)
     rm = env.reward_manager  # each term as the env weighed it (before the dt scaling)
     for i, name in enumerate(rm.active_terms):
