@@ -39,6 +39,7 @@ __all__ = [
   "track_angular_velocity",
   "upright",
   "variable_posture",
+  "posture_l2",
   "body_angular_velocity_penalty",
   "joint_pos_limits",
   "joint_limits_convex_hull",
@@ -114,16 +115,16 @@ def upright(b: Batch, std: float, asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
   return torch.exp(-torch.sum(torch.square(projected[:, :2]), dim=1) / std**2)
 
 
-@imaginable
-def variable_posture(
+def _posture_error(
   b: Batch,
   std_standing,
   std_walking,
   std_running,
   asset_cfg: SceneEntityCfg,
-  walking_threshold: float = 0.5,
-  running_threshold: float = 1.5,
+  walking_threshold: float,
+  running_threshold: float,
 ) -> torch.Tensor:
+  """mean((q - q0)² / std²) over the joints, std by the commanded speed's regime."""
   spec = b.spec
   idx = spec.joint_index(asset_cfg.joint_ids)
 
@@ -145,7 +146,44 @@ def variable_posture(
   run = (speed >= running_threshold).float()[:, None]
   std = standing * stand + walking * walk + running * run
   error = torch.square(b.qpos[:, 7:][:, idx] - spec.q0[idx])
-  return torch.exp(-torch.mean(error / std**2, dim=1))
+  return torch.mean(error / std**2, dim=1)
+
+
+@imaginable
+def variable_posture(
+  b: Batch,
+  std_standing,
+  std_walking,
+  std_running,
+  asset_cfg: SceneEntityCfg,
+  walking_threshold: float = 0.5,
+  running_threshold: float = 1.5,
+) -> torch.Tensor:
+  """mjlab's ``variable_posture``: exp(-mean((q - q0)² / std²))."""
+  return torch.exp(
+    -_posture_error(
+      b, std_standing, std_walking, std_running, asset_cfg, walking_threshold,
+      running_threshold,
+    )  # fmt: skip
+  )
+
+
+@imaginable
+def posture_l2(
+  b: Batch,
+  std_standing,
+  std_walking,
+  std_running,
+  asset_cfg: SceneEntityCfg,
+  walking_threshold: float = 0.5,
+  running_threshold: float = 1.5,
+) -> torch.Tensor:
+  """``variable_posture``'s exponent, mean((q - q0)² / std²), as a penalty: its gradient
+  grows with the deviation, where the kernel's has faded."""
+  return _posture_error(
+    b, std_standing, std_walking, std_running, asset_cfg, walking_threshold,
+    running_threshold,
+  )  # fmt: skip
 
 
 @imaginable

@@ -61,6 +61,12 @@ TRACK_LIN_FINE_STD = 0.25
 # charged every low, sliding foot, i.e. the first steps, while standing cost nothing.
 AIR_TIME_WEIGHT = 0.5
 FOOT_CLEARANCE_WEIGHT = -0.5
+# Posture, rebalanced against the heavier tracking (8 per step; PPO: tracking 4 vs pose 1):
+# the policy tracked in odd postures. The pose kernel loses its gradient far from the
+# default pose, so a quadratic penalty (its exponent, whose gradient grows with the
+# deviation) pulls back from there.
+POSE_WEIGHT = 2.0
+POSTURE_L2_WEIGHT = -0.1
 
 
 def pal_kangaroo_flat_supermimic_env_cfg(play: bool = False) -> SuperMimicEnvCfg:
@@ -212,6 +218,12 @@ def pal_kangaroo_flat_supermimic_env_cfg(play: bool = False) -> SuperMimicEnvCfg
     ),
   }
 
+  cfg.rewards["pose"].weight = POSE_WEIGHT
+  cfg.rewards["posture_l2"] = RewardTermCfg(
+    func=mdp.posture_l2,
+    weight=POSTURE_L2_WEIGHT,
+    params=dict(cfg.rewards["pose"].params),
+  )
   cfg.rewards["air_time"].weight = AIR_TIME_WEIGHT
   cfg.rewards["foot_clearance"].weight = FOOT_CLEARANCE_WEIGHT
 

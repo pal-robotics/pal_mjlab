@@ -150,6 +150,10 @@ Second retune (gradient-visible gait terms): `feet_air_time` with soft window ed
 (mjlab's hard window has zero gradient: invisible to imagination), weight 0.25 -> 0.5; a
 narrow linear tracking kernel next to the wide one (weight 2, std 0.25) for precision;
 `foot_clearance` -2 -> -0.5 (it charged the first, low steps); return bound 24.
+Third retune (`gait_v2` at 3000 it tracks, in odd postures): pose weight 1 -> 2, plus
+`posture_l2` (-0.1, the pose kernel's exponent as a penalty: gradient where the kernel's
+has faded); `variable_posture` and `upright` match mjlab's to 1e-6 (checked); upright
+unchanged. Return bound 26.
 Logging reworked to read like PPO's: `step/*` are means over all envs at every step
 (each reward term per second, terminations per minute, mean time to failure, the velocity
 command's tracking error vs standing still's via `step_metrics()`); mjlab's episode logs
