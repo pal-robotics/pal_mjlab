@@ -11,17 +11,18 @@ Registered as the task's ``runner_cls``, so mjlab's ``train`` and ``play`` drive
 The env must run with ``auto_reset=False``: terminal states are stored, then the done envs
 are reset here, with starts drawn by the return-based sampler (Appendix D.1).
 
-Logs to TensorBoard (read like a PPO run's):
+Logs to TensorBoard, one section per kind (read like a PPO run's):
 
-  step/*      every collected step, averaged over ALL envs: no survivorship, no dependence
-              on episode lengths. ``reward/<term>`` is each term's weighted reward per
-              second (a full-length episode's ``env/Episode_Reward/<term>``);
-              ``terminations_per_min/<term>``; ``mean_time_to_failure_s`` (env time per
-              failure); ``command/<term>/<metric>`` from a command term's optional
-              ``step_metrics()`` (e.g. the velocity tracking error).
-  episode/*   the episodes that ENDED in the window (return, length, failure fraction) and
-  env/*       mjlab's episode logs (Episode_Reward, Episode_Termination, Metrics): both
-              biased toward short episodes while the policy still falls.
+  Step_Reward/<term>         every collected step, averaged over ALL envs (no survivorship,
+  Step_Termination/<term>    no dependence on episode lengths): each reward term's weighted
+  Step_Metrics/<cmd>/<m>     reward per second (a full-length episode's Episode_Reward) and
+  Step/*                     ``total``; terminations per env per minute; a command term's
+                             optional ``step_metrics()`` (e.g. the velocity tracking
+                             error); ``Step/mean_time_to_failure_s`` (env time per failure)
+                             and ``Step/reward`` (per step, as ``policy/imagined_reward``).
+  Episode_Reward/*, Episode_Termination/*, Metrics/*: mjlab's episode logs, as PPO's, and
+  episode/*: the episodes that ENDED in the window. Both are biased toward short episodes
+  while the policy still falls.
   world_model/*, policy/*, time/*, memory/*: the updates.
 """
 
@@ -66,6 +67,17 @@ def _from_dict(cfg: dict) -> SuperMimicCfg:
     critic=CriticUpdateCfg(**alg.pop("critic")),
     **alg,
   )
+
+def _step_section(key: str) -> str:
+  """A step log's TensorBoard section, by its kind."""
+  for kind, section in (
+    ("reward/", "Step_Reward/"), ("terminations_per_min/", "Step_Termination/"),
+    ("command/", "Step_Metrics/"),
+  ):  # fmt: skip
+    if key.startswith(kind):
+      return section + key[len(kind):]
+  return "Step_Reward/total" if key == "reward_total" else f"Step/{key}"
+
 
 class SimCollector:
   """Steps the env and returns world-model transitions (states in the local frame)."""
@@ -356,10 +368,10 @@ class SuperMimicRunner:
       self._episode_return[done] = 0.0
       self._episode_length[done] = 0.0
       for k, v in t["log"].items():
-        self._record({k: float(v)}, "env")
-    self._record(t["step_log"], "step")
-    self._record({"failure_fraction": t["failure"].float().mean()}, "step")
-    self._record({"reward": t["reward"].mean()}, "sim")
+        self._record({k: float(v)})  # mjlab's own sections, as PPO logs them
+    self._record({_step_section(k): v for k, v in t["step_log"].items()})
+    self._record({"failure_fraction": t["failure"].float().mean()}, "Step")
+    self._record({"reward": t["reward"].mean()}, "Step")
     return obs, t
 
   # Logging ------------------------------------------------------------------------------
@@ -367,17 +379,18 @@ class SuperMimicRunner:
   def _add(self, key: str, values: torch.Tensor) -> None:
     self._stats.setdefault(key, []).extend(values.float().cpu().tolist())
 
-  def _record(self, stats: dict[str, float], prefix: str) -> None:
+  def _record(self, stats: dict[str, float], prefix: str | None = None) -> None:
     for k, v in stats.items():
       if not math.isnan(v):
-        self._stats.setdefault(f"{prefix}/{k}", []).append(float(v))
+        key = f"{prefix}/{k}" if prefix else k
+        self._stats.setdefault(key, []).append(float(v))
 
   def _log(self, it: int) -> None:
     means = {k: sum(v) / len(v) for k, v in self._stats.items() if v}
     self._stats = {}
-    fail = means.pop("step/failure_fraction", None)
+    fail = means.pop("Step/failure_fraction", None)
     if fail is not None:  # env time per failure, over all envs (capped at 1 h)
-      means["step/mean_time_to_failure_s"] = min(
+      means["Step/mean_time_to_failure_s"] = min(
         self.env.unwrapped.step_dt / max(fail, 1e-12), 3600.0
       )
     if torch.cuda.is_available():
@@ -386,7 +399,7 @@ class SuperMimicRunner:
       for k, v in means.items():
         self.writer.add_scalar(k, v, it)
     keys = (
-      "step/reward_total", "step/mean_time_to_failure_s", "policy/objective",
+      "Step_Reward/total", "Step/mean_time_to_failure_s", "policy/objective",
       "world_model/loss",
     )  # fmt: skip
     shown = " ".join(f"{k.split('/')[-1]} {means[k]:.4g}" for k in keys if k in means)
