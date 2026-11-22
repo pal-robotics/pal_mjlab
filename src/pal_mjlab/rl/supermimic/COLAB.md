@@ -61,17 +61,23 @@ The first iterations are slow while `torch.compile` compiles. If memory runs out
 %tensorboard --logdir /content/pal_mjlab/logs/rsl_rl/kangaroo_supermimic_velocity
 ```
 
-What to read (the details are in `ROADMAP.md`, M5):
+What to read. The `step/*` curves are means over **all** envs at every step, so they read
+like a PPO run's and compare across runs:
 
-- `env/Episode_Reward/track_linear_velocity` (per second of a 20 s episode, weight 2):
-  standing still scores ~0.3-0.5, real tracking approaches 2. The laptop policies stood
-  still; this is the curve that tells walking.
+- `step/command/twist/error_vel_xy` vs `standing_error_xy` (what standing still would
+  score on the same commands): walking after the command means clearly below it.
+  `speed_xy` tells standing (~0.05 m/s) from moving.
+- `step/reward/<term>`: each term's weighted reward per second; `step/reward_total`.
+- `step/mean_time_to_failure_s`: env time per fall (capped at 3600 s);
+  `step/terminations_per_min/<term>`: which failure.
 - `sim/reward` vs `policy/imagined_reward`: when the imagined reward rises above the real
   one, the policy is exploiting the world model.
 - `policy/value` vs `policy/lambda_return`: they should track each other, under the
-  return bound (15).
-- `episode/*` only averages the episodes that ended in each window; episode starts are
-  randomized, so time-outs (20 s) spread over training.
+  return bound.
+
+`episode/*` and `env/*` (mjlab's Episode_Reward, Metrics, Episode_Termination) only
+average the episodes that ended in each window, and are totals over an episode: they
+mostly show episode lengths (falls between waves of synchronized 20 s time-outs).
 
 ## 6. Get a checkpoint back
 

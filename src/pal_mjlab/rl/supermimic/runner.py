@@ -11,8 +11,18 @@ Registered as the task's ``runner_cls``, so mjlab's ``train`` and ``play`` drive
 The env must run with ``auto_reset=False``: terminal states are stored, then the done envs
 are reset here, with starts drawn by the return-based sampler (Appendix D.1).
 
-Logs to TensorBoard: the losses, the imagined rollouts' statistics and the sim's episode
-returns.
+Logs to TensorBoard (read like a PPO run's):
+
+  step/*      every collected step, averaged over ALL envs: no survivorship, no dependence
+              on episode lengths. ``reward/<term>`` is each term's weighted reward per
+              second (a full-length episode's ``env/Episode_Reward/<term>``);
+              ``terminations_per_min/<term>``; ``mean_time_to_failure_s`` (env time per
+              failure); ``command/<term>/<metric>`` from a command term's optional
+              ``step_metrics()`` (e.g. the velocity tracking error).
+  episode/*   the episodes that ENDED in the window (return, length, failure fraction) and
+  env/*       mjlab's episode logs (Episode_Reward, Episode_Termination, Metrics): both
+              biased toward short episodes while the policy still falls.
+  world_model/*, policy/*, time/*, memory/*: the updates.
 """
 
 from __future__ import annotations
@@ -90,6 +100,30 @@ class SimCollector:
   def context(self) -> torch.Tensor:
     return self._source.context()
 
+  def step_log(self) -> dict[str, float]:
+    """This step's means over all envs: each reward term (weighted, per second), each
+    termination's rate (per env per minute), and the command terms' ``step_metrics()``."""
+    env = self.env
+    rm, tm, cm = env.reward_manager, env.termination_manager, env.command_manager
+    names, values = [], []
+    # mjlab keeps each term's weighted, per-second value of the last step here.
+    step_reward = rm._step_reward.mean(0)
+    for i, name in enumerate(rm.active_terms):
+      names.append(f"reward/{name}")
+      values.append(step_reward[i])
+    names.append("reward_total")
+    values.append(step_reward.sum())
+    per_min = 60.0 / env.step_dt
+    for name in tm.active_terms:
+      names.append(f"terminations_per_min/{name}")
+      values.append(tm.get_term(name).float().mean() * per_min)
+    for name in cm.active_terms:
+      metrics = getattr(cm.get_term(name), "step_metrics", None)
+      for key, value in (metrics() if metrics is not None else {}).items():
+        names.append(f"command/{name}/{key}")
+        values.append(value.float().mean())
+    return dict(zip(names, torch.stack(values).cpu().tolist(), strict=True))
+
   def observations(self) -> TensorDict:
     obs = self.env.observation_manager.compute()
     return TensorDict(obs, batch_size=[self.env.num_envs])
@@ -114,6 +148,7 @@ class SimCollector:
     t["failure"] = failure
     t["done"] = terminated | truncated
     t["reward"] = reward.clone()
+    t["step_log"] = self.step_log()  # before the resets: the step's own outcome
     t["log"] = {}
     if t["done"].any():
       _, extras = env.reset(env_ids=t["done"].nonzero().squeeze(-1))
@@ -322,6 +357,8 @@ class SuperMimicRunner:
       self._episode_length[done] = 0.0
       for k, v in t["log"].items():
         self._record({k: float(v)}, "env")
+    self._record(t["step_log"], "step")
+    self._record({"failure_fraction": t["failure"].float().mean()}, "step")
     self._record({"reward": t["reward"].mean()}, "sim")
     return obs, t
 
@@ -338,11 +375,19 @@ class SuperMimicRunner:
   def _log(self, it: int) -> None:
     means = {k: sum(v) / len(v) for k, v in self._stats.items() if v}
     self._stats = {}
+    fail = means.pop("step/failure_fraction", None)
+    if fail is not None:  # env time per failure, over all envs (capped at 1 h)
+      means["step/mean_time_to_failure_s"] = min(
+        self.env.unwrapped.step_dt / max(fail, 1e-12), 3600.0
+      )
     if torch.cuda.is_available():
       means["memory/max_allocated_gb"] = torch.cuda.max_memory_allocated() / 1e9
     if self.writer is not None:
       for k, v in means.items():
         self.writer.add_scalar(k, v, it)
-    keys = ("episode/return", "episode/length", "policy/objective", "world_model/loss")
+    keys = (
+      "step/reward_total", "step/mean_time_to_failure_s", "policy/objective",
+      "world_model/loss",
+    )  # fmt: skip
     shown = " ".join(f"{k.split('/')[-1]} {means[k]:.4g}" for k in keys if k in means)
     print(f"[SuperMimic] it {it}: {shown}", flush=True)

@@ -150,6 +150,10 @@ Second retune (gradient-visible gait terms): `feet_air_time` with soft window ed
 (mjlab's hard window has zero gradient: invisible to imagination), weight 0.25 -> 0.5; a
 narrow linear tracking kernel next to the wide one (weight 2, std 0.25) for precision;
 `foot_clearance` -2 -> -0.5 (it charged the first, low steps); return bound 24.
+Logging reworked to read like PPO's: `step/*` are means over all envs at every step
+(each reward term per second, terminations per minute, mean time to failure, the velocity
+command's tracking error vs standing still's via `step_metrics()`); mjlab's episode logs
+stay, but are biased while episodes end mostly in falls.
 Fallback if it still stands: walking data from a PPO
 checkpoint in replay (mixed collection), or distillation first.
 
