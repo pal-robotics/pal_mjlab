@@ -143,7 +143,14 @@ Diagnosis: the PPO rewards suit PPO, not gradients. Standing earns ~5 of ~7 per 
 commands are small; upright and posture are full), and the linear tracking kernel (std 0.5)
 is flat at standing errors: no gradient toward the command. Retuned
 (`env_cfgs.TRACK_LIN_WEIGHT`, `TRACK_*_STD`): linear weight 2 -> 4, stds 0.5 / 0.71 -> 1.0;
-the return bound follows (19). Fallback if it still stands: walking data from a PPO
+the return bound follows (19). Result (`track4_std1`, 2000 it, ~20M env steps): **it
+walks**, but does not track the command yet.
+
+Second retune (gradient-visible gait terms): `feet_air_time` with soft window edges
+(mjlab's hard window has zero gradient: invisible to imagination), weight 0.25 -> 0.5; a
+narrow linear tracking kernel next to the wide one (weight 2, std 0.25) for precision;
+`foot_clearance` -2 -> -0.5 (it charged the first, low steps); return bound 24.
+Fallback if it still stands: walking data from a PPO
 checkpoint in replay (mixed collection), or distillation first.
 
 ### Next

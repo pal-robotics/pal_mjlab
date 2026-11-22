@@ -52,6 +52,15 @@ KNEE_LINKAGE = tuple(
 TRACK_LIN_WEIGHT = 4.0
 TRACK_LIN_STD = 1.0
 TRACK_YAW_STD = 1.0
+# A narrow kernel next to the wide one: the wide one alone barely rewards precision (a
+# 0.5 m/s error still earns 78% of it); a policy that walks drifted off the command.
+TRACK_LIN_FINE_WEIGHT = 2.0
+TRACK_LIN_FINE_STD = 0.25
+# The gait terms, retuned for a gradient method: air time with soft edges (mjlab's hard
+# window gives no gradient) and doubled (PPO: 0.25); foot clearance lighter (PPO: -2): it
+# charged every low, sliding foot, i.e. the first steps, while standing cost nothing.
+AIR_TIME_WEIGHT = 0.5
+FOOT_CLEARANCE_WEIGHT = -0.5
 
 
 def pal_kangaroo_flat_supermimic_env_cfg(play: bool = False) -> SuperMimicEnvCfg:
@@ -130,6 +139,11 @@ def pal_kangaroo_flat_supermimic_env_cfg(play: bool = False) -> SuperMimicEnvCfg
     "track_linear_velocity": RewardTermCfg(
       func=mdp.track_linear_velocity, weight=TRACK_LIN_WEIGHT, params={"std": TRACK_LIN_STD}
     ),
+    "track_linear_velocity_fine": RewardTermCfg(
+      func=mdp.track_linear_velocity,
+      weight=TRACK_LIN_FINE_WEIGHT,
+      params={"std": TRACK_LIN_FINE_STD},
+    ),
     "track_angular_velocity": RewardTermCfg(
       func=mdp.track_angular_velocity,
       weight=old["track_angular_velocity"].weight,
@@ -197,6 +211,9 @@ def pal_kangaroo_flat_supermimic_env_cfg(play: bool = False) -> SuperMimicEnvCfg
       },
     ),
   }
+
+  cfg.rewards["air_time"].weight = AIR_TIME_WEIGHT
+  cfg.rewards["foot_clearance"].weight = FOOT_CLEARANCE_WEIGHT
 
   # -- Terminations: every failure is a single definition, so imagination ends imagined
   # episodes exactly where the simulator does (a learned head can be exploited: a
