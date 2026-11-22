@@ -57,10 +57,10 @@ TRACK_YAW_STD = 1.0
 TRACK_LIN_FINE_WEIGHT = 2.0
 TRACK_LIN_FINE_STD = 0.25
 # The gait terms, retuned for a gradient method: air time with soft edges (mjlab's hard
-# window gives no gradient) and doubled (PPO: 0.25); foot clearance lighter (PPO: -2): it
-# charged every low, sliding foot, i.e. the first steps, while standing cost nothing.
+# window gives no gradient) and doubled (PPO: 0.25). Foot clearance is PPO's (-2): lowered
+# to -0.5 to make the first steps cheap, it let a walking policy drag a foot.
 AIR_TIME_WEIGHT = 0.5
-FOOT_CLEARANCE_WEIGHT = -0.5
+FOOT_CLEARANCE_WEIGHT = -2.0
 # Posture, rebalanced against the heavier tracking (8 per step; PPO: tracking 4 vs pose 1):
 # the policy tracked in odd postures. The pose kernel loses its gradient far from the
 # default pose, so a quadratic penalty (its exponent, whose gradient grows with the
@@ -253,7 +253,7 @@ def pal_kangaroo_flat_supermimic_env_cfg(play: bool = False) -> SuperMimicEnvCfg
     goal_group="goal",
     proprio_group="proprio",
     action_term="joint_pos",
-    bodies=(TORSO, *KNEE_LINKAGE),
+    bodies=(TORSO, *KNEE_LINKAGE, *mdp.FOOT_SOLE_BODIES),
     sites=("imu", *FEET),
     passive_joints=kangaroo_passive_leg_joints,
     context=ObservationTermCfg(

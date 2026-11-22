@@ -31,10 +31,17 @@ from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.utils.lab_api.math import quat_apply_inverse
 from mjlab.utils.lab_api.string import resolve_matching_names_values
 
-from pal_mjlab.rl.supermimic.imagination import Batch, imaginable, terrain_height
+from pal_mjlab.rl.supermimic.imagination import (
+  Batch,
+  capsule_bottoms,
+  imaginable,
+  terrain_height,
+)
 
 __all__ = [
   "FOOT_CONTACT",
+  "FOOT_SOLES",
+  "FOOT_SOLE_BODIES",
   "track_linear_velocity",
   "track_angular_velocity",
   "upright",
@@ -51,9 +58,15 @@ __all__ = [
   "soft_landing",
 ]
 
-FOOT_CONTACT = {"contact_height": 0.02, "contact_width": 0.005}
-"""The contact proxy's parameters (m): a foot site this high above the terrain is half in
-contact; the transition's width. Calibrated against the contact sensor."""
+FOOT_CONTACT = {"contact_height": 0.0002, "contact_width": 0.0002}
+"""The contact proxy's parameters (m): a foot whose lowest sole point is this high above
+the terrain is half in contact; the transition's width. The sensor reports contact exactly
+when that point is at or below the terrain (median -0.8 mm): a 0 threshold agrees with it
+100% on a walking policy."""
+
+FOOT_SOLES = {"left_foot": ("leg_left_foot_link",), "right_foot": ("leg_right_foot_link",)}
+"""Each foot site's sole: the bodies whose collision capsules touch the ground."""
+FOOT_SOLE_BODIES = tuple(body for bodies in FOOT_SOLES.values() for body in bodies)
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
 _ROOT_LIN_VEL, _ROOT_ANG_VEL = slice(7, 10), slice(10, 13)  # in the heading state
@@ -71,16 +84,30 @@ def _body(b: Batch, asset_cfg: SceneEntityCfg) -> int:
   return b.spec.body(name)
 
 
+def sole_heights(b: Batch, sites: tuple[str, ...]) -> torch.Tensor:
+  """(B, F) height above the terrain of each foot's lowest sole point (its collision
+  capsules, ``FOOT_SOLES``); once per batch."""
+  key = ("soles", sites)
+  if key not in b.memo:
+    b.memo[key] = torch.stack(
+      [capsule_bottoms(b, FOOT_SOLES[s]).min(dim=-1).values for s in sites], dim=-1
+    )
+  return b.memo[key]
+
+
 def _feet(b: Batch, asset_cfg: SceneEntityCfg, contact_height: float, contact_width: float):
-  """(height above the terrain, linear velocity, contact probability) of the feet sites,
-  (B, F) / (B, F, 3) / (B, F); once per batch."""
+  """(height above the terrain, linear velocity, contact probability) of the feet,
+  (B, F) / (B, F, 3) / (B, F); once per batch. Height and velocity are the foot sites'
+  (as mjlab's foot height scan); contact comes from the sole's lowest point, not the site:
+  a foot touching down on an edge of its sole has its site centimetres up (a policy
+  dragged a tilted foot to pass as airborne)."""
   names = tuple(asset_cfg.site_names)
   key = ("feet", names, contact_height, contact_width)
   if key not in b.memo:
     ids = [b.spec.site(n) for n in names]
     pos, vel = b.kin.site_pos[:, ids], b.kin.site_lin_vel[:, ids]
     height = pos[..., 2] - terrain_height(b, pos[..., :2])
-    contact = torch.sigmoid((contact_height - height) / contact_width)
+    contact = torch.sigmoid((contact_height - sole_heights(b, names)) / contact_width)
     b.memo[key] = (height, vel, contact)
   return b.memo[key]
 
