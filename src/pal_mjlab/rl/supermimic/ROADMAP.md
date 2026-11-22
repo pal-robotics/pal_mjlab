@@ -98,7 +98,7 @@ its curriculum, resets, domain randomization). Changes, and why:
 | Command | heading control off (the yaw rate is commanded); `VelocityCommandModel`: `c = {"command"}`, constant over the horizon (resampling every 3-8 s is not imagined), never `done`, termination reference = nominal height, upright. |
 | Observations | goal = the command; proprio = the PPO actor's terms and noise (IMU gyro / gravity from the IMU site's FK); critic = heading state, command, ξ. |
 | ξ | foot friction, encoder offsets, torso CoM, and the randomized joint friction loss, damping and armature (104 values, named parts). |
-| Rewards | the PPO terms' formulas and weights as single definitions: 10 kinematic terms, and the foot terms on the foot sites' FK: clearance, slip, and the stateful air time, swing height, soft landing (term memory; touchdown from a smooth contact proxy, `FOOT_CONTACT` 0.02 m / 5 mm, which agrees with the contact sensor 94% of the time; soft landing uses the foot's vertical speed at touchdown in place of the force, weight x2000: unchecked). Dropped: `self_collisions`, `angular_momentum` (the passive linkage). |
+| Rewards | the PPO terms' formulas and weights as single definitions: 10 kinematic terms, and the foot terms on the foot sites' FK: clearance, slip, and the stateful air time, swing height, soft landing (term memory; touchdown from a smooth contact proxy on the sole capsules' lowest point (`FOOT_CONTACT`, `FOOT_SOLES`; see below); soft landing uses the foot's vertical speed at touchdown in place of the force, weight x2000: unchecked). Dropped: `self_collisions`, `angular_momentum` (the passive linkage). |
 | Failures | all single definitions (imagination ends episodes exactly where the sim does): `fell_over` (tilt, tested on its cosine: acos' gradient is infinite upright), `base_too_low` (new: root < 0.4 m), `illegal_contacts` made geometric: the knee linkage's capsules from FK with the passive joints (closed chain), which matches the contact sensor exactly (360/360 contacts, no false alarm). |
 | Critic | a target critic (Polyak 0.05) and a return bound (15, from the reward weights): without them the critic's values inflated themselves through bootstrapping (value 121 with negative rewards). |
 
@@ -154,6 +154,13 @@ Third retune (`gait_v2` at 3000 it tracks, in odd postures): pose weight 1 -> 2,
 `posture_l2` (-0.1, the pose kernel's exponent as a penalty: gradient where the kernel's
 has faded); `variable_posture` and `upright` match mjlab's to 1e-6 (checked); upright
 unchanged. Return bound 26.
+Foot contact fixed (`posture_v3` dragged its right foot, tilted, not landing flat): the
+proxy read the foot site's height, and a foot touching down on an edge of its sole has its
+site ~3 cm up, so the policy dragged a tilted foot that passed as airborne (air time 0.72 vs
+the sensor's 0.29 per step, slip unpenalized). Contact now comes from the sole capsules'
+lowest point (`FOOT_SOLES`; threshold 0.2 mm): 100% agreement with the sensor at 0 on the
+walking policy; air time, slip and swing height then match the sensor-based terms on both
+feet. `foot_clearance` back to PPO's -2.
 Logging reworked to read like PPO's: `step/*` are means over all envs at every step
 (each reward term per second, terminations per minute, mean time to failure, the velocity
 command's tracking error vs standing still's via `step_metrics()`); mjlab's episode logs
