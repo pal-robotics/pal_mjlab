@@ -71,6 +71,12 @@ def test_fk_matches_mujoco(model):
       np.testing.assert_allclose(
         out.site_ang_vel[i, k], res[:3], atol=1e-9, err_msg=name
       )
+      np.testing.assert_allclose(
+        out.site_pos[i, k], data.site_xpos[s], atol=1e-10, err_msg=name
+      )
+      np.testing.assert_allclose(
+        out.site_lin_vel[i, k], res[3:], atol=1e-9, err_msg=name
+      )
 
 
 def test_fk_in_a_library_layout(model):

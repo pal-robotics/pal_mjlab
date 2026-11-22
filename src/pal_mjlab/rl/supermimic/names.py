@@ -7,8 +7,12 @@ the runner's. The runner and the heads read it from there.
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Annotated
+
+import tyro
 
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.managers.observation_manager import ObservationTermCfg
@@ -50,6 +54,11 @@ class ImaginationCfg:
   context: ObservationTermCfg | None = None
   """The sim context ξ: the domain-randomization parameters the world model and critic
   see. None: no context."""
+  passive_joints: Annotated[Callable | None, tyro.conf.Suppress] = None
+  """The robot's closed chain: ``f(joint_pos, joint_vel) -> {name: (pos, vel)}`` for the
+  passive joints, from the state's joints (dicts of (B,) tensors by joint name). With
+  it, the FK also covers the bodies the passive joints move (e.g. a knee linkage). Not a
+  CLI option: it is the robot's."""
 
   @property
   def actor_groups(self) -> tuple[str, str]:
@@ -62,6 +71,15 @@ class SuperMimicEnvCfg(ManagerBasedRlEnvCfg):
   """An mjlab env config with SuperMimic's configuration."""
 
   imagination: ImaginationCfg = field(default_factory=ImaginationCfg)
+
+
+def as_supermimic_env_cfg(
+  cfg: ManagerBasedRlEnvCfg, imagination: ImaginationCfg
+) -> SuperMimicEnvCfg:
+  """An mjlab env config (e.g. a PPO task's) as a ``SuperMimicEnvCfg``: the same fields
+  (shared, not copied) plus ``imagination``."""
+  fields = {f.name: getattr(cfg, f.name) for f in dataclasses.fields(cfg) if f.init}
+  return SuperMimicEnvCfg(**fields, imagination=imagination)
 
 
 def imagination_cfg(env: ManagerBasedRlEnv) -> ImaginationCfg:

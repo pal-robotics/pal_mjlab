@@ -35,35 +35,41 @@ class ReplayBuffer:
     self.action = torch.zeros(c, e, action_dim, device=device)
     self.context = torch.zeros(c, e, context_dim, device=device)
     self.command: dict[str, torch.Tensor] = {}  # c's columns, allocated by the first add
+    self.memory: dict[str, torch.Tensor] = {}  # stateful reward terms' memory, likewise
     self.failure = torch.zeros(c, e, dtype=torch.bool, device=device)
     self.has_action = torch.zeros(c, e, dtype=torch.bool, device=device)
     self.count = torch.zeros(e, dtype=torch.long, device=device)  # rows written
     self._envs = torch.arange(e, device=device)
 
   def _write(
-    self, envs: torch.Tensor, command: dict[str, torch.Tensor], **fields: torch.Tensor
+    self,
+    envs: torch.Tensor,
+    columns: dict[str, dict[str, torch.Tensor]],
+    **fields: torch.Tensor,
   ) -> None:
+    """``columns``: values of the dict columns (``command``, ``memory``) by store."""
     slot = self.count[envs] % self.capacity
     for name, value in fields.items():
       getattr(self, name)[slot, envs] = value
-    for name, value in command.items():
-      self.command[name][slot, envs] = value
+    for store, values in columns.items():
+      for name, value in values.items():
+        getattr(self, store)[name][slot, envs] = value
     self.count[envs] += 1
 
-  def _check_command(self, command: dict[str, torch.Tensor]) -> None:
-    """Allocate c's columns on the first add; later adds must match their layout."""
-    if not self.command:
-      self.command = {
-        name: torch.zeros(
-          self.capacity, *v.shape, dtype=v.dtype, device=self.device
-        )
-        for name, v in command.items()
-      }
+  def _check_columns(self, store: str, values: dict[str, torch.Tensor]) -> None:
+    """Allocate a dict column's tensors on the first add; later adds must match."""
+    columns = getattr(self, store)
+    if self.count.sum() == 0:
+      columns.clear()
+      columns.update({
+        name: torch.zeros(self.capacity, *v.shape, dtype=v.dtype, device=self.device)
+        for name, v in values.items()
+      })
       return
-    layout = {n: (tuple(v.shape[2:]), v.dtype) for n, v in self.command.items()}
-    given = {n: (tuple(v.shape[1:]), v.dtype) for n, v in command.items()}
+    layout = {n: (tuple(v.shape[2:]), v.dtype) for n, v in columns.items()}
+    given = {n: (tuple(v.shape[1:]), v.dtype) for n, v in values.items()}
     if given != layout:
-      raise ValueError(f"Command state layout changed: {given} instead of {layout}.")
+      raise ValueError(f"The {store} layout changed: {given} instead of {layout}.")
 
   @torch.no_grad()
   def add(
@@ -77,18 +83,24 @@ class ReplayBuffer:
     done: torch.Tensor,
     next_state: torch.Tensor,
     next_pose: torch.Tensor,
+    memory: dict[str, torch.Tensor] | None = None,
   ) -> None:
     """One env step of all envs; ``next_*`` is only stored where the episode ended (its
-    row keeps the transition's command state)."""
-    self._check_command(command)
+    row keeps the transition's command state and memory). ``memory``: the stateful
+    reward terms' memory before the step (``imagination.reward_memory``)."""
+    memory = memory or {}
+    self._check_columns("command", command)
+    self._check_columns("memory", memory)
+    columns = {"command": command, "memory": memory}
     self._write(
-      self._envs, command, state=state, pose=pose, action=action, context=context,
+      self._envs, columns, state=state, pose=pose, action=action, context=context,
       failure=failure, has_action=torch.ones_like(done),
     )  # fmt: skip
     ids = done.nonzero().squeeze(-1)
     if len(ids):
+      at = {s: {n: v[ids] for n, v in d.items()} for s, d in columns.items()}
       self._write(
-        ids, {n: v[ids] for n, v in command.items()}, state=next_state[ids],
+        ids, at, state=next_state[ids],
         pose=next_pose[ids], context=context[ids],
         failure=torch.zeros_like(ids, dtype=torch.bool),
         has_action=torch.zeros_like(ids, dtype=torch.bool),
@@ -195,6 +207,7 @@ class ReplayBuffer:
       "pose": self.pose[start],
       "context": self.context[start],
       "command": {n: v[start] for n, v in self.command.items()},
+      "memory": {n: v[start] for n, v in self.memory.items()},
       "history_state": self.state[idx],
       "history_pose": self.pose[idx],
       "history_last_action": last_action,

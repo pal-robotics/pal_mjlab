@@ -76,6 +76,12 @@ class BatchSpec:
     """(nj, 2) position limits of the state's joints."""
     self.qd0 = robot.data.default_joint_vel[0, ids].clone()
     """(nj,) default velocities of the state's joints."""
+    self.soft_joint_limits = robot.data.soft_joint_pos_limits[0, ids].clone()
+    """(nj, 2) soft position limits of the state's joints."""
+    self.step_dt: float = env.step_dt
+    """The control step (s)."""
+    self.model = env.sim.mj_model
+    """The scene's MuJoCo model (geometry: e.g. ``capsule_bottoms``)."""
     self.context_parts: dict[str, ContextPart] = {}
     """ξ's named parts (``ContextPart``), from its term's ``context_layout``."""
     self._index: dict[tuple, slice | torch.Tensor] = {}
@@ -118,6 +124,13 @@ class BatchSpec:
         "a term can only read the joints the world model predicts."
       )
     return [col[i] for i in ids]
+
+  def cached(self, key: tuple, compute: Callable):
+    """``compute()`` once per ``key``: the constants a term derives from its params (e.g.
+    per-joint stds resolved from patterns), kept for the env's lifetime."""
+    if key not in self._index:
+      self._index[key] = compute()
+    return self._index[key]
 
   def joint_index(self, joint_ids: slice | list[int] | tuple[int, ...]) -> slice | torch.Tensor:
     """``joint_cols`` as an index into the state's joints (a slice when it is all of them,
@@ -193,11 +206,19 @@ class BatchSource:
     self.spec = BatchSpec(env)
     self.command_model = command_model_of(env, cfg.command)
     prefix = f"{self.spec.entity_name}/"  # scene names carry the entity's prefix
+    # The robot's closed chain: its passive joints, computed from the state's, extend
+    # the FK's joint layout so the bodies they move can be computed too.
+    self._passive = cfg.passive_joints
+    self.passive_joint_names: list[str] = []
+    if self._passive is not None:
+      zero = torch.zeros(1, device=env.device)
+      probe = {n: zero for n in self.spec.joint_names}
+      self.passive_joint_names = list(self._passive(probe, probe))
     self.fk = TorchKinematics(
       env.sim.mj_model,
       [prefix + b for b in self.spec.body_names],
       [prefix + s for s in self.spec.site_names],
-      [prefix + j for j in self.spec.joint_names],
+      [prefix + j for j in self.spec.joint_names + self.passive_joint_names],
       device=env.device,
     )
     self.fk_fn: Callable = self.fk.forward
@@ -214,6 +235,18 @@ class BatchSource:
     self._key: tuple | None = None
     self._batch: Batch | None = None
     self._kin_key: tuple | None = None
+
+  def kinematics(self, qpos: torch.Tensor, qvel: torch.Tensor) -> Kinematics:
+    """FK of a state (state joints' layout), the passive joints computed from it."""
+    if self._passive is not None:
+      names = self.spec.joint_names
+      pos = {n: qpos[:, 7 + i] for i, n in enumerate(names)}
+      vel = {n: qvel[:, 6 + i] for i, n in enumerate(names)}
+      passive = self._passive(pos, vel)
+      p = torch.stack([passive[n][0] for n in self.passive_joint_names], dim=-1)
+      v = torch.stack([passive[n][1] for n in self.passive_joint_names], dim=-1)
+      qpos, qvel = torch.cat([qpos, p], dim=-1), torch.cat([qvel, v], dim=-1)
+    return self.fk_fn(qpos, qvel)
 
   def context(self) -> torch.Tensor:
     """The simulator's ξ."""
@@ -266,7 +299,7 @@ class BatchSource:
       _, old_qpos, old_qvel, kin = self._kin_key
       if torch.equal(qpos, old_qpos) and torch.equal(qvel, old_qvel):
         return kin
-    kin = self.fk_fn(qpos, qvel)
+    kin = self.kinematics(qpos, qvel)
     self._kin_key = (step, qpos, qvel, kin)
     return kin
 
@@ -282,10 +315,56 @@ class BatchSource:
     """The batch of a predicted state (differentiable)."""
     qpos, qvel = state_to_qpos_qvel(state, pose)
     return Batch(
-      state=state, pose=pose, qpos=qpos, qvel=qvel, kin=self.fk_fn(qpos, qvel), c=c,
+      state=state, pose=pose, qpos=qpos, qvel=qvel, kin=self.kinematics(qpos, qvel), c=c,
       command_model=self.command_model, action=action, prev_action=prev_action,
       context=context, spec=self.spec, memo={},
     )  # fmt: skip
+
+
+def terrain_height(b: Batch, xy: torch.Tensor) -> torch.Tensor:
+  """The terrain's height under ``xy`` (env-local frame, (..., 2)): the flat plane's, 0.
+  (Rough terrain: a heightfield lookup, roadmap M5 phase 2.)"""
+  return torch.zeros_like(xy[..., 0])
+
+
+def capsule_bottoms(b: Batch, bodies: tuple[str, ...]) -> torch.Tensor:
+  """(B, G) height above the terrain of the lowest point of each collision capsule of
+  ``bodies`` (FK bodies): the lower end of its segment minus its radius, exact on flat
+  ground. Other geom types raise."""
+
+  def geoms():
+    m, spec = b.spec.model, b.spec
+    prefix = f"{spec.entity_name}/"
+    rows = []
+    for name in bodies:
+      body_id = m.body(prefix + name).id
+      for g in range(m.ngeom):
+        if m.geom_bodyid[g] != body_id or not (m.geom_contype[g] or m.geom_conaffinity[g]):
+          continue
+        if int(m.geom_type[g]) != 3:  # mjGEOM_CAPSULE
+          raise NotImplementedError(f"geom {m.geom(g).name}: only capsules are supported")
+        rows.append((spec.body(name), m.geom_pos[g], m.geom_quat[g], m.geom_size[g][:2]))
+    dev = b.state.device
+    index = torch.tensor([r[0] for r in rows], device=dev)
+    pos = torch.tensor([r[1] for r in rows], dtype=torch.float32, device=dev)
+    quat = torch.tensor([r[2] for r in rows], dtype=torch.float32, device=dev)
+    size = torch.tensor([r[3] for r in rows], dtype=torch.float32, device=dev)
+    axis = torch.zeros_like(pos)
+    axis[:, 2] = size[:, 1]  # half length along the capsule's local z
+    from mjlab.utils.lab_api.math import quat_apply as qa
+
+    half = qa(quat, axis)  # in the body frame
+    return index, pos, half, size[:, 0]
+
+  index, pos, half, radius = b.spec.cached(("capsules", bodies), geoms)
+  from mjlab.utils.lab_api.math import quat_apply as qa
+
+  q = b.kin.body_quat[:, index]  # (B, G, 4)
+  center = b.kin.body_pos[:, index] + qa(q, pos.expand_as(q[..., :3]))
+  offset = qa(q, half.expand_as(q[..., :3]))
+  ends = torch.stack([center + offset, center - offset], dim=-2)  # (B, G, 2, 3)
+  height = ends[..., 2] - terrain_height(b, ends[..., :2])
+  return height.min(dim=-1).values - radius
 
 
 _SOURCES: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
@@ -307,12 +386,27 @@ def sim_batch(env: ManagerBasedRlEnv) -> Batch:
 Term = Callable[..., torch.Tensor]
 
 
-def imaginable(fn: Callable[..., torch.Tensor]) -> Term:
+Memory = dict[str, torch.Tensor]
+"""A stateful term's per-env state, (B, ...) tensors, zero at an episode's start."""
+
+
+def imaginable(fn: Callable | None = None, *, memory: Callable[..., Memory] | None = None):
   """The mjlab term ``(env, **params)`` of single-definition term ``fn(b, **params)``.
 
   The returned term computes ``fn`` on the simulator's batch and carries ``fn`` as
   ``.imagined``, for the heads to call on imagined batches.
+
+  ``memory``: a stateful reward term, ``fn(b, memory, **params) -> (value, memory)``,
+  keeping per-env state across steps (e.g. a foot's time in the air); ``memory(b,
+  **params)`` gives its zero initial state. In the env the term is a class term holding
+  the state and zeroing it when an episode resets; the collector records it with each
+  transition (``reward_memory``), replay stores it, and imagination carries it from the
+  replayed start through the rollout.
   """
+  if fn is None:
+    return lambda f: imaginable(f, memory=memory)
+  if memory is not None:
+    return _stateful_term(fn, memory)
 
   def term(env: ManagerBasedRlEnv, **params) -> torch.Tensor:
     return fn(sim_batch(env), **params)
@@ -324,6 +418,74 @@ def imaginable(fn: Callable[..., torch.Tensor]) -> Term:
   return term
 
 
+def imaginable_termination(fn: Callable[..., torch.Tensor]) -> Term:
+  """The mjlab termination term of failure condition ``fn(b, **params)``: a smooth
+  failure probability, above 0.5 exactly where the condition holds (e.g. a sigmoid of how
+  far a limit is exceeded). The env term terminates where it is above 0.5; imagination
+  uses the probability itself to end imagined episodes as the simulator would (and its
+  gradient keeps the policy away from them). Carries ``fn`` as ``.imagined``."""
+
+  def term(env: ManagerBasedRlEnv, **params) -> torch.Tensor:
+    return fn(sim_batch(env), **params) > 0.5
+
+  for attr in ("__module__", "__name__", "__qualname__", "__doc__"):
+    setattr(term, attr, getattr(fn, attr))
+  term.imagined = fn  # type: ignore[attr-defined]
+  return term
+
+
+def _stateful_term(fn: Callable, init: Callable[..., Memory]) -> type:
+  class StatefulTerm:
+    imagined = staticmethod(fn)
+    memory_init = staticmethod(init)
+
+    def __init__(self, cfg, env: ManagerBasedRlEnv) -> None:
+      del cfg
+      self.memory: Memory | None = None
+
+    def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
+      if self.memory is not None:
+        ids = slice(None) if env_ids is None else env_ids
+        for value in self.memory.values():
+          value[ids] = 0
+
+    def __call__(self, env: ManagerBasedRlEnv, **params) -> torch.Tensor:
+      b = sim_batch(env)
+      if self.memory is None:
+        self.memory = init(b, **params)
+      value, self.memory = fn(b, self.memory, **params)
+      return value
+
+  for attr in ("__module__", "__name__", "__qualname__", "__doc__"):
+    setattr(StatefulTerm, attr, getattr(fn, attr))
+  return StatefulTerm
+
+
 def imagined_fn(func: Callable) -> Callable[..., torch.Tensor] | None:
   """The single definition behind env term function ``func``, None if it has none."""
   return getattr(func, "imagined", None)
+
+
+def memory_init(func: Callable) -> Callable[..., Memory] | None:
+  """A stateful term's initial memory, None for a stateless term."""
+  return getattr(func, "memory_init", None)
+
+
+def reward_memory(env: ManagerBasedRlEnv) -> Memory:
+  """The env's stateful reward terms' memory now, as ``{"<term>/<key>": (B, ...)}``
+  (copies; the weighted terms only, as the env computes no other)."""
+  rm, out = env.reward_manager, {}
+  for name in rm.active_terms:
+    cfg = rm.get_term_cfg(name)
+    if cfg.weight == 0.0 or memory_init(cfg.func) is None:
+      continue
+    if cfg.func.memory is None:
+      cfg.func.memory = cfg.func.memory_init(sim_batch(env), **cfg.params)
+    out.update({f"{name}/{k}": v.clone() for k, v in cfg.func.memory.items()})
+  return out
+
+
+def term_memory(memory: Memory, name: str) -> Memory:
+  """Term ``name``'s part of a ``reward_memory`` dict, without its prefix."""
+  prefix = f"{name}/"
+  return {k[len(prefix):]: v for k, v in memory.items() if k.startswith(prefix)}

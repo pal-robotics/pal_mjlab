@@ -21,7 +21,7 @@ import torch
 from mjlab.utils.noise import UniformNoiseCfg
 
 from .command_model import CommandModel
-from .imagination import Batch, batch_source, imagined_fn
+from .imagination import Batch, Memory, batch_source, imagined_fn, memory_init, term_memory
 from .names import DEFAULT_CRITIC_GROUP, ImaginationCfg, imagination_cfg
 
 if TYPE_CHECKING:
@@ -74,7 +74,7 @@ class AnalyticHeads:
     # Reward (Table A.2): every weighted env term, by its single definition, with the
     # env's weights, params and dt scaling.
     self.rewards: dict[str, tuple] = {}
-    """name: (single definition, resolved params, weight)."""
+    """name: (single definition, resolved params, weight, memory init or None)."""
     missing = []
     for name, term in cfg.rewards.items():
       if term is None or term.weight == 0.0:
@@ -83,8 +83,8 @@ class AnalyticHeads:
       if fn is None:
         missing.append(f"{name} ({term.func.__module__}.{term.func.__qualname__})")
         continue
-      params = env.reward_manager.get_term_cfg(name).params  # entities resolved
-      self.rewards[name] = (fn, params, term.weight)
+      cfg_r = env.reward_manager.get_term_cfg(name)  # entities resolved
+      self.rewards[name] = (fn, cfg_r.params, term.weight, memory_init(cfg_r.func))
     if missing:
       raise NotImplementedError(
         "Reward terms without a single definition, so imagination cannot compute them: "
@@ -92,6 +92,18 @@ class AnalyticHeads:
         "(rl/supermimic/imagination.py)."
       )
     self.reward_scale = env.step_dt if cfg.scale_rewards_by_dt else 1.0
+
+    # Failures (``ImaginationCfg.failure_terms``) with a single definition end imagined
+    # episodes as the simulator does; the world model's learned head covers the others.
+    tm = env.termination_manager
+    self.failures: dict[str, tuple] = {}
+    """name: (single definition, resolved params) of the analytic failure terms."""
+    for name in names.failure_terms:
+      cfg_t = tm.get_term_cfg(name)
+      fn = imagined_fn(cfg_t.func)
+      if fn is not None:
+        self.failures[name] = (fn, cfg_t.params)
+    self.all_failures_analytic = len(self.failures) == len(names.failure_terms)
 
 
   def _group_terms(self, env: ManagerBasedRlEnv, group_name: str, noisy: bool = False) -> dict:
@@ -107,6 +119,8 @@ class AnalyticHeads:
       if fn is None:
         missing.append(f"{name} ({term.func.__module__}.{term.func.__qualname__})")
         continue
+      if memory_init(term.func) is not None:
+        raise NotImplementedError(f"{group_name}/{name}: memory is for reward terms only")
       terms[name] = (fn, om.get_term_cfg(group_name, name).params)  # entities resolved
       corrupted = group.enable_corruption and term.noise is not None
       if noisy and corrupted:
@@ -161,13 +175,38 @@ class AnalyticHeads:
     """(B, h, dim) per term -> the env's flat layout: per-term history, oldest first."""
     return torch.cat([history[n].flatten(1) for n in self.obs_terms], dim=-1)
 
+  def failure_probability(
+    self, b: Batch, learned: torch.Tensor
+  ) -> torch.Tensor:
+    """The probability that the step to ``b`` ended the episode in a failure: the
+    analytic failure terms on ``b`` combined with the learned head's ``learned`` (for the
+    failures without a single definition; alone if there is none)."""
+    if not self.failures:
+      return learned
+    alive = torch.ones_like(learned)
+    for fn, params in self.failures.values():
+      alive = alive * (1.0 - fn(b, **params))
+    if not self.all_failures_analytic:
+      alive = alive * (1.0 - learned)
+    return 1.0 - alive
+
   # Reward r̂ ---------------------------------------------------------------------
 
-  def reward_terms(self, b: Batch) -> dict[str, torch.Tensor]:
+  def reward_terms(
+    self, b: Batch, memory: Memory | None = None
+  ) -> tuple[dict[str, torch.Tensor], Memory]:
     """Each env reward term on an imagined batch: weight * value (* dt), as the env's
-    reward manager scales it. ``b`` holds the step's resulting state, its action and the
-    command state the step targeted."""
-    return {
-      name: fn(b, **params) * (weight * self.reward_scale)
-      for name, (fn, params, weight) in self.rewards.items()
-    }
+    reward manager scales it, and the stateful terms' next memory. ``b`` holds the
+    step's resulting state, its action and the command state the step targeted;
+    ``memory`` the stateful terms' memory before the step (zero if missing)."""
+    memory = dict(memory or {})
+    terms = {}
+    for name, (fn, params, weight, init) in self.rewards.items():
+      if init is None:
+        value = fn(b, **params)
+      else:
+        mem = term_memory(memory, name) or init(b, **params)
+        value, mem = fn(b, mem, **params)
+        memory.update({f"{name}/{k}": v for k, v in mem.items()})
+      terms[name] = value * (weight * self.reward_scale)
+    return terms, memory

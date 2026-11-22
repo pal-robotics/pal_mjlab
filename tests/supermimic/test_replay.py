@@ -27,9 +27,10 @@ def _fill(seed: int) -> ReplayBuffer:
       "t": torch.full((E,), t, dtype=torch.long),
       "vec": torch.stack([torch.full((E,), float(t)), envs], 1),
     }
+    memory = {"term/t": torch.full((E, 2), float(t))}  # a stateful term's memory
     buf.add(
       state, torch.zeros(E, 3), action, torch.zeros(E, 1), command, done, done,
-      nxt, torch.zeros(E, 3),
+      nxt, torch.zeros(E, 3), memory,
     )  # fmt: skip
     episode = episode + done.float()
     in_episode = torch.where(done, 0.0, in_episode + 1)
@@ -79,6 +80,8 @@ def test_starts_carry_their_episode_history(seed):
   torch.testing.assert_close(prev2, torch.where(hist[:, :, 4] <= 1, 0.0, hist[:, :, 0] - 1))
   # The history rows' command states.
   assert torch.equal(st["history_command"]["t"], hist[:, :, 0].long())
+  # The start row's memory (recorded before its step).
+  torch.testing.assert_close(st["memory"]["term/t"], st["state"][:, :1].expand(-1, 2))
   # The start row's command state.
   assert torch.equal(st["command"]["t"], t0.long())
   torch.testing.assert_close(st["command"]["vec"], st["state"][:, [0, 2]])
