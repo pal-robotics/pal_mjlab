@@ -55,6 +55,17 @@ class SuperMimicVelocityCommand(UniformVelocityCommand):
     super().__init__(cfg, env)
     self._command_model: VelocityCommandModel | None = None
 
+  def step_metrics(self) -> dict[str, torch.Tensor]:
+    """Per-env tracking this step, for SuperMimic's step logs (mjlab's ``metrics`` sum
+    over an episode instead). ``standing_error_xy`` is what standing still would score."""
+    cmd, vel = self.vel_command_b, self.robot.data.root_link_lin_vel_b
+    return {
+      "error_vel_xy": torch.norm(cmd[:, :2] - vel[:, :2], dim=-1),
+      "error_vel_yaw": torch.abs(cmd[:, 2] - self.robot.data.root_link_ang_vel_b[:, 2]),
+      "speed_xy": torch.norm(vel[:, :2], dim=-1),
+      "standing_error_xy": torch.norm(cmd[:, :2], dim=-1),
+    }
+
   def command_model(self) -> VelocityCommandModel:
     """This command's tensor twin, for SuperMimic's imagination (one per command)."""
     if self._command_model is None:

@@ -115,3 +115,36 @@ def test_episodes_start_at_random_points(env):
   lengths = env.episode_length_buf.float()
   assert lengths.std() > 50  # spread over the episode (1000 steps), not all near 0
   assert int(lengths.max()) < env.max_episode_length
+
+
+def test_step_logs_cover_all_envs_every_step(env, capsys):
+  """The step logs (read like PPO's curves) are means over all envs of each step: the
+  reward terms add up to the env's reward, and the command reports its tracking error."""
+  from dataclasses import asdict
+
+  from mjlab.rl import RslRlVecEnvWrapper
+  from pal_mjlab.rl.supermimic import SuperMimicRunner
+  from pal_mjlab.tasks.supermimic_velocity.rl_cfg import (
+    pal_kangaroo_velocity_supermimic_runner_cfg,
+  )
+
+  agent = pal_kangaroo_velocity_supermimic_runner_cfg()
+  agent.compile, agent.replay_steps = False, 60
+  agent.algorithm.world_model = WorldModelUpdateCfg(batches=1, batch_size=16, hidden=(32,))
+  agent.algorithm.policy = PolicyUpdateCfg(
+    horizon=4, num_rollouts=8, hidden_dims=(32,), encoder_dims=(32,), latent_dim=8
+  )
+  runner = SuperMimicRunner(RslRlVecEnvWrapper(env), asdict(agent), None, env.device)
+  runner.writer, runner.generator = None, torch.Generator(device=env.device)
+  obs = runner.start_collection()
+  obs, t = runner._collect(obs)
+  log = t["step_log"]
+  for name in env.reward_manager.active_terms:
+    assert f"reward/{name}" in log
+  for name in env.termination_manager.active_terms:
+    assert f"terminations_per_min/{name}" in log
+  for key in ("error_vel_xy", "error_vel_yaw", "speed_xy", "standing_error_xy"):
+    assert f"command/twist/{key}" in log
+  assert log["reward_total"] * env.step_dt == pytest.approx(float(t["reward"].mean()), rel=1e-4, abs=1e-6)
+  runner._log(1)
+  assert "time_to_failure" in capsys.readouterr().out
