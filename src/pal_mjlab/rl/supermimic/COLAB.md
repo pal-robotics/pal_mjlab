@@ -61,21 +61,21 @@ The first iterations are slow while `torch.compile` compiles. If memory runs out
 %tensorboard --logdir /content/pal_mjlab/logs/rsl_rl/kangaroo_supermimic_velocity
 ```
 
-What to read. The `step/*` curves are means over **all** envs at every step, so they read
+What to read. The `Step*` sections are means over **all** envs at every step, so they read
 like a PPO run's and compare across runs:
 
-- `step/command/twist/error_vel_xy` vs `standing_error_xy` (what standing still would
+- `Step_Metrics/twist/error_vel_xy` vs `standing_error_xy` (what standing still would
   score on the same commands): walking after the command means clearly below it.
   `speed_xy` tells standing (~0.05 m/s) from moving.
-- `step/reward/<term>`: each term's weighted reward per second; `step/reward_total`.
-- `step/mean_time_to_failure_s`: env time per fall (capped at 3600 s);
-  `step/terminations_per_min/<term>`: which failure.
-- `sim/reward` vs `policy/imagined_reward`: when the imagined reward rises above the real
+- `Step_Reward/<term>`: each term's weighted reward per second; `Step_Reward/total`.
+- `Step/mean_time_to_failure_s`: env time per fall (capped at 3600 s);
+  `Step_Termination/<term>`: terminations per env per minute, by cause.
+- `Step/reward` vs `policy/imagined_reward`: when the imagined reward rises above the real
   one, the policy is exploiting the world model.
 - `policy/value` vs `policy/lambda_return`: they should track each other, under the
   return bound.
 
-`episode/*` and `env/*` (mjlab's Episode_Reward, Metrics, Episode_Termination) only
+`episode/*` and mjlab's `Episode_Reward/*`, `Episode_Termination/*`, `Metrics/*` only
 average the episodes that ended in each window, and are totals over an episode: they
 mostly show episode lengths (falls between waves of synchronized 20 s time-outs).
 
