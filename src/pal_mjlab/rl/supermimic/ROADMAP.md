@@ -2,7 +2,8 @@
 
 Our working notes, for picking the work up in a fresh session. Read this first, then the
 code; the user-facing documentation is `docs/rl/supermimic.rst`.
-Branch: `MAC/wbc-supermimic`. Last updated 2026-11-22 (M5 phase 1: the robot walks;
+Branch: `MAC/supermimic` (from `main`; the same work on top of the WBC branch stays on
+`MAC/wbc-supermimic` as a backup). Last updated 2026-11-22 (M5 phase 1: the robot walks;
 tracking and gait quality in progress).
 
 ## 1. The idea

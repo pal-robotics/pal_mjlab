@@ -6,7 +6,7 @@ type > GPU** (A100 or L4; a T4's 16 GB is tight for 4096 imagined rollouts).
 ## 1. Clone the branch
 
 ```python
-!git clone --depth 1 -b MAC/wbc-supermimic https://github.com/pal-robotics/pal_mjlab.git /content/pal_mjlab
+!git clone --depth 1 -b MAC/supermimic https://github.com/pal-robotics/pal_mjlab.git /content/pal_mjlab
 %cd /content/pal_mjlab
 !git log --oneline -1
 ```
