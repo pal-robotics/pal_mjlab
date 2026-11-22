@@ -131,6 +131,21 @@ a model from every transition and follows exact gradients), not fewer hours on a
 on velocity tracking, discovering a gait is an exploration problem where gradient methods
 can stall in "stand still safely". Whether it walks sooner than PPO is what to measure next.
 
+### Colab runs (A100/L4, 4096 envs and rollouts, H 32, actor lr 1e-4)
+
+Evaluated deterministically on fresh envs (xy error vs the standing-still error on the same
+commands): `colab_h32_lr1e-4` stands at 250 and 500 (error = standing, 0.04 m/s), moves at
+750 (0.18 m/s) but not toward the command (0.670 vs 0.624), falling more. `action_noise
+0.3` looked the same. The episode curves mislead here (sums / fixed constants, averaged over
+ended episodes; time-outs come in waves every ~420 iterations once falls are rare).
+
+Diagnosis: the PPO rewards suit PPO, not gradients. Standing earns ~5 of ~7 per step (yaw
+commands are small; upright and posture are full), and the linear tracking kernel (std 0.5)
+is flat at standing errors: no gradient toward the command. Retuned
+(`env_cfgs.TRACK_LIN_WEIGHT`, `TRACK_*_STD`): linear weight 2 -> 4, stds 0.5 / 0.71 -> 1.0;
+the return bound follows (19). Fallback if it still stands: walking data from a PPO
+checkpoint in replay (mixed collection), or distillation first.
+
 ### Next
 
 1. **A fair run on a good GPU** (`COLAB.md`): horizon 32 (the paper's; a gait cycle is
