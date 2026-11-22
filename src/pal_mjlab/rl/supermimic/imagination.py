@@ -30,6 +30,7 @@ import weakref
 from collections.abc import Callable
 from typing import TYPE_CHECKING, NamedTuple
 
+import numpy as np
 import torch
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 
@@ -346,9 +347,9 @@ def capsule_bottoms(b: Batch, bodies: tuple[str, ...]) -> torch.Tensor:
         rows.append((spec.body(name), m.geom_pos[g], m.geom_quat[g], m.geom_size[g][:2]))
     dev = b.state.device
     index = torch.tensor([r[0] for r in rows], device=dev)
-    pos = torch.tensor([r[1] for r in rows], dtype=torch.float32, device=dev)
-    quat = torch.tensor([r[2] for r in rows], dtype=torch.float32, device=dev)
-    size = torch.tensor([r[3] for r in rows], dtype=torch.float32, device=dev)
+    pos = torch.tensor(np.array([r[1] for r in rows]), dtype=torch.float32, device=dev)
+    quat = torch.tensor(np.array([r[2] for r in rows]), dtype=torch.float32, device=dev)
+    size = torch.tensor(np.array([r[3] for r in rows]), dtype=torch.float32, device=dev)
     axis = torch.zeros_like(pos)
     axis[:, 2] = size[:, 1]  # half length along the capsule's local z
     from mjlab.utils.lab_api.math import quat_apply as qa
