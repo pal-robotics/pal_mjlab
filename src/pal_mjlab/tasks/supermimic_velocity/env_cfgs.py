@@ -45,6 +45,15 @@ KNEE_LINKAGE = tuple(
 """The passive linkage whose contact with the ground ends an episode."""
 
 
+# Velocity tracking, retuned from the PPO task's (weight 2, std 0.5 / 0.71) for a gradient
+# method: with std 0.5 the kernel is flat at a standing robot's errors (0.8 m/s: 0.08, about
+# no slope), and standing already earned ~5 of the ~7 reward per step (roadmap M5). A wider
+# kernel keeps the gradient toward the command alive; a heavier linear term makes moving pay.
+TRACK_LIN_WEIGHT = 4.0
+TRACK_LIN_STD = 1.0
+TRACK_YAW_STD = 1.0
+
+
 def pal_kangaroo_flat_supermimic_env_cfg(play: bool = False) -> SuperMimicEnvCfg:
   """The PPO flat velocity task of the base Kangaroo, for SuperMimic."""
   cfg = pal_kangaroo_flat_env_cfg(play=play)
@@ -118,13 +127,13 @@ def pal_kangaroo_flat_supermimic_env_cfg(play: bool = False) -> SuperMimicEnvCfg
   p = {n: old[n].params for n in old}
   contact = dict(mdp.FOOT_CONTACT)
   cfg.rewards = {
-    "track_linear_velocity": term(
-      "track_linear_velocity", mdp.track_linear_velocity, std=p["track_linear_velocity"]["std"]
+    "track_linear_velocity": RewardTermCfg(
+      func=mdp.track_linear_velocity, weight=TRACK_LIN_WEIGHT, params={"std": TRACK_LIN_STD}
     ),
-    "track_angular_velocity": term(
-      "track_angular_velocity",
-      mdp.track_angular_velocity,
-      std=p["track_angular_velocity"]["std"],
+    "track_angular_velocity": RewardTermCfg(
+      func=mdp.track_angular_velocity,
+      weight=old["track_angular_velocity"].weight,
+      params={"std": TRACK_YAW_STD},
     ),
     "upright": term(
       "upright", mdp.upright, std=p["upright"]["std"], asset_cfg=p["upright"]["asset_cfg"]

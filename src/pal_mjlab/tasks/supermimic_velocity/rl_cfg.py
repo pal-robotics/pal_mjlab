@@ -2,11 +2,13 @@
 
 from pal_mjlab.rl.supermimic import SuperMimicRunnerCfg
 from pal_mjlab.rl.supermimic.supermimic import CriticUpdateCfg, SuperMimicCfg
+from pal_mjlab.tasks.supermimic_velocity.env_cfgs import TRACK_LIN_WEIGHT
 
-# The largest return the rewards allow: their positive weights (tracking 2 + 2, upright 2,
-# pose 1, air time 0.25 x 2 feet = 7.5 per step, each term <= 1 per foot) x dt 0.02,
-# over 1 / (1 - gamma) = 100 steps.
-MAX_RETURN = 7.5 * 0.02 / (1.0 - 0.99)
+# The largest return the rewards allow: their positive weights (linear tracking
+# TRACK_LIN_WEIGHT, yaw tracking 2, upright 2, pose 1, air time 0.25 x 2 feet; each term
+# <= 1 per foot) x dt 0.02, over 1 / (1 - gamma) = 100 steps. Overriding the tracking
+# weight on the command line? Also pass --agent.algorithm.critic.max-return.
+MAX_RETURN = (TRACK_LIN_WEIGHT + 2.0 + 2.0 + 1.0 + 0.5) * 0.02 / (1.0 - 0.99)
 
 
 def pal_kangaroo_velocity_supermimic_runner_cfg() -> SuperMimicRunnerCfg:
