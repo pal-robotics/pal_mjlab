@@ -15,6 +15,7 @@ from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
   HIP_XY_CONVEX_HULL_POINTS,
+  REGEX_LEG_LENGTH_JOINTS_ONLY,
   KANGAROO_ACTION_SCALE,
   KANGAROO_ACTUATOR_NAMES,
   KANGAROO_HANDS_ACTION_SCALE,
@@ -141,6 +142,15 @@ def pal_kangaroo_flat_tracking_env_cfg(
         [r"leg_right_4_joint", r"leg_right_5_joint"],
       ],
       "hull_points": ANKLE_XY_CONVEX_HULL_POINTS,
+    },
+  )
+
+  cfg.rewards["joint_vel_limits"] = RewardTermCfg(
+    func=mdp.joint_vel_limits,
+    weight=-10.0,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(REGEX_LEG_LENGTH_JOINTS_ONLY,)),
+      "velocity_limits": {REGEX_LEG_LENGTH_JOINTS_ONLY: (-2.0, 2.0)},
     },
   )
 
