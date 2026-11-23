@@ -44,3 +44,15 @@ def pal_kangaroo_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
     num_steps_per_env=24,
     max_iterations=30_000,
   )
+
+
+def pal_kangaroo_run_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  """RL runner configuration for fine-tuning the street-running task.
+
+  Same as the velocity runner (same experiment name, so ``--agent.resume`` finds the
+  rough-terrain runs), with fewer iterations: resuming at 15000 runs up to 27000,
+  i.e. ~3000 iterations at 3 m/s, 4000 at 4 m/s and 5000 at 5 m/s.
+  """
+  cfg = pal_kangaroo_ppo_runner_cfg()
+  cfg.max_iterations = 15_000
+  return cfg

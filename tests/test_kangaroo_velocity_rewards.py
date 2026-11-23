@@ -217,6 +217,81 @@ def test_track_angular_velocity_reward(mock_env, mock_asset_cfg):
   )
 
 
+def _speed_scaled_env(mock_env, commands, lin_vel=None, ang_vel=None):
+  env = mock_env
+  env.command_manager = command_manager(env)
+  env.command_manager.active_terms["twist"] = torch.tensor(commands)
+  zeros = torch.zeros((env.num_envs, 3))
+  env.scene["robot"].data.root_link_lin_vel_b = (
+    torch.tensor(lin_vel) if lin_vel is not None else zeros
+  )
+  env.scene["robot"].data.root_link_ang_vel_b = (
+    torch.tensor(ang_vel) if ang_vel is not None else zeros
+  )
+  return env
+
+
+def test_track_linear_velocity_speed_scaled_matches_fixed_at_low_speed(
+  mock_env, mock_asset_cfg
+):
+  # Below std / std_per_mps the floor applies: identical to the mjlab term.
+  commands = [[0.5, 0.2, 0.0], [1.0, 0.0, 0.3], [0.0, 0.0, 0.0], [-0.8, 0.4, 0.0]]
+  lin_vel = [[0.3, 0.0, 0.1], [0.7, 0.2, 0.0], [0.1, 0.0, 0.0], [-0.5, 0.1, 0.05]]
+  env = _speed_scaled_env(mock_env, commands, lin_vel=lin_vel)
+  std = math.sqrt(0.1)
+
+  scaled = pal_mjlab_r.track_linear_velocity_speed_scaled(
+    env, std=std, std_per_mps=0.25, command_name="twist", asset_cfg=mock_asset_cfg
+  )
+  fixed = mjlab_vel_r.track_linear_velocity(
+    env, std=std, command_name="twist", asset_cfg=mock_asset_cfg
+  )
+
+  assert scaled.shape == (env.num_envs,)
+  torch.testing.assert_close(scaled, fixed)
+
+
+def test_track_linear_velocity_speed_scaled_widens_at_high_speed(
+  mock_env, mock_asset_cfg
+):
+  # 4 m/s command, robot at 3 m/s -> sigma = 0.25 * 4 = 1.0, error = 1.0.
+  commands = [[4.0, 0.0, 0.0]] * 4
+  lin_vel = [[3.0, 0.0, 0.0], [4.0, 0.0, 0.0], [0.0, 0.0, 0.0], [2.0, 0.0, 0.0]]
+  env = _speed_scaled_env(mock_env, commands, lin_vel=lin_vel)
+
+  value = pal_mjlab_r.track_linear_velocity_speed_scaled(
+    env,
+    std=math.sqrt(0.1),
+    std_per_mps=0.25,
+    command_name="twist",
+    asset_cfg=mock_asset_cfg,
+  )
+
+  assert value[0] == pytest.approx(math.exp(-1.0), abs=1e-6)
+  assert value[1] == pytest.approx(1.0, abs=1e-6)
+  assert value[2] == pytest.approx(math.exp(-16.0), abs=1e-9)
+  # Monotonic: faster (closer to the command) always pays more than standing still.
+  assert value[1] > value[0] > value[3] > value[2]
+
+
+def test_track_angular_velocity_speed_scaled(mock_env, mock_asset_cfg):
+  # Low linear speed -> floor std; 4 m/s -> sigma = 1.0.
+  commands = [[0.5, 0.0, 0.5], [4.0, 0.0, 0.5], [0.0, 0.0, 0.0], [4.0, 0.0, 0.0]]
+  ang_vel = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.5, 0.5, 0.0], [0.5, 0.5, 0.0]]
+  env = _speed_scaled_env(mock_env, commands, ang_vel=ang_vel)
+  std = math.sqrt(0.5)
+
+  value = pal_mjlab_r.track_angular_velocity_speed_scaled(
+    env, std=std, std_per_mps=0.25, command_name="twist", asset_cfg=mock_asset_cfg
+  )
+
+  assert value.shape == (env.num_envs,)
+  assert value[0] == pytest.approx(math.exp(-0.25 / 0.5), abs=1e-6)
+  assert value[1] == pytest.approx(math.exp(-0.25), abs=1e-6)
+  assert value[2] == pytest.approx(math.exp(-0.5 / 0.5), abs=1e-6)
+  assert value[3] == pytest.approx(math.exp(-0.5), abs=1e-6)
+
+
 def test_upright_no_terrain_sensors_reward(mock_env, mock_asset_cfg):
   env = mock_env
 

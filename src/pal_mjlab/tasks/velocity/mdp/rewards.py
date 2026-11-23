@@ -513,6 +513,65 @@ def track_body_ang_vel_z_exp(
   return torch.exp(-z_error / std**2)
 
 
+def _speed_scaled_std(
+  command: torch.Tensor, std: float, std_per_mps: float
+) -> torch.Tensor:
+  """Per-env kernel width: ``max(std, std_per_mps * |command_xy|)``.
+
+  Keeps the kernel tight at low commanded speed and widens it linearly with the
+  commanded planar speed, so a high-speed command still gives a usable gradient
+  (e.g. a 4 m/s command with ``std_per_mps=0.25`` gives sigma=1.0, where a fixed
+  ``sqrt(0.1)`` std gives ~0 reward to anything slower than 3.5 m/s).
+  """
+  speed = torch.linalg.norm(command[:, :2], dim=1)
+  return torch.clamp(std_per_mps * speed, min=std)
+
+
+def track_linear_velocity_speed_scaled(
+  env: ManagerBasedRlEnv,
+  std: float,
+  std_per_mps: float,
+  command_name: str,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """``track_linear_velocity`` with a std that grows with the commanded speed.
+
+  Same error as the mjlab term (xy tracking + z velocity, body frame); the kernel
+  width is ``max(std, std_per_mps * |command_xy|)``.
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+  actual = asset.data.root_link_lin_vel_b
+  xy_error = torch.sum(torch.square(command[:, :2] - actual[:, :2]), dim=1)
+  z_error = torch.square(actual[:, 2])
+  sigma = _speed_scaled_std(command, std, std_per_mps)
+  return torch.exp(-(xy_error + z_error) / sigma**2)
+
+
+def track_angular_velocity_speed_scaled(
+  env: ManagerBasedRlEnv,
+  std: float,
+  std_per_mps: float,
+  command_name: str,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """``track_angular_velocity`` with a std that grows with the commanded speed.
+
+  Same error as the mjlab term (yaw-rate tracking + roll/pitch rates, body frame).
+  Roll/pitch oscillation naturally grows when running, so the kernel width is
+  ``max(std, std_per_mps * |command_xy|)`` (scaled by the *linear* command).
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+  actual = asset.data.root_link_ang_vel_b
+  z_error = torch.square(command[:, 2] - actual[:, 2])
+  xy_error = torch.sum(torch.square(actual[:, :2]), dim=1)
+  sigma = _speed_scaled_std(command, std, std_per_mps)
+  return torch.exp(-(z_error + xy_error) / sigma**2)
+
+
 def body_ang_vel_xy_l2_penalty(
   env: ManagerBasedRlEnv,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,

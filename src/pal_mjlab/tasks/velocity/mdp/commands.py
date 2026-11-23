@@ -209,3 +209,71 @@ class DualBandVelocityCommandCfg(UniformVelocityCommandCfg):
 
   def build(self, env: ManagerBasedRlEnv) -> DualBandVelocityCommand:
     return DualBandVelocityCommand(self, env)
+
+
+class SpeedCoupledVelocityCommand(UniformVelocityCommand):
+  """Uniform velocity command whose lateral and yaw commands shrink at high speed.
+
+  After the usual uniform sampling, ``lin_vel_y`` and ``ang_vel_z`` are multiplied
+  by a per-env factor that goes linearly from 1 at ``|lin_vel_x| <= coupling_start``
+  to ``min_scale`` at ``|lin_vel_x| >= coupling_end``. Heading envs recompute their
+  yaw rate every step, so it is also clipped to the scaled ``ang_vel_z`` range.
+  World-frame envs keep their world-frame lateral command (not rescaled per step).
+  """
+
+  cfg: SpeedCoupledVelocityCommandCfg  # type: ignore[assignment]
+
+  def __init__(self, cfg: SpeedCoupledVelocityCommandCfg, env: ManagerBasedRlEnv):
+    super().__init__(cfg, env)
+    self.lateral_yaw_scale = torch.ones(self.num_envs, device=self.device)
+
+  def _coupling_scale(self, lin_vel_x: torch.Tensor) -> torch.Tensor:
+    span = self.cfg.coupling_end - self.cfg.coupling_start
+    t = ((lin_vel_x.abs() - self.cfg.coupling_start) / span).clamp(0.0, 1.0)
+    return 1.0 - (1.0 - self.cfg.min_scale) * t
+
+  def _resample_command(self, env_ids: torch.Tensor) -> None:
+    super()._resample_command(env_ids)
+    scale = self._coupling_scale(self.vel_command_b[env_ids, 0])
+    self.lateral_yaw_scale[env_ids] = scale
+    self.vel_command_b[env_ids, 1] *= scale
+    self.vel_command_b[env_ids, 2] *= scale
+    self.vel_command_w[env_ids, 1] *= scale
+    self.vel_command_w[env_ids, 2] *= scale
+
+  def _update_command(self, env_ids: torch.Tensor | None = None) -> None:
+    super()._update_command(env_ids)
+    if self.cfg.heading_command:
+      heading_ids = self.is_heading_env.nonzero(as_tuple=False).flatten()
+      scale = self.lateral_yaw_scale[heading_ids]
+      lo, hi = self.cfg.ranges.ang_vel_z
+      self.vel_command_b[heading_ids, 2] = torch.clamp(
+        self.vel_command_b[heading_ids, 2], min=lo * scale, max=hi * scale
+      )
+
+
+@dataclass(kw_only=True)
+class SpeedCoupledVelocityCommandCfg(UniformVelocityCommandCfg):
+  """Velocity command with lateral/yaw ranges reduced at high forward speed."""
+
+  coupling_start: float = 1.5
+  """|lin_vel_x| (m/s) up to which lin_vel_y and ang_vel_z keep their full range."""
+
+  coupling_end: float = 4.0
+  """|lin_vel_x| (m/s) from which lin_vel_y and ang_vel_z are scaled by min_scale."""
+
+  min_scale: float = 0.25
+  """Scale applied to lin_vel_y and ang_vel_z at and above coupling_end."""
+
+  def __post_init__(self) -> None:
+    super().__post_init__()
+    if not 0.0 <= self.coupling_start < self.coupling_end:
+      raise ValueError(
+        "Expected 0 <= coupling_start < coupling_end; got "
+        f"{self.coupling_start} and {self.coupling_end}."
+      )
+    if not 0.0 <= self.min_scale <= 1.0:
+      raise ValueError(f"min_scale must be between 0 and 1; got {self.min_scale}.")
+
+  def build(self, env: ManagerBasedRlEnv) -> SpeedCoupledVelocityCommand:
+    return SpeedCoupledVelocityCommand(self, env)

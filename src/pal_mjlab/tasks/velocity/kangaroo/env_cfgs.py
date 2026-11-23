@@ -1,7 +1,7 @@
 """PAL Robotics KANGAROO velocity tracking environment configurations."""
 
 import math
-from dataclasses import replace
+from dataclasses import fields, replace
 
 import mjlab.terrains as terrain_gen
 from mjlab.envs import ManagerBasedRlEnvCfg
@@ -563,9 +563,18 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # Reduce upright std, to have torso stance more stable
   cfg.rewards["upright"].params["std"] = math.sqrt(0.05)
 
-  # Tightened from default so the reward stays discriminative at low command speeds
-  # instead of flattening into a dead-zone.
+  # Velocity tracking with a std that grows with the commanded speed:
+  # sigma = max(std, std_per_mps * |cmd_xy|). The floor stays tight so the reward is
+  # discriminative at low speed; above ~1.3 m/s it widens so high-speed commands
+  # still give a gradient (with a fixed sqrt(0.1) std, running at 3 m/s on a
+  # 4 m/s command scored the same ~0 as standing still).
+  cfg.rewards["track_linear_velocity"].func = mdp.track_linear_velocity_speed_scaled
   cfg.rewards["track_linear_velocity"].params["std"] = math.sqrt(0.1)
+  cfg.rewards["track_linear_velocity"].params["std_per_mps"] = 0.25
+  # Floor kept at the mjlab default sqrt(0.5); only widens above ~2.8 m/s, when the
+  # roll/pitch rates of a running gait start to dominate the error.
+  cfg.rewards["track_angular_velocity"].func = mdp.track_angular_velocity_speed_scaled
+  cfg.rewards["track_angular_velocity"].params["std_per_mps"] = 0.25
 
   # Human-like arm swing: shoulder pitch in counter-phase with the legs, amplitude
   # proportional to the forward command (0.2 rad per m/s, capped at 0.5 rad).
@@ -729,6 +738,143 @@ def pal_kangaroo_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     assert cfg.curriculum is not None
     assert "terrain_levels" in cfg.curriculum
     del cfg.curriculum["terrain_levels"]
+
+  return cfg
+
+
+def pal_kangaroo_run_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Create PAL Robotics KANGAROO street-running velocity configuration.
+
+  Same as the rough configuration (rewards, commands, speed curriculum) but with
+  street-like terrain whose hardest level is still runnable at 4-5 m/s. Meant to be
+  trained from scratch or fine-tuned from a rough-terrain checkpoint.
+
+  At running speed the robot crosses a 4 m tile every second, so it keeps running
+  onto neighbouring tiles of other types and harder rows: the terrain curriculum
+  does not control what a runner sees. Every sub-terrain is therefore capped at
+  street-level relief at difficulty 1 (gravel, uneven paving, kerb-like steps,
+  debris, gentle undulations and street-grade slopes), instead of the 12-20 cm
+  obstacles of the rough terrain.
+  """
+  cfg = pal_kangaroo_rough_env_cfg(play=play)
+
+  assert cfg.scene.terrain is not None
+  terrain_generator = cfg.scene.terrain.terrain_generator
+  assert terrain_generator is not None
+
+  # Wider flat border: a runner covers up to ~100 m per 20 s episode, so it stays
+  # inside the terrain footprint (out_of_terrain_bounds) for most of the episode.
+  terrain_generator.border_width = 30.0
+
+  # Heights below are the values at difficulty 1 (rows are interpolated linearly
+  # from the low end; box spreads scale height by 0.2-1.0 and count by 0.5-1.0).
+  terrain_generator.sub_terrains = {
+    "flat": terrain_gen.BoxFlatTerrainCfg(proportion=0.25),
+    # Gravel / loose stones.
+    "gravel": terrain_gen.BoxRandomSpreadTerrainCfg(
+      proportion=0.15,
+      num_boxes=350,
+      box_width_range=(0.02, 0.05),
+      box_length_range=(0.02, 0.05),
+      box_height_range=(0.01, 0.03),
+      box_yaw_range=(0.0, 360.0),
+      add_floor=True,
+      platform_width=0.6,
+      border_width=0.0,
+    ),
+    # Uneven paving slabs / cobblestones.
+    "uneven_pavement": terrain_gen.BoxRandomGridTerrainCfg(
+      proportion=0.15,
+      grid_width=0.4,
+      grid_height_range=(0.005, 0.025),
+      platform_width=0.6,
+      border_width=0.25,
+      merge_similar_heights=True,
+      height_merge_threshold=0.01,
+      max_merge_distance=3,
+    ),
+    # Kerb-like steps, sidewalk edges, slabs.
+    "kerbs": terrain_gen.HfDiscreteObstaclesTerrainCfg(
+      proportion=0.10,
+      obstacle_width_range=(0.4, 1.0),
+      obstacle_height_range=(0.01, 0.05),
+      num_obstacles=60,
+      platform_width=0.5,
+      border_width=0.1,
+      base_thickness_ratio=0.5,
+    ),
+    # Sparse low debris (lids, branches, bumps).
+    "debris": terrain_gen.BoxRandomSpreadTerrainCfg(
+      proportion=0.10,
+      num_boxes=20,
+      box_width_range=(0.1, 0.4),
+      box_length_range=(0.1, 0.4),
+      box_height_range=(0.01, 0.04),
+      box_yaw_range=(0.0, 360.0),
+      add_floor=True,
+      platform_width=0.6,
+      border_width=0.0,
+    ),
+    # Gentle ground undulation (worn asphalt, park paths).
+    "undulations": terrain_gen.HfPerlinNoiseTerrainCfg(
+      proportion=0.10,
+      height_range=(0.01, 0.06),
+      resolution=0.10,
+      scale=5.0,
+    ),
+    # Street-grade slopes, up to 12 % (steep street), uphill and downhill.
+    "slope_up": terrain_gen.HfPyramidSlopedTerrainCfg(
+      proportion=0.075,
+      slope_range=(0.0, 0.12),
+      platform_width=1.0,
+      inverted=False,
+      border_width=0.25,
+    ),
+    "slope_down": terrain_gen.HfPyramidSlopedTerrainCfg(
+      proportion=0.075,
+      slope_range=(0.0, 0.12),
+      platform_width=1.0,
+      inverted=True,
+      border_width=0.25,
+    ),
+  }
+
+  ### COMMANDS
+
+  # Lateral and yaw commands shrink with forward speed: full range up to 1.5 m/s,
+  # a quarter of it from 4 m/s (+-0.25 m/s lateral, +-0.25 rad/s yaw, i.e. a ~16 m
+  # turning radius). Running at 4-5 m/s while side-stepping at 1 m/s and turning at
+  # 1 rad/s is neither realistic nor learnable. The 20 % forward-only envs inherited
+  # from mjlab (rel_forward_envs) still get pure straight-line commands.
+  twist_cmd = cfg.commands["twist"]
+  assert isinstance(twist_cmd, mdp.UniformVelocityCommandCfg)
+  twist_cmd = mdp.SpeedCoupledVelocityCommandCfg(
+    **{f.name: getattr(twist_cmd, f.name) for f in fields(twist_cmd) if f.init},
+    coupling_start=1.5,
+    coupling_end=4.0,
+    min_scale=0.25,
+  )
+  twist_cmd.ranges.lin_vel_x = (-2.0, 3.0)
+  twist_cmd.ranges.lin_vel_y = (-1.0, 1.0)
+  twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
+  cfg.commands["twist"] = twist_cmd
+
+  # Speed curriculum for fine-tuning from a rough-terrain checkpoint at ~15000
+  # iterations (the checkpoint restores the step counter, so stages are absolute):
+  # start directly at the 3 m/s range, then 4 m/s and 5 m/s. Not meant for training
+  # from scratch, which would start at 3 m/s.
+  command_vel_curriculum = cfg.curriculum["command_vel"]
+  assert isinstance(command_vel_curriculum, CurriculumTermCfg)
+  command_vel_curriculum.params["velocity_stages"] = [
+    {
+      "step": 0,
+      "lin_vel_x": (-2.0, 3.0),
+      "lin_vel_y": (-1.0, 1.0),
+      "ang_vel_z": (-1.0, 1.0),
+    },
+    {"step": 18000 * 24, "lin_vel_x": (-2.0, 4.0)},
+    {"step": 22000 * 24, "lin_vel_x": (-2.0, 5.0)},
+  ]
 
   return cfg
 

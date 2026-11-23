@@ -15,6 +15,7 @@ KANGAROO_VELOCITY_TASKS = (
   "Mjlab-Velocity-Flat-Pal-Kangaroo-Lower-Body",
   "Mjlab-Velocity-Rough-Pal-Kangaroo",
   "Mjlab-Velocity-Rough-Pal-Kangaroo-Lower-Body",
+  "Mjlab-Velocity-Run-Pal-Kangaroo",
   "Mjlab-Velocity-Stairs-Pal-Kangaroo",
 )
 
