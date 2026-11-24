@@ -1,5 +1,7 @@
 """PAL Robotics Kangaroo Flat terrain tracking configuration."""
 
+from dataclasses import replace
+
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -11,6 +13,8 @@ from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
 from mjlab.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
+from mjlab.terrains import TerrainGeneratorCfg, TerrainEntityCfg
+from mjlab.terrains.config import ROUGH_TERRAINS_CFG
 
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
@@ -24,6 +28,7 @@ from pal_mjlab.robots import (
   get_kangaroo_robot_cfg,
 )
 from pal_mjlab.tasks.velocity import mdp
+import pal_mjlab.terrains as terrain_gen
 
 
 def pal_kangaroo_flat_tracking_env_cfg(
@@ -227,3 +232,39 @@ def pal_kangaroo_hands_flat_env_cfg(
   joint_pos_action.actuator_names = KANGAROO_HANDS_ACTUATOR_NAMES
 
   return cfg
+
+
+def pal_kangaroo_obstacle_tracking_env_cfg(
+  has_state_estimation: bool = False,
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  cfg = pal_kangaroo_flat_tracking_env_cfg(
+    has_state_estimation=has_state_estimation, play=play
+  )
+
+  cfg.scene.terrain = TerrainEntityCfg(
+    terrain_type="generator",
+    terrain_generator=TerrainGeneratorCfg(
+      size=(8.0, 8.0),
+      num_rows=1,
+      num_cols=1,
+      border_width=10.0,
+      curriculum=False,
+      add_lights=False,
+      sub_terrains={
+        "box": terrain_gen.BoxSingleObstacleTerrainCfg(
+          size=(1.0, 1.0),
+          proportion=1.0,
+          box_size=(1.0, 0.5),
+          box_height=0.590,
+          box_offset=(0.0, 0.1),
+        ),
+      },
+    ),
+    max_init_terrain_level=0,
+  )
+
+  cfg.sim.nconmax = 100
+
+  return cfg
+
