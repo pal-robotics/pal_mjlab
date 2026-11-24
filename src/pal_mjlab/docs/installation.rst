@@ -58,7 +58,7 @@ List available PAL environments to confirm everything is working:
 
 .. code-block:: bash
 
-   uv run list-envs --keyword pal
+   uv run list-envs --keyword Pal
 
 You should see a list of environments such as ``Mjlab-Velocity-Flat-Pal-Kangaroo`` and ``Mjlab-Tracking-Flat-Pal-Kangaroo``.
 

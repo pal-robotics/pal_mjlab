@@ -34,7 +34,7 @@ uv sync
 List available environments.
 
 ```bash
-uv run list_envs --keyword pal
+uv run list-envs --keyword Pal
 ```
 
 Test with dummy agents.

@@ -36,6 +36,8 @@ Watch Kangaroo walking outdoor with a locomotion policy trained in ``pal_mjlab``
    kangaroo/kangaroo_overview
    kangaroo/models/kangaroo_simple
    kangaroo/models/kangaroo_lower_body
+   kangaroo/models/kangaroo_hands
    kangaroo/models/kangaroo_grippers
    kangaroo/tasks/task_velocity
    kangaroo/tasks/task_imitation
+   kangaroo/tasks/task_reaching
