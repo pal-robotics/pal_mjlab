@@ -18,6 +18,7 @@ from mjlab.utils.color import brand_ramp
 _ORANGE = (0.95, 0.55, 0.15)
 _MUJOCO_BLUE = (0.20, 0.45, 0.95)
 
+
 @dataclass(kw_only=True)
 class BoxStraightStairsTerrainCfg(SubTerrainCfg):
   """Straight, limited-width staircase over a flat floor (no railings).
@@ -100,6 +101,7 @@ class BoxStraightStairsTerrainCfg(SubTerrainCfg):
       origin = np.array([x_start / 2.0, y_center, 0.0])
     return TerrainOutput(origin=origin, geometries=geometries)
 
+
 @dataclass(kw_only=True)
 class BoxSingleObstacleTerrainCfg(SubTerrainCfg):
   """Flat ground with a single box obstacle."""
@@ -108,6 +110,9 @@ class BoxSingleObstacleTerrainCfg(SubTerrainCfg):
   """Box footprint (x, y), in meters."""
   box_height: float = 0.2
   """Height of the box top above the ground, in meters."""
+  box_height_range: tuple[float, float] | None = None
+  """If set, overrides ``box_height`` with ``lo + difficulty * (hi - lo)``. With a
+  curriculum generator, row i of ``num_rows`` gets ``linspace(lo, hi, num_rows)[i]``."""
   box_offset: tuple[float, float] = (0.0, 0.0)
   """Box center offset from the tile center (x, y), in meters."""
   spawn_on_box: bool = False
@@ -116,10 +121,14 @@ class BoxSingleObstacleTerrainCfg(SubTerrainCfg):
   def function(
     self, difficulty: float, spec: mujoco.MjSpec, rng: np.random.Generator
   ) -> TerrainOutput:
-    del difficulty, rng  # Unused.
+    del rng  # Unused.
     body = spec.body("terrain")
     cx = self.size[0] / 2 + self.box_offset[0]
     cy = self.size[1] / 2 + self.box_offset[1]
+    height = self.box_height
+    if self.box_height_range is not None:
+      lo, hi = self.box_height_range
+      height = lo + difficulty * (hi - lo)
 
     ground = make_plane(body, self.size, 0.0, center_zero=False)[0]
     geometries = [TerrainGeometry(geom=ground, color=(0.5, 0.5, 0.5, 1.0))]
@@ -128,13 +137,13 @@ class BoxSingleObstacleTerrainCfg(SubTerrainCfg):
     sink = 0.01
     box = body.add_geom(
       type=mujoco.mjtGeom.mjGEOM_BOX,
-      size=(self.box_size[0] / 2, self.box_size[1] / 2, (self.box_height + sink) / 2),
-      pos=(cx, cy, (self.box_height - sink) / 2),
+      size=(self.box_size[0] / 2, self.box_size[1] / 2, (height + sink) / 2),
+      pos=(cx, cy, (height - sink) / 2),
     )
     geometries.append(TerrainGeometry(geom=box, color=brand_ramp(_MUJOCO_BLUE, 0.5)))
 
     if self.spawn_on_box:
-      origin = np.array([cx, cy, self.box_height])
+      origin = np.array([cx, cy, height])
     else:
       origin = np.array([self.size[0] / 2, self.size[1] / 2, 0.0])
     return TerrainOutput(origin=origin, geometries=geometries)

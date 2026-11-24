@@ -1,7 +1,8 @@
 """PAL Robotics Kangaroo Flat terrain tracking configuration."""
 
-from dataclasses import replace
+from dataclasses import fields
 
+import numpy as np
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -12,23 +13,23 @@ from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
 from mjlab.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
+from mjlab.terrains import TerrainEntityCfg, TerrainGeneratorCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
-from mjlab.terrains import TerrainGeneratorCfg, TerrainEntityCfg
-from mjlab.terrains.config import ROUGH_TERRAINS_CFG
 
+import pal_mjlab.terrains as terrain_gen
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
   HIP_XY_CONVEX_HULL_POINTS,
-  REGEX_LEG_LENGTH_JOINTS_ONLY,
   KANGAROO_ACTION_SCALE,
   KANGAROO_ACTUATOR_NAMES,
   KANGAROO_HANDS_ACTION_SCALE,
   KANGAROO_HANDS_ACTUATOR_NAMES,
+  REGEX_LEG_LENGTH_JOINTS_ONLY,
   get_kangaroo_hands_robot_cfg,
   get_kangaroo_robot_cfg,
 )
+from pal_mjlab.tasks.tracking.mdp import ObstacleDropMotionCommandCfg
 from pal_mjlab.tasks.velocity import mdp
-import pal_mjlab.terrains as terrain_gen
 
 
 def pal_kangaroo_flat_tracking_env_cfg(
@@ -234,10 +235,22 @@ def pal_kangaroo_hands_flat_env_cfg(
   return cfg
 
 
+# drop_n_land was recorded jumping off a 0.59 m box; the obstacle task samples the
+# box height per episode from OBSTACLE_HEIGHTS (one terrain row per height) and
+# retimes the motion to match (see ObstacleDropMotionCommand).
+DROP_N_LAND_OBSTACLE_HEIGHT = 0.59
+OBSTACLE_HEIGHT_RANGE = (0.3, 0.8)
+NUM_OBSTACLE_HEIGHTS = 11
+OBSTACLE_HEIGHTS = tuple(
+  float(h) for h in np.linspace(*OBSTACLE_HEIGHT_RANGE, NUM_OBSTACLE_HEIGHTS)
+)
+
+
 def pal_kangaroo_obstacle_tracking_env_cfg(
   has_state_estimation: bool = False,
   play: bool = False,
 ) -> ManagerBasedRlEnvCfg:
+  """Kangaroo dropping off a box whose height is sampled per episode."""
   cfg = pal_kangaroo_flat_tracking_env_cfg(
     has_state_estimation=has_state_estimation, play=play
   )
@@ -245,23 +258,34 @@ def pal_kangaroo_obstacle_tracking_env_cfg(
   cfg.scene.terrain = TerrainEntityCfg(
     terrain_type="generator",
     terrain_generator=TerrainGeneratorCfg(
-      size=(8.0, 8.0),
-      num_rows=1,
+      size=(3.0, 3.0),
+      num_rows=NUM_OBSTACLE_HEIGHTS,
       num_cols=1,
       border_width=10.0,
-      curriculum=False,
+      # Curriculum mode makes row i hold the box of height OBSTACLE_HEIGHTS[i].
+      curriculum=True,
+      difficulty_range=(0.0, 1.0),
       add_lights=False,
       sub_terrains={
         "box": terrain_gen.BoxSingleObstacleTerrainCfg(
           size=(1.0, 1.0),
           proportion=1.0,
           box_size=(1.0, 0.5),
-          box_height=0.590,
+          box_height_range=OBSTACLE_HEIGHT_RANGE,
           box_offset=(0.0, 0.1),
         ),
       },
     ),
-    max_init_terrain_level=0,
+    max_init_terrain_level=None,
+  )
+
+  assert cfg.commands is not None
+  motion_cmd = cfg.commands["motion"]
+  assert isinstance(motion_cmd, MotionCommandCfg)
+  cfg.commands["motion"] = ObstacleDropMotionCommandCfg(
+    **{f.name: getattr(motion_cmd, f.name) for f in fields(MotionCommandCfg)},
+    obstacle_heights=OBSTACLE_HEIGHTS,
+    reference_obstacle_height=DROP_N_LAND_OBSTACLE_HEIGHT,
   )
 
   cfg.sim.nconmax = 100
