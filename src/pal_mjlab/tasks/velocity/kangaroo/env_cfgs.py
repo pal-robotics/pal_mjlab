@@ -859,10 +859,12 @@ def pal_kangaroo_run_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd.ranges.ang_vel_z = (-1.0, 1.0)
   cfg.commands["twist"] = twist_cmd
 
-  # Speed curriculum for fine-tuning from a rough-terrain checkpoint at ~15000
-  # iterations (the checkpoint restores the step counter, so stages are absolute):
-  # start directly at the 3 m/s range, then 4 m/s and 5 m/s. Not meant for training
-  # from scratch, which would start at 3 m/s.
+  # Speed curriculum for fine-tuning from a rough checkpoint at ~15000 iterations
+  # (the checkpoint restores the step counter, so stages are absolute): 3 m/s right
+  # away, 4 m/s at 17000, 4.5 m/s at 20000 and 5 m/s only from 24000. A first run
+  # that opened 5 m/s at 22000, while the robot topped out at ~4 m/s, taught it to
+  # give up (step in place) instead, so 5 m/s comes late, after 4.5 is learned.
+  # Not meant for training from scratch, which would start at 3 m/s.
   command_vel_curriculum = cfg.curriculum["command_vel"]
   assert isinstance(command_vel_curriculum, CurriculumTermCfg)
   command_vel_curriculum.params["velocity_stages"] = [
@@ -872,9 +874,35 @@ def pal_kangaroo_run_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "lin_vel_y": (-1.0, 1.0),
       "ang_vel_z": (-1.0, 1.0),
     },
-    {"step": 18000 * 24, "lin_vel_x": (-2.0, 4.0)},
-    {"step": 22000 * 24, "lin_vel_x": (-2.0, 5.0)},
+    {"step": 17000 * 24, "lin_vel_x": (-2.0, 4.0)},
+    {"step": 20000 * 24, "lin_vel_x": (-2.0, 4.5)},
+    {"step": 24000 * 24, "lin_vel_x": (-2.0, 5.0)},
   ]
+
+  ### REWARDS
+
+  # Air time and arm swing are switched on by the *command*, so a robot that steps
+  # in place swinging its arms under a 4.8 m/s command still collected them: that
+  # out-earned running at 4.5 m/s (6.21 vs 6.09 per step for checkpoint 23500) and
+  # the policy learned to give up above ~4.6 m/s. Both are now scaled by the
+  # fraction of the commanded speed actually achieved (no change below 0.5 m/s).
+  # The arm swing stays purely cosmetic: it can no longer compete with tracking.
+  gate = {"gate_start_speed": 0.5, "gate_full_speed": 1.0}
+  cfg.rewards["air_time"].func = mdp.feet_air_time_progress_gated
+  cfg.rewards["air_time"].params.update(gate)
+  cfg.rewards["arm_swing"].func = mdp.arm_swing_progress_gated
+  cfg.rewards["arm_swing"].params.update(gate)
+
+  # Slightly tighter speed tracking at high speed (sigma 0.9 instead of 1.125 at
+  # 4.5 m/s), so undershooting the command costs more. The low-speed floor is
+  # unchanged (identical below ~1.6 m/s).
+  cfg.rewards["track_linear_velocity"].params["std_per_mps"] = 0.2
+
+  # Foot separation, more important when running: the legs flex at high speed
+  # (beyond the modelled hip-roll backlash) and the feet swing closer. The margin
+  # grows with the actual speed: 4 cm standing, 6 cm at 2.5 m/s, 8 cm at 5 m/s.
+  cfg.rewards["feet_proximity"].weight = -3.0
+  cfg.rewards["feet_proximity"].params["margin_per_mps"] = 0.008
 
   return cfg
 

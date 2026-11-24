@@ -9,6 +9,7 @@ from mjlab.entity import Entity
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor.contact_sensor import ContactSensor
+from mjlab.tasks.velocity.mdp.rewards import feet_air_time as _mjlab_feet_air_time
 from mjlab.utils.lab_api.string import (
   resolve_matching_names_values,
 )
@@ -572,6 +573,57 @@ def track_angular_velocity_speed_scaled(
   return torch.exp(-(z_error + xy_error) / sigma**2)
 
 
+def forward_progress_gate(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  gate_start_speed: float = 0.5,
+  gate_full_speed: float = 1.0,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Fraction of the commanded planar velocity actually achieved, in [0, 1].
+
+  ``progress = clamp(<v_xy, cmd_xy> / |cmd_xy|^2, 0, 1)`` (body frame). The gate is
+  1 (no effect) for commanded speeds below ``gate_start_speed``, so standing,
+  turning on the spot and slow walking are unchanged, and blends linearly into
+  ``progress`` up to ``gate_full_speed``. Used to stop "style" rewards (air time,
+  arm swing) from paying a robot that steps in place instead of moving.
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+  cmd_xy = command[:, :2]
+  speed_sq = torch.sum(torch.square(cmd_xy), dim=1)
+  along = torch.sum(asset.data.root_link_lin_vel_b[:, :2] * cmd_xy, dim=1)
+  progress = (along / speed_sq.clamp(min=1e-6)).clamp(0.0, 1.0)
+  span = max(gate_full_speed - gate_start_speed, 1e-6)
+  blend = ((torch.sqrt(speed_sq) - gate_start_speed) / span).clamp(0.0, 1.0)
+  return 1.0 - blend * (1.0 - progress)
+
+
+def feet_air_time_progress_gated(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  command_name: str,
+  threshold_min: float = 0.05,
+  threshold_max: float = 0.5,
+  command_threshold: float = 0.5,
+  gate_start_speed: float = 0.5,
+  gate_full_speed: float = 1.0,
+) -> torch.Tensor:
+  """mjlab ``feet_air_time`` multiplied by :func:`forward_progress_gate`."""
+  reward = _mjlab_feet_air_time(
+    env,
+    sensor_name=sensor_name,
+    threshold_min=threshold_min,
+    threshold_max=threshold_max,
+    command_name=command_name,
+    command_threshold=command_threshold,
+  )
+  return reward * forward_progress_gate(
+    env, command_name, gate_start_speed, gate_full_speed
+  )
+
+
 def body_ang_vel_xy_l2_penalty(
   env: ManagerBasedRlEnv,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
@@ -623,11 +675,16 @@ class feet_proximity:
   penetrating. Unlike a contact count it is graded, so the policy gets a signal
   before the feet touch and learns to keep a safety gap (e.g. to absorb hip-roll
   backlash on the real robot).
+
+  With ``margin_per_mps > 0`` the margin grows with the actual planar base speed,
+  ``margin + margin_per_mps * |v_xy|``, since the legs flex (and the feet swing
+  closer) more when running than when walking.
   """
 
   def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
     asset: Entity = env.scene[cfg.params.get("asset_cfg", _DEFAULT_ASSET_CFG).name]
     mj_model = env.sim.mj_model
+    self._asset = asset
 
     def _resolve(names) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
       local_ids, resolved = asset.find_geoms(names)
@@ -660,6 +717,7 @@ class feet_proximity:
     left_geom_names,
     right_geom_names,
     margin: float,
+    margin_per_mps: float = 0.0,
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
   ) -> torch.Tensor:
     del left_geom_names, right_geom_names, asset_cfg  # Resolved in __init__.
@@ -676,7 +734,12 @@ class feet_proximity:
     log["Metrics/feet_min_clearance_mean"] = min_clearance.mean().item()
     log["Metrics/feet_min_clearance_min"] = min_clearance.min().item()
 
-    return torch.clamp(margin - min_clearance, min=0.0) / margin
+    if margin_per_mps > 0.0:
+      speed = torch.linalg.norm(self._asset.data.root_link_lin_vel_b[:, :2], dim=1)
+      margin_t = margin + margin_per_mps * speed
+    else:
+      margin_t = torch.full_like(min_clearance, margin)
+    return torch.clamp(margin_t - min_clearance, min=0.0) / margin_t
 
 
 class arm_swing:
@@ -807,3 +870,23 @@ class arm_swing:
     normalized_error_sq = torch.mean(torch.square(torch.cat(errors, dim=1)), dim=1)
     moving = (torch.norm(command[:, :2], dim=1) > command_threshold).float()
     return torch.exp(-normalized_error_sq) * moving
+
+
+class arm_swing_progress_gated(arm_swing):
+  """``arm_swing`` multiplied by :func:`forward_progress_gate`.
+
+  The arm swing is cosmetic: it must not pay a robot that swings its arms while
+  stepping in place instead of tracking a high-speed command.
+  """
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    gate_start_speed: float = 0.5,
+    gate_full_speed: float = 1.0,
+    **kwargs,
+  ) -> torch.Tensor:
+    reward = super().__call__(env, **kwargs)
+    return reward * forward_progress_gate(
+      env, kwargs["command_name"], gate_start_speed, gate_full_speed
+    )
