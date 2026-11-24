@@ -70,6 +70,42 @@ KANGAROO_REAL_LEG_VEL_LIMITS = {
 }
 
 
+def _replace_leg_actuators(cfg: ManagerBasedRlEnvCfg, fn) -> None:
+  """Apply ``fn(actuator_cfg) -> actuator_cfg`` to every leg actuator config."""
+  robot_cfg = cfg.scene.entities["robot"]
+  assert robot_cfg.articulation is not None
+  actuators = tuple(
+    fn(a) if any(e.startswith("leg_") for e in a.target_names_expr) else a
+    for a in robot_cfg.articulation.actuators
+  )
+  # Copy, the articulation config is shared between robot variants.
+  robot_cfg.articulation = replace(robot_cfg.articulation, actuators=actuators)
+
+
+def _add_backlash(cfg: ManagerBasedRlEnvCfg, target_expr: str, backlash: float) -> None:
+  """Swap the actuator of ``target_expr`` for an explicit PD with backlash.
+
+  Same gains, armature, friction and effort limit. The backlash value is the
+  initial one, a ``randomize_backlash`` event should resample it.
+  """
+  bl_fields = {f.name for f in fields(BacklashPdActuatorCfg)}
+  found = []
+
+  def fn(act):
+    if act.target_names_expr != (target_expr,):
+      return act
+    found.append(act)
+    if isinstance(act, BacklashPdActuatorCfg):
+      return replace(act, backlash=backlash)
+    kwargs = {f.name: getattr(act, f.name) for f in fields(act) if f.name in bl_fields}
+    if kwargs.get("effort_limit") is None:
+      kwargs.pop("effort_limit", None)
+    return BacklashPdActuatorCfg(**kwargs, backlash=backlash)
+
+  _replace_leg_actuators(cfg, fn)
+  assert len(found) == 1, f"Expected one actuator config for {target_expr}."
+
+
 def _limit_leg_speeds(
   cfg: ManagerBasedRlEnvCfg,
   velocity_limits: dict[str, float],
@@ -94,9 +130,7 @@ def _limit_leg_speeds(
     if len(expr) == 1 and expr[0] in remaining:
       limit = remaining.pop(expr[0])
       if isinstance(act, BacklashPdActuatorCfg):
-        act = replace(
-          act, velocity_limit=limit, full_torque_ratio=full_torque_ratio
-        )
+        act = replace(act, velocity_limit=limit, full_torque_ratio=full_torque_ratio)
       else:
         kwargs = {
           f.name: getattr(act, f.name) for f in fields(act) if f.name in pd_fields
@@ -957,6 +991,28 @@ def pal_kangaroo_run_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["feet_proximity"].weight = -3.0
   cfg.rewards["feet_proximity"].params["margin_per_mps"] = 0.008
 
+  # Foot against the other leg's shin (tibia, knee_link capsules): feet_proximity
+  # only checks foot against foot. On the robot the inner/front ankle hit the other
+  # tibia at 2.5 m/s, while the simulated policy keeps ~7-8 cm there. The margin
+  # is larger than that, so the policy learns more clearance than the real legs
+  # take away: 6 cm standing, 11 cm at 2.5 m/s, 15 cm at 4.5 m/s.
+  for foot_side, shin_side in (("left", "right"), ("right", "left")):
+    cfg.rewards[f"{foot_side}_foot_{shin_side}_shin_proximity"] = RewardTermCfg(
+      func=mdp.feet_proximity,
+      weight=-2.0,
+      params={
+        "asset_cfg": SceneEntityCfg("robot"),
+        "left_geom_names": (
+          rf"^{foot_side}_foot\d+_collision$",
+          rf"^leg_{foot_side}_ankle_(bar_)?collision$",
+        ),
+        "right_geom_names": (rf"^leg_{shin_side}_knee_(bar_)?collision$",),
+        "margin": 0.06,
+        "margin_per_mps": 0.02,
+        "log_name": f"{foot_side}_foot_{shin_side}_shin",
+      },
+    )
+
   # Real transmission speed limits of the legs (worst case "min" over the joint
   # workspace, measured on the robot; the generic 3.87 rad/s of the URDF is not
   # used). With the first run policy at ~3.9 m/s the ankle pitch (leg_*_4) peaked
@@ -968,7 +1024,44 @@ def pal_kangaroo_run_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # - As a penalty: joint_vel_limits above 90 % of the limit, so the policy learns
   #   to stay clear of the torque drop instead of only running into it.
   # The leg length limit replaces the previous 1.6 m/s estimate (this task only).
+  # Leg sloppiness (before the speed limit swap, which keeps the backlash). On the
+  # real robot the inner/front ankle of the swing foot hit the other leg's tibia
+  # while running at 2.5 m/s, while in simulation the gap never went below ~7 cm:
+  # the real legs track their targets much more loosely than the simulated ones.
+  # - Hip roll backlash up to 0.06 rad (was 0.04) and hip yaw backlash up to
+  #   0.03 rad (was none), both resampled per episode and per leg.
+  _add_backlash(cfg, "leg_.*_1_joint", backlash=0.03)
+  cfg.events["hip_roll_backlash"].params["backlash_range"] = (0.0, 0.06)
+  cfg.events["hip_roll_backlash"].params["target_names_expr"] = (REGEX_HIP_ROLL_JOINTS,)
+  cfg.events["hip_yaw_backlash"] = EventTermCfg(
+    mode="reset",
+    func=mdp.randomize_backlash,
+    params={
+      "asset_cfg": SceneEntityCfg("robot"),
+      "backlash_range": (0.0, 0.03),
+      "target_names_expr": ("leg_.*_1_joint",),
+    },
+  )
   _limit_leg_speeds(cfg, KANGAROO_REAL_LEG_VEL_LIMITS, full_torque_ratio=0.8)
+  # - Command latency: 0 to 10 ms (0-5 physics steps of 2 ms), resampled every
+  #   policy step, on every leg actuator.
+  _replace_leg_actuators(
+    cfg,
+    lambda a: replace(
+      a, delay_min_lag=0, delay_max_lag=5, delay_update_period=cfg.decimation
+    ),
+  )
+  # - Joint stiffness and damping +-20 % per episode and per joint (all leg
+  #   actuators are explicit PDs in this task).
+  cfg.events["leg_pd_gains"] = EventTermCfg(
+    mode="reset",
+    func=mdp.randomize_pd_gains_by_target,
+    params={
+      "kp_range": (0.8, 1.2),
+      "kd_range": (0.8, 1.2),
+      "target_names_exprs": tuple((e,) for e in KANGAROO_REAL_LEG_VEL_LIMITS),
+    },
+  )
   cfg.rewards["joint_vel_limits"].params["asset_cfg"] = SceneEntityCfg(
     "robot", joint_names=tuple(KANGAROO_REAL_LEG_VEL_LIMITS)
   )

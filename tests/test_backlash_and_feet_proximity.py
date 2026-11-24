@@ -1,8 +1,11 @@
 """Tests for the hip roll backlash actuator and the feet proximity distance."""
 
+from unittest.mock import Mock
+
 import torch
 from mjlab.actuator.actuator import ActuatorCmd
 from pal_mjlab.actuators import BacklashPdActuator
+from pal_mjlab.tasks.velocity.mdp.events import randomize_backlash
 from pal_mjlab.tasks.velocity.mdp.rewards import _segment_segment_distance
 
 
@@ -12,6 +15,8 @@ def _torque(pos_error: float, backlash: float, kp: float = 100.0) -> float:
     "damping": torch.tensor([[0.0]]),
     "force_limit": torch.tensor([[1e3]]),
     "backlash": torch.tensor([[backlash]]),
+    "velocity_limit": torch.tensor([[float("inf")]]),  # No speed limit.
+    "full_torque_ratio": torch.tensor([[0.8]]),
   }
   z = torch.zeros(1, 1)
   cmd = ActuatorCmd(torch.tensor([[pos_error]]), z, z, z, z)
@@ -57,3 +62,24 @@ def test_segment_distance_parallel_and_crossing():
     torch.tensor([0, 1.0, 0.2]),
   )
   assert abs(dist.item() - 0.2) < 1e-6
+
+
+class _FakeBacklash(BacklashPdActuator):
+  target_ids = None  # Plain attribute instead of the entity-backed property.
+
+
+def test_randomize_backlash_target_filter():
+  def act(expr):
+    a = object.__new__(_FakeBacklash)
+    a.cfg = Mock(target_names_expr=expr)
+    a.target_ids = torch.tensor([0, 1])
+    a.set_backlash = Mock()
+    return a
+
+  roll, yaw = act(("leg_.*_3_joint",)), act(("leg_.*_1_joint",))
+  env = Mock(num_envs=4, device="cpu")
+  env.scene = {"robot": Mock(actuators=[roll, yaw])}
+  randomize_backlash(env, None, (0.0, 0.03), target_names_expr=("leg_.*_1_joint",))
+  roll.set_backlash.assert_not_called()
+  _, samples = yaw.set_backlash.call_args.args
+  assert samples.shape == (4, 2) and (samples <= 0.03).all()

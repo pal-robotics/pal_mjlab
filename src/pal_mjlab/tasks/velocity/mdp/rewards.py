@@ -670,7 +670,8 @@ class feet_proximity:
   """Penalize the two feet coming closer than a safety margin.
 
   Computes the exact minimum surface distance between the capsule geoms of the
-  left and the right foot. The cost is ``relu(margin - clearance) / margin``:
+  left and the right foot (or any two capsule sets, e.g. one foot against the
+  other leg's shin). The cost is ``relu(margin - clearance) / margin``:
   0 while the feet are at least ``margin`` apart, 1 at contact, >1 when
   penetrating. Unlike a contact count it is graded, so the policy gets a signal
   before the feet touch and learns to keep a safety gap (e.g. to absorb hip-roll
@@ -719,6 +720,7 @@ class feet_proximity:
     margin: float,
     margin_per_mps: float = 0.0,
     asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+    log_name: str = "feet",
   ) -> torch.Tensor:
     del left_geom_names, right_geom_names, asset_cfg  # Resolved in __init__.
     lp, lq = self._segments(env, self._left_ids, self._left_half)
@@ -731,8 +733,8 @@ class feet_proximity:
     min_clearance = clearance.flatten(1).min(dim=1).values  # [B]
 
     log = env.extras.setdefault("log", {})
-    log["Metrics/feet_min_clearance_mean"] = min_clearance.mean().item()
-    log["Metrics/feet_min_clearance_min"] = min_clearance.min().item()
+    log[f"Metrics/{log_name}_min_clearance_mean"] = min_clearance.mean().item()
+    log[f"Metrics/{log_name}_min_clearance_min"] = min_clearance.min().item()
 
     if margin_per_mps > 0.0:
       speed = torch.linalg.norm(self._asset.data.root_link_lin_vel_b[:, :2], dim=1)
