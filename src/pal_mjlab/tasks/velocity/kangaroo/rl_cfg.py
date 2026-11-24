@@ -51,8 +51,8 @@ def pal_kangaroo_run_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
 
   Same as the velocity runner (same experiment name, so ``--agent.resume`` finds the
   rough-terrain runs), with fewer iterations (counted from the resumed iteration):
-  resuming at 15000 runs up to 27000, i.e. 2000 iterations at 3 m/s, 3000 at 4 m/s,
-  4000 at 4.5 m/s and 3000 at 5 m/s. Override with ``--agent.max-iterations``.
+  resuming at 15000 runs up to 27000, i.e. 2000 iterations at 3 m/s, 3000 at 4 m/s
+  and 7000 at 4.5 m/s. Override with ``--agent.max-iterations``.
   """
   cfg = pal_kangaroo_ppo_runner_cfg()
   cfg.max_iterations = 12_000

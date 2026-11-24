@@ -28,7 +28,7 @@ from mjlab.terrains.terrain_generator import TerrainGeneratorCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 from mjlab.utils.spec_config import CollisionCfg
 
-from pal_mjlab.actuators import BacklashPdActuatorCfg
+from pal_mjlab.actuators import BacklashPdActuatorCfg, SpeedLimitedPdActuatorCfg
 from pal_mjlab.robots import (
   ANKLE_XY_CONVEX_HULL_POINTS,
   HIP_XY_CONVEX_HULL_POINTS,
@@ -58,6 +58,60 @@ from pal_mjlab.terrains import BoxStraightStairsTerrainCfg
 # lever arm that is ~0.025-0.027 rad of total play; the range goes up to ~3 cm at the
 # foot for robustness (and down to 0 so a tighter joint is also covered).
 HIP_ROLL_BACKLASH_RANGE = (0.0, 0.04)
+# Real transmission speed limits of the legs: worst case ("min") over the joint
+# workspace, measured on the robot. rad/s, except the leg length (m/s).
+KANGAROO_REAL_LEG_VEL_LIMITS = {
+  r"leg_.*_1_joint": 11.83,  # hip yaw
+  r"leg_.*_2_joint": 7.927,  # hip pitch
+  r"leg_.*_3_joint": 13.51,  # hip roll
+  r"leg_.*_length_joint": 3.074,
+  r"leg_.*_4_joint": 13.37,  # ankle pitch
+  r"leg_.*_5_joint": 23.89,  # ankle roll
+}
+
+
+def _limit_leg_speeds(
+  cfg: ManagerBasedRlEnvCfg,
+  velocity_limits: dict[str, float],
+  full_torque_ratio: float = 0.8,
+) -> None:
+  """Make the leg actuators unable to drive their joints past the speed limits.
+
+  MuJoCo position actuators have a constant force range, so the simulation lets
+  a joint spin at any speed. Each leg actuator is replaced by an explicit PD
+  (same gains, armature, friction and effort limit; the hip roll keeps its
+  backlash) whose driving torque falls linearly from the full effort limit at
+  ``full_torque_ratio`` x limit to zero at the limit. Braking is unaffected.
+  Must be called after the robot entity (and any backlash swap) is set.
+  """
+  robot_cfg = cfg.scene.entities["robot"]
+  assert robot_cfg.articulation is not None
+  pd_fields = {f.name for f in fields(SpeedLimitedPdActuatorCfg)}
+  remaining = dict(velocity_limits)
+  actuators = []
+  for act in robot_cfg.articulation.actuators:
+    expr = act.target_names_expr
+    if len(expr) == 1 and expr[0] in remaining:
+      limit = remaining.pop(expr[0])
+      if isinstance(act, BacklashPdActuatorCfg):
+        act = replace(
+          act, velocity_limit=limit, full_torque_ratio=full_torque_ratio
+        )
+      else:
+        kwargs = {
+          f.name: getattr(act, f.name) for f in fields(act) if f.name in pd_fields
+        }
+        if kwargs.get("effort_limit") is None:
+          kwargs.pop("effort_limit", None)
+        act = SpeedLimitedPdActuatorCfg(
+          **kwargs, velocity_limit=limit, full_torque_ratio=full_torque_ratio
+        )
+    actuators.append(act)
+  assert not remaining, f"No actuator config found for {sorted(remaining)}."
+  # Copy, the articulation config is shared between robot variants.
+  robot_cfg.articulation = replace(robot_cfg.articulation, actuators=tuple(actuators))
+
+
 # Minimum surface distance (m) the policy is asked to keep between both feet.
 FEET_SAFETY_MARGIN = 0.04
 
@@ -746,7 +800,7 @@ def pal_kangaroo_run_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO street-running velocity configuration.
 
   Same as the rough configuration (rewards, commands, speed curriculum) but with
-  street-like terrain whose hardest level is still runnable at 4-5 m/s. Meant to be
+  street-like terrain whose hardest level is still runnable at 4-4.5 m/s. Meant to be
   trained from scratch or fine-tuned from a rough-terrain checkpoint.
 
   At running speed the robot crosses a 4 m tile every second, so it keeps running
@@ -861,9 +915,9 @@ def pal_kangaroo_run_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # Speed curriculum for fine-tuning from a rough checkpoint at ~15000 iterations
   # (the checkpoint restores the step counter, so stages are absolute): 3 m/s right
-  # away, 4 m/s at 17000, 4.5 m/s at 20000 and 5 m/s only from 24000. A first run
-  # that opened 5 m/s at 22000, while the robot topped out at ~4 m/s, taught it to
-  # give up (step in place) instead, so 5 m/s comes late, after 4.5 is learned.
+  # away, 4 m/s at 17000 and 4.5 m/s from 20000. Capped at 4.5 m/s: with the real
+  # leg speed limits (below) the ankle pitch is already at its limit around 4 m/s
+  # with the current gait, and ~5 m/s would need ~17 rad/s there (limit 13.37).
   # Not meant for training from scratch, which would start at 3 m/s.
   command_vel_curriculum = cfg.curriculum["command_vel"]
   assert isinstance(command_vel_curriculum, CurriculumTermCfg)
@@ -876,7 +930,6 @@ def pal_kangaroo_run_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     },
     {"step": 17000 * 24, "lin_vel_x": (-2.0, 4.0)},
     {"step": 20000 * 24, "lin_vel_x": (-2.0, 4.5)},
-    {"step": 24000 * 24, "lin_vel_x": (-2.0, 5.0)},
   ]
 
   ### REWARDS
@@ -903,6 +956,25 @@ def pal_kangaroo_run_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # grows with the actual speed: 4 cm standing, 6 cm at 2.5 m/s, 8 cm at 5 m/s.
   cfg.rewards["feet_proximity"].weight = -3.0
   cfg.rewards["feet_proximity"].params["margin_per_mps"] = 0.008
+
+  # Real transmission speed limits of the legs (worst case "min" over the joint
+  # workspace, measured on the robot; the generic 3.87 rad/s of the URDF is not
+  # used). With the first run policy at ~3.9 m/s the ankle pitch (leg_*_4) peaked
+  # at 1.07x and the hip pitch (leg_*_2) at 0.82x their limit, since MuJoCo
+  # position actuators can drive a joint at any speed. They are now enforced:
+  # - Physically: the leg actuators lose their driving torque between 80 % and
+  #   100 % of the limit (braking unaffected), so a gait relying on faster joints
+  #   simply does not work in simulation, as on the robot.
+  # - As a penalty: joint_vel_limits above 90 % of the limit, so the policy learns
+  #   to stay clear of the torque drop instead of only running into it.
+  # The leg length limit replaces the previous 1.6 m/s estimate (this task only).
+  _limit_leg_speeds(cfg, KANGAROO_REAL_LEG_VEL_LIMITS, full_torque_ratio=0.8)
+  cfg.rewards["joint_vel_limits"].params["asset_cfg"] = SceneEntityCfg(
+    "robot", joint_names=tuple(KANGAROO_REAL_LEG_VEL_LIMITS)
+  )
+  cfg.rewards["joint_vel_limits"].params["velocity_limits"] = {
+    name: (-limit, limit) for name, limit in KANGAROO_REAL_LEG_VEL_LIMITS.items()
+  }
 
   return cfg
 
