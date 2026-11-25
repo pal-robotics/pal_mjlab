@@ -882,4 +882,18 @@ def make_hip_roll_backlash_variant(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlE
   cfg.rewards["dof_pos_limits"].params["asset_cfg"] = SceneEntityCfg(
     "robot", joint_names=(REGEX_NON_BACKLASH_JOINTS,)
   )
+  # Per-env spread around the identified gear (stiffness 2650-3000 Nm/rad,
+  # max deflection ~2 deg); lower/upper limits are drawn independently.
+  backlash_joints = SceneEntityCfg("robot", joint_names=(r"leg_.*_3_backlash_joint",))
+  lo, hi = math.radians(1.75), math.radians(2.25)
+  cfg.events["hip_roll_backlash_stiffness"] = EventTermCfg(
+    mode="startup",
+    func=dr.joint_stiffness,
+    params={"asset_cfg": backlash_joints, "ranges": (2600.0, 3000.0)},
+  )
+  cfg.events["hip_roll_backlash_range"] = EventTermCfg(
+    mode="startup",
+    func=dr.joint_limits,
+    params={"asset_cfg": backlash_joints, "ranges": {0: (-hi, -lo), 1: (lo, hi)}},
+  )
   return cfg
