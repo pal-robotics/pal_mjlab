@@ -7,15 +7,16 @@ from pal_mjlab.tasks.supermimic_velocity.env_cfgs import (
   POSE_WEIGHT,
   TRACK_LIN_FINE_WEIGHT,
   TRACK_LIN_WEIGHT,
+  UPRIGHT_WEIGHT,
 )
 
 # The largest return the rewards allow: their positive weights (linear tracking, wide and
-# fine, yaw tracking 2, upright 2, pose, air time x 2 feet; each term <= 1 per foot)
+# fine, yaw tracking 2, upright, pose, air time x 2 feet; each term <= 1 per foot)
 # x dt 0.02, over 1 / (1 - gamma) = 100 steps. Overriding a positive weight on the command
 # line? Also pass --agent.algorithm.critic.max-return.
 MAX_RETURN = (
   (
-    TRACK_LIN_WEIGHT + TRACK_LIN_FINE_WEIGHT + 2.0 + 2.0 + POSE_WEIGHT
+    TRACK_LIN_WEIGHT + TRACK_LIN_FINE_WEIGHT + 2.0 + UPRIGHT_WEIGHT + POSE_WEIGHT
     + 2 * AIR_TIME_WEIGHT
   )
   * 0.02

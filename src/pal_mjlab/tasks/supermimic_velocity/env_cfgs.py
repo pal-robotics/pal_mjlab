@@ -67,6 +67,11 @@ FOOT_CLEARANCE_WEIGHT = -2.0
 # deviation) pulls back from there.
 POSE_WEIGHT = 2.0
 POSTURE_L2_WEIGHT = -0.1
+# Upright, against falls: heavier (PPO: 2) and wider (PPO: 0.447). PPO's kernel peaks at
+# 18 deg of tilt and is flat past ~40 deg (45 deg: 23% of its peak gradient), so a falling
+# robot got no pull back; std 0.7 peaks at ~30 deg and keeps ~60% of it at 45 deg.
+UPRIGHT_WEIGHT = 3.0
+UPRIGHT_STD = 0.7
 
 
 def pal_kangaroo_flat_supermimic_env_cfg(play: bool = False) -> SuperMimicEnvCfg:
@@ -155,8 +160,10 @@ def pal_kangaroo_flat_supermimic_env_cfg(play: bool = False) -> SuperMimicEnvCfg
       weight=old["track_angular_velocity"].weight,
       params={"std": TRACK_YAW_STD},
     ),
-    "upright": term(
-      "upright", mdp.upright, std=p["upright"]["std"], asset_cfg=p["upright"]["asset_cfg"]
+    "upright": RewardTermCfg(
+      func=mdp.upright,
+      weight=UPRIGHT_WEIGHT,
+      params={"std": UPRIGHT_STD, "asset_cfg": p["upright"]["asset_cfg"]},
     ),
     "pose": term(
       "pose",
