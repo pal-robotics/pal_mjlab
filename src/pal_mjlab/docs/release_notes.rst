@@ -31,7 +31,8 @@ New Features & Tasks
   cranks and femur bars. Values for the limits come from data recorded on the
   robot and then fitted to the corresponding joints. The resulting values are
   stored in ``KANGAROO_HIP_ENVELOPE_LIMITS`` and
-  ``KANGAROO_ANKLE_ENVELOPE_LIMITS``.
+  ``KANGAROO_ANKLE_ENVELOPE_LIMITS``, from which ``get_kangaroo_hip_envelope``
+  and ``get_kangaroo_ankle_envelope`` build ``A`` and ``b``.
 
 - **Reworked collisions meshes in kangaroo grippers.** ``kangaroo_grippers.xml``
   now has collisions meshes in the grippers and the wrist. Collisions between
@@ -156,8 +157,7 @@ Model Updates
 
 - Updated Kangaroo hip and ankle joint ranges in the full-body, hands,
   grippers and lower-body MJCF models to match the fitted envelope bounds.
-  The envelope rewards read these ranges directly from the model.
-
+  The envelopes read these ranges directly from the full-body model.
 - Updated the Kangaroo 7-DoF and hands MuJoCo models with proper masses
   and inertias.
   (`#107 <https://github.com/pal-robotics/pal_mjlab/pull/107>`_)
@@ -251,14 +251,14 @@ dependency issue, check which of these bumps might be relevant first.
 Breaking Changes
 ^^^^^^^^^^^^^^^^
 
-- **Replaced the convex-hull joint-limit API.** Use ``hip_envelope_limits``
-  / ``ankle_envelope_limits`` with ``limits`` set to
-  ``KANGAROO_HIP_ENVELOPE_LIMITS`` / ``KANGAROO_ANKLE_ENVELOPE_LIMITS``; the
-  ``*_CONVEX_HULL_POINTS`` constants are removed. Joints are selected through
-  ``asset_cfg``, one pattern per role with ``preserve_order=True`` (the ankle
-  now needs the femur joint). ``shrink`` is a margin per limit group in its own
-  units (rad or m of stroke). Metrics are logged as
-  ``Metrics/joint_envelope_<hip|ankle>_violation_mean`` and ``..._max``.
+- **Replaced the convex-hull joint-limit API.** Use ``joint_envelope_limits``
+  with ``A`` and ``b`` from ``get_kangaroo_hip_envelope`` /
+  ``get_kangaroo_ankle_envelope``; the ``*_CONVEX_HULL_POINTS`` constants are
+  removed. Joints are selected through ``asset_cfg``, one pattern per role with
+  ``preserve_order=True`` (the ankle now needs the femur joint). The
+  ``shrink_*`` arguments of the envelope getters are margins per limit group in
+  its own units (rad or m of stroke). Metrics are logged as
+  ``Metrics/joint_envelope_<hip|ankle>_violation_<mean|max>``.
   Joints 2 to 5 are excluded from joint limits reward.
 
 - **Axis inverted for arm joints 5 and 7 in kangaroo grippers xml**

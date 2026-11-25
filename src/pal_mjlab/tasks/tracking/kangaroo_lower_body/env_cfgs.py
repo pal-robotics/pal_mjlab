@@ -14,12 +14,12 @@ from mjlab.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
 from pal_mjlab.robots import (
-  KANGAROO_ANKLE_ENVELOPE_LIMITS,
-  KANGAROO_HIP_ENVELOPE_LIMITS,
   KANGAROO_LOWER_BODY_ACTION_SCALE,
   KANGAROO_LOWER_BODY_ACTUATOR_NAMES,
   REGEX_FEMUR_AND_KNEE_LINKS,
   REGEX_JOINTS_WITHOUT_ENVELOPE,
+  get_kangaroo_ankle_envelope,
+  get_kangaroo_hip_envelope,
   get_kangaroo_lower_body_robot_cfg,
 )
 from pal_mjlab.tasks.tracking import mdp as tracking_mdp
@@ -124,8 +124,10 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
   cfg.rewards["joint_limit"].params["asset_cfg"] = SceneEntityCfg(
     "robot", joint_names=(REGEX_JOINTS_WITHOUT_ENVELOPE,)
   )
+  # Margins in the units of their limits: joint [rad], actuator [m].
+  hip_A, hip_b = get_kangaroo_hip_envelope(shrink_joint=0.02, shrink_actuator=0.0015)
   cfg.rewards["joint_envelope_hip"] = RewardTermCfg(
-    func=mdp.hip_envelope_limits,
+    func=mdp.joint_envelope_limits,
     weight=-10.0,
     params={
       # One pattern per role [joint 2, joint 3], each matching both legs.
@@ -134,14 +136,19 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
         joint_names=(r"leg_.*_2_joint", r"leg_.*_3_joint"),
         preserve_order=True,
       ),
-      "limits": KANGAROO_HIP_ENVELOPE_LIMITS,
-      # Margin per limit group, in that group's units: joint [rad], actuator [m].
-      "shrink": {"joint": 0.02, "actuator": 0.0015},
+      "A": hip_A,
+      "b": hip_b,
+      "metrics_name": "hip",
     },
   )
 
+  # Margins in the units of their limits: joint and crank-bar collision [rad],
+  # actuator [m].
+  ankle_A, ankle_b = get_kangaroo_ankle_envelope(
+    shrink_joint=0.02, shrink_actuator=0.0008, shrink_crank=0.02
+  )
   cfg.rewards["joint_envelope_ankle"] = RewardTermCfg(
-    func=mdp.ankle_envelope_limits,
+    func=mdp.joint_envelope_limits,
     weight=-10.0,
     params={
       # One pattern per role [joint 4, joint 5, leg length, femur, knee], each
@@ -157,10 +164,9 @@ def pal_kangaroo_lower_body_flat_tracking_env_cfg(
         ),
         preserve_order=True,
       ),
-      "limits": KANGAROO_ANKLE_ENVELOPE_LIMITS,
-      # Margin per limit group, in that group's units: joint and crank-bar
-      # collision [rad], actuator [m].
-      "shrink": {"joint": 0.02, "actuator": 0.0008, "crank": 0.02},
+      "A": ankle_A,
+      "b": ankle_b,
+      "metrics_name": "ankle",
     },
   )
 

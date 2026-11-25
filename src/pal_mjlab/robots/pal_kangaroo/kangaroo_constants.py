@@ -51,32 +51,17 @@ DAMPING_RATIO = 2.0
 KANGAROO_TIBIA_PITCH_OFFSET = math.radians(70.0)
 
 KANGAROO_ANKLE_ENVELOPE_LIMITS = {
-  "foot_tibia_collision": {
-    "b0j5": -1.095692,
-    "dj4ndj5": 0.730921,
-    "j4n_min": -0.998403,
-  },
-  "actuator": {
-    "a0": 0.000963,
-    "dadj4": -0.031860,
-    "dadj5": -0.018999,
-    "min": -0.022294,
-    "max": 0.024684,
-  },
-  "crank_bar_collision": {
-    "b0l": 0.207172,
-    "dj4dl": 1.378701,
-    "dj4dj5": 0.543604,
-  },
+  # b0j5, dj4ndj5, j4n_min
+  "foot_tibia_collision": (-1.095692, 0.730921, -0.998403),
+  # a0, dadj4, dadj5, min, max
+  "actuator": (0.000963, -0.031860, -0.018999, -0.022294, 0.024684),
+  # b0l, dj4dl, dj4dj5
+  "crank_bar_collision": (0.207172, 1.378701, 0.543604),
 }
+
 KANGAROO_HIP_ENVELOPE_LIMITS = {
-  "actuator": {
-    "a0": -0.000940,
-    "dadj2": 0.054716,
-    "dadj3": 0.033618,
-    "min": -0.04,
-    "max": 0.04,
-  },
+  # a0, dadj2, dadj3, min, max
+  "actuator": (-0.000940, 0.054716, 0.033618, -0.04, 0.04),
 }
 
 
@@ -143,6 +128,172 @@ def get_kangaroo_hands_spec() -> mujoco.MjSpec:
 
 def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
   return _load_spec(KANGAROO_GRIPPERS_XML)
+
+
+##
+# Joint envelopes: the limits above as A x <= b
+##
+
+
+def _normalize_envelope(
+  A: list[list[float]], b: list[float]
+) -> tuple[list[list[float]], list[float]]:
+  """Divide every row of ``A x <= b`` by the length of its first two columns.
+
+  A x - b is then the signed distance [rad] to every edge in the plane of the first
+  two joints. The remaining joints only shift the edges, so they are left out of the
+  norm.
+  """
+  norms = [math.hypot(row[0], row[1]) for row in A]
+  A = [[value / n for value in row] for row, n in zip(A, norms, strict=True)]
+  b = [bound / n for bound, n in zip(b, norms, strict=True)]
+  return A, b
+
+
+def get_kangaroo_hip_envelope(
+  shrink_joint: float = 0.0,
+  shrink_actuator: float = 0.0,
+) -> tuple[list[list[float]], list[float]]:
+  """Feasible joint space of hip xy as ``A x <= b`` in x = (j2, j3).
+
+  The space is mostly bounded by the joint 3 range and the actuator strokes;
+  the actuators are modelled as affine lines, symmetric along both joints. Joint
+  limits come from the model, the actuators are described by
+  ``KANGAROO_HIP_ENVELOPE_LIMITS``:
+
+    a0: stroke of both actuators at j2 = j3 = 0 [m].
+    dadj2, dadj3: rates of change of the actuator with respect to joints 2 and
+      3, representing linearized reprojections of the actuator limits onto joint
+      space [m/rad].
+    min, max: actuator stroke limits [m].
+
+  ``shrink_joint`` [rad] and ``shrink_actuator`` [m] are the margins of the joint
+  and actuator limits. A x - b is the signed distance [rad] in the (j2, j3) plane.
+
+  For a visual explanation of the parameters see
+    https://github.com/pal-robotics/pal_mjlab/pull/133
+  """
+  # Both legs of all variants share these ranges.
+  spec = get_kangaroo_spec()
+  j2_min, j2_max = spec.joint("leg_left_2_joint").range.tolist()
+  j3_min, j3_max = spec.joint("leg_left_3_joint").range.tolist()
+
+  a0, dadj2, dadj3, act_min, act_max = KANGAROO_HIP_ENVELOPE_LIMITS["actuator"]
+  act_min, act_max = act_min + shrink_actuator, act_max - shrink_actuator
+
+  # fmt: off
+  A = [
+    # j2       j3
+    [-1.0,     0.0   ],  # 0 j2 >= j2_min
+    [ 1.0,     0.0   ],  # 1 j2 <= j2_max
+    [ 0.0,     1.0   ],  # 2 j3 <= j3_max
+    [ 0.0,    -1.0   ],  # 3 j3 >= j3_min
+    [ dadj2,   dadj3 ],  # 4 a2 <= act_max
+    [-dadj2,  -dadj3 ],  # 5 a2 >= act_min
+    [ dadj2,  -dadj3 ],  # 6 a3 <= act_max
+    [-dadj2,   dadj3 ],  # 7 a3 >= act_min
+  ]
+  b = [
+    -(j2_min + shrink_joint),  # 0
+    j2_max - shrink_joint,     # 1
+    j3_max - shrink_joint,     # 2
+    -(j3_min + shrink_joint),  # 3
+    act_max - a0,              # 4
+    a0 - act_min,              # 5
+    act_max - a0,              # 6
+    a0 - act_min,              # 7
+  ]
+  # fmt: on
+
+  return _normalize_envelope(A, b)
+
+
+def get_kangaroo_ankle_envelope(
+  shrink_joint: float = 0.0,
+  shrink_actuator: float = 0.0,
+  shrink_crank: float = 0.0,
+) -> tuple[list[list[float]], list[float]]:
+  """Feasible joint space of the ankle as ``A x <= b`` in x = (j4, j5, L, femur, knee).
+
+  The space is bounded by the joint 5 range, the foot-tibia and crank-bar
+  collisions and the actuator strokes. The collisions and actuators are modelled
+  as affine lines, symmetric in joint 5; the collisions are written as one row per
+  sign of joint 5. The foot-tibia limits act on the foot angle relative to the tibia
+  instead of the hip, which is linear in x: j4n = j4 - femur + knee - 70 deg; A holds
+  its joint coefficients and b its constant offset. Joint limits come from the model,
+  the other limits are described by ``KANGAROO_ANKLE_ENVELOPE_LIMITS``:
+
+    foot_tibia_collision:
+      j4n_min: lowest foot angle relative to the tibia [rad].
+      b0j5: j4n where the affine lines approximating the foot-tibia collision
+        meet, at j5 = 0 [rad].
+      dj4ndj5: rate of change of j4n with respect to |j5|, the slope of the
+        foot-tibia collision [rad/rad].
+    actuator:
+      a0: stroke of both actuators at j4 = j5 = 0 [m].
+      dadj4, dadj5: rates of change of the actuator with respect to joints 4 and
+        5 [m/rad].
+      min, max: actuator stroke limits [m].
+    crank_bar_collision:
+      b0l: value of j4 at the crank-bar collision when L = 0, j5 = 0 [rad].
+      dj4dl, dj4dj5: rates of change of j4 with respect to leg length [rad/m] and
+        |j5| [rad/rad], approximating the reprojected crank-bar collision with a
+        plane.
+
+  ``shrink_joint`` [rad], ``shrink_actuator`` [m] and ``shrink_crank`` [rad] are the
+  margins of the joint and foot-tibia, the actuator and the crank-bar limits. A x - b
+  is the signed distance [rad] in the (j4, j5) plane.
+
+  For a visual explanation of the parameters see
+    https://github.com/pal-robotics/pal_mjlab/pull/133
+  """
+  # Both legs of all variants share this range.
+  j5_min, j5_max = get_kangaroo_spec().joint("leg_left_5_joint").range.tolist()
+
+  limits = KANGAROO_ANKLE_ENVELOPE_LIMITS
+  ft_b0j5, ft_dj4ndj5, j4n_min = limits["foot_tibia_collision"]
+  act_a0, act_dadj4, act_dadj5, act_min, act_max = limits["actuator"]
+  cb_b0l, cb_dj4dl, cb_dj4dj5 = limits["crank_bar_collision"]
+
+  # The collision lines are lines in joint space, so their margin in rad is a
+  # distance there: b - margin * |(a_j4, a_j5)| before normalizing.
+  margin_ft = shrink_joint * math.hypot(1.0, ft_dj4ndj5)
+  margin_cb = shrink_crank * math.hypot(1.0, cb_dj4dj5)
+  act_min, act_max = act_min + shrink_actuator, act_max - shrink_actuator
+
+  # Rows 0, 3 and 4 limit j4n = j4 - femur + knee - KANGAROO_TIBIA_PITCH_OFFSET.
+
+  # fmt: off
+  A = [
+    # j4           j5            L          femur  knee
+    [-1.0,         0.0,          0.0,        1.0,  -1.0],  #  0 j4n >= j4n_min
+    [ 0.0,         1.0,          0.0,        0.0,   0.0],  #  1 j5 <= j5_max
+    [ 0.0,        -1.0,          0.0,        0.0,   0.0],  #  2 j5 >= j5_min
+    [-1.0,         ft_dj4ndj5,   0.0,        1.0,  -1.0],  #  3 j4n >= ft_b0j5 + ft_dj4ndj5 j5
+    [-1.0,        -ft_dj4ndj5,   0.0,        1.0,  -1.0],  #  4 j4n >= ft_b0j5 - ft_dj4ndj5 j5
+    [ act_dadj4,   act_dadj5,    0.0,        0.0,   0.0],  #  5 a4 <= act_max
+    [-act_dadj4,  -act_dadj5,    0.0,        0.0,   0.0],  #  6 a4 >= act_min
+    [ act_dadj4,  -act_dadj5,    0.0,        0.0,   0.0],  #  7 a5 <= act_max
+    [-act_dadj4,   act_dadj5,    0.0,        0.0,   0.0],  #  8 a5 >= act_min
+    [ 1.0,         cb_dj4dj5,   -cb_dj4dl,   0.0,   0.0],  #  9 j4 <= cb_b0l + cb_dj4dl L - cb_dj4dj5 j5
+    [ 1.0,        -cb_dj4dj5,   -cb_dj4dl,   0.0,   0.0],  # 10 j4 <= cb_b0l + cb_dj4dl L + cb_dj4dj5 j5
+  ]
+  b = [
+    -(j4n_min + KANGAROO_TIBIA_PITCH_OFFSET + shrink_joint),  #  0
+    j5_max - shrink_joint,                                    #  1
+    -(j5_min + shrink_joint),                                 #  2
+    -(ft_b0j5 + KANGAROO_TIBIA_PITCH_OFFSET + margin_ft),     #  3
+    -(ft_b0j5 + KANGAROO_TIBIA_PITCH_OFFSET + margin_ft),     #  4
+    act_max - act_a0,                                         #  5
+    act_a0 - act_min,                                         #  6
+    act_max - act_a0,                                         #  7
+    act_a0 - act_min,                                         #  8
+    cb_b0l - margin_cb,                                       #  9
+    cb_b0l - margin_cb,                                       # 10
+  ]
+  # fmt: on
+
+  return _normalize_envelope(A, b)
 
 
 ##
