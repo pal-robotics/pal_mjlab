@@ -41,10 +41,12 @@ from pal_mjlab.robots import (
   REGEX_ALL_ACTUATED_JOINTS,
   REGEX_FEMUR_AND_KNEE_LINKS,
   REGEX_LEG_LENGTH_JOINTS_ONLY,
+  REGEX_NON_BACKLASH_JOINTS,
   get_kangaroo_grippers_robot_cfg,
   get_kangaroo_hands_robot_cfg,
   get_kangaroo_lower_body_robot_cfg,
   get_kangaroo_robot_cfg,
+  with_hip_roll_backlash,
 )
 from pal_mjlab.tasks.velocity import mdp
 from pal_mjlab.terrains import BoxStraightStairsTerrainCfg
@@ -858,4 +860,40 @@ def pal_kangaroo_grippers_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvC
   joint_pos_action.scale = KANGAROO_GRIPPERS_ACTION_SCALE
   joint_pos_action.actuator_names = KANGAROO_GRIPPERS_ACTUATOR_NAMES
 
+  return cfg
+
+
+def make_hip_roll_backlash_variant(cfg: ManagerBasedRlEnvCfg) -> ManagerBasedRlEnvCfg:
+  """Add hip roll backlash to a Kangaroo velocity cfg (see microduck_rl backlash.py).
+
+  The encoder is on the motor side, so the joint obs exclude the backlash joints
+  and keep the base task dims (same policy I/O for deployment).
+  """
+  cfg.scene.entities = {
+    **cfg.scene.entities,
+    "robot": with_hip_roll_backlash(cfg.scene.entities["robot"]),
+  }
+  for group in ("actor", "critic"):
+    for term_name in ("joint_pos", "joint_vel"):
+      cfg.observations[group].terms[term_name].params["asset_cfg"] = SceneEntityCfg(
+        "robot", joint_names=(REGEX_NON_BACKLASH_JOINTS,)
+      )
+  # Backlash joints ride their hard limits by design.
+  cfg.rewards["dof_pos_limits"].params["asset_cfg"] = SceneEntityCfg(
+    "robot", joint_names=(REGEX_NON_BACKLASH_JOINTS,)
+  )
+  # Per-env spread around the identified gear (stiffness 2650-3000 Nm/rad,
+  # max deflection ~2 deg); lower/upper limits are drawn independently.
+  backlash_joints = SceneEntityCfg("robot", joint_names=(r"leg_.*_3_backlash_joint",))
+  lo, hi = math.radians(1.75), math.radians(2.25)
+  cfg.events["hip_roll_backlash_stiffness"] = EventTermCfg(
+    mode="startup",
+    func=dr.joint_stiffness,
+    params={"asset_cfg": backlash_joints, "ranges": (2600.0, 3000.0)},
+  )
+  cfg.events["hip_roll_backlash_range"] = EventTermCfg(
+    mode="startup",
+    func=dr.joint_limits,
+    params={"asset_cfg": backlash_joints, "ranges": {0: (-hi, -lo), 1: (lo, hi)}},
+  )
   return cfg

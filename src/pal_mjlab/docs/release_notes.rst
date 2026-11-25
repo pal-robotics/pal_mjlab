@@ -45,6 +45,18 @@ New Features & Tasks
   forward-only commands and the heading command is disabled.
   (`#124 <https://github.com/pal-robotics/pal_mjlab/pull/124>`_)
 
+- **Opt-in hip roll backlash for the Kangaroo velocity tasks.** New
+  ``-Backlash`` variants of every registered Kangaroo velocity task (e.g.
+  ``Mjlab-Velocity-Flat-Pal-Kangaroo-Lower-Body-Backlash``) add an
+  unactuated ``leg_*_3_backlash_joint`` hinge in series with the hip roll,
+  inspired by `microduck_rl
+  <https://github.com/pollen-robotics/microduck_rl>`_. Walking recordings
+  show the gear behaves as a spring rather than free play, so the joint
+  has a 2800 Nm/rad stiffness and a ±2° stop, both randomized per
+  environment (2600-3000 Nm/rad, ±1.75-2.25°). The encoder is modelled on
+  the motor side, so the policy observations and actions keep the same
+  size as the base tasks.
+
 - **Denser, square height scan and wider lateral commands in the Kangaroo
   rough velocity task.** The critic-only height scan now covers a
   1.0x1.0 m area at 5 cm resolution (previously 1.2x0.6 m at 10 cm), giving
@@ -71,6 +83,13 @@ New Features & Tasks
   policies with smoother and more stable effort command profiles. Policies trained
   with these changes have shown consistent improvement to previous ones.
   (`#119 <https://github.com/pal-robotics/pal_mjlab/pull/119>`_)
+
+- **Reworked rough-terrain generator for the Kangaroo rough velocity task.**
+  Tiles are now 4x4 m (was 3x3 m) and the stair-heavy mix is replaced by a
+  broader set of sub-terrains: flat, pebbles, random boxes, fine and coarse
+  random grids, discrete obstacles, Perlin noise, and one ascending and one
+  descending pyramid stairs (0.35 m steps, 2-10 cm risers).
+  (`#112 <https://github.com/pal-robotics/pal_mjlab/pull/112>`_)
 
 - **Removing custom height targets and weights for foot_swing_height and
   foot_clearance rewards in Kangaroo rough velocity task.** Removing values
@@ -158,6 +177,7 @@ Model Updates
 
 Bug Fixes & Reliability
 ^^^^^^^^^^^^^^^^^^^^^^^^
+
 - **Fixed arm 7 link collision being ignored.** In earlier commit
   (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_) was introduced
   a bug were collision configuration ignores arm 7 link collisions in
@@ -181,11 +201,26 @@ Bug Fixes & Reliability
   could collide with each other, producing spurious self-contacts.
   (`#125 <https://github.com/pal-robotics/pal_mjlab/pull/125>`_)
 
+- **Excluded knee/tibia vs. foot collisions on the full Kangaroo model.**
+  Contacts between the ankle bar / knee links and the foot
+  collision-avoidance capsule are excluded in ``kangaroo.xml``. The
+  Kangaroo and lower-body tracking tasks also narrow the motion-command
+  ``joint_position_range`` from ±0.1 to ±0.05 rad, since the wider range
+  also perturbed the passive joints and could push the knee bar into the
+  foot.
+  (`#113 <https://github.com/pal-robotics/pal_mjlab/pull/113>`_)
+
+- **Fixed the lower-body IMU projected-gravity noise override.** The
+  override from #101 replaced the whole ``imu_projected_gravity``
+  observation term with a noise config instead of setting its ``noise``
+  field; it now sets only the noise as intended.
+  (`#114 <https://github.com/pal-robotics/pal_mjlab/pull/114>`_)
+
 - **Set the density of the capsule parent geom to zero.**
   The density of the whole capsule class needs to be zero to avoid
   generating the inertial properties due to the ``inertiafromgeom``
-  property of the compiler
-  (`#116 <https://github.com/pal-robotics/pal_mjlab/pull/117>`_)
+  property of the compiler.
+  (`#117 <https://github.com/pal-robotics/pal_mjlab/pull/117>`_)
 
 - **Reduced GPU memory usage and fixed hfield contact overflow in the
   Kangaroo rough velocity task.** ``ccd_iterations`` is now capped at 100
@@ -198,8 +233,7 @@ Bug Fixes & Reliability
 
 - **Fixed a CUDA illegal-memory-access crash on reset with mjlab 1.5.1.**
   Training would crash with a CUDA illegal memory access error when
-  environments reset. Worked around by pinning a specific mjlab commit;
-  see also the memory note on this issue for how it was diagnosed.
+  environments reset. Worked around by pinning a specific mjlab commit.
   (`#94 <https://github.com/pal-robotics/pal_mjlab/pull/94>`_)
 
 - **Improved policy repeatability across training runs.** Reduces the
@@ -270,7 +304,7 @@ Breaking Changes
   noise, until a lower-body policy without it has been trained and
   tested. This changes the actor observation size, so checkpoints trained
   with the old observation set can't be loaded into the affected tasks.
-  (`#119 <https://github.com/pal-robotics/pal_mjlab/pull/119>`_)
+  (`#120 <https://github.com/pal-robotics/pal_mjlab/pull/120>`_)
 
 - **The Hands and Grippers rough tasks are no longer registered.**
   ``Mjlab-Velocity-Rough-Pal-Kangaroo-Hands`` and
@@ -303,6 +337,14 @@ Documentation & CI
   (`#78 <https://github.com/pal-robotics/pal_mjlab/pull/78>`_)
 - Updated the CI versions.
   (`#83 <https://github.com/pal-robotics/pal_mjlab/pull/83>`_)
+- Added these release notes.
+  (`#110 <https://github.com/pal-robotics/pal_mjlab/pull/110>`_)
+- Added smoke tests that run a few train and play steps for each
+  registered Kangaroo velocity task, plus a ``make test`` target.
+  (`#115 <https://github.com/pal-robotics/pal_mjlab/pull/115>`_)
+- Documented the rationale behind the 0.25 torque-normalized action scale
+  in ``kangaroo_constants.py``.
+  (`#118 <https://github.com/pal-robotics/pal_mjlab/pull/118>`_)
 
 Maintenance
 ^^^^^^^^^^^
