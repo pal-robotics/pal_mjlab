@@ -20,4 +20,8 @@ def test_backlash_joints_added_unactuated():
     assert model.jnt_bodyid[jnt.id] == model.body(f"robot/leg_{side}_3_link").id
     assert jnt.type == mujoco.mjtJoint.mjJNT_HINGE
     assert list(jnt.axis) == [1, 0, 0]
-    assert math.isclose(jnt.range[1], math.radians(1.0))
+    assert math.isclose(jnt.range[1], math.radians(2.0))
+    # Gear compliance identified from walking bags (abs vs motor encoder).
+    assert math.isclose(model.jnt_stiffness[jnt.id], 2800.0)
+    assert model.qpos_spring[model.jnt_qposadr[jnt.id]] == 0.0
+

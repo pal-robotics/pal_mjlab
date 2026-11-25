@@ -175,10 +175,14 @@ def get_kangaroo_grippers_spec() -> mujoco.MjSpec:
   return _load_spec(KANGAROO_GRIPPERS_XML)
 
 
-# Hip roll gear play, inspired by pollen-robotics/microduck_rl add_backlash.py:
-# an unactuated hinge in series with leg_*_3_joint, free within +/-1 deg (2 deg
-# total). The encoder is on the motor side, so the policy never observes it.
-HIP_ROLL_BACKLASH_RAD = math.radians(1.0)
+# Hip roll gear compliance, inspired by pollen-robotics/microduck_rl
+# add_backlash.py: an unactuated hinge in series with leg_*_3_joint. Walking
+# bags (absolute_position - joint/position vs effort) show a linear spring of
+# ~2650-3000 Nm/rad reaching ~2 deg at ~110 Nm, with < ~0.4 deg of free play,
+# so it is modelled as a spring with a +/-2 deg safety stop. The encoder is on
+# the motor side, so the policy never observes it.
+HIP_ROLL_BACKLASH_RAD = math.radians(2.0)
+HIP_ROLL_BACKLASH_STIFFNESS = 2800.0
 
 
 def _add_hip_roll_backlash(spec: mujoco.MjSpec) -> mujoco.MjSpec:
@@ -191,6 +195,8 @@ def _add_hip_roll_backlash(spec: mujoco.MjSpec) -> mujoco.MjSpec:
       axis=[1, 0, 0],
       limited=mujoco.mjtLimited.mjLIMITED_TRUE,
       range=[-HIP_ROLL_BACKLASH_RAD, HIP_ROLL_BACKLASH_RAD],
+      # Linear term only; springref defaults to 0 (gear unloaded).
+      stiffness=[HIP_ROLL_BACKLASH_STIFFNESS, 0.0, 0.0],
       damping=0.01,
       armature=0.001,
       # Stiff limit (solref = 2 x 0.002 s timestep) so the gear-teeth contact
