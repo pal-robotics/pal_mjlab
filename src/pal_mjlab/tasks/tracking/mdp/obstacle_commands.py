@@ -92,6 +92,52 @@ def _nlerp(q: torch.Tensor, i0: torch.Tensor, i1: torch.Tensor, a: torch.Tensor)
   return out / out.norm(dim=-1, keepdim=True)
 
 
+@dataclass(frozen=True)
+class DescentParams:
+  """The reference descent (apex -> touchdown) that the retiming is built on."""
+
+  apex: int
+  """Frame of the root's apex between takeoff and touchdown."""
+  touchdown: int
+  z_a: float
+  """Root height at the apex."""
+  z_b: float
+  """Root height at the touchdown."""
+  v_a: float
+  """Root vertical velocity at the apex."""
+  acc0: float
+  """Downward acceleration of the parabola fitted to the reference descent."""
+  dur0: float
+  """Reference descent duration (s)."""
+
+  @staticmethod
+  def fit(
+    body_pos_w: torch.Tensor,
+    body_lin_vel_w: torch.Tensor,
+    flight_frames: tuple[int, int],
+    dt: float,
+    root_index: int = 0,
+  ) -> DescentParams:
+    takeoff, t1 = flight_frames
+    n_frames = body_pos_w.shape[0]
+    if not 0 < takeoff < t1 < n_frames:
+      raise ValueError(f"Invalid flight frames {flight_frames} for {n_frames} frames.")
+    # Retime the descent only: from the apex of the root to the touchdown.
+    t0 = takeoff + int(body_pos_w[takeoff:t1, root_index, 2].argmax())
+    z_a = float(body_pos_w[t0, root_index, 2])
+    z_b = float(body_pos_w[t1, root_index, 2])
+    v_a = float(body_lin_vel_w[t0, root_index, 2])
+    dur0 = (t1 - t0) * dt
+    # Reference parabola z_a + v_a t - acc0 t^2 / 2 hitting z_b at dur0.
+    acc0 = 2.0 * (z_a - z_b + v_a * dur0) / dur0**2
+    if acc0 <= 0.0:
+      raise ValueError(
+        f"The root does not fall between the apex {t0} and the touchdown {t1} "
+        f"(fitted acceleration {acc0:.3f} m/s^2); check the flight frames."
+      )
+    return DescentParams(t0, t1, z_a, z_b, v_a, acc0, dur0)
+
+
 def make_height_variant(
   joint_pos: torch.Tensor,
   joint_vel: torch.Tensor,
@@ -114,22 +160,8 @@ def make_height_variant(
   """
   takeoff, t1 = flight_frames
   n_frames = joint_pos.shape[0]
-  if not 0 < takeoff < t1 < n_frames:
-    raise ValueError(f"Invalid flight frames {flight_frames} for {n_frames} frames.")
-  # Retime the descent only: from the apex of the root to the touchdown.
-  t0 = takeoff + int(body_pos_w[takeoff:t1, root_index, 2].argmax())
-
-  z_a = float(body_pos_w[t0, root_index, 2])  # Apex height.
-  z_b = float(body_pos_w[t1, root_index, 2])  # Touchdown height.
-  v_a = float(body_lin_vel_w[t0, root_index, 2])  # Apex vertical velocity.
-  dur0 = (t1 - t0) * dt
-  # Reference parabola z_a + v_a t - acc0 t^2 / 2 hitting z_b at dur0.
-  acc0 = 2.0 * (z_a - z_b + v_a * dur0) / dur0**2
-  if acc0 <= 0.0:
-    raise ValueError(
-      f"The root does not fall between the apex {t0} and the touchdown {t1} "
-      f"(fitted acceleration {acc0:.3f} m/s^2); check the flight frames."
-    )
+  d = DescentParams.fit(body_pos_w, body_lin_vel_w, flight_frames, dt, root_index)
+  t0, z_a, z_b, v_a, acc0, dur0 = d.apex, d.z_a, d.z_b, d.v_a, d.acc0, d.dur0
 
   # Duration for the same parabola to cover the new drop.
   drop = z_a + height_delta - z_b
@@ -234,6 +266,8 @@ class ObstacleDropMotionCommand(MotionCommand):
       foot_z = ref._body_pos_w[:, foot_ids, 2]
       flight = detect_flight_frames(foot_z, cfg.contact_tolerance)
     self.reference_flight_frames = flight
+    # Kept for the ONNX export, which retimes the reference in the graph.
+    self.reference_motion = ref
 
     variants = [
       make_height_variant(

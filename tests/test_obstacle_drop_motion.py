@@ -89,3 +89,22 @@ def test_height_variant(dh):
   torch.testing.assert_close(
     fd, v.body_lin_vel_w[a + 1 : b - 2, 0, 2], atol=0.05, rtol=0
   )
+
+
+@pytest.mark.parametrize("height", [0.3, 0.45, 0.6, 0.8, 1.0])
+def test_onnx_motion_matches_height_variant(height):
+  """The in-graph retiming (ONNX export) gives the training variant frame by frame."""
+  from pal_mjlab.tasks.tracking.mdp.obstacle_commands import DescentParams
+  from pal_mjlab.tasks.tracking.obstacle_onnx import MOTION_OUTPUTS, ObstacleDropMotion
+
+  motion, flight = _drop_motion()
+  v = make_height_variant(
+    **motion, flight_frames=flight, height_delta=height - H_REF, dt=DT
+  )
+  d = DescentParams.fit(motion["body_pos_w"], motion["body_lin_vel_w"], flight, DT)
+  model = ObstacleDropMotion(motion, d, H_REF, DT)
+  steps = torch.arange(v.num_frames + 3, dtype=torch.float32)[:, None]
+  out = model(steps, torch.full_like(steps, height))
+  last = torch.arange(v.num_frames + 3).clamp(max=v.num_frames - 1)
+  for name, x in zip(MOTION_OUTPUTS, out, strict=True):
+    torch.testing.assert_close(x, getattr(v, name)[last], atol=1e-5, rtol=1e-5)
