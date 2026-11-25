@@ -1,16 +1,17 @@
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![mjlab](https://img.shields.io/badge/mjlab-1.6.0-76B900.svg)](https://mujocolab.github.io/mjlab/v1.6.0/index.html)
+[![docs](https://img.shields.io/badge/docs-pal__mjlab-blue.svg)](https://pal-robotics.github.io/pal_mjlab/)
 
 # PAL Robotics in mjlab
 
 This repository showcases the implementation of [PAL Robotics](https://pal-robotics.com/)' robots in [mjlab](https://github.com/mujocolab/mjlab).
-
+Watch [Kangaroo](https://youtu.be/ky1aEw12mwM?si=q5eQ18HJBSvtY3Sc) walking outdoor with a locomotion policy trained in pal_mjlab.
 ![Project banner](static/pal_mjlab_viser.png)
 
 ## What is mjlab?
 
 mjlab brings the [Isaac Lab](https://isaac-sim.github.io/IsaacLab/main/index.html) API to [MuJoCo Warp](https://mujoco.readthedocs.io/en/latest/mjwarp/index.html).
-It's lightweight, easy to install, and has been validated for sim-to-real transfer on the G1 and Go1 robots for RL locomotion and motion imitation.
+It's lightweight, easy to install, and has been validated for sim-to-real transfer on several robots for RL locomotion and motion imitation.
 See the [announcement thread](https://x.com/kevin_zakka/status/1972757435707424898) for videos, or read about the [motivation behind mjlab](https://github.com/mujocolab/mjlab/blob/main/docs/motivation.md).
 
 ## Installation
@@ -98,6 +99,18 @@ uv run play Mjlab-Tracking-Flat-Pal-Kangaroo --wandb-run-path your-org/mjlab/run
 ## Results
 
 <video src="https://github.com/user-attachments/assets/32c0e534-ead9-400e-afe5-42174a6b739b" controls muted loop playsinline style="width:100%;"></video>
+
+## Documentation
+
+The full documentation is published at <https://pal-robotics.github.io/pal_mjlab/>.
+It is rebuilt and deployed by the `Docs` GitHub Actions workflow on every push to `main`
+that touches `src/pal_mjlab/docs/`, and is built (without deploying) on pull requests.
+
+Build it locally with:
+
+```bash
+make docs  # output in _build/html
+```
 
 ## Contributing
 

@@ -176,11 +176,6 @@ def pal_kangaroo_flat_loco_reaching_env_cfg(play: bool = False) -> ManagerBasedR
     params={"sensor_name": "robot/imu_ang_vel"},
     noise=Unoise(n_min=-0.2, n_max=0.2),
   )
-  cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
-    func=loco_mdp.builtin_sensor,
-    params={"sensor_name": "robot/imu_lin_acc"},
-    noise=Unoise(n_min=-0.5, n_max=0.5),
-  )
   cfg.observations["actor"].terms["twist_command"] = ObservationTermCfg(
     func=loco_mdp.generated_commands,
     params={"command_name": "twist"},

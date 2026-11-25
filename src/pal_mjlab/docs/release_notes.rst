@@ -21,6 +21,18 @@ The changes below have landed on ``main`` since the ``v1.0.0`` tag
 New Features & Tasks
 ^^^^^^^^^^^^^^^^^^^^^
 
+- **Reworked collisions meshes in kangaroo grippers.** ``kangaroo_grippers.xml``
+  now has collisions meshes in the grippers and the wrist. Collisions between
+  consecutive bodies are properly excluded. Additionally, the forearm collisions
+  were slightly modified to match better the arm.
+  (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
+
+- **Added arm tip links in kangaroo grippers.** In ``kangaroo_grippers.xml``,
+  new body sitting at the end effector's position to ease body tracking in
+  relevant tasks, like tracking or WBC. Names of the body match exactly their
+  equivalent in ``kangaroo.xml``.
+  (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
+
 - **New stairs velocity task for the Kangaroo.** Adds
   ``Mjlab-Velocity-Stairs-Pal-Kangaroo`` on top of the rough task, with a
   terrain mix focused on stairs of different tread widths and risers up to
@@ -163,6 +175,15 @@ Model Updates
 Bug Fixes & Reliability
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
+- **Fixed arm 7 link collision being ignored.** In earlier commit
+  (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_) was introduced
+  a bug were collision configuration ignores arm 7 link collisions in
+  ``kangaroo_grippers.xml``, because they were named with the "_capsule"
+  suffix, instead of "_collision". Collision configuration loads collisions
+  with the regex ".*_collision", and ignores all other by default. Renamed
+  the collisions to use the proper suffix.
+  (`#136 <https://github.com/pal-robotics/pal_mjlab/pull/136>`_)
+
 - **Fixed swapped ``stairs_up``/``stairs_down`` names in the Kangaroo rough
   terrain.** The pyramid stairs (spawn on top, walk down) were named
   ``stairs_up`` and the inverted pyramid (spawn at the bottom, walk up)
@@ -245,6 +266,31 @@ dependency issue, check which of these bumps might be relevant first.
 Breaking Changes
 ^^^^^^^^^^^^^^^^
 
+- **Base linear acceleration is now critic-only for tracking and reaching.**
+  The ``base_lin_acc`` actor observation has been removed from
+  ``Mjlab-Tracking-Flat-Pal-Kangaroo``, ``Mjlab-Tracking-Flat-Pal-Kangaroo-Hands``,
+  ``Mjlab-Tracking-Flat-Pal-Kangaroo-Lower-Body`` and the
+  ``Mjlab-Reaching-Flat-Pal-Kangaroo`` (``-Grippers``, ``-Hands``) tasks. The
+  critic still observes it. The lower-body velocity tasks keep it in the actor.
+  Policies trained before this change for the affected tasks must be retrained.
+  (`#142 <https://github.com/pal-robotics/pal_mjlab/pull/142>`_)
+
+- **Removed tracking with state estimation and changed default**
+  The variants of the tracking task with state estimation have been removed.
+  Now, default tasks, ``Mjlab-Tracking-Flat-Pal-Kangaroo``, ``Mjlab-Tracking-Flat-Pal-Kangaroo-Hands``
+  and ``Mjlab-Tracking-Flat-Pal-Kangaroo-Lower-Body`` do not use state estimation.
+  The default value of the flag ``has-state_estimation`` is now set to ``False``.
+  (`#139 <https://github.com/pal-robotics/pal_mjlab/pull/139>`_)
+
+- **Axis inverted for arm joints 5 and 7 in kangaroo grippers xml.**
+  For arm joints 5 and 7 in ``kangaroo_grippers.xml``, axis have gone from
+  ``"0 0 -1"`` to ``"0 0 1"``. Policies trained before this commit will have
+  their behaviour affected by this change. This is done to reflect the new
+  changes introduced in the URDF. If the version of ``pal_sea_arm`` on the
+  robot is greater than 2.5.1, this change is needed. If your robot is running
+  ROS 1, this change is needed.
+  (`#131 <https://github.com/pal-robotics/pal_mjlab/pull/131>`_)
+
 - **Removed the base linear acceleration observation from the Kangaroo
   velocity tasks.** The ``base_lin_acc`` actor observation term (IMU
   linear acceleration) is no longer part of the shared
@@ -270,6 +316,12 @@ Breaking Changes
 
 Documentation & CI
 ^^^^^^^^^^^^^^^^^^
+- The documentation is now published to GitHub Pages at
+  https://pal-robotics.github.io/pal_mjlab/ by a new ``Docs`` workflow. The
+  workflow builds the docs on pull requests, treating warnings as errors,
+  and deploys them on every push to ``main``. Use ``make docs`` to build
+  them locally.
+  (`#128 <https://github.com/pal-robotics/pal_mjlab/pull/128>`_)
 - Updated the documentation for Kangaroo in ``pal_mjlab``. Added
   notes for rough terrain in the velocity task, and added documentation
   for Kangaroo grippers model (7-DoF + gripper).

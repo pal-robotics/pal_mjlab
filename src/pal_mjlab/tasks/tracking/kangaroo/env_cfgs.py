@@ -26,7 +26,7 @@ from pal_mjlab.tasks.velocity import mdp
 
 
 def pal_kangaroo_flat_tracking_env_cfg(
-  has_state_estimation: bool = True,
+  has_state_estimation: bool = False,
   play: bool = False,
 ) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics Talos flat terrain tracking configuration."""
@@ -101,11 +101,6 @@ def pal_kangaroo_flat_tracking_env_cfg(
     func=mdp.imu_projected_gravity,
     params={"sensor_name": "robot/imu_quat"},
     noise=Unoise(n_min=-0.02, n_max=0.02),
-  )
-  cfg.observations["actor"].terms["base_lin_acc"] = ObservationTermCfg(
-    func=mdp.builtin_sensor,
-    params={"sensor_name": "robot/imu_lin_acc"},
-    noise=Unoise(n_min=-0.05, n_max=0.05),
   )
   cfg.observations["critic"].terms["imu_projected_gravity"] = ObservationTermCfg(
     func=mdp.imu_projected_gravity,
@@ -205,7 +200,7 @@ def pal_kangaroo_flat_tracking_env_cfg(
 
 
 def pal_kangaroo_hands_flat_env_cfg(
-  has_state_estimation: bool = True,
+  has_state_estimation: bool = False,
   play: bool = False,
 ) -> ManagerBasedRlEnvCfg:
   """Create PAL Robotics KANGAROO with hands (5 DoF per arms) rough terrain velocity configuration."""

@@ -20,6 +20,7 @@ MUJOCO_LOG.TXT
 
 # Docs build output
 docs_build/
+_build/
 
 # Data
 artifacts/
