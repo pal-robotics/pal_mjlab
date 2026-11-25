@@ -235,6 +235,15 @@ dependency issue, check which of these bumps might be relevant first.
 Breaking Changes
 ^^^^^^^^^^^^^^^^
 
+- **Base linear acceleration is now critic-only for tracking and reaching.**
+  The ``base_lin_acc`` actor observation has been removed from
+  ``Mjlab-Tracking-Flat-Pal-Kangaroo``, ``Mjlab-Tracking-Flat-Pal-Kangaroo-Hands``,
+  ``Mjlab-Tracking-Flat-Pal-Kangaroo-Lower-Body`` and the
+  ``Mjlab-Reaching-Flat-Pal-Kangaroo`` (``-Grippers``, ``-Hands``) tasks. The
+  critic still observes it. The lower-body velocity tasks keep it in the actor.
+  Policies trained before this change for the affected tasks must be retrained.
+  (`#142 <https://github.com/pal-robotics/pal_mjlab/pull/142>`_)
+
 - **Removed tracking with state estimation and changed default**
   The variants of the tracking task with state estimation have been removed.
   Now, default tasks, ``Mjlab-Tracking-Flat-Pal-Kangaroo``, ``Mjlab-Tracking-Flat-Pal-Kangaroo-Hands``
