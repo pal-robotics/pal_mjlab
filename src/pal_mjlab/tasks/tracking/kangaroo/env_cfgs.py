@@ -28,7 +28,10 @@ from pal_mjlab.robots import (
   get_kangaroo_hands_robot_cfg,
   get_kangaroo_robot_cfg,
 )
-from pal_mjlab.tasks.tracking.mdp import ObstacleDropMotionCommandCfg
+from pal_mjlab.tasks.tracking.mdp import (
+  ObstacleClimbMotionCommandCfg,
+  ObstacleDropMotionCommandCfg,
+)
 from pal_mjlab.tasks.velocity import mdp
 
 
@@ -292,3 +295,77 @@ def pal_kangaroo_obstacle_tracking_env_cfg(
 
   return cfg
 
+
+# get_on_box was recorded stepping onto a 0.47 m box (the soles end at 0.47 m), facing
+# -y: the feet start at y in [-0.02, 0.22] and end on the box at y in [-0.57, -0.31].
+# The climb task samples the box height per episode from CLIMB_OBSTACLE_HEIGHTS (one
+# terrain row per height) and tracks the motion unchanged (see
+# ObstacleClimbMotionCommand). On 0.47 m the reference already has the right leg
+# length at its lower limit when it lifts the foot onto the box, hence the 0.55 m top.
+GET_ON_BOX_OBSTACLE_HEIGHT = 0.47
+CLIMB_OBSTACLE_HEIGHT_RANGE = (0.3, 0.55)
+NUM_CLIMB_OBSTACLE_HEIGHTS = 11
+CLIMB_OBSTACLE_HEIGHTS = tuple(
+  float(h)
+  for h in np.linspace(*CLIMB_OBSTACLE_HEIGHT_RANGE, NUM_CLIMB_OBSTACLE_HEIGHTS)
+)
+# Box in front of the robot (along -y): near edge 0.33 m ahead of the start position,
+# at the heels of the feet on the box (y = -0.31 to -0.33). The knees reach y = -0.28
+# at the start, so the box cannot be closer; while stepping up the reference knees
+# still pass through its front face, and resets there are moved to the nearest clean
+# frame (see ObstacleClimbMotionCommand).
+CLIMB_BOX_SIZE = (1.0, 0.8)
+CLIMB_BOX_NEAR_EDGE_Y = -0.33
+
+
+def pal_kangaroo_obstacle_climb_tracking_env_cfg(
+  has_state_estimation: bool = False,
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """Kangaroo stepping onto a box whose height is sampled per episode."""
+  cfg = pal_kangaroo_flat_tracking_env_cfg(
+    has_state_estimation=has_state_estimation, play=play
+  )
+
+  cfg.scene.terrain = TerrainEntityCfg(
+    terrain_type="generator",
+    terrain_generator=TerrainGeneratorCfg(
+      size=(3.0, 3.0),
+      num_rows=NUM_CLIMB_OBSTACLE_HEIGHTS,
+      num_cols=1,
+      border_width=10.0,
+      # Curriculum mode makes row i hold the box of height CLIMB_OBSTACLE_HEIGHTS[i].
+      curriculum=True,
+      difficulty_range=(0.0, 1.0),
+      add_lights=False,
+      sub_terrains={
+        "box": terrain_gen.BoxSingleObstacleTerrainCfg(
+          size=(1.0, 1.0),
+          proportion=1.0,
+          box_size=CLIMB_BOX_SIZE,
+          box_height_range=CLIMB_OBSTACLE_HEIGHT_RANGE,
+          box_offset=(0.0, CLIMB_BOX_NEAR_EDGE_Y - CLIMB_BOX_SIZE[1] / 2),
+        ),
+      },
+    ),
+    max_init_terrain_level=None,
+  )
+
+  assert cfg.commands is not None
+  motion_cmd = cfg.commands["motion"]
+  assert isinstance(motion_cmd, MotionCommandCfg)
+  cfg.commands["motion"] = ObstacleClimbMotionCommandCfg(
+    **{f.name: getattr(motion_cmd, f.name) for f in fields(MotionCommandCfg)},
+    obstacle_heights=CLIMB_OBSTACLE_HEIGHTS,
+    reference_obstacle_height=GET_ON_BOX_OBSTACLE_HEIGHT,
+    obstacle_footprint=(
+      -CLIMB_BOX_SIZE[0] / 2,
+      CLIMB_BOX_SIZE[0] / 2,
+      CLIMB_BOX_NEAR_EDGE_Y - CLIMB_BOX_SIZE[1],
+      CLIMB_BOX_NEAR_EDGE_Y,
+    ),
+  )
+
+  cfg.sim.nconmax = 100
+
+  return cfg
