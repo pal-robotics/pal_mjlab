@@ -1,0 +1,94 @@
+"""``MotionLibraryCommand``'s twin for SuperMimic's imagination (``rl/supermimic/command_model.py``).
+
+The command state is the env's (clip, target frame) pair, as global library frame indices.
+Each method mirrors the command term's simulator code in ``commands.py`` on that pair:
+the frame advances to the clip's last frame and stays there, the episode ends on the step
+that targets it, the goal is the next K frames, and the termination reference is the target
+frame's root height and tilt. States are in the env's local frame, like the library.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+import torch
+
+from pal_mjlab.rl.supermimic.command_model import CommandState
+
+from .tracking import BodyState, projected_gravity_z, reference_goal, root_pose_error
+
+if TYPE_CHECKING:
+  from pal_mjlab.rl.supermimic.imagination import BatchSpec
+
+  from .commands import MotionLibraryCommand
+
+__all__ = ["MotionLibraryCommandModel"]
+
+
+class MotionLibraryCommandModel:
+  """``c = {"clip": (B,) long, "frame": (B,) long}``."""
+
+  def __init__(self, cmd: MotionLibraryCommand) -> None:
+    """Built by the command (``MotionLibraryCommand.command_model``)."""
+    self.cmd = cmd
+    self.library = cmd.library
+    self.num_future_frames = cmd.cfg.num_future_frames
+    self.time_left_cap = cmd.cfg.time_left_cap_s / cmd._env.step_dt
+    self._body_index: tuple[object, torch.Tensor | None] | None = None
+
+  # Simulator side ---------------------------------------------------------------
+
+  def state(self) -> CommandState:
+    return {"clip": self.cmd.clip.clone(), "frame": self.cmd.frame.clone()}
+
+  # Imagination side -------------------------------------------------------------
+
+  def _last(self, c: CommandState) -> torch.Tensor:
+    return self.library.clip_end[c["clip"]] - 1
+
+  def advance(self, c: CommandState) -> CommandState:
+    return {"clip": c["clip"], "frame": torch.minimum(c["frame"] + 1, self._last(c))}
+
+  def done(self, c: CommandState) -> torch.Tensor:
+    """The step that targets the clip's last frame ends the episode (``at_clip_end``)."""
+    return c["frame"] >= self._last(c)
+
+  def goal(self, c: CommandState, qpos: torch.Tensor) -> torch.Tensor:
+    """K future reference frames from the target frame on (past the clip end, the last),
+    in the frame of the robot's root orientation ``qpos[:, 3:7]``."""
+    k = torch.arange(self.num_future_frames, device=qpos.device)
+    idx = torch.minimum(c["frame"][:, None] + k, self._last(c)[:, None])
+    return reference_goal(self.library.qpos[idx], self.library.qvel[idx], qpos[:, 3:7])
+
+  def termination_ref(self, c: CommandState) -> torch.Tensor:
+    qp = self.library.qpos[c["frame"]]
+    return torch.stack([qp[:, 2], projected_gravity_z(qp[:, 3:7])], dim=-1)
+
+  def root_pose_error(self, c: CommandState, qpos: torch.Tensor) -> torch.Tensor:
+    """(B, 4) the target frame's root position in the robot's heading frame, and the yaw
+    error (a privileged critic input)."""
+    ref = self.library.qpos[c["frame"]]
+    return root_pose_error(qpos[:, :3], qpos[:, 3:7], ref[:, :3], ref[:, 3:7])
+
+  def time_left(self, c: CommandState) -> torch.Tensor:
+    """(B, 1) steps left in the clip, in [0, 1] over ``time_left_cap_s``."""
+    left = (self._last(c) - c["frame"]).float()
+    return (left.clamp(max=self.time_left_cap) / self.time_left_cap)[:, None]
+
+  # Motion-specific: the tracking rewards' reference --------------------------------
+
+  def body_index(self, spec: BatchSpec) -> torch.Tensor | None:
+    """Indices of the tracked bodies (``reference``'s order) in a batch's FK bodies;
+    None when they are exactly those bodies, in order."""
+    if self._body_index is None or self._body_index[0] is not spec:
+      idx = [spec.body(name) for name in self.cmd.cfg.body_names]
+      same = idx == list(range(len(spec.body_names)))
+      tensor = None if same else torch.tensor(idx, device=self.cmd.device)
+      self._body_index = (spec, tensor)
+    return self._body_index[1]
+
+  @torch.no_grad()
+  def reference(self, c: CommandState) -> BodyState:
+    """Tracked reference bodies at the target frames (local frame, like the states)."""
+    f = c["frame"]
+    return self.cmd.bodies(self.library.qpos[f], self.library.qvel[f])

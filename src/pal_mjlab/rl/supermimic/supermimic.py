@@ -1,0 +1,474 @@
+"""SuperMimic's learning updates (paper Section 3, Algorithm A.1, Table A.5).
+
+Each iteration, after collecting simulator transitions into the replay buffer:
+
+  update_world_model   Eq. 1 on k-step replay windows (``world_model.window_loss``)
+  update_policy        Eq. 2: imagine H steps through the frozen world model from replay
+                       states and step the policy along the analytic gradient of the
+                       imagined return; then Eq. 3: fit the critic to the λ-returns of
+                       the same rollouts
+
+The world model holds the learned dynamics and termination head; reward and observation
+are the analytic heads of ``heads.py``; the command (goal, its evolution, episode end,
+termination reference, privileged critic features) is the task's ``CommandModel``. The policy is deterministic and sees the
+predicted noise-free observation plus re-sampled sensor noise.
+"""
+
+from __future__ import annotations
+
+import copy
+import math
+from dataclasses import dataclass, field
+
+import torch
+from rsl_rl.models import MLPModel
+from tensordict import TensorDict
+
+from .command_model import CommandModel
+from .models import EncoderDecoderModel
+from .replay import ReplayBuffer
+from .world_model import WorldModel, WorldModelCfg, window_loss
+from .heads import AnalyticHeads
+
+
+@dataclass
+class WorldModelUpdateCfg:
+  window: int = 8
+  """k: autoregressive window length of Eq. 1."""
+  batches: int = 10
+  """Optimizer steps per iteration, each on ``batch_size`` windows."""
+  batch_size: int = 2048
+  learning_rate: float = 2.0e-4
+  max_grad_norm: float = 1.0
+  hidden: tuple[int, ...] = (2048, 2048, 2048)
+  termination_hidden: tuple[int, ...] = (64, 64)
+  """The learned failure head, on the failure rule's two errors."""
+
+
+@dataclass
+class PolicyUpdateCfg:
+  horizon: int = 32
+  num_rollouts: int = 4096
+  gamma: float = 0.99
+  learning_rate: float = 2.0e-4
+  betas: tuple[float, float] = (0.9, 0.95)
+  max_grad_norm: float = 1.0
+  """Global gradient-norm clip, applied first."""
+  max_grad_value: float = 0.1
+  """Element-wise gradient clip, applied second."""
+  hidden_dims: tuple[int, ...] = (2048, 1024, 512, 256)
+  encoder_dims: tuple[int, ...] = (2048, 1024, 512, 256)
+  latent_dim: int = 32
+
+
+@dataclass
+class CriticUpdateCfg:
+  hidden_dims: tuple[int, ...] = (256, 128)
+  lam: float = 0.95
+  learning_rate: float = 2.0e-4
+  max_grad_norm: float = 1.0
+  epochs: int = 5
+  minibatches: int = 4
+  target_update: float = 0.0
+  """Fraction by which a target critic moves toward the critic after each critic update
+  (Polyak averaging, as SHAC does); the λ-returns bootstrap from it, which slows the
+  feedback of the critic's errors into its own targets. 0: no target critic (the
+  paper's setting)."""
+  max_return: float | None = None
+  """Bound on the bootstrapped values (targets and the imagined horizon's end value):
+  the largest return the rewards allow. Above it the value's gradient is 0, so the
+  policy cannot chase an overestimate there. None: unbounded (the paper's setting)."""
+
+
+@dataclass
+class SuperMimicCfg:
+  world_model: WorldModelUpdateCfg = field(default_factory=WorldModelUpdateCfg)
+  policy: PolicyUpdateCfg = field(default_factory=PolicyUpdateCfg)
+  critic: CriticUpdateCfg = field(default_factory=CriticUpdateCfg)
+  lr_decay_iterations: int = 250_000
+  """Cosine decay of every learning rate to ``lr_final_ratio`` over this many
+  iterations, then constant."""
+  lr_final_ratio: float = 0.03
+
+
+@dataclass
+class Rollout:
+  """An imagined rollout. Only ``objective`` carries gradients."""
+
+  objective: torch.Tensor  # (B,) Eq. 2
+  reward: torch.Tensor  # (B, H) r̂_{t+1}
+  cont: torch.Tensor  # (B, H) continuation after step t: (1 - d̂_{t+1})(1 - end)
+  alive: torch.Tensor  # (B, H) step t is inside the episode (before any command end)
+  end: torch.Tensor  # (B, H) step t ends the episode (``CommandModel.done``)
+  head_prob: torch.Tensor  # (B, H) learned failure probability
+  critic_input: torch.Tensor  # (B, H + 1, D)
+  value: torch.Tensor  # (B, H + 1) critic before this update
+
+
+def critic_value(critic: MLPModel, x: torch.Tensor) -> torch.Tensor:
+  return critic.mlp(critic.obs_normalizer(x)).squeeze(-1)
+
+
+def make_step(heads: AnalyticHeads, command_model: CommandModel):
+  """One imagined step from ŝ_t, as a function of tensors only (so it can be compiled).
+
+  The policy acts on the goal and its observation history; the world model predicts
+  ŝ_{t+1}; the analytic heads give the reward terms and the next observation, to which
+  the sensor noise η (sampled outside) is added; the world model's termination head gives
+  the failure probability, against the command's termination reference. As in the env,
+  rewards see the command state the step targeted, observations the advanced one.
+  """
+
+  def step(world_model, actor, b, history, memory, noise):
+    """``b``: the batch of ŝ_t, its last two actions and its (advanced) command state;
+    ``memory``: the stateful reward terms' memory before the step."""
+    goal = heads.goal(b)
+    x = heads.critic_input(b)
+    action = actor.act(torch.cat([goal, heads.flatten_history(history)], dim=-1))
+    s_next, p_next = world_model.step(b.state, b.pose, action, b.context)
+    # Rewards: the resulting state, its action and the command state the step targeted.
+    scored = heads.source.imagined(s_next, p_next, b.c, action, b.action, b.context)
+    terms, memory = heads.reward_terms(scored, memory)
+    logit = world_model.termination_logit(s_next, command_model.termination_ref(b.c))
+    # Observations (and the next step's goal and critic input): the advanced command state.
+    b_next = scored._replace(c=command_model.advance(b.c), memo={})
+    obs = heads.observation(b_next)
+    obs = {n: o + noise[n] if n in noise else o for n, o in obs.items()}
+    history = {
+      n: torch.cat([history[n][:, 1:], obs[n][:, None]], dim=1) for n in history
+    }
+    failure = heads.failure_probability(scored, torch.sigmoid(logit))
+    return x, b_next, terms, failure, history, memory
+
+  return step
+
+
+def imagine(
+  heads: AnalyticHeads,
+  command_model: CommandModel,
+  world_model: WorldModel,
+  actor: EncoderDecoderModel,
+  critic: MLPModel,
+  start: dict[str, torch.Tensor],
+  cfg: PolicyUpdateCfg,
+  generator: torch.Generator | None = None,
+  step=None,
+  target_critic: MLPModel | None = None,
+  max_return: float | None = None,
+) -> Rollout:
+  """Roll the policy out for H steps in the world model from replay states (Eq. 2).
+
+  ``start`` comes from ``ReplayBuffer.sample_starts``: the start state, pose, ξ and
+  command state, and the previous rows, from which the policy's observation history is
+  rebuilt. ``step`` is ``make_step``'s function, possibly compiled; by default an eager one.
+  """
+  step = step or make_step(heads, command_model)
+  b, gamma = start["state"].shape[0], cfg.gamma
+  ctx, c = start["context"], start["command"]
+
+  h = start["history_state"].shape[1]
+  flat = lambda x: x.flatten(0, 1)  # noqa: E731  (b, h, ...) -> (b * h, ...)
+  history = heads.observation(
+    heads.source.imagined(
+      flat(start["history_state"]),
+      flat(start["history_pose"]),
+      {n: flat(v) for n, v in start["history_command"].items()},
+      flat(start["history_last_action"]),
+      flat(start["history_prev_action"]),
+      flat(ctx[:, None].expand(-1, h, -1)),
+    )
+  )
+  history = heads.add_noise(history, generator)
+  history = {n: o.unflatten(0, (b, h)) for n, o in history.items()}
+  batch = heads.source.imagined(
+    start["state"], start["pose"], c, start["history_last_action"][:, -1],
+    start["history_prev_action"][:, -1], ctx,
+  )  # fmt: skip
+
+  memory = start["memory"]
+  device = ctx.device
+  survival = torch.ones(b, device=device)  # ĉ: product of the continuations so far
+  alive = torch.ones(b, device=device)
+  objective = torch.zeros(b, device=device)
+  out = {k: [] for k in ("reward", "cont", "alive", "end", "head", "input")}
+  for t in range(cfg.horizon):
+    noise = heads.sample_noise(b, generator)
+    end = command_model.done(batch.c).float()
+    x, batch, terms, head, history, memory = step(
+      world_model, actor, batch, history, memory, noise
+    )
+    reward = sum(terms.values())
+    objective = objective + gamma**t * survival * reward
+    cont = (1.0 - head) * (1.0 - end)
+    survival = survival * cont
+    for key, value in (
+      ("input", x), ("reward", reward), ("cont", cont), ("alive", alive),
+      ("end", end), ("head", head),
+    ):  # fmt: skip
+      out[key].append(value)
+    alive = alive * (1.0 - end)
+  out["input"].append(heads.critic_input(batch))
+
+  inputs = torch.stack(out["input"], dim=1)
+  value_end = critic_value(critic, inputs[:, -1])  # gradient flows into ŝ_H
+  if max_return is not None:
+    value_end = value_end.clamp(max=max_return)
+  objective = objective + gamma**cfg.horizon * survival * value_end
+  with torch.no_grad():  # the λ-returns' bootstrap values
+    value = critic_value(target_critic or critic, inputs.detach())
+    if max_return is not None:
+      value = value.clamp(max=max_return)
+
+  def stack(name):
+    return torch.stack(out[name], dim=1).detach()
+
+  return Rollout(
+    objective=objective,
+    reward=stack("reward"),
+    cont=stack("cont"),
+    alive=stack("alive"),
+    end=stack("end"),
+    head_prob=stack("head"),
+    critic_input=inputs.detach(),
+    value=value,
+  )
+
+
+def survival_before(cont: torch.Tensor) -> torch.Tensor:
+  """(B, H) ĉ_t: the product of the continuations before step t (1 at t = 0)."""
+  return torch.cat([torch.ones_like(cont[:, :1]), cont.cumprod(1)[:, :-1]], dim=1)
+
+
+def lambda_returns(
+  reward: torch.Tensor,
+  cont: torch.Tensor,
+  value: torch.Tensor,
+  gamma: float,
+  lam: float,
+) -> torch.Tensor:
+  """Eq. 3: R_t = r_{t+1} + γ cont_t ((1 - λ) V_{t+1} + λ R_{t+1}), R_H = V_H."""
+  ret = value[:, -1]
+  out = []
+  for t in reversed(range(reward.shape[1])):
+    ret = reward[:, t] + gamma * cont[:, t] * ((1 - lam) * value[:, t + 1] + lam * ret)
+    out.append(ret)
+  return torch.stack(out[::-1], dim=1)
+
+
+class SuperMimic:
+  """World model, policy and critic with their optimizers (Algorithm A.1)."""
+
+  def __init__(
+    self,
+    obs: TensorDict,
+    heads: AnalyticHeads,
+    command_model: CommandModel,
+    num_actions: int,
+    context_dim: int,
+    state_dim: int,
+    cfg: SuperMimicCfg,
+    device: str,
+    compile: bool = False,
+    *,
+    actor_groups: tuple[str, str],
+    critic_group: str,
+  ) -> None:
+    """``actor_groups``: the actor's (goal, proprioception) observation groups;
+    ``critic_group``: the critic's; ``state_dim``: the heading state's size."""
+    self.cfg, self.heads, self.device = cfg, heads, device
+    self.command_model = command_model
+    pc, cc, wc = cfg.policy, cfg.critic, cfg.world_model
+    groups = {"actor": list(actor_groups), "critic": [critic_group]}
+    self.actor = EncoderDecoderModel(
+      obs, groups, "actor", num_actions, hidden_dims=pc.hidden_dims,
+      encoder_dims=pc.encoder_dims, latent_dim=pc.latent_dim, obs_normalization=True,
+      goal_group=actor_groups[0],
+    ).to(device)  # fmt: skip
+    self.critic = MLPModel(
+      obs, groups, "critic", 1, hidden_dims=cc.hidden_dims, obs_normalization=True
+    ).to(device)
+    self.world_model = WorldModel(
+      WorldModelCfg(
+        state_dim=state_dim, action_dim=num_actions, context_dim=context_dim,
+        hidden=wc.hidden, termination_hidden=wc.termination_hidden,
+      )
+    ).to(device)  # fmt: skip
+    self.wm_optimizer = torch.optim.Adam(
+      self.world_model.parameters(), lr=wc.learning_rate
+    )
+    self.actor_optimizer = torch.optim.Adam(
+      self.actor.parameters(), lr=pc.learning_rate, betas=pc.betas
+    )
+    self.critic_optimizer = torch.optim.Adam(
+      self.critic.parameters(), lr=cc.learning_rate
+    )
+    self.target_critic: MLPModel | None = None
+    """A slowly following copy of the critic (``CriticUpdateCfg.target_update``)."""
+    if cc.target_update > 0.0:
+      self.target_critic = copy.deepcopy(self.critic).requires_grad_(False)
+    self._optimizers = (
+      (self.wm_optimizer, wc.learning_rate),
+      (self.actor_optimizer, pc.learning_rate),
+      (self.critic_optimizer, cc.learning_rate),
+    )
+    # The imagination step and the world model's window loss are long chains of small
+    # ops: compiled, each runs as a few fused kernels instead of thousands of launches.
+    self._step = make_step(heads, command_model)
+    self._window_loss = window_loss
+    if compile:
+      # The compiler reads the legacy TF32 flags, which raise once TF32 was set through
+      # the per-backend API alone (as mjlab does): set them too, so that both agree.
+      torch.backends.cuda.matmul.allow_tf32 = True
+      torch.backends.cudnn.allow_tf32 = True
+      # Default mode: CUDA graphs ("reduce-overhead") are faster in isolation but hang in
+      # the training loop.
+      self._step = torch.compile(self._step, dynamic=False)
+      self._window_loss = torch.compile(window_loss, dynamic=False)
+
+  def imagine(
+    self, start: dict[str, torch.Tensor], generator: torch.Generator | None = None
+  ) -> Rollout:
+    return imagine(
+      self.heads, self.command_model, self.world_model, self.actor, self.critic, start,
+      self.cfg.policy, generator, self._step,
+      target_critic=self.target_critic, max_return=self.cfg.critic.max_return,
+    )  # fmt: skip
+
+  def set_iteration(self, iteration: int) -> None:
+    """Cosine learning-rate decay to ``lr_final_ratio`` (Table A.5), then constant."""
+    progress = min(iteration / self.cfg.lr_decay_iterations, 1.0)
+    final = self.cfg.lr_final_ratio
+    scale = final + (1.0 - final) * 0.5 * (1.0 + math.cos(math.pi * progress))
+    for opt, lr in self._optimizers:
+      for group in opt.param_groups:
+        group["lr"] = lr * scale
+
+  # World model (Eq. 1) ----------------------------------------------------------
+
+  def update_world_model(
+    self, replay: ReplayBuffer, generator: torch.Generator | None = None
+  ) -> dict[str, float]:
+    wc, stats = self.cfg.world_model, {}
+    for _ in range(wc.batches):
+      w = replay.sample_windows(wc.batch_size, wc.window, generator)
+      shape = w["failure"].shape  # (batch, k): c of each transition
+      c = {n: v.flatten(0, 1) for n, v in w["command"].items()}
+      ref_root = self.command_model.termination_ref(c).unflatten(0, shape)
+      loss, info = self._window_loss(
+        self.world_model, w["states"], w["poses"], w["actions"], w["context"],
+        ref_root, w["failure"],
+      )  # fmt: skip
+      self.wm_optimizer.zero_grad(set_to_none=True)
+      loss.backward()
+      torch.nn.utils.clip_grad_norm_(self.world_model.parameters(), wc.max_grad_norm)
+      self.wm_optimizer.step()
+      for k, v in {"loss": loss.detach(), **info}.items():
+        stats[k] = stats.get(k, 0.0) + float(v) / wc.batches
+    return stats
+
+  # Policy (Eq. 2) and critic (Eq. 3) ---------------------------------------------
+
+  def update_policy(
+    self, replay: ReplayBuffer, generator: torch.Generator | None = None
+  ) -> dict[str, float]:
+    pc = self.cfg.policy
+    start = replay.sample_starts(pc.num_rollouts, self.heads.history, generator)
+    frozen = [*self.world_model.parameters(), *self.critic.parameters()]
+    for prm in frozen:
+      prm.requires_grad_(False)
+    try:
+      roll = self.imagine(start, generator)
+      self.actor_optimizer.zero_grad(set_to_none=True)
+      (-roll.objective.mean()).backward()
+      params = list(self.actor.parameters())
+      norm = torch.nn.utils.clip_grad_norm_(params, pc.max_grad_norm)
+      for prm in params:
+        prm.grad.clamp_(-pc.max_grad_value, pc.max_grad_value)
+      self.actor_optimizer.step()
+    finally:
+      for prm in frozen:
+        prm.requires_grad_(True)
+    stats = {
+      "objective": float(roll.objective.detach().mean()),
+      "actor_grad_norm": float(norm),
+    }
+    stats.update(self._fit_critic(roll))
+    stats.update(_rollout_stats(roll, pc.gamma))
+    return stats
+
+  def _fit_critic(self, roll: Rollout) -> dict[str, float]:
+    cc = self.cfg.critic
+    target = lambda_returns(
+      roll.reward, roll.cont, roll.value, self.cfg.policy.gamma, cc.lam
+    )
+    if cc.max_return is not None:
+      target = target.clamp(max=cc.max_return)
+    keep = roll.alive > 0  # steps after the episode's end have no target
+    x, y = roll.critic_input[:, :-1][keep], target[keep]
+    # Each step's error is weighted by the survival before it, so imagined steps after a
+    # predicted fall barely train the critic (the paper's Eq. 3 is unweighted).
+    w = survival_before(roll.cont)[keep]
+    n, losses = len(y), []
+    for _ in range(cc.epochs):
+      for batch in torch.randperm(n, device=y.device).chunk(cc.minibatches):
+        err = (critic_value(self.critic, x[batch]) - y[batch]).square()
+        loss = (w[batch] * err).sum() / w[batch].sum()
+        self.critic_optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.critic.parameters(), cc.max_grad_norm)
+        self.critic_optimizer.step()
+        losses.append(loss.detach())
+    if self.target_critic is not None:
+      with torch.no_grad():
+        for t, p in zip(self.target_critic.parameters(), self.critic.parameters()):
+          t.lerp_(p, cc.target_update)
+        for t, p in zip(self.target_critic.buffers(), self.critic.buffers()):
+          t.copy_(p)  # the observation normalizer's statistics: the critic's
+    return {
+      "critic_loss": float(torch.stack(losses).mean()) if losses else float("nan"),
+      "value": float(roll.value[:, 0].mean()),
+      "lambda_return": float(target[:, 0].mean()),
+    }
+
+  # Checkpoints --------------------------------------------------------------------
+
+  def state_dict(self) -> dict:
+    return {
+      "actor": self.actor.state_dict(),
+      "critic": self.critic.state_dict(),
+      "world_model": {
+        "cfg": vars(self.world_model.cfg),
+        "state_dict": self.world_model.state_dict(),
+      },
+      "wm_optimizer": self.wm_optimizer.state_dict(),
+      "actor_optimizer": self.actor_optimizer.state_dict(),
+      "critic_optimizer": self.critic_optimizer.state_dict(),
+      **(
+        {"target_critic": self.target_critic.state_dict()}
+        if self.target_critic is not None
+        else {}
+      ),
+    }
+
+  def load_state_dict(self, state: dict, optimizers: bool = True) -> None:
+    self.actor.load_state_dict(state["actor"])
+    if self.target_critic is not None:  # earlier checkpoints have none: the critic's
+      self.target_critic.load_state_dict(state.get("target_critic", state["critic"]))
+    self.critic.load_state_dict(state["critic"])
+    self.world_model.load_state_dict(state["world_model"]["state_dict"])
+    if optimizers:
+      self.wm_optimizer.load_state_dict(state["wm_optimizer"])
+      self.actor_optimizer.load_state_dict(state["actor_optimizer"])
+      self.critic_optimizer.load_state_dict(state["critic_optimizer"])
+
+
+@torch.no_grad()
+def _rollout_stats(roll: Rollout, gamma: float) -> dict[str, float]:
+  """Imagined reward, return and survival."""
+  discount = gamma ** torch.arange(roll.reward.shape[1], device=roll.reward.device)
+  survival = (1 - roll.head_prob * roll.alive).prod(1)  # failures only, not command ends
+  return {
+    "imagined_reward": float((roll.reward * roll.alive).sum() / roll.alive.sum()),
+    "imagined_return": float((roll.reward * roll.alive * discount).sum(1).mean()),
+    "survival_head": float(survival.mean()),
+  }

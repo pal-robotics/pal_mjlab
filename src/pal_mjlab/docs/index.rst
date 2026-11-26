@@ -27,6 +27,7 @@ Watch Kangaroo walking outdoor with a locomotion policy trained in ``pal_mjlab``
    :caption: Reinforcement Learning
 
    rl/ppo
+   rl/supermimic
    rl/training_env_building
 
 .. toctree::
@@ -39,3 +40,4 @@ Watch Kangaroo walking outdoor with a locomotion policy trained in ``pal_mjlab``
    kangaroo/models/kangaroo_grippers
    kangaroo/tasks/task_velocity
    kangaroo/tasks/task_imitation
+   kangaroo/tasks/task_supermimic
